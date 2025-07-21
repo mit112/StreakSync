@@ -1,0 +1,548 @@
+/*
+   Localizable.strings
+   StreakSync
+   
+   PRODUCTION READY: Complete localization with accessibility support
+   All user-facing strings with proper context and accessibility labels
+*/
+
+// MARK: - App Name & General
+"app.name" = "StreakSync";
+"app.tagline" = "Track your daily puzzle streaks effortlessly";
+"app.description" = "Never lose track of your daily puzzle game streaks. StreakSync automatically detects and tracks your Wordle, Quordle, Nerdle, and Heardle results when you share them.";
+
+// MARK: - Dashboard
+"dashboard.title" = "StreakSync";
+"dashboard.active_streaks" = "Active Streaks";
+"dashboard.longest_streak" = "Longest Streak";
+"dashboard.todays_progress" = "Today's Progress";
+"dashboard.daily_games" = "Daily Games";
+"dashboard.recent_achievements" = "Recent Achievements";
+"dashboard.quick_actions" = "Quick Actions";
+"dashboard.completed_games" = "%d completed";
+"dashboard.no_games_today" = "No games played today";
+"dashboard.welcome_message" = "Welcome to StreakSync! Start by playing your favorite daily puzzle games and share your results to begin tracking streaks.";
+
+// MARK: - Games
+"game.wordle" = "Wordle";
+"game.quordle" = "Quordle";
+"game.nerdle" = "Nerdle";
+"game.heardle" = "Heardle";
+"game.unknown_host" = "Unknown Game";
+"game.play_button" = "Play %@";
+"game.failed_score" = "X/%d";
+"game.completed" = "Completed";
+"game.failed" = "Failed";
+"game.accessibility_description" = "%@ game, %@ category, %@";
+"game.last_played" = "Last played %@";
+"game.never_played" = "Never played";
+"game.view_details" = "View Details";
+"game.add_to_favorites" = "Add to Favorites";
+"game.remove_from_favorites" = "Remove from Favorites";
+
+// MARK: - Game Categories
+"category.word" = "Word Games";
+"category.math" = "Math Games";
+"category.music" = "Music Games";
+"category.geography" = "Geography Games";
+"category.trivia" = "Trivia Games";
+"category.puzzle" = "Puzzle Games";
+"category.custom" = "Custom Games";
+"category.accessibility" = "%@ category";
+"category.description.word" = "Games that challenge your vocabulary and word knowledge";
+"category.description.math" = "Mathematical puzzles and number games";
+"category.description.music" = "Audio-based games testing your musical knowledge";
+"category.description.geography" = "Location and geography-based challenges";
+"category.description.trivia" = "General knowledge and trivia questions";
+"category.description.puzzle" = "Logic puzzles and brain teasers";
+"category.description.custom" = "User-created custom games";
+
+// MARK: - Streaks
+"streak.days_singular" = "1 day";
+"streak.days_plural" = "%d days";
+"streak.no_streak" = "No streak";
+"streak.active" = "Active";
+"streak.inactive" = "Inactive";
+"streak.broken" = "Broken";
+"streak.completion_rate" = "%.1f%% completion rate";
+"streak.current_streak" = "Current Streak";
+"streak.best_streak" = "Best Streak";
+"streak.total_played" = "Total Played";
+"streak.total_completed" = "Total Completed";
+"streak.streak_started" = "Streak started %@";
+"streak.last_played_today" = "Played today";
+"streak.last_played_yesterday" = "Played yesterday";
+"streak.extend_streak" = "Extend your streak by playing today!";
+"streak.broken_message" = "Streak broken. Play today to start a new one!";
+
+// MARK: - Achievements
+"achievement.first_game.title" = "First Steps";
+"achievement.first_game.description" = "Complete your first game";
+"achievement.week_warrior.title" = "Week Warrior";
+"achievement.week_warrior.description" = "Maintain a 7-day streak";
+"achievement.dedication.title" = "Dedication";
+"achievement.dedication.description" = "Play 50 games total";
+"achievement.multitasker.title" = "Multi-tasker";
+"achievement.multitasker.description" = "Play 3 different games in one day";
+"achievement.month_master.title" = "Month Master";
+"achievement.month_master.description" = "Maintain a 30-day streak";
+"achievement.perfectionist.title" = "Perfectionist";
+"achievement.perfectionist.description" = "Get a perfect score 10 times";
+"achievement.early_bird.title" = "Early Bird";
+"achievement.early_bird.description" = "Play a game before 6 AM";
+"achievement.night_owl.title" = "Night Owl";
+"achievement.night_owl.description" = "Play a game after 11 PM";
+"achievement.unlocked" = "Unlocked";
+"achievement.locked" = "Locked";
+"achievement.unlocked_date" = "Unlocked on %@";
+"achievement.progress" = "Progress: %d/%d";
+"achievement.difficulty.easy" = "Easy";
+"achievement.difficulty.medium" = "Medium";
+"achievement.difficulty.hard" = "Hard";
+"achievement.difficulty.legendary" = "Legendary";
+
+// MARK: - Achievement Requirements
+"achievement.streak_length" = "Maintain a %d-day streak";
+"achievement.total_games" = "Play %d games total";
+"achievement.perfect_week" = "Complete all games for 7 days straight";
+"achievement.perfect_month" = "Complete all games for 30 days straight";
+"achievement.first_game" = "Complete your first game";
+"achievement.multiple_games" = "Play %d different games in one day";
+"achievement.consecutive_days" = "Play for %d consecutive days";
+"achievement.specific_score" = "Get a score of %d";
+
+// MARK: - Navigation
+"navigation.back" = "Back";
+"navigation.done" = "Done";
+"navigation.cancel" = "Cancel";
+"navigation.save" = "Save";
+"navigation.settings" = "Settings";
+"navigation.see_all" = "See All";
+"navigation.close" = "Close";
+"navigation.edit" = "Edit";
+"navigation.delete" = "Delete";
+"navigation.add" = "Add";
+"navigation.share" = "Share";
+"navigation.copy" = "Copy";
+"navigation.paste" = "Paste";
+
+// MARK: - Actions
+"action.add_game" = "Add Game";
+"action.all_streaks" = "All Streaks";
+"action.achievements" = "Achievements";
+"action.play" = "Play";
+"action.play_now" = "Play Now";
+"action.share" = "Share";
+"action.favorite" = "Favorite";
+"action.unfavorite" = "Unfavorite";
+"action.open_safari" = "Open in Safari";
+"action.view_details" = "View Details";
+"action.launch_options" = "Launch Options...";
+"action.manual_entry" = "Manual Entry";
+"action.add_result" = "Add Result";
+"action.view_history" = "View History";
+"action.export_data" = "Export Data";
+"action.import_data" = "Import Data";
+"action.reset_data" = "Reset Data";
+"action.contact_support" = "Contact Support";
+
+// MARK: - Browser & Launch Options
+"browser.in_app_safari" = "In-App Safari";
+"browser.system_safari" = "Safari App";
+"browser.system_default" = "Default Browser";
+"browser.native_app" = "Native App";
+"browser.description.in_app" = "Stay in StreakSync (may need fresh login)";
+"browser.description.safari" = "Open Safari app (uses your Safari login)";
+"browser.description.default" = "Open your preferred browser (uses your login)";
+"browser.description.native" = "Open dedicated game app (best experience)";
+"browser.choose_method" = "Choose How to Play";
+"browser.remember_choice" = "Remember this choice";
+"browser.change_anytime" = "You can change this anytime in Settings";
+"browser.app_not_installed" = "App not installed";
+"browser.install_app" = "Install App";
+"browser.use_browser" = "Use Browser";
+
+// MARK: - Manual Entry
+"manual_entry.title" = "Manual Entry";
+"manual_entry.subtitle" = "Playing in a native app? Paste your result here!";
+"manual_entry.select_game" = "Select Game";
+"manual_entry.choose_game" = "Choose a game...";
+"manual_entry.paste_result" = "Paste Your Result";
+"manual_entry.example_text" = "Wordle 1,234 3/6\n\n⬛🟨⬛🟨⬛\n🟨⬛🟨⬛⬛\n🟩🟩🟩🟩🟩";
+"manual_entry.add_result" = "Add Result";
+"manual_entry.how_to_use" = "How to Use";
+"manual_entry.instructions" = "1. Play your game in any app\n2. Copy the result text\n3. Select the game above\n4. Paste the result and tap 'Add Result'";
+"manual_entry.parse_error" = "Could not parse the result. Please check the format and try again.";
+"manual_entry.success" = "Result added successfully!";
+
+// MARK: - Notifications
+"notification.result_saved.title" = "🎉 %@ Result Saved!";
+"notification.result_saved.body" = "Score: %@ - Your streak has been updated";
+"notification.achievement_unlocked.title" = "🏆 Achievement Unlocked!";
+"notification.achievement_unlocked.body" = "%@ - %@";
+"notification.streak_extended.title" = "🔥 Streak Extended!";
+"notification.streak_extended.body" = "Your %@ streak is now %d days long!";
+"notification.streak_broken.title" = "💔 Streak Broken";
+"notification.streak_broken.body" = "Your %@ streak has ended. Start a new one today!";
+"notification.permission_required" = "Notifications Required";
+"notification.permission_message" = "Enable notifications to get updates when your streaks change.";
+"notification.enable" = "Enable Notifications";
+"notification.not_now" = "Not Now";
+
+// MARK: - Share Extension
+"share.processing" = "Processing shared content...";
+"share.success.title" = "🎉 %@ Result Detected!";
+"share.success.message" = "Score: %@\nReady to save to StreakSync?";
+"share.save_now" = "Save Now";
+"share.add_note" = "Add a note (optional)";
+"share.error.title" = "Unable to Process";
+"share.error.no_content" = "No content to process";
+"share.error.invalid_content" = "Invalid content format";
+"share.error.unsupported_content" = "Only text content is supported";
+"share.error.no_game_detected" = "Could not detect a valid game result from the shared content";
+"share.error.save_failed" = "Failed to save result";
+"share.error.network" = "Network error occurred";
+"share.error.permission" = "Permission denied";
+
+// MARK: - Game Instructions
+"instructions.title" = "How to Track Your Results";
+"instructions.step1" = "Play the game and complete today's puzzle";
+"instructions.step2" = "Tap the share button in the game";
+"instructions.step3" = "Select 'StreakSync' from the share menu";
+"instructions.step4" = "Your result will be automatically tracked!";
+"instructions.alternative" = "Alternatively, use Manual Entry for native apps";
+"instructions.tips" = "Tips & Tricks";
+"instructions.tip1" = "Most browser-based games work with the share method";
+"instructions.tip2" = "For native apps, use the Manual Entry feature";
+"instructions.tip3" = "Results are automatically organized by date";
+"instructions.tip4" = "View your progress in the calendar view";
+
+// MARK: - Errors & Warnings
+"error.generic" = "Something went wrong";
+"error.network" = "Network connection failed";
+"error.data_corrupted" = "Data appears to be corrupted";
+"error.invalid_app_group" = "App Group configuration error";
+"error.notification_permission" = "Notification permission required";
+"error.processing_timeout" = "Processing took too long";
+"error.parse_failed" = "Failed to parse game result";
+"error.save_failed" = "Failed to save data";
+"error.load_failed" = "Failed to load data";
+"error.invalid_input" = "Invalid input provided";
+"error.try_again" = "Please try again";
+"error.contact_support" = "If this problem persists, please contact support";
+"warning.data_sync" = "Some data may not be up to date";
+"warning.low_storage" = "Low storage space available";
+"warning.old_data" = "Some data is from an older version";
+
+// MARK: - Loading States
+"loading.processing" = "Processing...";
+"loading.saving" = "Saving...";
+"loading.loading" = "Loading...";
+"loading.syncing" = "Syncing...";
+"loading.please_wait" = "Please wait...";
+"loading.almost_done" = "Almost done...";
+"loading.fetching_data" = "Fetching data...";
+"loading.updating" = "Updating...";
+
+// MARK: - Empty States
+"empty.no_games" = "No games yet";
+"empty.no_games_message" = "Start playing your favorite puzzle games to see them here";
+"empty.no_streaks" = "No active streaks";
+"empty.no_streaks_message" = "Complete a game to start your first streak";
+"empty.no_achievements" = "No achievements yet";
+"empty.no_achievements_message" = "Play games to unlock achievements";
+"empty.no_results" = "No results yet";
+"empty.no_results_message" = "Share your game results to see them here";
+"empty.no_history" = "No history available";
+"empty.no_history_message" = "Your game history will appear here";
+
+// MARK: - Accessibility
+"accessibility.streak_flame" = "Streak flame icon";
+"accessibility.game_icon" = "%@ game icon";
+"accessibility.play_game" = "Play %@ game";
+"accessibility.view_streak" = "View streak details for %@";
+"accessibility.achievement_unlocked" = "Achievement unlocked: %@";
+"accessibility.achievement_locked" = "Achievement locked: %@";
+"accessibility.loading" = "Loading content";
+"accessibility.refresh" = "Pull to refresh";
+"accessibility.score" = "Score: %@";
+"accessibility.date" = "Date: %@";
+"accessibility.game_result" = "%@ result: %@";
+"accessibility.streak_status" = "Streak status: %@";
+"accessibility.completion_rate" = "Completion rate: %@";
+"accessibility.double_tap" = "Double tap to open";
+"accessibility.swipe_actions" = "Swipe for actions";
+"accessibility.button" = "Button";
+"accessibility.header" = "Header";
+"accessibility.navigation" = "Navigation";
+"accessibility.close_button" = "Close";
+"accessibility.back_button" = "Back";
+"accessibility.menu_button" = "Menu";
+"accessibility.settings_button" = "Settings";
+
+// MARK: - VoiceOver Announcements
+"voiceover.new_result" = "New game result added";
+"voiceover.streak_updated" = "Streak updated";
+"voiceover.achievement_unlocked" = "New achievement unlocked";
+"voiceover.data_refreshed" = "Data refreshed";
+"voiceover.navigation_changed" = "Navigated to %@";
+"voiceover.selection_changed" = "Selected %@";
+"voiceover.action_completed" = "Action completed";
+"voiceover.error_occurred" = "An error occurred";
+
+// MARK: - Time & Date
+"date.today" = "Today";
+"date.yesterday" = "Yesterday";
+"date.days_ago" = "%d days ago";
+"date.week_ago" = "1 week ago";
+"date.weeks_ago" = "%d weeks ago";
+"date.month_ago" = "1 month ago";
+"date.months_ago" = "%d months ago";
+"date.year_ago" = "1 year ago";
+"date.years_ago" = "%d years ago";
+"time.just_now" = "Just now";
+"time.minute_ago" = "1 minute ago";
+"time.minutes_ago" = "%d minutes ago";
+"time.hour_ago" = "1 hour ago";
+"time.hours_ago" = "%d hours ago";
+"time.morning" = "Morning";
+"time.afternoon" = "Afternoon";
+"time.evening" = "Evening";
+"time.night" = "Night";
+
+// MARK: - Statistics
+"stats.total_games" = "Total Games";
+"stats.completion_rate" = "Completion Rate";
+"stats.average_score" = "Average Score";
+"stats.best_streak" = "Best Streak";
+"stats.current_streak" = "Current Streak";
+"stats.games_played" = "Games Played";
+"stats.games_completed" = "Games Completed";
+"stats.success_rate" = "Success Rate";
+"stats.longest_streak" = "Longest Streak";
+"stats.total_days" = "Total Days";
+"stats.perfect_games" = "Perfect Games";
+"stats.this_week" = "This Week";
+"stats.this_month" = "This Month";
+"stats.this_year" = "This Year";
+"stats.all_time" = "All Time";
+
+// MARK: - Calendar & History
+"calendar.month_year" = "%@ %d";
+"calendar.today" = "Today";
+"calendar.no_data" = "No data for this month";
+"calendar.select_date" = "Select a date to view details";
+"calendar.swipe_navigation" = "Swipe to navigate between months";
+"history.title" = "Game History";
+"history.filter" = "Filter";
+"history.sort" = "Sort";
+"history.export" = "Export";
+"history.clear" = "Clear History";
+"history.no_results" = "No results found";
+
+// MARK: - Data Management
+"data.export" = "Export Data";
+"data.import" = "Import Data";
+"data.backup" = "Backup Data";
+"data.restore" = "Restore Data";
+"data.clear" = "Clear All Data";
+"data.clear_confirmation" = "Are you sure you want to clear all data? This action cannot be undone.";
+"data.export_success" = "Data exported successfully";
+"data.import_success" = "Data imported successfully";
+"data.backup_success" = "Data backed up successfully";
+"data.restore_success" = "Data restored successfully";
+
+// MARK: - Settings (Future)
+"settings.title" = "Settings";
+"settings.notifications" = "Notifications";
+"settings.data" = "Data & Privacy";
+"settings.about" = "About";
+"settings.version" = "Version";
+"settings.build" = "Build";
+"settings.contact" = "Contact Support";
+"settings.privacy_policy" = "Privacy Policy";
+"settings.terms" = "Terms of Service";
+"settings.licenses" = "Open Source Licenses";
+"settings.reset" = "Reset Settings";
+"settings.appearance" = "Appearance";
+"settings.theme" = "Theme";
+"settings.language" = "Language";
+"settings.advanced" = "Advanced";
+
+// MARK: - Onboarding (Future)
+"onboarding.welcome.title" = "Welcome to StreakSync";
+"onboarding.welcome.subtitle" = "Track your daily puzzle game streaks effortlessly";
+"onboarding.features.title" = "What You Can Do";
+"onboarding.features.subtitle" = "Discover all the ways StreakSync helps you";
+"onboarding.permissions.title" = "Enable Notifications";
+"onboarding.permissions.subtitle" = "Get notified when your streaks are updated";
+"onboarding.ready.title" = "You're All Set!";
+"onboarding.ready.subtitle" = "Start playing your favorite games and track your progress";
+"onboarding.skip" = "Skip";
+"onboarding.next" = "Next";
+"onboarding.get_started" = "Get Started";
+"onboarding.feature1" = "Automatic result detection from shared content";
+"onboarding.feature2" = "Beautiful calendar view of your progress";
+"onboarding.feature3" = "Achievement system to keep you motivated";
+"onboarding.feature4" = "Support for popular puzzle games";
+
+// MARK: - Confirmation Dialogs
+"confirm.delete" = "Delete";
+"confirm.cancel" = "Cancel";
+"confirm.save" = "Save";
+"confirm.discard" = "Discard";
+"confirm.continue" = "Continue";
+"confirm.reset" = "Reset";
+"confirm.clear" = "Clear";
+"confirm.remove" = "Remove";
+"confirm.replace" = "Replace";
+"confirm.merge" = "Merge";
+
+// MARK: - Success Messages
+"success.saved" = "Saved successfully";
+"success.updated" = "Updated successfully";
+"success.deleted" = "Deleted successfully";
+"success.shared" = "Shared successfully";
+"success.copied" = "Copied to clipboard";
+"success.exported" = "Exported successfully";
+"success.imported" = "Imported successfully";
+
+// MARK: - Pro Features (Future)
+"pro.title" = "StreakSync Pro";
+"pro.subtitle" = "Unlock advanced features";
+"pro.feature1" = "Unlimited custom games";
+"pro.feature2" = "Advanced statistics and analytics";
+"pro.feature3" = "Cloud sync across devices";
+"pro.feature4" = "Export data in multiple formats";
+"pro.feature5" = "Priority support";
+"pro.upgrade" = "Upgrade to Pro";
+"pro.restore" = "Restore Purchases";
+"pro.already_pro" = "You're already a Pro user!";
+"pro.thank_you" = "Thank you for supporting StreakSync!";
+
+/* Error Localizations - Add to Localizable.strings */
+
+/* Share Extension Errors */
+"error.share.no_content" = "No Content to Process";
+"error.share.no_content.reason" = "The shared content was empty or could not be read.";
+"error.share.no_content.recovery" = "Make sure you've selected text before sharing.";
+
+"error.share.invalid_type" = "Unsupported Content Type";
+"error.share.invalid_type.reason" = "StreakSync can only process text-based game results.";
+"error.share.invalid_type.recovery" = "Copy your game result as text and try again.";
+
+"error.share.timeout" = "Processing Timeout";
+"error.share.timeout.reason" = "The share extension took too long to process your result.";
+"error.share.timeout.recovery" = "Try sharing again or use Manual Entry in the app.";
+
+"error.share.app_group" = "Configuration Error";
+"error.share.app_group.reason" = "StreakSync cannot access shared storage between app components.";
+"error.share.app_group.recovery" = "Please reinstall StreakSync from the App Store.";
+
+"error.share.save_failed" = "Save Failed";
+"error.share.save_failed.reason" = "Your game result could not be saved.";
+"error.share.save_failed.recovery" = "Check your device storage and try again.";
+
+"error.share.notification_failed" = "Sync Failed";
+"error.share.notification_failed.reason" = "Could not notify the main app about your new result.";
+"error.share.notification_failed.recovery" = "Open StreakSync to see your result.";
+
+/* Parsing Errors */
+"error.parsing.unknown_format" = "Unrecognized Game Format";
+"error.parsing.unknown_format.reason" = "The shared text doesn't match any supported game format.";
+"error.parsing.unknown_format.recovery" = "Make sure to share the complete game result including the score.";
+
+"error.parsing.invalid_score" = "Invalid Score Format";
+"error.parsing.invalid_score.reason" = "The score format doesn't match what we expect for this game.";
+"error.parsing.invalid_score.recovery" = "Use Manual Entry to add this result with the correct score.";
+
+"error.parsing.missing_puzzle" = "Missing Puzzle Number";
+"error.parsing.missing_puzzle.reason" = "We need the puzzle number to track your progress correctly.";
+"error.parsing.missing_puzzle.recovery" = "Include the puzzle number (e.g., 'Wordle 942') when sharing.";
+
+"error.parsing.malformed_data" = "Corrupted Game Data";
+"error.parsing.malformed_data.reason" = "The game result appears to be incomplete or corrupted.";
+"error.parsing.malformed_data.recovery" = "Copy the result again from the game and share it.";
+
+"error.parsing.unsupported_game" = "Game Not Supported";
+"error.parsing.unsupported_game.reason" = "StreakSync doesn't support this game yet.";
+"error.parsing.unsupported_game.recovery" = "Use Manual Entry or request support for this game.";
+
+"error.parsing.date_failed" = "Date Not Found";
+"error.parsing.date_failed.reason" = "Could not determine when this game was played.";
+"error.parsing.date_failed.recovery" = "Add the result manually with the correct date.";
+
+/* Persistence Errors */
+"error.persistence.save_failed" = "Save Failed";
+"error.persistence.load_failed" = "Load Failed";
+"error.persistence.corrupted" = "Data Corrupted";
+"error.persistence.migration_failed" = "Update Failed";
+"error.persistence.storage_full" = "Storage Full";
+"error.persistence.key_not_found" = "Data Not Found";
+"error.persistence.encoding_failed" = "Processing Failed";
+"error.persistence.decoding_failed" = "Read Failed";
+
+"error.persistence.save_failed.reason" = "Your data could not be saved to device storage.";
+"error.persistence.save_failed.recovery" = "Try again or restart StreakSync.";
+
+"error.persistence.load_failed.reason" = "Your saved data could not be loaded.";
+"error.persistence.load_failed.recovery" = "Pull down to refresh or restart the app.";
+
+"error.persistence.corrupted.reason" = "Your saved data appears to be damaged.";
+"error.persistence.corrupted.recovery" = "You may need to reset your data in Settings.";
+
+"error.persistence.migration_failed.reason" = "Could not update your data to the new format.";
+"error.persistence.migration_failed.recovery" = "Update StreakSync to the latest version.";
+
+"error.persistence.storage_full.reason" = "Your device doesn't have enough free space.";
+"error.persistence.storage_full.recovery" = "Free up space by deleting unused apps or photos.";
+
+"error.persistence.key_not_found.reason" = "The requested data doesn't exist.";
+"error.persistence.key_not_found.recovery" = "This data may have been deleted or not yet created.";
+
+"error.persistence.coding_failed.recovery" = "Update the app or contact support for help.";
+
+/* Sync Errors */
+"error.sync.app_group" = "Sync Error";
+"error.sync.app_group.reason" = "The Share Extension couldn't communicate with StreakSync.";
+"error.sync.app_group.recovery" = "Open StreakSync to manually sync your results.";
+
+"error.sync.notification" = "Update Failed";
+"error.sync.notification.reason" = "Could not send the update notification.";
+"error.sync.notification.recovery" = "Pull down to refresh in the main app.";
+
+"error.sync.url_scheme" = "Invalid Link";
+"error.sync.url_scheme.reason" = "The app link is malformed or outdated.";
+"error.sync.url_scheme.recovery" = "Update StreakSync to the latest version.";
+
+"error.sync.darwin" = "System Error";
+"error.sync.darwin.reason" = "iOS system communication is unavailable.";
+"error.sync.darwin.recovery" = "Restart your device if this persists.";
+
+"error.sync.duplicate" = "Duplicate Result";
+"error.sync.duplicate.reason" = "This game result has already been saved.";
+
+"error.sync.timeout" = "Sync Timeout";
+"error.sync.timeout.reason" = "The sync operation took too long.";
+"error.sync.timeout.recovery" = "Check your internet connection and try again.";
+
+/* UI Errors */
+"error.ui.navigation" = "Navigation Error";
+"error.ui.navigation.reason" = "Could not navigate to the requested screen.";
+"error.ui.navigation.recovery" = "Go back and try again.";
+
+"error.ui.missing_data" = "Missing Data";
+"error.ui.missing_data.reason" = "Required information is not available.";
+"error.ui.missing_data.recovery" = "Return to the previous screen.";
+
+"error.ui.sheet" = "Display Error";
+"error.ui.sheet.reason" = "Could not show the requested content.";
+"error.ui.sheet.recovery" = "Close any open screens and try again.";
+
+"error.ui.state" = "App State Error";
+"error.ui.state.reason" = "The app encountered an unexpected state.";
+"error.ui.state.recovery" = "Restart StreakSync if this continues.";
+
+"error.ui.viewmodel" = "Loading Error";
+"error.ui.viewmodel.reason" = "Failed to load the screen properly.";
+"error.ui.viewmodel.recovery" = "Pull to refresh or restart the app.";
