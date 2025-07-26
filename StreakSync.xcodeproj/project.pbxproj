@@ -53,7 +53,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Errors/AppError.swift,
-				"Extensions/Color+Extensions.swift",
+				"Extensions/Color+ThemeExtensions.swift",
 				Extensions/ColorTheme.swift,
 				Models/SharedModels.swift,
 				Services/SharedDataManager.swift,

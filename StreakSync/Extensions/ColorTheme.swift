@@ -1,6 +1,6 @@
-import SwiftUI
-
-// MARK: - Color Theme Definitions
+//import SwiftUI
+//
+//// MARK: - Color Theme Definitions
 enum ColorTheme: String, CaseIterable {
     case indigo = "Indigo Dreams"      // Current refined theme
     case aurora = "Aurora"              // Northern lights inspired
@@ -85,7 +85,7 @@ enum ColorTheme: String, CaseIterable {
         }
     }
 }
-
+//
 struct ThemeColors {
     let backgroundLight: String
     let backgroundDark: String
@@ -96,352 +96,352 @@ struct ThemeColors {
     let statOrange: [String]
     let statGreen: [String]
 }
-
-// MARK: - Theme Preview View
-struct ColorThemeExplorer: View {
-    @State private var selectedTheme: ColorTheme = .indigo
-    @State private var colorScheme: ColorScheme = .light
-    
-    var body: some View {
-        ZStack {
-            // Background
-            (colorScheme == .dark ?
-                Color(hex: selectedTheme.colors.backgroundDark) :
-                Color(hex: selectedTheme.colors.backgroundLight))
-                .ignoresSafeArea()
-                .animation(.easeInOut(duration: 0.3), value: selectedTheme)
-            
-            VStack(spacing: 0) {
-                // Header
-                headerSection
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Theme selector
-                        themeSelectorSection
-                        
-                        // Preview sections
-                        previewHeader
-                        previewStats
-                        previewCard
-                        previewTabBar
-                    }
-                    .padding()
-                }
-            }
-        }
-        .preferredColorScheme(colorScheme)
-    }
-    
-    // MARK: - Header Section
-    private var headerSection: some View {
-        VStack(spacing: 16) {
-            Text("Color Theme Explorer")
-                .font(.largeTitle.bold())
-                .padding(.top)
-            
-            // Dark mode toggle
-            Toggle("Dark Mode", isOn: Binding(
-                get: { colorScheme == .dark },
-                set: { colorScheme = $0 ? .dark : .light }
-            ))
-            .toggleStyle(SwitchToggleStyle(tint: Color(selectedTheme.colors.accentLight[0])))
-            .padding(.horizontal, 60)
-        }
-        .padding(.bottom)
-    }
-    
-    // MARK: - Theme Selector
-    private var themeSelectorSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Select Theme")
-                .font(.headline)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(ColorTheme.allCases, id: \.self) { theme in
-                        ThemeButton(
-                            theme: theme,
-                            isSelected: selectedTheme == theme,
-                            colorScheme: colorScheme
-                        ) {
-                            withAnimation(.spring(response: 0.3)) {
-                                selectedTheme = theme
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // MARK: - Preview Sections
-    private var previewHeader: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Header Preview")
-                .font(.caption.bold())
-                .foregroundColor(.secondary)
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("StreakSync")
-                        .font(.system(size: 28, weight: .semibold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: (colorScheme == .dark ?
-                                    selectedTheme.colors.accentDark :
-                                    selectedTheme.colors.accentLight)
-                                .map { Color($0) },
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                    
-                    Text("Good morning")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.secondary.opacity(0.8))
-                }
-                
-                Spacer()
-                
-                Circle()
-                    .fill(Color.primary.opacity(0.05))
-                    .frame(width: 42, height: 42)
-                    .overlay(
-                        Image(systemName: "gearshape.fill")
-                            .foregroundColor(.primary.opacity(0.6))
-                    )
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.primary.opacity(0.02))
-            )
-        }
-    }
-    
-    private var previewStats: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Stats Preview")
-                .font(.caption.bold())
-                .foregroundColor(.secondary)
-            
-            HStack(spacing: 12) {
-                StatPreview(
-                    icon: "flame.fill",
-                    value: "7",
-                    label: "Active",
-                    colors: selectedTheme.colors.statOrange.map { Color($0) }
-                )
-                
-                StatPreview(
-                    icon: "checkmark.circle.fill",
-                    value: "3",
-                    label: "Today",
-                    colors: selectedTheme.colors.statGreen.map { Color($0) }
-                )
-            }
-        }
-    }
-    
-    private var previewCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Card Preview")
-                .font(.caption.bold())
-                .foregroundColor(.secondary)
-            
-            VStack(spacing: 16) {
-                HStack {
-                    Image(systemName: "w.square.fill")
-                        .font(.title)
-                    Text("Wordle")
-                        .font(.title2.bold())
-                    Spacer()
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                }
-                
-                Spacer()
-                
-                VStack(spacing: 8) {
-                    Text("5")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                    Text("Day Streak")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding()
-            .frame(height: 180)
-            .frame(maxWidth: .infinity)
-            .background(
-                LinearGradient(
-                    colors: (colorScheme == .dark ?
-                        selectedTheme.colors.gradientDark :
-                        selectedTheme.colors.gradientLight)
-                    .map { Color($0).opacity(0.3) },
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-            )
-        }
-    }
-    
-    private var previewTabBar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Tab Bar Preview")
-                .font(.caption.bold())
-                .foregroundColor(.secondary)
-            
-            HStack(spacing: 0) {
-                ForEach(["house.fill", "chart.line.uptrend.xyaxis", "trophy.fill", "gearshape.fill"], id: \.self) { icon in
-                    VStack(spacing: 4) {
-                        Image(systemName: icon)
-                            .font(.system(size: 20))
-                        Text(icon == "house.fill" ? "Home" : "Tab")
-                            .font(.system(size: 10, weight: .medium))
-                    }
-                    .foregroundStyle(
-                        icon == "house.fill" ?
-                            LinearGradient(
-                                colors: (colorScheme == .dark ?
-                                    selectedTheme.colors.accentDark :
-                                    selectedTheme.colors.accentLight)
-                                .map { Color($0) },
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ) :
-                            LinearGradient(
-                                colors: [Color.secondary.opacity(0.7)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.ultraThinMaterial)
-            )
-        }
-    }
-}
-
-// MARK: - Theme Button
-struct ThemeButton: View {
-    let theme: ColorTheme
-    let isSelected: Bool
-    let colorScheme: ColorScheme
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                // Color preview circles
-                HStack(spacing: 4) {
-                    let hexColors = [
-                        theme.colors.accentLight[0],
-                        theme.colors.statOrange[0],
-                        theme.colors.statGreen[0]
-                    ]
-                    
-                    ForEach(hexColors, id: \.self) { hex in
-                        Circle()
-                            .fill(Color(hex: hex))
-                            .frame(width: 16, height: 16)
-                    }
-                }
-
-
-                Text(theme.rawValue)
-                    .font(.caption.bold())
-                    .foregroundColor(isSelected ? .primary : .secondary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(isSelected ? Color.primary.opacity(0.1) : Color.clear)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .strokeBorder(
-                                isSelected ? Color.primary.opacity(0.3) : Color.clear,
-                                lineWidth: 2
-                            )
-                    )
-            )
-        }
-    }
-}
-
-
-// MARK: - Stat Preview
-struct StatPreview: View {
-    let icon: String
-    let value: String
-    let label: String
-    let colors: [Color]
-    
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(
-                    LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(value)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                
-                Text(label)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.primary.opacity(0.04))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(
-                            LinearGradient(colors: colors.map { $0.opacity(0.2) },
-                                         startPoint: .topLeading,
-                                         endPoint: .bottomTrailing),
-                            lineWidth: 1
-                        )
-                )
-        )
-    }
-}
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        let scanner = Scanner(string: hex)
-        if hex.hasPrefix("#") {
-            scanner.currentIndex = hex.index(after: hex.startIndex)
-        }
-
-        var rgb: UInt64 = 0
-        scanner.scanHexInt64(&rgb)
-
-        let r = Double((rgb >> 16) & 0xFF) / 255.0
-        let g = Double((rgb >> 8) & 0xFF) / 255.0
-        let b = Double(rgb & 0xFF) / 255.0
-
-        self.init(red: r, green: g, blue: b)
-    }
-}
-
-
-// MARK: - Preview
-#Preview {
-    ColorThemeExplorer()
-}
-
+//
+//// MARK: - Theme Preview View
+//struct ColorThemeExplorer: View {
+//    @State private var selectedTheme: ColorTheme = .indigo
+//    @State private var colorScheme: ColorScheme = .light
+//    
+//    var body: some View {
+//        ZStack {
+//            // Background
+//            (colorScheme == .dark ?
+//                Color(hex: selectedTheme.colors.backgroundDark) :
+//                Color(hex: selectedTheme.colors.backgroundLight))
+//                .ignoresSafeArea()
+//                .animation(.easeInOut(duration: 0.3), value: selectedTheme)
+//            
+//            VStack(spacing: 0) {
+//                // Header
+//                headerSection
+//                
+//                ScrollView {
+//                    VStack(spacing: 24) {
+//                        // Theme selector
+//                        themeSelectorSection
+//                        
+//                        // Preview sections
+//                        previewHeader
+//                        previewStats
+//                        previewCard
+//                        previewTabBar
+//                    }
+//                    .padding()
+//                }
+//            }
+//        }
+//        .preferredColorScheme(colorScheme)
+//    }
+//    
+//    // MARK: - Header Section
+//    private var headerSection: some View {
+//        VStack(spacing: 16) {
+//            Text("Color Theme Explorer")
+//                .font(.largeTitle.bold())
+//                .padding(.top)
+//            
+//            // Dark mode toggle
+//            Toggle("Dark Mode", isOn: Binding(
+//                get: { colorScheme == .dark },
+//                set: { colorScheme = $0 ? .dark : .light }
+//            ))
+//            .toggleStyle(SwitchToggleStyle(tint: Color(selectedTheme.colors.accentLight[0])))
+//            .padding(.horizontal, 60)
+//        }
+//        .padding(.bottom)
+//    }
+//    
+//    // MARK: - Theme Selector
+//    private var themeSelectorSection: some View {
+//        VStack(alignment: .leading, spacing: 12) {
+//            Text("Select Theme")
+//                .font(.headline)
+//            
+//            ScrollView(.horizontal, showsIndicators: false) {
+//                HStack(spacing: 12) {
+//                    ForEach(ColorTheme.allCases, id: \.self) { theme in
+//                        ThemeButton(
+//                            theme: theme,
+//                            isSelected: selectedTheme == theme,
+//                            colorScheme: colorScheme
+//                        ) {
+//                            withAnimation(.spring(response: 0.3)) {
+//                                selectedTheme = theme
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
+//    
+//    // MARK: - Preview Sections
+//    private var previewHeader: some View {
+//        VStack(alignment: .leading, spacing: 12) {
+//            Text("Header Preview")
+//                .font(.caption.bold())
+//                .foregroundColor(.secondary)
+//            
+//            HStack {
+//                VStack(alignment: .leading, spacing: 4) {
+//                    Text("StreakSync")
+//                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+//                        .foregroundStyle(
+//                            LinearGradient(
+//                                colors: (colorScheme == .dark ?
+//                                    selectedTheme.colors.accentDark :
+//                                    selectedTheme.colors.accentLight)
+//                                .map { Color($0) },
+//                                startPoint: .leading,
+//                                endPoint: .trailing
+//                            )
+//                        )
+//                    
+//                    Text("Good morning")
+//                        .font(.system(size: 15, weight: .medium))
+//                        .foregroundColor(.secondary.opacity(0.8))
+//                }
+//                
+//                Spacer()
+//                
+//                Circle()
+//                    .fill(Color.primary.opacity(0.05))
+//                    .frame(width: 42, height: 42)
+//                    .overlay(
+//                        Image(systemName: "gearshape.fill")
+//                            .foregroundColor(.primary.opacity(0.6))
+//                    )
+//            }
+//            .padding()
+//            .background(
+//                RoundedRectangle(cornerRadius: 12)
+//                    .fill(Color.primary.opacity(0.02))
+//            )
+//        }
+//    }
+//    
+//    private var previewStats: some View {
+//        VStack(alignment: .leading, spacing: 12) {
+//            Text("Stats Preview")
+//                .font(.caption.bold())
+//                .foregroundColor(.secondary)
+//            
+//            HStack(spacing: 12) {
+//                StatPreview(
+//                    icon: "flame.fill",
+//                    value: "7",
+//                    label: "Active",
+//                    colors: selectedTheme.colors.statOrange.map { Color($0) }
+//                )
+//                
+//                StatPreview(
+//                    icon: "checkmark.circle.fill",
+//                    value: "3",
+//                    label: "Today",
+//                    colors: selectedTheme.colors.statGreen.map { Color($0) }
+//                )
+//            }
+//        }
+//    }
+//    
+//    private var previewCard: some View {
+//        VStack(alignment: .leading, spacing: 12) {
+//            Text("Card Preview")
+//                .font(.caption.bold())
+//                .foregroundColor(.secondary)
+//            
+//            VStack(spacing: 16) {
+//                HStack {
+//                    Image(systemName: "w.square.fill")
+//                        .font(.title)
+//                    Text("Wordle")
+//                        .font(.title2.bold())
+//                    Spacer()
+//                    Image(systemName: "checkmark.circle.fill")
+//                        .foregroundColor(.green)
+//                }
+//                
+//                Spacer()
+//                
+//                VStack(spacing: 8) {
+//                    Text("5")
+//                        .font(.system(size: 48, weight: .bold, design: .rounded))
+//                    Text("Day Streak")
+//                        .font(.caption)
+//                        .foregroundColor(.secondary)
+//                }
+//            }
+//            .padding()
+//            .frame(height: 180)
+//            .frame(maxWidth: .infinity)
+//            .background(
+//                LinearGradient(
+//                    colors: (colorScheme == .dark ?
+//                        selectedTheme.colors.gradientDark :
+//                        selectedTheme.colors.gradientLight)
+//                    .map { Color($0).opacity(0.3) },
+//                    startPoint: .topLeading,
+//                    endPoint: .bottomTrailing
+//                )
+//                .clipShape(RoundedRectangle(cornerRadius: 20))
+//            )
+//        }
+//    }
+//    
+//    private var previewTabBar: some View {
+//        VStack(alignment: .leading, spacing: 12) {
+//            Text("Tab Bar Preview")
+//                .font(.caption.bold())
+//                .foregroundColor(.secondary)
+//            
+//            HStack(spacing: 0) {
+//                ForEach(["house.fill", "chart.line.uptrend.xyaxis", "trophy.fill", "gearshape.fill"], id: \.self) { icon in
+//                    VStack(spacing: 4) {
+//                        Image(systemName: icon)
+//                            .font(.system(size: 20))
+//                        Text(icon == "house.fill" ? "Home" : "Tab")
+//                            .font(.system(size: 10, weight: .medium))
+//                    }
+//                    .foregroundStyle(
+//                        icon == "house.fill" ?
+//                            LinearGradient(
+//                                colors: (colorScheme == .dark ?
+//                                    selectedTheme.colors.accentDark :
+//                                    selectedTheme.colors.accentLight)
+//                                .map { Color($0) },
+//                                startPoint: .top,
+//                                endPoint: .bottom
+//                            ) :
+//                            LinearGradient(
+//                                colors: [Color.secondary.opacity(0.7)],
+//                                startPoint: .top,
+//                                endPoint: .bottom
+//                            )
+//                    )
+//                    .frame(maxWidth: .infinity)
+//                }
+//            }
+//            .padding(.vertical, 12)
+//            .background(
+//                RoundedRectangle(cornerRadius: 12)
+//                    .fill(.ultraThinMaterial)
+//            )
+//        }
+//    }
+//}
+//
+//// MARK: - Theme Button
+//struct ThemeButton: View {
+//    let theme: ColorTheme
+//    let isSelected: Bool
+//    let colorScheme: ColorScheme
+//    let action: () -> Void
+//
+//    var body: some View {
+//        Button(action: action) {
+//            VStack(spacing: 8) {
+//                // Color preview circles
+//                HStack(spacing: 4) {
+//                    let hexColors = [
+//                        theme.colors.accentLight[0],
+//                        theme.colors.statOrange[0],
+//                        theme.colors.statGreen[0]
+//                    ]
+//                    
+//                    ForEach(hexColors, id: \.self) { hex in
+//                        Circle()
+//                            .fill(Color(hex: hex))
+//                            .frame(width: 16, height: 16)
+//                    }
+//                }
+//
+//
+//                Text(theme.rawValue)
+//                    .font(.caption.bold())
+//                    .foregroundColor(isSelected ? .primary : .secondary)
+//            }
+//            .padding(.horizontal, 16)
+//            .padding(.vertical, 12)
+//            .background(
+//                RoundedRectangle(cornerRadius: 10)
+//                    .fill(isSelected ? Color.primary.opacity(0.1) : Color.clear)
+//                    .overlay(
+//                        RoundedRectangle(cornerRadius: 10)
+//                            .strokeBorder(
+//                                isSelected ? Color.primary.opacity(0.3) : Color.clear,
+//                                lineWidth: 2
+//                            )
+//                    )
+//            )
+//        }
+//    }
+//}
+//
+//
+//// MARK: - Stat Preview
+//struct StatPreview: View {
+//    let icon: String
+//    let value: String
+//    let label: String
+//    let colors: [Color]
+//    
+//    var body: some View {
+//        HStack(spacing: 10) {
+//            Image(systemName: icon)
+//                .font(.system(size: 16, weight: .semibold))
+//                .foregroundStyle(
+//                    LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+//                )
+//            
+//            VStack(alignment: .leading, spacing: 2) {
+//                Text(value)
+//                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+//                
+//                Text(label)
+//                    .font(.system(size: 11, weight: .medium))
+//                    .foregroundColor(.secondary)
+//            }
+//        }
+//        .padding(.horizontal, 16)
+//        .padding(.vertical, 12)
+//        .background(
+//            RoundedRectangle(cornerRadius: 14)
+//                .fill(Color.primary.opacity(0.04))
+//                .overlay(
+//                    RoundedRectangle(cornerRadius: 14)
+//                        .strokeBorder(
+//                            LinearGradient(colors: colors.map { $0.opacity(0.2) },
+//                                         startPoint: .topLeading,
+//                                         endPoint: .bottomTrailing),
+//                            lineWidth: 1
+//                        )
+//                )
+//        )
+//    }
+//}
+////
+////extension Color {
+////    init(hex: String) {
+////        let hex = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+////        let scanner = Scanner(string: hex)
+////        if hex.hasPrefix("#") {
+////            scanner.currentIndex = hex.index(after: hex.startIndex)
+////        }
+////
+////        var rgb: UInt64 = 0
+////        scanner.scanHexInt64(&rgb)
+////
+////        let r = Double((rgb >> 16) & 0xFF) / 255.0
+////        let g = Double((rgb >> 8) & 0xFF) / 255.0
+////        let b = Double(rgb & 0xFF) / 255.0
+////
+////        self.init(red: r, green: g, blue: b)
+////    }
+////}
+//
+//
+//// MARK: - Preview
+//#Preview {
+//    ColorThemeExplorer()
+//}
+//

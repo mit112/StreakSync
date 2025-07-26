@@ -16,6 +16,10 @@ final class AppState {
     internal let logger = Logger(subsystem: "com.streaksync.app", category: "AppState")
     internal let persistenceService: PersistenceServiceProtocol
     internal let appGroupPersistence: AppGroupPersistenceService
+    // Add to AppState:
+    func getStreak(for game: Game) -> GameStreak? {
+        streaks.first { $0.gameId == game.id }
+    }
     
     // MARK: - Core Data (Persisted)
     private(set) var games: [Game] = []

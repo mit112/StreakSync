@@ -153,18 +153,3 @@ struct DashboardBackgroundView: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview("Optimized Backgrounds") {
-    VStack(spacing: 0) {
-        // Morning gradient
-        AmbientBackground(
-            colors: [Color(hex: "FF6B6B"), Color(hex: "FFE66D"), Color(hex: "FF6B6B")]
-        )
-        
-        // Day gradient
-        AmbientBackground(
-            colors: [Color(hex: "4ECDC4"), Color(hex: "44A3FC"), Color(hex: "667EEA")]
-        )
-    }
-}

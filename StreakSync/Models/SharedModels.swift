@@ -8,6 +8,7 @@
 import Foundation
 import UIKit
 import OSLog
+import SwiftUICore
 
 // MARK: - Game Model (Production Quality)
 struct Game: Identifiable, Codable, Hashable, Sendable {
@@ -54,6 +55,24 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
     
     var isOfficial: Bool {
         !isCustom
+    }
+    // Add to Game struct:
+    var isActiveToday: Bool {
+        // A game is active if it has been played recently (within last 7 days)
+        guard let lastPlayed = lastPlayedDate else { return false }
+        let daysSinceLastPlayed = Calendar.current.dateComponents([.day], from: lastPlayed, to: Date()).day ?? 0
+        return daysSinceLastPlayed < 7
+    }
+
+    var hasPlayedToday: Bool {
+        guard let lastPlayed = lastPlayedDate else { return false }
+        return Calendar.current.isDateInToday(lastPlayed)
+    }
+
+    var lastPlayedDate: Date? {
+        // This would come from your game results/streak data
+        // For now, return nil - you'll need to implement this based on your data structure
+        nil
     }
     
     var accessibilityDescription: String {
@@ -177,7 +196,10 @@ enum GameCategory: String, CaseIterable, Codable, Sendable {
 // MARK: - Thread-Safe Codable Color (Memory Optimized)
 struct CodableColor: Codable, Hashable, Sendable {
     private let colorData: ColorData
-    
+    // Add to CodableColor:
+    var color: Color {
+        Color(uiColor: self.uiColor)
+    }
     init(_ color: UIColor) {
         // Safe color mapping with comprehensive cases
         switch color {

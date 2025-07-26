@@ -2,22 +2,25 @@
 //  GameDetailView.swift
 //  StreakSync
 //
-//  Enhanced game detail with performance visualization and better UX
+//  Unified game detail screen with all enhancements
 //
 
 import SwiftUI
-import OSLog
 
 // MARK: - Game Detail View
 struct GameDetailView: View {
     let game: Game
+    
     @StateObject private var viewModel: GameDetailViewModel
     @StateObject private var browserLauncher = BrowserLauncher.shared
     @Environment(AppState.self) private var appState
     @Environment(NavigationCoordinator.self) private var coordinator
+    @EnvironmentObject private var themeManager: ThemeManager
+    
     @State private var showingManualEntry = false
-    @State private var showingBrowserOptions = false
-    @State private var isLoadingGame = false  // Add this state
+    @State private var showingShareSheet = false
+    @State private var isRefreshing = false
+    @State private var isLoadingGame = false
     
     init(game: Game) {
         self.game = game
@@ -25,92 +28,201 @@ struct GameDetailView: View {
     }
     
     var body: some View {
-           ScrollView {
-               VStack(spacing: Spacing.xl) {
-                   // Enhanced header with stats pills
-                   GameDetailHeader(game: game, streak: viewModel.currentStreak)
-                   
-                   // Primary action - Play button
-                   PlayGameButton(
-                       game: game,
-                       isLoading: isLoadingGame
-                   ) {
-                       // Action when play button is tapped
-                       isLoadingGame = true
-                       HapticManager.shared.trigger(.buttonTap)
-                       
-                       // Launch the game
-                       browserLauncher.launchGame(game)
-                       
-                       // Reset loading state after a short delay
-                       DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                           isLoadingGame = false
-                       }
-                   }
-                   
-                   // Performance visualization
-                   if !viewModel.recentResults.isEmpty {
-                       PerformanceSection(
-                           results: viewModel.recentResults,
-                           onTap: {
-                               coordinator.navigateTo(.streakHistory(viewModel.currentStreak))
-                           }
-                       )
-                   }
+        ScrollView {
+            VStack(spacing: Spacing.xl) {
+                // Header with animated stats
+                GameDetailHeader(
+                    game: game,
+                    streak: viewModel.currentStreak
+                )
+                .staggeredAppearance(index: 0, totalCount: 4)
                 
-                // Recent results
+                // Primary Actions
+                primaryActions
+                    .staggeredAppearance(index: 1, totalCount: 4)
+                
+                // Performance Section (if we have results)
                 if !viewModel.recentResults.isEmpty {
-                    RecentResultsSection(results: viewModel.recentResults)
+                    GameDetailPerformanceView(
+                        results: viewModel.recentResults,
+                        streak: viewModel.currentStreak
+                    )
+                    .staggeredAppearance(index: 2, totalCount: 4)
                 }
                 
-                // Secondary actions
-                HStack(spacing: Spacing.md) {
-                    SecondaryButton(
-                        title: "Manual Entry",
-                        icon: "keyboard",
-                        action: { showingManualEntry = true }
-                    )
-                    
-                    SecondaryButton(
-                        title: "Share Stats",
-                        icon: "square.and.arrow.up",
-                        action: { viewModel.shareGameStats() }
-                    )
-                }
+                // Recent Results
+                recentResultsSection
+                    .staggeredAppearance(index: 3, totalCount: 4)
             }
             .padding(.horizontal, Layout.contentPadding)
             .padding(.vertical, Spacing.xl)
         }
+        .refreshable {
+            await refreshData()
+        }
         .navigationTitle(game.displayName)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                shareButton
+            }
+        }
         .task {
             viewModel.setup(with: appState)
-        }
-        .refreshable {
-            await viewModel.refreshData()
         }
         .sheet(isPresented: $showingManualEntry) {
             ManualEntryView()
         }
+        .sheet(isPresented: $showingShareSheet) {
+            ShareSheet(activityItems: [shareContent])
+        }
+    }
+    
+    // MARK: - Primary Actions
+    private var primaryActions: some View {
+        HStack(spacing: Spacing.md) {
+            // Play Game Button
+            Button {
+                playGame()
+            } label: {
+                Label("Play \(game.displayName)", systemImage: "play.fill")
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                    .background(game.backgroundColor.color)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.button))
+            }
+            .pressable(hapticType: .buttonTap)
+            .hoverable()
+            .disabled(isLoadingGame)
+            .overlay {
+                if isLoadingGame {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                }
+            }
+            
+            // Manual Entry Button
+            Button {
+                showingManualEntry = true
+            } label: {
+                Label("Add Result", systemImage: "keyboard")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                    .glassCard()
+            }
+            .pressable(hapticType: .buttonTap)
+            .hoverable()
+        }
+    }
+    
+    // MARK: - Recent Results Section
+    private var recentResultsSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Label("Recent Results", systemImage: "clock.arrow.circlepath")
+                    .font(.headline)
+                Spacer()
+                
+                if viewModel.recentResults.count > 5 {
+                    Button("See All") {
+                        coordinator.navigateTo(.streakHistory(viewModel.currentStreak))
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+                }
+            }
+            
+            if viewModel.recentResults.isEmpty {
+                EmptyResultsCard(gameName: game.displayName) // Pass the game name
+            } else {
+                VStack(spacing: Spacing.sm) {
+                    ForEach(Array(viewModel.recentResults.prefix(5).enumerated()), id: \.element.id) { index, result in
+                        GameResultRow(result: result)
+                            .staggeredAppearance(
+                                index: index,
+                                totalCount: min(viewModel.recentResults.count, 5)
+                            )
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Share Button
+    private var shareButton: some View {
+        Button {
+            showingShareSheet = true
+        } label: {
+            Image(systemName: "square.and.arrow.up")
+        }
+        .pressable(hapticType: .buttonTap)
+    }
+    
+    // MARK: - Share Content
+    private var shareContent: String {
+        """
+        I'm playing \(game.displayName) on StreakSync!
+        🔥 Current Streak: \(viewModel.currentStreak.currentStreak) days
+        🏆 Best Streak: \(viewModel.currentStreak.maxStreak) days
+        ✅ Success Rate: \(viewModel.currentStreak.completionPercentage)
+        
+        Track your daily puzzle streaks with StreakSync!
+        """
+    }
+    
+    // MARK: - Actions
+    private func playGame() {
+        isLoadingGame = true
+        HapticManager.shared.trigger(.buttonTap)
+        
+        browserLauncher.launchGame(game)
+        
+        // Reset loading state after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            isLoadingGame = false
+        }
+    }
+    
+    private func refreshData() async {
+        isRefreshing = true
+        await viewModel.refreshData()
+        await appState.refreshData()
+        isRefreshing = false
     }
 }
 
-// MARK: - Enhanced Game Header
+// MARK: - Enhanced Game Detail Header
 struct GameDetailHeader: View {
     let game: Game
     let streak: GameStreak
     
+    @State private var isAnimating = false
+    
     var body: some View {
         VStack(spacing: Spacing.lg) {
-            // Game icon with background
+            // Animated game icon
             ZStack {
-                RoundedRectangle(cornerRadius: 16)
+                Circle()
                     .fill(game.backgroundColor.color.opacity(0.15))
-                    .frame(width: 80, height: 80)
+                    .frame(width: 100, height: 100)
+                    .scaleEffect(isAnimating && streak.isActive ? 1.1 : 1.0)
+                    .animation(
+                        Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true),
+                        value: isAnimating
+                    )
                 
                 Image(systemName: game.iconSystemName)
-                    .font(.system(size: 40))
+                    .font(.system(size: 44))
                     .foregroundStyle(game.backgroundColor.color)
+            }
+            .hoverable()
+            .onAppear {
+                if streak.isActive {
+                    isAnimating = true
+                }
             }
             
             // Game info
@@ -134,43 +246,55 @@ struct GameDetailHeader: View {
                 }
             }
             
-            // Stats pills
+            // Animated stats pills
             HStack(spacing: Spacing.md) {
-                StatPill(
+                AnimatedStatPill(
                     value: "\(streak.currentStreak)",
                     label: "Current",
-                    color: streak.currentStreak > 0 ? .green : .secondary
+                    color: streak.currentStreak > 0 ? .green : .orange,
+                    isActive: streak.isActive
                 )
                 
-                StatPill(
+                AnimatedStatPill(
                     value: "\(streak.maxStreak)",
                     label: "Best",
-                    color: .orange
+                    color: .blue,
+                    isActive: false
                 )
                 
-                StatPill(
+                AnimatedStatPill(
                     value: streak.completionPercentage,
                     label: "Success",
-                    color: .blue
+                    color: .purple,
+                    isActive: false
                 )
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, Spacing.lg)
+        .padding(Spacing.xl)
+        .glassCard()
     }
 }
 
-// MARK: - Stat Pill
-struct StatPill: View {
+// MARK: - Animated Stat Pill
+struct AnimatedStatPill: View {
     let value: String
     let label: String
     let color: Color
+    let isActive: Bool
     
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 4) {
             Text(value)
-                .font(.title3.weight(.semibold))
+                .font(.title3.bold())
                 .foregroundStyle(color)
+                .contentTransition(.numericText())
+                .scaleEffect(isActive ? 1.1 : 1.0)
+                .animation(
+                    isActive ?
+                    Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true) :
+                    .default,
+                    value: isActive
+                )
             
             Text(label)
                 .font(.caption)
@@ -178,211 +302,91 @@ struct StatPill: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.sm)
-        .padding(.horizontal, Spacing.md)
-        .background(color.opacity(0.1))
-        .clipShape(Capsule())
+        .glassCard(depth: .subtle)
+        .pressable(hapticType: .buttonTap, scaleAmount: 0.95)
     }
 }
 
-// MARK: - Play Game Button (Fixed - no browserLauncher parameter)
-struct PlayGameButton: View {
-    let game: Game
-    let isLoading: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                if isLoading {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                        .tint(.white)
-                } else {
-                    Image(systemName: "play.fill")
-                        .font(.title3)
-                }
-                
-                Text(isLoading ? "Opening..." : "Play \(game.displayName)")
-                    .font(.headline)
-                
-                Spacer()
-                
-                if !isLoading {
-                    Image(systemName: "arrow.up.right")
-                        .font(.subheadline)
-                }
-            }
-            .foregroundStyle(.white)
-            .padding()
-            .frame(maxWidth: .infinity)
-            .background(game.backgroundColor.color, in: RoundedRectangle(cornerRadius: 12))
-            .opacity(isLoading ? 0.8 : 1.0)
-        }
-        .buttonStyle(.plain)
-        .disabled(isLoading)
-        .accessibilityLabel(isLoading ? "Loading \(game.displayName)" : "Play \(game.displayName)")
-        .accessibilityHint("Opens the game")
-    }
-}
-
-// MARK: - Performance Section
-struct PerformanceSection: View {
-    let results: [GameResult]
-    let onTap: () -> Void
-    
-    private var last7Days: [DayPerformance] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        
-        return (0..<7).reversed().map { dayOffset in
-            let date = calendar.date(byAdding: .day, value: -dayOffset, to: today)!
-            let dayResult = results.first { result in
-                calendar.isDate(result.date, inSameDayAs: date)
-            }
-            return DayPerformance(date: date, result: dayResult)
-        }
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Text("Last 7 Days")
-                    .font(.headline)
-                
-                Spacer()
-                
-                Button("View History") {
-                    onTap()
-                }
-                .font(.subheadline)
-                .foregroundStyle(.blue)
-            }
-            
-            HStack(spacing: Spacing.sm) {
-                ForEach(last7Days, id: \.date) { day in
-                    DayIndicator(day: day)
-                }
-            }
-            .padding(Spacing.md)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.card))
-        }
-    }
-}
-
-// MARK: - Day Performance Model
-struct DayPerformance {
-    let date: Date
-    let result: GameResult?
-}
-
-// MARK: - Day Indicator
-struct DayIndicator: View {
-    let day: DayPerformance
-    
-    private var dayLabel: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "E"
-        return String(formatter.string(from: day.date).prefix(1))
-    }
-    
-    private var indicatorColor: Color {
-        guard let result = day.result else { return Color(.systemGray4) }
-        return result.completed ? .green : .red
-    }
-    
-    var body: some View {
-        VStack(spacing: Spacing.xs) {
-            Circle()
-                .fill(indicatorColor)
-                .frame(width: 12, height: 12)
-                .overlay(
-                    Circle()
-                        .stroke(Color(.systemBackground), lineWidth: 2)
-                )
-            
-            Text(dayLabel)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - Recent Results Section
-struct RecentResultsSection: View {
-    let results: [GameResult]
-    
-    private var displayResults: [GameResult] {
-        Array(results.prefix(5))
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Recent Games")
-                .font(.headline)
-            
-            VStack(spacing: Spacing.sm) {
-                ForEach(displayResults) { result in
-                    RecentResultRow(result: result)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Recent Result Row
-struct RecentResultRow: View {
+// MARK: - Game Result Row
+struct GameResultRow: View {
     let result: GameResult
+    @State private var isExpanded = false
     
     var body: some View {
-        HStack {
-            Text(result.scoreEmoji)
-                .font(.title3)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(result.date.formatted(date: .abbreviated, time: .omitted))
-                    .font(.subheadline)
-                
-                if let puzzleNumber = result.parsedData["puzzleNumber"] {
-                    Text("Puzzle #\(puzzleNumber)")
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(result.displayScore)
+                        .font(.headline)
+                        .foregroundStyle(result.completed ? .green : .orange)
+                    
+                    Text(result.date.formatted(date: .abbreviated, time: .omitted))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .animation(SpringPreset.snappy, value: isExpanded)
             }
             
-            Spacer()
-            
-            Text(result.displayScore)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(result.completed ? .green : .orange)
+            if isExpanded {
+                Text(result.sharedText)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .transition(.scale.combined(with: .opacity))
+            }
         }
-        .padding(Spacing.md)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.button))
+        .padding()
+        .glassCard()
+        .pressable(hapticType: .buttonTap, scaleAmount: 0.97)
+        .onTapGesture {
+            withAnimation(SpringPreset.snappy) {
+                isExpanded.toggle()
+            }
+            HapticManager.shared.trigger(.toggleSwitch)
+        }
     }
 }
 
-// MARK: - Secondary Button
-struct SecondaryButton: View {
-    let title: String
-    let icon: String
-    let action: () -> Void
+// MARK: - Empty Results Card
+struct EmptyResultsCard: View {
+    let gameName: String // Add parameter
     
     var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: icon)
-                .font(.subheadline.weight(.medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Spacing.md)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.button))
+        VStack(spacing: 12) {
+            Image(systemName: "tray")
+                .font(.system(size: 40))
+                .foregroundStyle(.tertiary)
+            
+            Text("No results yet")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            
+            Text("Play \(gameName) to see results here")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .glassCard()
     }
 }
 
-
+// MARK: - Share Sheet
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
 
 // MARK: - Preview
 #Preview {
@@ -390,5 +394,6 @@ struct SecondaryButton: View {
         GameDetailView(game: Game.wordle)
             .environment(AppState())
             .environment(NavigationCoordinator())
+            .environmentObject(ThemeManager.shared)
     }
 }

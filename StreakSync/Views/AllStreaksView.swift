@@ -10,6 +10,7 @@ import SwiftUI
 // MARK: - All Streaks View
 struct AllStreaksView: View {
     @Environment(AppState.self) private var appState
+    @EnvironmentObject private var themeManager: ThemeManager
     @Environment(NavigationCoordinator.self) private var coordinator
     @State private var searchText = ""
     @State private var selectedFilter: StreakFilter = .all
@@ -91,7 +92,7 @@ struct AllStreaksView: View {
     }
     
     // MARK: - Computed Properties
-    private var activeStreaksCount: Int {
+    internal var activeStreaksCount: Int {
         appState.streaks.filter { $0.currentStreak > 0 }.count
     }
     
@@ -126,12 +127,17 @@ struct SummaryStatView: View {
     let value: String
     let title: String
     let color: Color
+    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         VStack(spacing: Spacing.xs) {
             Text(value)
                 .font(.title2.weight(.bold))
-                .foregroundStyle(color)
+                .foregroundStyle(
+                    title == "Active" ? themeManager.streakActiveColor :
+                    title == "Longest" ? themeManager.streakInactiveColor :
+                    themeManager.primaryAccent
+                )
             
             Text(title)
                 .font(.caption)
@@ -140,6 +146,7 @@ struct SummaryStatView: View {
         .frame(maxWidth: .infinity)
     }
 }
+
 
 // MARK: - Streak List Row
 struct StreakListRow: View {
