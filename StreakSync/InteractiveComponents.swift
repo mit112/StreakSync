@@ -186,27 +186,6 @@ struct AnimatedToggle: View {
     }
 }
 
-// MARK: - Interactive Card
-//struct InteractiveCard<Content: View>: View {
-//    @ViewBuilder let content: Content
-//    let onTap: (() -> Void)?
-//    
-//    init(@ViewBuilder content: () -> Content, onTap: (() -> Void)? = nil) {
-//        self.content = content()
-//        self.onTap = onTap
-//    }
-//    
-//    var body: some View {
-//        content
-//            .glassCard()
-//            .pressable(hapticType: .buttonTap, scaleAmount: 0.97)
-//            .hoverable(scaleAmount: 1.02)
-//            .onTapGesture {
-//                onTap?()
-//            }
-//    }
-//}
-
 // MARK: - Animated Segmented Control
 struct AnimatedSegmentedControl: View {
     @Binding var selection: Int

@@ -24,8 +24,6 @@ final class AppGroupBridge: ObservableObject {
     private var lifecycleObservers: [NSObjectProtocol] = []
     
     // MARK: - iOS-Specific Duplicate Prevention
-    private var lastProcessedTimestamp: Date?
-    private var processedResultHashes: Set<String> = []
     private let calendar = Calendar.current
     
     // MARK: - Published Properties (MainActor Safe)
@@ -126,69 +124,32 @@ final class AppGroupBridge: ObservableObject {
     
     // MARK: - Result Checking (Updated with AppError)
     func checkForNewResults() async {
-        guard !isProcessing else {
-            logger.debug("Already processing, skipping check")
-            return
-        }
+        guard !isProcessing else { return }
         
         isProcessing = true
         defer { isProcessing = false }
         
-        do {
-            // Check App Group for new result
-            guard let userDefaults = UserDefaults(suiteName: appGroupID) else {
-                throw AppError.sync(.appGroupCommunicationFailed)
-            }
+        guard let userDefaults = UserDefaults(suiteName: appGroupID) else {
+            logger.error("Failed to access App Group")
+            hasNewResults = false
+            return
+        }
+        
+        // Just check if data exists
+        if let data = userDefaults.data(forKey: "latestGameResult") {
+            hasNewResults = true
+            lastResultProcessedTime = Date()
             
-            // Check if share extension is still processing
-            if userDefaults.bool(forKey: "isProcessingShare") {
-                logger.info("Share Extension is still processing")
-                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                await checkForNewResults() // Recursive check
-                return
-            }
-            
-            guard let data = userDefaults.data(forKey: "latestGameResult") else {
-                logger.debug("No new game result data found")
-                hasNewResults = false
-                return
-            }
-            
-            let result = try decoder.decode(GameResult.self, from: data)
-            
-            // Duplicate check
-            guard !isDuplicateResult(result) else {
-                logger.info("Skipping duplicate result for \(result.gameName)")
-                throw AppError.sync(.resultAlreadyProcessed)
-            }
-            
-            // Update state
-            self.latestResult = result
-            self.hasNewResults = true
-            
-            // CRITICAL: Update the timestamp to trigger UI refresh
-            self.lastResultProcessedTime = Date()
-            
-            // Mark as processed
-            markResultAsProcessed(result)
-            
-            // Post notification
+            // Post notification for AppState to handle
             NotificationCenter.default.post(
                 name: .gameResultReceived,
-                object: result
+                object: nil
             )
-            
-            logger.info("✅ New game result ready: \(result.gameName)")
-            
-        } catch let error as AppError {
-            logger.error("❌ Error checking for results: \(error.localizedDescription)")
-            hasNewResults = false
-        } catch {
-            // Convert unknown errors to AppError
-            logger.error("❌ Unexpected error: \(error.localizedDescription)")
+        } else {
             hasNewResults = false
         }
     }
+
     
     // MARK: - Result Processing (Updated with AppError)
     func processLatestResult() async {
@@ -209,7 +170,7 @@ final class AppGroupBridge: ObservableObject {
         logger.info("✅ Result processed and cleared")
     }
     
-    private func clearLatestResult() {
+    internal func clearLatestResult() {
         guard let userDefaults = UserDefaults(suiteName: appGroupID) else {
             logger.error("Failed to access App Group - \(AppError.sync(.appGroupCommunicationFailed).localizedDescription)")
             return
@@ -219,34 +180,7 @@ final class AppGroupBridge: ObservableObject {
         userDefaults.synchronize()
     }
     
-    // MARK: - Duplicate Prevention (Unchanged)
-    private func isDuplicateResult(_ result: GameResult) -> Bool {
-        let resultHash = "\(result.gameName)-\(result.score)-\(result.date.timeIntervalSince1970)"
-        
-        if processedResultHashes.contains(resultHash) {
-            return true
-        }
-        
-        if let lastTimestamp = lastProcessedTimestamp {
-            let timeDiff = abs(result.date.timeIntervalSince(lastTimestamp))
-            if timeDiff < 2.0 && result.gameName == latestResult?.gameName {
-                return true
-            }
-        }
-        
-        return false
-    }
-    
-    private func markResultAsProcessed(_ result: GameResult) {
-        let resultHash = "\(result.gameName)-\(result.score)-\(result.date.timeIntervalSince1970)"
-        processedResultHashes.insert(resultHash)
-        lastProcessedTimestamp = result.date
-        
-        // Keep only recent hashes
-        if processedResultHashes.count > 100 {
-            processedResultHashes.removeAll()
-        }
-    }
+
     
     // MARK: - Manual Share Sheet Trigger (Updated with AppError)
     func handleManualShare(from userActivity: NSUserActivity) -> Bool {

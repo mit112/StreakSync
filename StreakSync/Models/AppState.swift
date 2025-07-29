@@ -347,17 +347,6 @@ final class AppState {
         }
     }
     
-    func refreshData() async {
-        logger.info("🔄 Refreshing app data...")
-        
-        // Only reload if we're not already loading
-        guard !isLoading else {
-            logger.info("⚠️ Already loading, skipping refresh")
-            return
-        }
-        
-        await loadPersistedData()
-    }
     
     // MARK: - Internal Setters for Extensions
     internal func setRecentResults(_ results: [GameResult]) {

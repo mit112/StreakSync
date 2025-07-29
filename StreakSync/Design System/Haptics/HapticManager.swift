@@ -200,11 +200,6 @@ extension HapticManager {
         }
     }
     
-//    public static func selection() {
-//        Task { @MainActor in
-//            shared.trigger(.toggleSwitch)
-//        }
-//    }
     static func selection() {
         HapticManager.shared.trigger(.toggleSwitch)
     }

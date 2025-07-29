@@ -2,7 +2,7 @@
 //  ImprovedDashboardView.swift
 //  StreakSync
 //
-//  Enhanced dashboard with warm personality, theme support, and full animation integration
+//  Enhanced dashboard with warm personality, theme support, full animation integration, and tab bar
 //
 
 import SwiftUI
@@ -11,6 +11,7 @@ struct ImprovedDashboardView: View {
     @Environment(AppState.self) private var appState
     @Environment(NavigationCoordinator.self) private var coordinator
     @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage("userName") private var userName: String = ""
     
     @State private var searchText = ""
@@ -20,26 +21,38 @@ struct ImprovedDashboardView: View {
     @State private var isSearching = false
     @State private var showSearchClear = false
     @State private var hasInitiallyAppeared = false
+    @State private var selectedTab = 0
+    @State private var showSettings = false
+    @FocusState private var isSearchFieldFocused: Bool
     
     var body: some View {
-        PullToRefreshContainer(isRefreshing: $isRefreshing) {
-            await refreshData()
-        } content: {
-            VStack(spacing: 24) {
-                // Warm header with personality
-                headerSection
-                
-                // Search and filter with animations
-                searchAndFilterSection
-                    .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 0, totalCount: 3))
-                
-                // Game cards with animations
-                gameCardsSection
-                    .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 1, totalCount: 3))
+        ZStack(alignment: .bottom) {
+            // Main content
+            PullToRefreshContainer(isRefreshing: $isRefreshing) {
+                await refreshData()
+            } content: {
+                VStack(spacing: 24) {
+                    // Warm header with personality
+                    headerSection
+                    
+                    // Search and filter with animations
+                    searchAndFilterSection
+                        .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 0, totalCount: 3))
+                    
+                    // Game cards with animations
+                    gameCardsSection
+                        .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 1, totalCount: 3))
+                    
+                    // Spacer for tab bar
+                    Spacer(minLength: 100)
+                }
+                .padding(.vertical)
             }
-            .padding(.vertical)
+            .background(themeManager.subtleBackgroundGradient)
+            
+            // Modern tab bar
+            modernTabBar
         }
-        .background(themeManager.subtleBackgroundGradient)
         .navigationBarHidden(true)
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("GameDataUpdated"))) { _ in
             refreshID = UUID()
@@ -49,35 +62,28 @@ struct ImprovedDashboardView: View {
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             hasInitiallyAppeared = true
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
     
     // MARK: - Header Section with Warm Personality
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Settings button with animations
-            HStack {
-                Spacer()
-                Button {
-                    coordinator.navigateTo(.settings)
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(.ultraThinMaterial))
-                }
-                .pressable(hapticType: .buttonTap)
-                .hoverable()
-            }
-            .padding(.trailing)
-            
             VStack(alignment: .leading, spacing: 12) {
                 // Dynamic greeting with personality
-                AnimatedGradientText(
-                    text: greetingText,
-                    font: .system(size: 32, weight: .bold, design: .rounded)
-                )
-                .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 0, totalCount: 4))
+                Text(greetingText)
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.primary, Color.primary.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 0, totalCount: 4))
                 
                 // Motivational message
                 Text(motivationalMessage)
@@ -92,7 +98,11 @@ struct ImprovedDashboardView: View {
                         icon: "flame.fill",
                         value: "\(activeStreaksCount)",
                         label: "Active",
-                        gradient: themeManager.statOrangeGradient,
+                        gradient: LinearGradient(
+                            colors: [Color.orange, Color.red],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
                         hasAppeared: hasInitiallyAppeared,
                         animationIndex: 2
                     )
@@ -101,7 +111,11 @@ struct ImprovedDashboardView: View {
                         icon: "checkmark.circle.fill",
                         value: "\(todayCompletedCount)",
                         label: "Today",
-                        gradient: themeManager.statGreenGradient,
+                        gradient: LinearGradient(
+                            colors: [Color.green, Color.mint],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
                         hasAppeared: hasInitiallyAppeared,
                         animationIndex: 3
                     )
@@ -124,16 +138,20 @@ struct ImprovedDashboardView: View {
                     
                     TextField("Search games...", text: $searchText)
                         .textFieldStyle(.plain)
+                        .focused($isSearchFieldFocused)
                         .onChange(of: searchText) { _, newValue in
-                            withAnimation(SpringPreset.snappy) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 showSearchClear = !newValue.isEmpty
                                 isSearching = !newValue.isEmpty
                             }
                         }
+                        .onChange(of: isSearchFieldFocused) { _, isFocused in
+                            isSearching = isFocused
+                        }
                     
                     if showSearchClear {
                         Button {
-                            withAnimation(SpringPreset.snappy) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 searchText = ""
                                 isSearching = false
                             }
@@ -141,7 +159,6 @@ struct ImprovedDashboardView: View {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(.secondary)
                         }
-                        .pressable(hapticType: .buttonTap, scaleAmount: 0.8)
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -167,7 +184,6 @@ struct ImprovedDashboardView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(.ultraThinMaterial)
                 )
-                .pressable(hapticType: .toggleSwitch, scaleAmount: 0.98)
                 Spacer()
             }
             .padding(.horizontal)
@@ -197,9 +213,8 @@ struct ImprovedDashboardView: View {
                     Label("Add", systemImage: "plus.circle.fill")
                         .font(.subheadline.weight(.medium))
                 }
-                .glassButton()
-                .pressable(hapticType: .buttonTap)
-                .hoverable()
+                .buttonStyle(PlainButtonStyle())
+                .foregroundStyle(.blue)
             }
             .padding(.horizontal)
             
@@ -238,7 +253,13 @@ struct ImprovedDashboardView: View {
         VStack(spacing: 20) {
             Image(systemName: "gamecontroller.fill")
                 .font(.system(size: 50))
-                .foregroundStyle(themeManager.accentGradient)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.blue, Color.purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
                 .symbolEffect(.bounce, options: .speed(0.5))
             
             VStack(spacing: 8) {
@@ -264,8 +285,102 @@ struct ImprovedDashboardView: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity)
-        .glassCard()
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+        )
         .padding(.horizontal)
+    }
+    
+    // MARK: - Modern Tab Bar
+    private var modernTabBar: some View {
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.primary.opacity(0.05))
+                .frame(height: 0.5)
+            
+            HStack(spacing: 0) {
+                TabBarButton(
+                    icon: "house.fill",
+                    title: "Home",
+                    isSelected: selectedTab == 0,
+                    action: { updateTab(0) }
+                )
+                
+                TabBarButton(
+                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Stats",
+                    isSelected: selectedTab == 1,
+                    action: {
+                        updateTab(1)
+                        coordinator.navigateTo(.allStreaks)
+                    }
+                )
+                
+                TabBarButton(
+                    icon: "trophy.fill",
+                    title: "Awards",
+                    isSelected: selectedTab == 2,
+                    action: {
+                        updateTab(2)
+                        coordinator.navigateTo(.achievements)
+                    }
+                )
+                
+                TabBarButton(
+                    icon: "gearshape.fill",
+                    title: "Settings",
+                    isSelected: selectedTab == 3,
+                    action: {
+                        updateTab(3)
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            showSettings = true
+                        }
+                    }
+                )
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 34)
+            .background(
+                ZStack {
+                    // Glass effect
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .background(
+                            Color(colorScheme == .dark ?
+                                UIColor.systemBackground :
+                                UIColor.secondarySystemBackground).opacity(0.85)
+                        )
+                    
+                    // Subtle gradient overlay
+                    LinearGradient(
+                        colors: [
+                            Color.primary.opacity(0.02),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+                .ignoresSafeArea()
+            )
+        }
+    }
+    
+    // MARK: - Tab Update with Animation
+    private func updateTab(_ index: Int) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            selectedTab = index
+        }
+        
+        // Reset selection after navigation
+        if index != 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    selectedTab = 0
+                }
+            }
+        }
     }
     
     // MARK: - Computed Properties
@@ -364,6 +479,56 @@ struct ImprovedDashboardView: View {
     }
 }
 
+// MARK: - Tab Bar Button Component
+private struct TabBarButton: View {
+    let icon: String
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    @State private var isPressed = false
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var body: some View {
+        Button(action: {
+            HapticManager.shared.trigger(.buttonTap)
+            action()
+        }) {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .medium))
+                    .symbolEffect(.bounce.down, options: .speed(1.5), value: isSelected)
+                
+                Text(title)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+            }
+            .foregroundStyle(
+                isSelected ?
+                    AnyShapeStyle(
+                        LinearGradient(
+                            colors: colorScheme == .dark ?
+                                [Color.blue.opacity(0.8), Color.purple.opacity(0.8)] :
+                                [Color.blue, Color.purple],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    ) :
+                    AnyShapeStyle(Color.secondary.opacity(0.7))
+            )
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .scaleEffect(isPressed ? 0.92 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
+    }
+}
+
 // MARK: - Initial Animation Modifier
 private struct InitialAnimationModifier: ViewModifier {
     let hasAppeared: Bool
@@ -373,7 +538,13 @@ private struct InitialAnimationModifier: ViewModifier {
     func body(content: Content) -> some View {
         if !hasAppeared {
             content
-                .staggeredAppearance(index: index, totalCount: totalCount)
+                .opacity(0)
+                .offset(y: 20)
+                .animation(
+                    .spring(response: 0.5, dampingFraction: 0.8)
+                    .delay(Double(index) * 0.05),
+                    value: hasAppeared
+                )
         } else {
             content
         }
@@ -393,7 +564,7 @@ private struct EnhancedQuickStatPill: View {
     
     var body: some View {
         Button {
-            withAnimation(SpringPreset.bouncy) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                 isPressed.toggle()
             }
         } label: {
@@ -428,8 +599,8 @@ private struct EnhancedQuickStatPill: View {
                     )
             )
         }
-        .pressable(hapticType: .buttonTap, scaleAmount: 0.95)
-        .hoverable(scaleAmount: 1.05)
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isPressed)
         .modifier(InitialAnimationModifier(hasAppeared: hasAppeared, index: animationIndex, totalCount: 4))
     }
 }
@@ -451,7 +622,7 @@ struct AnimatedGameCard: View {
     }
     
     var body: some View {
-        InteractiveCard {
+        Button(action: onTap) {
             VStack(alignment: .leading, spacing: 12) {
                 // Header
                 HStack {
@@ -488,7 +659,7 @@ struct AnimatedGameCard: View {
                         AnimatedStreakStat(
                             value: "\(streak.currentStreak)",
                             label: "Current",
-                            color: themeManager.streakActiveColor
+                            color: Color.orange
                         )
                         
                         AnimatedStreakStat(
@@ -507,10 +678,14 @@ struct AnimatedGameCard: View {
                 }
             }
             .padding()
-        } onTap: {
-            onTap()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+            )
         }
-        .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: animationIndex, totalCount: filteredGamesCount))
+        .buttonStyle(ScaleButtonStyle())
+        .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: animationIndex, totalCount: 10))
         .onAppear {
             if game.hasPlayedToday && !hasAnimatedCheckmark {
                 withAnimation(.easeInOut.delay(Double(animationIndex) * 0.1)) {
@@ -519,11 +694,6 @@ struct AnimatedGameCard: View {
                 hasAnimatedCheckmark = true
             }
         }
-    }
-    
-    private var filteredGamesCount: Int {
-        // This is a workaround - ideally this should be passed from parent
-        10
     }
 }
 
@@ -551,54 +721,19 @@ private struct AnimatedStreakStat: View {
     }
 }
 
-// MARK: - Fixed Interactive Card
-struct InteractiveCard<Content: View>: View {
-    @ViewBuilder let content: Content
-    let onTap: (() -> Void)?
-    
-    init(@ViewBuilder content: () -> Content, onTap: (() -> Void)? = nil) {
-        self.content = content()
-        self.onTap = onTap
-    }
-    
-    var body: some View {
-        Button {
-            onTap?()
-        } label: {
-            content
-        }
-        .buttonStyle(InteractiveCardButtonStyle())
-    }
-}
-
-// MARK: - Interactive Card Button Style
-struct InteractiveCardButtonStyle: ButtonStyle {
+// MARK: - Scale Button Style
+struct ScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .glassCard()
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(SpringPreset.snappy, value: configuration.isPressed)
-            .overlay {
-                if configuration.isPressed {
-                    Color.black.opacity(0.05)
-                        .allowsHitTesting(false)
-                }
-            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { _, isPressed in
                 if isPressed {
                     HapticManager.shared.trigger(.buttonTap)
                 }
             }
-            .hoverable(scaleAmount: 1.02)
     }
 }
-
-// MARK: - Spring Presets
-//enum SpringPreset {
-//    static let snappy = Animation.spring(response: 0.3, dampingFraction: 0.8)
-//    static let smooth = Animation.spring(response: 0.5, dampingFraction: 0.85)
-//    static let bouncy = Animation.spring(response: 0.4, dampingFraction: 0.6)
-//}
 
 // MARK: - Preview
 #Preview {
