@@ -14,7 +14,7 @@ struct GameDetailView: View {
     @StateObject private var viewModel: GameDetailViewModel
     @StateObject private var browserLauncher = BrowserLauncher.shared
     @Environment(AppState.self) private var appState
-    @Environment(NavigationCoordinator.self) private var coordinator
+    @EnvironmentObject private var coordinator: NavigationCoordinator
     @EnvironmentObject private var themeManager: ThemeManager
     
     @State private var showingManualEntry = false
@@ -388,12 +388,3 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-// MARK: - Preview
-#Preview {
-    NavigationStack {
-        GameDetailView(game: Game.wordle)
-            .environment(AppState())
-            .environment(NavigationCoordinator())
-            .environmentObject(ThemeManager.shared)
-    }
-}

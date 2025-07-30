@@ -122,7 +122,7 @@ struct GameStreak: Identifiable, Codable, Hashable, Sendable {
     
     var lastPlayedText: String {
         guard let lastPlayed = lastPlayedDate else {
-            return NSLocalizedString("streak.never_played", comment: "Never played")
+            return NSLocalizedString("game.never_played", comment: "Never played")
         }
         
         if Calendar.current.isDateInToday(lastPlayed) {

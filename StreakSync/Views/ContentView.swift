@@ -1,147 +1,48 @@
 //
-//  ContentView.swift - UPDATED WITH THEME SUPPORT
-//  Root navigation container with theme management
+//  ContentView.swift - SIMPLIFIED WITH CONTAINER
+//  Root navigation container
 //
 
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(AppState.self) private var appState
-    @State private var coordinator = NavigationCoordinator()
-    @StateObject private var appGroupBridge = AppGroupBridge.shared
-    @State private var refreshID = UUID()
-    
-    // MARK: - Theme Support
-    @StateObject private var themeManager = ThemeManager.shared
+    @EnvironmentObject private var container: AppContainer
+    @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
     @Environment(\.scenePhase) private var scenePhase
     
     var body: some View {
-        NavigationStack(path: $coordinator.path) {
+        NavigationStack(path: $navigationCoordinator.path) {
             ImprovedDashboardView()
-                .id(refreshID)
+                .id(container.notificationCoordinator.refreshID)
                 .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
                     destinationView(for: destination)
                 }
         }
-        .environment(coordinator)
-        .environmentObject(themeManager) // Provide theme to all children
-        .sheet(item: $coordinator.presentedSheet) { sheet in
+        .environmentObject(container.themeManager)
+        .sheet(item: $navigationCoordinator.presentedSheet) { sheet in
             sheetView(for: sheet)
-                .environment(coordinator)
-                .environmentObject(themeManager)
+                .environmentObject(container.themeManager)
         }
-        // Apply theme background to entire app
-        .background(themeManager.primaryBackground)
-        // Update theme when app becomes active
+        .background(container.themeManager.primaryBackground)
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
-                themeManager.updateThemeIfNeeded()
-            }
-        }
-        // Existing observers...
-        .onChange(of: appGroupBridge.lastResultProcessedTime) { _, _ in
-            print("📱 ContentView detected new result processing")
-            refreshID = UUID()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .gameResultReceived)) { notification in
-            handleGameResultNotification(notification)
-            refreshID = UUID()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openGameRequested)) { notification in
-            handleGameDeepLink(notification)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            print("📱 App did become active - starting continuous monitoring")
-            
-            appGroupBridge.startMonitoringForResults()
-            
-            Task {
-                try? await Task.sleep(nanoseconds: 10_000_000_000)
-                await MainActor.run {
-                    appGroupBridge.stopMonitoringForResults()
-                    print("⏱️ Stopped monitoring after 10 seconds")
-                }
-            }
-            
-            Task {
-                if !appGroupBridge.hasNewResults {
-                    await appState.refreshData()
-                }
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-            print("📱 App will resign active - stopping monitoring")
-            appGroupBridge.stopMonitoringForResults()
-        }
-        .onOpenURL { url in
-            print("📱 ContentView received URL: \(url.absoluteString)")
-            let handled = AppGroupBridge.shared.handleURLScheme(url)
-            if !handled {
-                print("❌ Failed to handle URL: \(url.absoluteString)")
-            }
+            handleScenePhaseChange(newPhase)
         }
     }
     
-    // MARK: - Handle Game Result Notification
-    private func handleGameResultNotification(_ notification: Notification) {
-        guard let result = notification.object as? GameResult else {
-            print("❌ Invalid game result in notification")
-            return
-        }
-        
-        print("✅ ContentView handling game result:")
-        print("  - Game: \(result.gameName)")
-        print("  - Score: \(result.displayScore)")
-        
-        appState.addGameResult(result)
-        
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(
-                name: NSNotification.Name("GameResultAdded"),
-                object: result
-            )
-            
-            NotificationCenter.default.post(
-                name: NSNotification.Name("GameDataUpdated"),
-                object: nil
-            )
-            
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-            
-            let notificationFeedback = UINotificationFeedbackGenerator()
-            notificationFeedback.notificationOccurred(.success)
-        }
-    }
-    
-    // MARK: - Handle Deep Link Navigation
-    private func handleGameDeepLink(_ notification: Notification) {
-        guard let gameInfo = notification.object as? [String: String],
-              let gameName = gameInfo["name"] else {
-            print("❌ Invalid game deep link data")
-            return
-        }
-        
-        print("🔗 Handling deep link for game: \(gameName)")
-        
-        guard let game = appState.games.first(where: {
-            $0.name.lowercased() == gameName.lowercased() ||
-            $0.id.uuidString == gameInfo["id"]
-        }) else {
-            print("❌ Game not found: \(gameName)")
-            return
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            coordinator.popToRoot()
-            coordinator.navigateTo(.gameDetail(game))
-            
-            print("✅ Navigated to game detail for: \(game.displayName)")
-            
-            NotificationCenter.default.post(
-                name: Notification.Name("RefreshGameData"),
-                object: game
-            )
+    // MARK: - Scene Phase Handling
+    private func handleScenePhaseChange(_ phase: ScenePhase) {
+        switch phase {
+        case .active:
+            container.themeManager.updateThemeIfNeeded()
+            Task {
+                await container.handleAppBecameActive()
+            }
+        case .inactive:
+            container.handleAppWillResignActive()
+        case .background:
+            break
+        @unknown default:
+            break
         }
     }
     
@@ -151,24 +52,23 @@ struct ContentView: View {
         switch destination {
         case .gameDetail(let game):
             GameDetailView(game: game)
-                .environment(coordinator)
-                .environmentObject(themeManager)
+                .environmentObject(container)
+            
         case .streakHistory(let streak):
             StreakHistoryView(streak: streak)
-                .environment(coordinator)
-                .environmentObject(themeManager)
+                .environmentObject(container)
+            
         case .allStreaks:
             AllStreaksView()
-                .environment(coordinator)
-                .environmentObject(themeManager)
+                .environmentObject(container)
+            
         case .achievements:
             AchievementsView()
-                .environment(coordinator)
-                .environmentObject(themeManager)
+                .environmentObject(container)
+            
         case .settings:
             SettingsView()
-                .environment(coordinator)
-                .environmentObject(themeManager)
+                .environmentObject(container)
         }
     }
     
@@ -178,29 +78,15 @@ struct ContentView: View {
         switch sheet {
         case .addCustomGame:
             AddCustomGameView()
-                .environment(coordinator)
-                .environmentObject(themeManager)
+                .environmentObject(container)
+            
         case .gameResult(let result):
             GameResultDetailView(result: result)
-                .environment(coordinator)
-                .environmentObject(themeManager)
+                .environmentObject(container)
+            
         case .achievementDetail(let achievement):
             AchievementDetailView(achievement: achievement)
-                .environment(coordinator)
-                .environmentObject(themeManager)
+                .environmentObject(container)
         }
     }
-}
-
-// MARK: - Preview Provider
-#Preview {
-    ContentView()
-        .environment(AppState())
-        .onOpenURL { url in
-            print("📱 ContentView received URL: \(url.absoluteString)")
-            let handled = AppGroupBridge.shared.handleURLScheme(url)
-            if !handled {
-                print("❌ Failed to handle URL: \(url.absoluteString)")
-            }
-        }
 }

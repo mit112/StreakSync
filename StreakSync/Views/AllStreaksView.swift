@@ -11,7 +11,7 @@ import SwiftUI
 struct AllStreaksView: View {
     @Environment(AppState.self) private var appState
     @EnvironmentObject private var themeManager: ThemeManager
-    @Environment(NavigationCoordinator.self) private var coordinator
+    @EnvironmentObject private var coordinator: NavigationCoordinator
     @State private var searchText = ""
     @State private var selectedFilter: StreakFilter = .all
     
@@ -225,6 +225,6 @@ enum StreakFilter: String, CaseIterable {
     NavigationStack {
         AllStreaksView()
             .environment(AppState())
-            .environment(NavigationCoordinator())
+            .environmentObject(NavigationCoordinator())
     }
 }

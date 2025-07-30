@@ -2,17 +2,19 @@
 //  ImprovedDashboardView.swift
 //  StreakSync
 //
-//  Enhanced dashboard with warm personality, theme support, full animation integration, and tab bar
+//  Enhanced dashboard with games as centerpiece and optimized layout
 //
 
 import SwiftUI
 
 struct ImprovedDashboardView: View {
     @Environment(AppState.self) private var appState
-    @Environment(NavigationCoordinator.self) private var coordinator
+    @EnvironmentObject private var coordinator: NavigationCoordinator
+    @Environment(GameCatalog.self) private var gameCatalog
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("userName") private var userName: String = ""
+    @AppStorage("gameDisplayMode") private var displayMode: GameDisplayMode = .card
     
     @State private var searchText = ""
     @State private var showOnlyActive = false
@@ -22,407 +24,13 @@ struct ImprovedDashboardView: View {
     @State private var showSearchClear = false
     @State private var hasInitiallyAppeared = false
     @State private var selectedTab = 0
-    @State private var showSettings = false
+    @State private var selectedGameSection: GameSection = .favorites
+    @State private var selectedCategory: GameCategory? = nil
+    @State private var selectedSort: GameSortOption = .lastPlayed
+    @State private var sortDirection: SortDirection = .descending
     @FocusState private var isSearchFieldFocused: Bool
     
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            // Main content
-            PullToRefreshContainer(isRefreshing: $isRefreshing) {
-                await refreshData()
-            } content: {
-                VStack(spacing: 24) {
-                    // Warm header with personality
-                    headerSection
-                    
-                    // Search and filter with animations
-                    searchAndFilterSection
-                        .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 0, totalCount: 3))
-                    
-                    // Game cards with animations
-                    gameCardsSection
-                        .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 1, totalCount: 3))
-                    
-                    // Spacer for tab bar
-                    Spacer(minLength: 100)
-                }
-                .padding(.vertical)
-            }
-            .background(themeManager.subtleBackgroundGradient)
-            
-            // Modern tab bar
-            modernTabBar
-        }
-        .navigationBarHidden(true)
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("GameDataUpdated"))) { _ in
-            refreshID = UUID()
-        }
-        .task {
-            // Use task to set this after initial animations complete
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            hasInitiallyAppeared = true
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
-    }
-    
-    // MARK: - Header Section with Warm Personality
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Dynamic greeting with personality
-                Text(greetingText)
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.primary, Color.primary.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 0, totalCount: 4))
-                
-                // Motivational message
-                Text(motivationalMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .animation(.easeInOut, value: motivationalMessage)
-                    .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 1, totalCount: 4))
-                
-                // Quick stats with enhanced animations
-                HStack(spacing: 16) {
-                    EnhancedQuickStatPill(
-                        icon: "flame.fill",
-                        value: "\(activeStreaksCount)",
-                        label: "Active",
-                        gradient: LinearGradient(
-                            colors: [Color.orange, Color.red],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        hasAppeared: hasInitiallyAppeared,
-                        animationIndex: 2
-                    )
-                    
-                    EnhancedQuickStatPill(
-                        icon: "checkmark.circle.fill",
-                        value: "\(todayCompletedCount)",
-                        label: "Today",
-                        gradient: LinearGradient(
-                            colors: [Color.green, Color.mint],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        hasAppeared: hasInitiallyAppeared,
-                        animationIndex: 3
-                    )
-                }
-                .padding(.top, 8)
-            }
-            .padding(.horizontal)
-        }
-    }
-    
-    // MARK: - Search and Filter Section
-    private var searchAndFilterSection: some View {
-        VStack(spacing: 12) {
-            // Search bar with animated clear button
-            HStack {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                        .symbolEffect(.pulse, options: .speed(0.5), value: isSearching)
-                    
-                    TextField("Search games...", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .focused($isSearchFieldFocused)
-                        .onChange(of: searchText) { _, newValue in
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                showSearchClear = !newValue.isEmpty
-                                isSearching = !newValue.isEmpty
-                            }
-                        }
-                        .onChange(of: isSearchFieldFocused) { _, isFocused in
-                            isSearching = isFocused
-                        }
-                    
-                    if showSearchClear {
-                        Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                searchText = ""
-                                isSearching = false
-                            }
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .transition(.scale.combined(with: .opacity))
-                    }
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.ultraThinMaterial)
-                )
-            }
-            .padding(.horizontal)
-            
-            // Filter toggle with AnimatedToggle
-            HStack {
-                Spacer()
-                HStack {
-                    Label("Show active only", systemImage: "flame.fill")
-                        .font(.subheadline)
-                    AnimatedToggle(isOn: $showOnlyActive, label: "")
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.ultraThinMaterial)
-                )
-                Spacer()
-            }
-            .padding(.horizontal)
-        }
-    }
-    
-    // MARK: - Game Cards Section
-    private var gameCardsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Your Games")
-                    .font(.title3.bold())
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.primary, Color.primary.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                
-                Spacer()
-                
-                // Add game button with animations
-                Button {
-                    coordinator.presentSheet(.addCustomGame)
-                } label: {
-                    Label("Add", systemImage: "plus.circle.fill")
-                        .font(.subheadline.weight(.medium))
-                }
-                .buttonStyle(PlainButtonStyle())
-                .foregroundStyle(.blue)
-            }
-            .padding(.horizontal)
-            
-            if isLoadingGames {
-                // Skeleton loading state
-                VStack(spacing: 12) {
-                    ForEach(0..<3) { _ in
-                        SkeletonLoadingView(height: 120, cornerRadius: 16)
-                            .padding(.horizontal)
-                    }
-                }
-            } else if filteredGames.isEmpty {
-                emptyStateView
-                    .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 0, totalCount: 1))
-            } else {
-                LazyVStack(spacing: 12) {
-                    ForEach(Array(filteredGames.enumerated()), id: \.element.id) { index, game in
-                        AnimatedGameCard(
-                            game: game,
-                            animationIndex: index,
-                            hasInitiallyAppeared: hasInitiallyAppeared,
-                            onTap: {
-                                coordinator.navigateTo(.gameDetail(game))
-                            }
-                        )
-                        .id("\(game.id)-\(refreshID)")
-                    }
-                }
-                .padding(.horizontal)
-            }
-        }
-    }
-    
-    // MARK: - Empty State with Personality
-    private var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "gamecontroller.fill")
-                .font(.system(size: 50))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color.blue, Color.purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .symbolEffect(.bounce, options: .speed(0.5))
-            
-            VStack(spacing: 8) {
-                Text(searchText.isEmpty ? "No games yet!" : "No games found")
-                    .font(.title3.bold())
-                
-                Text(searchText.isEmpty ?
-                     "Add your first puzzle game to start tracking" :
-                     "Try adjusting your search")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            if searchText.isEmpty {
-                LoadingButton(
-                    "Add Your First Game",
-                    icon: "plus.circle.fill"
-                ) {
-                    coordinator.presentSheet(.addCustomGame)
-                }
-            }
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-        )
-        .padding(.horizontal)
-    }
-    
-    // MARK: - Modern Tab Bar
-    private var modernTabBar: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.primary.opacity(0.05))
-                .frame(height: 0.5)
-            
-            HStack(spacing: 0) {
-                TabBarButton(
-                    icon: "house.fill",
-                    title: "Home",
-                    isSelected: selectedTab == 0,
-                    action: { updateTab(0) }
-                )
-                
-                TabBarButton(
-                    icon: "chart.line.uptrend.xyaxis",
-                    title: "Stats",
-                    isSelected: selectedTab == 1,
-                    action: {
-                        updateTab(1)
-                        coordinator.navigateTo(.allStreaks)
-                    }
-                )
-                
-                TabBarButton(
-                    icon: "trophy.fill",
-                    title: "Awards",
-                    isSelected: selectedTab == 2,
-                    action: {
-                        updateTab(2)
-                        coordinator.navigateTo(.achievements)
-                    }
-                )
-                
-                TabBarButton(
-                    icon: "gearshape.fill",
-                    title: "Settings",
-                    isSelected: selectedTab == 3,
-                    action: {
-                        updateTab(3)
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            showSettings = true
-                        }
-                    }
-                )
-            }
-            .padding(.top, 8)
-            .padding(.bottom, 34)
-            .background(
-                ZStack {
-                    // Glass effect
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .background(
-                            Color(colorScheme == .dark ?
-                                UIColor.systemBackground :
-                                UIColor.secondarySystemBackground).opacity(0.85)
-                        )
-                    
-                    // Subtle gradient overlay
-                    LinearGradient(
-                        colors: [
-                            Color.primary.opacity(0.02),
-                            Color.clear
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                }
-                .ignoresSafeArea()
-            )
-        }
-    }
-    
-    // MARK: - Tab Update with Animation
-    private func updateTab(_ index: Int) {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            selectedTab = index
-        }
-        
-        // Reset selection after navigation
-        if index != 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    selectedTab = 0
-                }
-            }
-        }
-    }
-    
     // MARK: - Computed Properties
-    private var activeStreaksCount: Int {
-        appState.streaks.filter { streak in
-            guard let game = appState.games.first(where: { $0.id == streak.gameId }) else { return false }
-            return game.isActiveToday
-        }.count
-    }
-    
-    private var todayCompletedCount: Int {
-        appState.games.filter { $0.hasPlayedToday }.count
-    }
-    
-    private var filteredGames: [Game] {
-        let games = showOnlyActive ?
-            appState.games.filter { $0.isActiveToday } :
-            appState.games
-        
-        if searchText.isEmpty {
-            return games.sorted { game1, game2 in
-                // Sort by: today's completion, then active status, then name
-                if game1.hasPlayedToday != game2.hasPlayedToday {
-                    return game1.hasPlayedToday
-                }
-                if game1.isActiveToday != game2.isActiveToday {
-                    return game1.isActiveToday
-                }
-                return game1.displayName < game2.displayName
-            }
-        } else {
-            return games.filter { game in
-                game.displayName.localizedCaseInsensitiveContains(searchText)
-            }.sorted { $0.displayName < $1.displayName }
-        }
-    }
-    
-    private var isLoadingGames: Bool {
-        appState.games.isEmpty && !appState.isDataLoaded
-    }
-    
-    // MARK: - Warm Personality Helpers
     private var greetingText: String {
         let hour = Calendar.current.component(.hour, from: Date())
         let name = userName.isEmpty ? "" : ", \(userName)"
@@ -445,302 +53,778 @@ struct ImprovedDashboardView: View {
         }
     }
     
-    private var motivationalMessage: String {
-        if activeStreaksCount == 0 {
-            return "Ready to start your first streak? Let's go!"
-        } else if todayCompletedCount == activeStreaksCount && activeStreaksCount > 0 {
-            return "Perfect day! All \(activeStreaksCount) streaks completed! 🎉"
-        } else if todayCompletedCount > 0 {
-            return "Great progress! \(activeStreaksCount - todayCompletedCount) more to go!"
-        } else {
-            let messages = [
-                "Your streaks are waiting for you!",
-                "Let's keep the momentum going!",
-                "Every puzzle counts. You've got this!",
-                "Small steps lead to big streaks!",
-                "Consistency is your superpower!",
-                "Time to add to your collection!",
-                "Your future self will thank you!"
-            ]
-            return messages.randomElement() ?? ""
+    // Update the filteredStreaks computed property:
+    private var filteredStreaks: [GameStreak] {
+        // Get the games to show based on section
+        let gamesToShow: [Game]
+        switch selectedGameSection {
+        case .favorites:
+            gamesToShow = gameCatalog.favoriteGames
+        case .all:
+            gamesToShow = gameCatalog.allGames
+        }
+        
+        // Filter streaks to only include games we want to show
+        var streaks = appState.streaks.filter { streak in
+            gamesToShow.contains { $0.id == streak.gameId }
+        }
+        
+        // Apply category filter
+        if let selectedCategory = selectedCategory {
+            streaks = streaks.filter { streak in
+                if let game = appState.games.first(where: { $0.id == streak.gameId }) {
+                    return game.category == selectedCategory
+                }
+                return false
+            }
+        }
+        
+        // Apply existing filters
+        if showOnlyActive {
+            streaks = streaks.filter(\.isActive)
+        }
+        
+        if !searchText.isEmpty {
+            streaks = streaks.filter {
+                $0.gameName.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+        
+        // Apply sorting
+        return streaks.sorted(by: selectedSort, direction: sortDirection, games: appState.games)
+    }
+    
+    // Add this property to get available categories:
+    private var availableCategories: [GameCategory] {
+        let gamesToShow: [Game]
+        switch selectedGameSection {
+        case .favorites:
+            gamesToShow = gameCatalog.favoriteGames
+        case .all:
+            gamesToShow = gameCatalog.allGames
+        }
+        
+        // Get unique categories from the games being shown
+        let categories = Set(gamesToShow.map { $0.category })
+        return Array(categories).sorted { $0.displayName < $1.displayName }
+    }
+    
+    private var activeStreakCount: Int {
+        appState.streaks.filter(\.isActive).count
+    }
+    
+    private var longestStreakCount: Int {
+        appState.streaks.map(\.maxStreak).max() ?? 0
+    }
+    
+    private var todayCompletedCount: Int {
+        appState.streaks.filter { streak in
+            guard let lastPlayed = streak.lastPlayedDate else { return false }
+            return Calendar.current.isDateInToday(lastPlayed) && streak.currentStreak > 0
+        }.count
+    }
+    
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            // Main content
+            PullToRefreshContainer(isRefreshing: $isRefreshing) {
+                await refreshData()
+            } content: {
+                VStack(spacing: 16) {
+                    // Compact header with integrated progress
+                    compactHeaderSection
+                        .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 0, totalCount: 3))
+                    
+                    // Enhanced search with integrated filter
+                    enhancedSearchSection
+                        .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 1, totalCount: 3))
+                    
+                    // Games centerpiece - takes up most space
+                    gamesCenterpieceSection
+                        .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 2, totalCount: 3))
+                    
+                    // Extra spacer for lower tab bar
+                    Spacer(minLength: 120)
+                }
+                .padding(.vertical)
+            }
+            .background(themeManager.subtleBackgroundGradient)
+            
+            // Lowered tab bar
+            modernTabBar
+        }
+        .navigationBarHidden(true)
+        .onAppear {
+            if !hasInitiallyAppeared {
+                withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
+                    hasInitiallyAppeared = true
+                }
+            }
+        }
+        .refreshable {
+            await refreshData()
+        }
+        //        .sheet(isPresented: $showSettings) {
+        //            SettingsView()
+        //        }
+    }
+    
+    // MARK: - Compact Header Section
+    private var compactHeaderSection: some View {
+        VStack(spacing: 8) {
+            // App name and settings
+            HStack {
+                Text("StreakSync")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .accessibilityAddTraits(.isHeader)
+                
+                Spacer()
+                
+                // Compact progress indicators
+                HStack(spacing: 8) {
+                    CompactProgressBadge(
+                        icon: "flame.fill",
+                        value: activeStreakCount,
+                        color: .orange
+                    )
+                    
+                    CompactProgressBadge(
+                        icon: "checkmark.circle.fill",
+                        value: todayCompletedCount,
+                        color: .green
+                    )
+                    
+                    Button {
+                        coordinator.navigateTo(.settings)
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    .pressable(hapticType: .buttonTap)
+                    .accessibilityLabel("Settings")
+                }
+            }
+            
+            // Personality-rich greeting
+            HStack {
+                Text(greetingText)
+                    .font(.title3)
+                    .fontWeight(.medium)
+                    .multilineTextAlignment(.leading)
+                
+                Spacer()
+            }
+            
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Enhanced Search Section
+    private var enhancedSearchSection: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                // Search bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .symbolEffect(.pulse, options: .speed(0.5), value: isSearching)
+                    
+                    TextField("Search games...", text: $searchText)
+                        .textFieldStyle(.plain)
+                        .focused($isSearchFieldFocused)
+                        .onChange(of: searchText) { _, newValue in
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                showSearchClear = !newValue.isEmpty
+                                isSearching = !newValue.isEmpty
+                            }
+                        }
+                        .onChange(of: isSearchFieldFocused) { _, isFocused in
+                            isSearching = isFocused
+                        }
+                        .accessibilityLabel("Search games")
+                    
+                    if showSearchClear {
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                searchText = ""
+                                isSearching = false
+                                isSearchFieldFocused = false
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                        .accessibilityLabel("Clear search")
+                    }
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.ultraThinMaterial)
+                )
+                
+                // Compact active filter chip
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        showOnlyActive.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: showOnlyActive ? "flame.fill" : "flame")
+                            .font(.caption)
+                        if showOnlyActive {
+                            Text("Active")
+                                .font(.caption2.weight(.medium))
+                        }
+                    }
+                    .foregroundStyle(showOnlyActive ? .orange : .secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(showOnlyActive ? .orange.opacity(0.15) : Color(.systemGray6))
+                    )
+                }
+                .pressable(hapticType: .toggleSwitch, scaleAmount: 0.95)
+                .accessibilityLabel(showOnlyActive ? "Showing active games only" : "Show all games")
+            }
+            .padding(.horizontal)
+            
+            // Category filter chips
+            if !availableCategories.isEmpty {
+                CategoryFilterView(
+                    selectedCategory: $selectedCategory,
+                    categories: availableCategories
+                )
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
     }
     
-    // MARK: - Refresh Data
+    // MARK: - Games Centerpiece Section (Updated)
+    private var gamesCenterpieceSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Updated header with section selector, sort, and view mode
+            HStack {
+                Text("Your Games")
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
+                    .accessibilityAddTraits(.isHeader)
+                
+                Spacer()
+                
+                // Sort options menu (now just an icon button)
+                CompactSortOptionsMenu(
+                    selectedSort: $selectedSort,
+                    sortDirection: $sortDirection
+                )
+                
+                // View mode toggle
+                Menu {
+                    ForEach(GameDisplayMode.allCases, id: \.self) { mode in
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                displayMode = mode
+                                HapticManager.shared.trigger(.buttonTap)
+                            }
+                        } label: {
+                            Label(mode.displayName, systemImage: mode.iconName)
+                        }
+                    }
+                } label: {
+                    Image(systemName: displayMode.iconName)
+                        .font(.body)
+                        .foregroundStyle(.blue)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            Circle()
+                                .fill(.blue.opacity(0.1))
+                        )
+                }
+                
+                // Section selector
+                Menu {
+                    ForEach(GameSection.allCases, id: \.self) { section in
+                        Button {
+                            withAnimation(.spring(response: 0.3)) {
+                                selectedGameSection = section
+                                // Reset category filter when switching sections
+                                selectedCategory = nil
+                            }
+                        } label: {
+                            Label(section.rawValue, systemImage: section.icon)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: selectedGameSection.icon)
+                        Text(selectedGameSection.rawValue)
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal)
+            
+            Group {
+                if filteredStreaks.isEmpty {
+                    EmptyStateView(
+                        icon: "gamecontroller",
+                        title: searchText.isEmpty ?
+                        (selectedGameSection == .favorites ? "No Favorite Games" : "No Games Yet") :
+                            "No Results",
+                        subtitle: searchText.isEmpty ?
+                        (selectedGameSection == .favorites ?
+                         "Star your favorite games to see them here" :
+                            "No games available") :
+                            "Try adjusting your search or filters",
+                        action: nil
+                    )
+                    .padding(.horizontal)
+                } else {
+                    // Switch based on display mode
+                    switch displayMode {
+                    case .card:
+                        // Your existing LazyVStack implementation
+                        LazyVStack(spacing: 12) {
+                            ForEach(Array(filteredStreaks.enumerated()), id: \.element.id) { index, streak in
+                                EnhancedStreakCard(
+                                    streak: streak,
+                                    hasAppeared: hasInitiallyAppeared,
+                                    animationIndex: index,
+                                    isFavorite: gameCatalog.isFavorite(streak.gameId),
+                                    onFavoriteToggle: {
+                                        gameCatalog.toggleFavorite(streak.gameId)
+                                        HapticManager.shared.trigger(.toggleSwitch)
+                                    }
+                                ) {
+                                    if let game = appState.games.first(where: { $0.id == streak.gameId }) {
+                                        coordinator.navigateTo(.gameDetail(game))
+                                    }
+                                }
+                                .id("\(refreshID)-\(streak.id)")
+                            }
+                        }
+                        .padding(.horizontal)
+                        
+                    case .list:
+                        LazyVStack(spacing: 8) {
+                            ForEach(filteredStreaks) { streak in
+                                GameListItemView(
+                                    streak: streak,
+                                    isFavorite: gameCatalog.isFavorite(streak.gameId),
+                                    onFavoriteToggle: {
+                                        gameCatalog.toggleFavorite(streak.gameId)
+                                        HapticManager.shared.trigger(.toggleSwitch)
+                                    }
+                                ) {
+                                    if let game = appState.games.first(where: { $0.id == streak.gameId }) {
+                                        coordinator.navigateTo(.gameDetail(game))
+                                    }
+                                }
+                                .id("\(refreshID)-\(streak.id)")
+                            }
+                        }
+                        .padding(.horizontal)
+                        
+                    case .compact:
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(), spacing: 12),
+                                GridItem(.flexible(), spacing: 12)
+                            ],
+                            spacing: 12
+                        ) {
+                            ForEach(filteredStreaks) { streak in
+                                GameCompactCardView(
+                                    streak: streak,
+                                    isFavorite: gameCatalog.isFavorite(streak.gameId),
+                                    onFavoriteToggle: {
+                                        gameCatalog.toggleFavorite(streak.gameId)
+                                        HapticManager.shared.trigger(.toggleSwitch)
+                                    }
+                                ) {
+                                    if let game = appState.games.first(where: { $0.id == streak.gameId }) {
+                                        coordinator.navigateTo(.gameDetail(game))
+                                    }
+                                }
+                                .id("\(refreshID)-\(streak.id)")
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+            }
+        }
+    }
+    
+    
+    
+    // MARK: - Modern Tab Bar (FIXED VERSION)
+    private var modernTabBar: some View {
+        HStack(spacing: 0) {
+            TabBarButton(
+                icon: "house.fill",
+                title: "Home",
+                isSelected: selectedTab == 0
+            ) {
+                // Always highlight home immediately
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                    selectedTab = 0
+                }
+                HapticManager.shared.trigger(.buttonTap)
+            }
+            
+            TabBarButton(
+                icon: "chart.line.uptrend.xyaxis",
+                title: "Stats",
+                isSelected: selectedTab == 1
+            ) {
+                // Temporarily highlight, then navigate
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                    selectedTab = 1
+                }
+                HapticManager.shared.trigger(.buttonTap)
+                
+                // Navigate after brief delay, then reset to home
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    coordinator.navigateTo(.allStreaks)
+                    
+                    // Reset to home after navigation
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            selectedTab = 0
+                        }
+                    }
+                }
+            }
+            
+            TabBarButton(
+                icon: "trophy.fill",
+                title: "Awards",
+                isSelected: selectedTab == 2
+            ) {
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                    selectedTab = 2
+                }
+                HapticManager.shared.trigger(.buttonTap)
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    coordinator.navigateTo(.achievements)
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            selectedTab = 0
+                        }
+                    }
+                }
+            }
+            
+            TabBarButton(
+                icon: "gearshape.fill",
+                title: "Settings",
+                isSelected: selectedTab == 3
+            ) {
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                    selectedTab = 3
+                }
+                HapticManager.shared.trigger(.buttonTap)
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    coordinator.navigateTo(.settings)
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            selectedTab = 0
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 24)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+        )
+        .padding(.horizontal, 16)
+//        .padding(.bottom, 10)
+    }
+    
+    // MARK: - Helper Methods
     private func refreshData() async {
         isRefreshing = true
         
-        await appState.refreshData()
+        // Simulate network delay
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
         
-        withAnimation {
+        // Refresh logic here
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
             refreshID = UUID()
             isRefreshing = false
         }
     }
 }
 
-// MARK: - Tab Bar Button Component
-private struct TabBarButton: View {
+// MARK: - New Components
+
+
+
+// Compact Progress Badge
+struct CompactProgressBadge: View {
+    let icon: String
+    let value: Int
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+            Text("\(value)")
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(color.opacity(0.15))
+        )
+    }
+}
+
+// Enhanced Streak Card - more prominent for centerpiece
+struct EnhancedStreakCard: View {
+    let streak: GameStreak
+    let hasAppeared: Bool
+    let animationIndex: Int
+    let isFavorite: Bool  // NEW: Add favorite status
+    let onFavoriteToggle: (() -> Void)?  // NEW: Add favorite toggle callback
+    let onTap: () -> Void
+    @Environment(AppState.self) private var appState
+    
+    private var game: Game? {
+        appState.games.first { $0.id == streak.gameId }
+    }
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 16) {
+                // Larger game icon with circle background
+                ZStack {
+                    Circle()
+                        .fill(game?.backgroundColor.color.opacity(0.15) ?? Color.gray.opacity(0.15))
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: game?.iconSystemName ?? "gamecontroller")
+                        .font(.title2)
+                        .foregroundStyle(game?.backgroundColor.color ?? .gray)
+                }
+                
+                // Game info
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {  // NEW: Add HStack for name and star
+                        Text(streak.gameName)
+                            .font(.headline)
+                            .multilineTextAlignment(.leading)
+                        
+                        // NEW: Favorite star button
+                        if let onFavoriteToggle = onFavoriteToggle {
+                            Button {
+                                onFavoriteToggle()
+                            } label: {
+                                Image(systemName: isFavorite ? "star.fill" : "star")
+                                    .font(.subheadline)
+                                    .foregroundStyle(isFavorite ? .yellow : .secondary)
+                                    .symbolEffect(.bounce, value: isFavorite)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
+                        }
+                    }
+                    
+                    HStack(spacing: 8) {
+                        Text(streak.lastPlayedText)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        if streak.isActive {
+                            Image(systemName: "flame.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                // Prominent streak display
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(streak.currentStreak)")
+                        .font(.title.bold())
+                        .foregroundStyle(streak.isActive ? .orange : .secondary)
+                        .contentTransition(.numericText())
+                    
+                    Text("streak")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(
+                                streak.isActive ?
+                                    .orange.opacity(0.3) :
+                                        .clear,
+                                lineWidth: 1
+                            )
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .pressable(hapticType: .buttonTap, scaleAmount: 0.98)
+        .modifier(InitialAnimationModifier(hasAppeared: hasAppeared, index: animationIndex, totalCount: 10))
+    }
+}
+
+// MARK: - Existing Components (Keep these)
+
+struct EmptyStateView: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let action: (String, () -> Void)?  // Already optional, good!
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: icon)
+                .font(.system(size: 50))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.blue, Color.purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .symbolEffect(.bounce, options: .speed(0.5))
+            
+            VStack(spacing: 8) {
+                Text(title)
+                    .font(.title3.bold())
+                
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            if let action = action {
+                Button(action.0, action: action.1)
+                    .buttonStyle(.borderedProminent)
+                    .pressable(hapticType: .buttonTap)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+}
+
+struct TabBarButton: View {
     let icon: String
     let title: String
     let isSelected: Bool
     let action: () -> Void
     
     @State private var isPressed = false
-    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        Button(action: {
-            HapticManager.shared.trigger(.buttonTap)
-            action()
-        }) {
-            VStack(spacing: 6) {
+        Button(action: action) {
+            VStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 22, weight: .medium))
-                    .symbolEffect(.bounce.down, options: .speed(1.5), value: isSelected)
+                    .font(.system(size: 20, weight: .medium))
+                    .symbolEffect(.bounce.down, options: .speed(1.2), value: isSelected)
                 
                 Text(title)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.caption2.weight(.medium))
             }
             .foregroundStyle(
                 isSelected ?
-                    AnyShapeStyle(
-                        LinearGradient(
-                            colors: colorScheme == .dark ?
-                                [Color.blue.opacity(0.8), Color.purple.opacity(0.8)] :
-                                [Color.blue, Color.purple],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    ) :
+                AnyShapeStyle(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                ) :
                     AnyShapeStyle(Color.secondary.opacity(0.7))
             )
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
-            .scaleEffect(isPressed ? 0.92 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .opacity(isPressed ? 0.8 : 1.0)
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
+                .onChanged { _ in
+                    if !isPressed {
+                        withAnimation(.easeInOut(duration: 0.1)) {
+                            isPressed = true
+                        }
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        isPressed = false
+                    }
+                }
         )
     }
 }
 
-// MARK: - Initial Animation Modifier
-private struct InitialAnimationModifier: ViewModifier {
-    let hasAppeared: Bool
-    let index: Int
-    let totalCount: Int
-    
-    func body(content: Content) -> some View {
-        if !hasAppeared {
-            content
-                .opacity(0)
-                .offset(y: 20)
-                .animation(
-                    .spring(response: 0.5, dampingFraction: 0.8)
-                    .delay(Double(index) * 0.05),
-                    value: hasAppeared
-                )
-        } else {
-            content
-        }
-    }
-}
-
-// MARK: - Enhanced Quick Stat Pill with animations
-private struct EnhancedQuickStatPill: View {
-    let icon: String
-    let value: String
-    let label: String
-    let gradient: LinearGradient
-    let hasAppeared: Bool
-    let animationIndex: Int
-    
-    @State private var isPressed = false
-    
-    var body: some View {
-        Button {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                isPressed.toggle()
-            }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(gradient)
-                    .symbolEffect(.bounce, value: isPressed)
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(value)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                        .contentTransition(.numericText())
-                    
-                    Text(label)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(
-                                gradient.opacity(0.3),
-                                lineWidth: 1
-                            )
-                    )
-            )
-        }
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isPressed)
-        .modifier(InitialAnimationModifier(hasAppeared: hasAppeared, index: animationIndex, totalCount: 4))
-    }
-}
-
-// MARK: - Animated Game Card
-struct AnimatedGameCard: View {
-    let game: Game
-    let animationIndex: Int
-    let hasInitiallyAppeared: Bool
-    let onTap: () -> Void
-    @Environment(AppState.self) private var appState
-    @EnvironmentObject private var themeManager: ThemeManager
-    
-    @State private var showCheckmark = false
-    @State private var hasAnimatedCheckmark = false
-    
-    private var streak: GameStreak? {
-        appState.getStreak(for: game)
-    }
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Header
-                HStack {
-                    Image(systemName: game.iconSystemName)
-                        .font(.title2)
-                        .foregroundStyle(game.backgroundColor.color)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(game.displayName)
-                            .font(.headline)
-                        
-                        if let lastPlayed = game.lastPlayedDate {
-                            Text(lastPlayed.description)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    if game.hasPlayedToday {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.green)
-                            .transition(.scale.combined(with: .opacity))
-                            .opacity(showCheckmark ? 1 : 0)
-                            .scaleEffect(showCheckmark ? 1 : 0.5)
-                    }
-                }
-                
-                // Streak info with animations
-                if let streak = streak, streak.currentStreak > 0 {
-                    HStack(spacing: 16) {
-                        AnimatedStreakStat(
-                            value: "\(streak.currentStreak)",
-                            label: "Current",
-                            color: Color.orange
-                        )
-                        
-                        AnimatedStreakStat(
-                            value: "\(streak.maxStreak)",
-                            label: "Best",
-                            color: .secondary
-                        )
-                        
-                        Spacer()
-                        
-                        Text("\(streak.totalGamesPlayed) played")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .contentTransition(.numericText())
-                    }
-                }
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-            )
-        }
-        .buttonStyle(ScaleButtonStyle())
-        .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: animationIndex, totalCount: 10))
-        .onAppear {
-            if game.hasPlayedToday && !hasAnimatedCheckmark {
-                withAnimation(.easeInOut.delay(Double(animationIndex) * 0.1)) {
-                    showCheckmark = true
-                }
-                hasAnimatedCheckmark = true
-            }
-        }
-    }
-}
-
-// MARK: - Animated Streak Stat Component
-private struct AnimatedStreakStat: View {
-    let value: String
-    let label: String
-    let color: Color
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Image(systemName: "flame.fill")
-                    .font(.caption)
-                Text(value)
-                    .font(.title3.weight(.semibold))
-                    .contentTransition(.numericText())
-            }
-            .foregroundStyle(color)
-            
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-// MARK: - Scale Button Style
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { _, isPressed in
-                if isPressed {
-                    HapticManager.shared.trigger(.buttonTap)
-                }
-            }
-    }
-}
-
-// MARK: - Preview
-#Preview {
-    NavigationStack {
+#if DEBUG
+struct ImprovedDashboardView_Previews: PreviewProvider {
+    static var previews: some View {
         ImprovedDashboardView()
             .environment(AppState())
-            .environment(NavigationCoordinator())
+            .environmentObject(NavigationCoordinator())
             .environmentObject(ThemeManager.shared)
+    }
+}
+#endif
+
+// Add this extension to EnhancedStreakCard for backward compatibility
+extension EnhancedStreakCard {
+    // Convenience initializer for existing code that doesn't use favorites
+    init(
+        streak: GameStreak,
+        hasAppeared: Bool,
+        animationIndex: Int,
+        onTap: @escaping () -> Void
+    ) {
+        self.init(
+            streak: streak,
+            hasAppeared: hasAppeared,
+            animationIndex: animationIndex,
+            isFavorite: false,
+            onFavoriteToggle: nil,
+            onTap: onTap
+        )
     }
 }

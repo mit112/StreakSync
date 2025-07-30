@@ -63,7 +63,7 @@ final class AppState {
     
     // MARK: - Initial Setup
     private func setupInitialData() {
-        self.games = Game.popularGames
+        self.games = Game.allAvailableGames
         self.streaks = self.games.map { GameStreak.empty(for: $0) }
         self.achievements = createDefaultAchievements()
         

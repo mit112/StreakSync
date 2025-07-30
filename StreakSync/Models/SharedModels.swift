@@ -150,8 +150,668 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         isPopular: true,
         isCustom: false
     )
+    // Word Games
+       static let connections = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440004") ?? UUID(),
+           name: "connections",
+           displayName: "Connections",
+           url: URL(string: "https://www.nytimes.com/games/connections")!,
+           category: .word,
+           resultPattern: #"Connections\nPuzzle #\d+"#,
+           iconSystemName: "square.grid.3x3",
+           backgroundColor: CodableColor(.systemPurple),
+           isPopular: true,
+           isCustom: false
+       )
+       
+       static let spelling_bee = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440005") ?? UUID(),
+           name: "spelling_bee",
+           displayName: "Spelling Bee",
+           url: URL(string: "https://www.nytimes.com/puzzles/spelling-bee")!,
+           category: .word,
+           resultPattern: #"Spelling Bee.*?\d+ words"#,
+           iconSystemName: "hexagon",
+           backgroundColor: CodableColor(.systemYellow),
+           isPopular: true,
+           isCustom: false
+       )
+       
+       static let letterboxed = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440006") ?? UUID(),
+           name: "letterboxed",
+           displayName: "Letter Boxed",
+           url: URL(string: "https://www.nytimes.com/puzzles/letter-boxed")!,
+           category: .word,
+           resultPattern: #"Letter Boxed.*?in \d+ words"#,
+           iconSystemName: "square.on.square",
+           backgroundColor: CodableColor(.systemOrange),
+           isPopular: false,
+           isCustom: false
+       )
+       
+       static let waffle = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440007") ?? UUID(),
+           name: "waffle",
+           displayName: "Waffle",
+           url: URL(string: "https://wafflegame.net")!,
+           category: .word,
+           resultPattern: #"#waffle\d+ \d+/5"#,
+           iconSystemName: "square.grid.2x2",
+           backgroundColor: CodableColor(.systemBrown),
+           isPopular: false,
+           isCustom: false
+       )
+       
+       // Math Games
+       static let mathle = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440008") ?? UUID(),
+           name: "mathle",
+           displayName: "Mathle",
+           url: URL(string: "https://www.mathle.com")!,
+           category: .math,
+           resultPattern: #"Mathle \d+ [1-6X]/6"#,
+           iconSystemName: "function",
+           backgroundColor: CodableColor(.systemIndigo),
+           isPopular: false,
+           isCustom: false
+       )
+       
+       static let numberle = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440009") ?? UUID(),
+           name: "numberle",
+           displayName: "Numberle",
+           url: URL(string: "https://numberle.com")!,
+           category: .math,
+           resultPattern: #"Numberle \d+ [1-6X]/6"#,
+           iconSystemName: "number.square",
+           backgroundColor: CodableColor(.systemCyan),
+           isPopular: false,
+           isCustom: false
+       )
+       
+       // Geography Games
+       static let worldle = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000A") ?? UUID(),
+           name: "worldle",
+           displayName: "Worldle",
+           url: URL(string: "https://worldle.teuteuf.fr")!,
+           category: .geography,
+           resultPattern: #"#Worldle #\d+ [1-6X]/6"#,
+           iconSystemName: "globe",
+           backgroundColor: CodableColor(.systemGreen),
+           isPopular: true,
+           isCustom: false
+       )
+       
+       static let globle = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000B") ?? UUID(),
+           name: "globle",
+           displayName: "Globle",
+           url: URL(string: "https://globle-game.com")!,
+           category: .geography,
+           resultPattern: #"Globle.*?in \d+ guesses"#,
+           iconSystemName: "globe.americas",
+           backgroundColor: CodableColor(.systemTeal),
+           isPopular: false,
+           isCustom: false
+       )
+       
+       // Trivia Games
+       static let contexto = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000C") ?? UUID(),
+           name: "contexto",
+           displayName: "Contexto",
+           url: URL(string: "https://contexto.me")!,
+           category: .trivia,
+           resultPattern: #"Contexto \d+.*?in \d+ guesses"#,
+           iconSystemName: "lightbulb",
+           backgroundColor: CodableColor(.systemRed),
+           isPopular: true,
+           isCustom: false
+       )
+       
+       static let framed = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000D") ?? UUID(),
+           name: "framed",
+           displayName: "Framed",
+           url: URL(string: "https://framed.wtf")!,
+           category: .trivia,
+           resultPattern: #"Framed #\d+ [1-6X]/6"#,
+           iconSystemName: "film",
+           backgroundColor: CodableColor(.systemPink),
+           isPopular: false,
+           isCustom: false
+       )
+       
+       // Puzzle Games
+       static let crosswordle = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000E") ?? UUID(),
+           name: "crosswordle",
+           displayName: "Crosswordle",
+           url: URL(string: "https://crosswordle.serializer.ca")!,
+           category: .puzzle,
+           resultPattern: #"Crosswordle \d+.*?in \d+"#,
+           iconSystemName: "square.grid.3x3.fill",
+           backgroundColor: CodableColor(.systemGray),
+           isPopular: false,
+           isCustom: false
+       )
+       
+       static let mini_crossword = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000F") ?? UUID(),
+           name: "mini_crossword",
+           displayName: "Mini Crossword",
+           url: URL(string: "https://www.nytimes.com/crosswords/game/mini")!,
+           category: .puzzle,
+           resultPattern: #"Mini Crossword.*?(\d+:\d+|\d+s)"#,
+           iconSystemName: "square.grid.2x2",
+           backgroundColor: CodableColor(.systemBlue),
+           isPopular: true,
+           isCustom: false
+       )
+       
+       static let sudoku = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440010") ?? UUID(),
+           name: "sudoku",
+           displayName: "Sudoku",
+           url: URL(string: "https://www.nytimes.com/puzzles/sudoku")!,
+           category: .puzzle,
+           resultPattern: #"Sudoku.*?in (\d+:\d+|\d+m)"#,
+           iconSystemName: "square.grid.3x3.topleft.filled",
+           backgroundColor: CodableColor(.systemPurple),
+           isPopular: true,
+           isCustom: false
+       )
+       
+       // Music Games
+       static let lyricle = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440011") ?? UUID(),
+           name: "lyricle",
+           displayName: "Lyricle",
+           url: URL(string: "https://www.lyricle.app")!,
+           category: .music,
+           resultPattern: #"Lyricle \d+ [1-6X]/6"#,
+           iconSystemName: "music.note.list",
+           backgroundColor: CodableColor(.systemPink),
+           isPopular: false,
+           isCustom: false
+       )
+       
+       // More Word Games
+       static let absurdle = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440012") ?? UUID(),
+           name: "absurdle",
+           displayName: "Absurdle",
+           url: URL(string: "https://absurdle.online")!,
+           category: .word,
+           resultPattern: #"Absurdle.*?in \d+ guesses"#,
+           iconSystemName: "questionmark.square",
+           backgroundColor: CodableColor(.systemRed),
+           isPopular: false,
+           isCustom: false
+       )
+       
+       static let semantle = Game(
+           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440013") ?? UUID(),
+           name: "semantle",
+           displayName: "Semantle",
+           url: URL(string: "https://semantle.com")!,
+           category: .word,
+           resultPattern: #"Semantle #\d+.*?in \d+ guesses"#,
+           iconSystemName: "brain",
+           backgroundColor: CodableColor(.systemIndigo),
+           isPopular: false,
+           isCustom: false
+       )
     
-    static let popularGames = [wordle, quordle, nerdle, heardle]
+    // MARK: - More Word Games (21-30)
+        static let octordle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440014") ?? UUID(),
+            name: "octordle",
+            displayName: "Octordle",
+            url: URL(string: "https://octordle.com")!,
+            category: .word,
+            resultPattern: #"Daily Octordle #\d+"#,
+            iconSystemName: "square.grid.4x3.fill",
+            backgroundColor: CodableColor(.systemPurple),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let dordle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440015") ?? UUID(),
+            name: "dordle",
+            displayName: "Dordle",
+            url: URL(string: "https://zaratustra.itch.io/dordle")!,
+            category: .word,
+            resultPattern: #"Daily Dordle #\d+"#,
+            iconSystemName: "square.on.square",
+            backgroundColor: CodableColor(.systemOrange),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let sedecordle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440016") ?? UUID(),
+            name: "sedecordle",
+            displayName: "Sedecordle",
+            url: URL(string: "https://sedecordle.com")!,
+            category: .word,
+            resultPattern: #"Daily Sedecordle #\d+"#,
+            iconSystemName: "square.grid.3x3.square",
+            backgroundColor: CodableColor(.systemRed),
+            isPopular: false,
+            isCustom: false
+        )
+        
+    static let kilordle = Game(
+        id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440017") ?? UUID(),
+        name: "kilordle",
+        displayName: "Kilordle",
+        url: URL(string: "https://kilordle.com")!,
+        category: .word,
+        resultPattern: #"Kilordle.*?in \d+ guesses"#,
+        iconSystemName: "infinity", // ← CHANGE THIS (was "infinity.square")
+        backgroundColor: CodableColor(.systemIndigo),
+        isPopular: false,
+        isCustom: false
+    )
+        
+        static let antiwordle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440018") ?? UUID(),
+            name: "antiwordle",
+            displayName: "Antiwordle",
+            url: URL(string: "https://antiwordle.com")!,
+            category: .word,
+            resultPattern: #"Antiwordle.*?in \d+ attempts"#,
+            iconSystemName: "arrow.uturn.backward.square",
+            backgroundColor: CodableColor(.systemPink),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let wordscapes = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440019") ?? UUID(),
+            name: "wordscapes",
+            displayName: "Wordscapes",
+            url: URL(string: "https://wordscapes.com")!,
+            category: .word,
+            resultPattern: #"Wordscapes.*?Level \d+"#,
+            iconSystemName: "leaf",
+            backgroundColor: CodableColor(.systemGreen),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let wordhurdle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001A") ?? UUID(),
+            name: "wordhurdle",
+            displayName: "Word Hurdle",
+            url: URL(string: "https://wordhurdle.com")!,
+            category: .word,
+            resultPattern: #"Word Hurdle.*?in \d+/6"#,
+            iconSystemName: "figure.run.square.stack",
+            backgroundColor: CodableColor(.systemBlue),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let xordle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001B") ?? UUID(),
+            name: "xordle",
+            displayName: "Xordle",
+            url: URL(string: "https://xordle.xyz")!,
+            category: .word,
+            resultPattern: #"Xordle #\d+ [1-9X]/9"#,
+            iconSystemName: "xmark.square",
+            backgroundColor: CodableColor(.systemGray),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let squareword = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001C") ?? UUID(),
+            name: "squareword",
+            displayName: "Squareword",
+            url: URL(string: "https://squareword.org")!,
+            category: .word,
+            resultPattern: #"Squareword.*?in \d+ guesses"#,
+            iconSystemName: "square.text.square",
+            backgroundColor: CodableColor(.systemMint),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let phrazle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001D") ?? UUID(),
+            name: "phrazle",
+            displayName: "Phrazle",
+            url: URL(string: "https://phrazle.com")!,
+            category: .word,
+            resultPattern: #"Phrazle.*?in \d+/6"#,
+            iconSystemName: "text.quote",
+            backgroundColor: CodableColor(.systemBrown),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        // MARK: - More Math/Logic Games (31-35)
+        static let primel = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001E") ?? UUID(),
+            name: "primel",
+            displayName: "Primel",
+            url: URL(string: "https://converged.yt/primel")!,
+            category: .math,
+            resultPattern: #"Primel \d+ [1-6X]/6"#,
+            iconSystemName: "number.circle",
+            backgroundColor: CodableColor(.systemPurple),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let ooodle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001F") ?? UUID(),
+            name: "ooodle",
+            displayName: "Ooodle",
+            url: URL(string: "https://ooodle.live")!,
+            category: .math,
+            resultPattern: #"Ooodle.*?in \d+ attempts"#,
+            iconSystemName: "plus.forwardslash.minus",
+            backgroundColor: CodableColor(.systemOrange),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let summle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440020") ?? UUID(),
+            name: "summle",
+            displayName: "Summle",
+            url: URL(string: "https://summle.com")!,
+            category: .math,
+            resultPattern: #"Summle.*?in \d+ tries"#,
+            iconSystemName: "sum",
+            backgroundColor: CodableColor(.systemYellow),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let timeguessr = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440021") ?? UUID(),
+            name: "timeguessr",
+            displayName: "TimeGuessr",
+            url: URL(string: "https://timeguessr.com")!,
+            category: .math,
+            resultPattern: #"TimeGuessr.*?Score: \d+"#,
+            iconSystemName: "clock.badge.questionmark",
+            backgroundColor: CodableColor(.systemTeal),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let rankdle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440022") ?? UUID(),
+            name: "rankdle",
+            displayName: "Rankdle",
+            url: URL(string: "https://rankdle.com")!,
+            category: .math,
+            resultPattern: #"Rankdle.*?in \d+ attempts"#,
+            iconSystemName: "list.number",
+            backgroundColor: CodableColor(.systemCyan),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        // MARK: - More Music/Audio Games (36-40)
+        static let songlio = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440023") ?? UUID(),
+            name: "songlio",
+            displayName: "Songlio",
+            url: URL(string: "https://songlio.com")!,
+            category: .music,
+            resultPattern: #"Songlio.*?in \d+ tries"#,
+            iconSystemName: "music.mic",
+            backgroundColor: CodableColor(.systemPink),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let binb = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440024") ?? UUID(),
+            name: "binb",
+            displayName: "BINB",
+            url: URL(string: "https://binb.co")!,
+            category: .music,
+            resultPattern: #"BINB.*?in \d+ guesses"#,
+            iconSystemName: "waveform",
+            backgroundColor: CodableColor(.systemRed),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let songle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440025") ?? UUID(),
+            name: "songle",
+            displayName: "Songle",
+            url: URL(string: "https://songle.io")!,
+            category: .music,
+            resultPattern: #"Songle.*?in \d+ attempts"#,
+            iconSystemName: "music.quarternote.3",
+            backgroundColor: CodableColor(.systemIndigo),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let bandle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440026") ?? UUID(),
+            name: "bandle",
+            displayName: "Bandle",
+            url: URL(string: "https://bandle.app")!,
+            category: .music,
+            resultPattern: #"Bandle.*?\d+/6"#,
+            iconSystemName: "guitars",
+            backgroundColor: CodableColor(.systemGreen),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let musicle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440027") ?? UUID(),
+            name: "musicle",
+            displayName: "Musicle",
+            url: URL(string: "https://musicle.app")!,
+            category: .music,
+            resultPattern: #"Musicle.*?in \d+ seconds"#,
+            iconSystemName: "music.note.tv",
+            backgroundColor: CodableColor(.systemBlue),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        // MARK: - More Geography Games (41-45)
+        static let countryle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440028") ?? UUID(),
+            name: "countryle",
+            displayName: "Countryle",
+            url: URL(string: "https://countryle.com")!,
+            category: .geography,
+            resultPattern: #"Countryle.*?in \d+ guesses"#,
+            iconSystemName: "map",
+            backgroundColor: CodableColor(.systemOrange),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let flagle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440029") ?? UUID(),
+            name: "flagle",
+            displayName: "Flagle",
+            url: URL(string: "https://flagle.io")!,
+            category: .geography,
+            resultPattern: #"Flagle.*?in \d+/6"#,
+            iconSystemName: "flag",
+            backgroundColor: CodableColor(.systemRed),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let statele = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002A") ?? UUID(),
+            name: "statele",
+            displayName: "Statele",
+            url: URL(string: "https://statele.com")!,
+            category: .geography,
+            resultPattern: #"Statele.*?in \d+ guesses"#,
+            iconSystemName: "map.circle",
+            backgroundColor: CodableColor(.systemPurple),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let citydle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002B") ?? UUID(),
+            name: "citydle",
+            displayName: "Citydle",
+            url: URL(string: "https://citydle.com")!,
+            category: .geography,
+            resultPattern: #"Citydle.*?in \d+ attempts"#,
+            iconSystemName: "building.2",
+            backgroundColor: CodableColor(.systemGray),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let wheretaken = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002C") ?? UUID(),
+            name: "wheretaken",
+            displayName: "WhereTaken",
+            url: URL(string: "https://wheretaken.com")!,
+            category: .geography,
+            resultPattern: #"WhereTaken.*?in \d+ guesses"#,
+            iconSystemName: "camera.on.rectangle",
+            backgroundColor: CodableColor(.systemMint),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        // MARK: - More Trivia/Visual Games (46-50)
+        static let moviedle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002D") ?? UUID(),
+            name: "moviedle",
+            displayName: "Moviedle",
+            url: URL(string: "https://moviedle.app")!,
+            category: .trivia,
+            resultPattern: #"Moviedle.*?in \d+ seconds"#,
+            iconSystemName: "film",
+            backgroundColor: CodableColor(.systemYellow),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let posterdle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002E") ?? UUID(),
+            name: "posterdle",
+            displayName: "Posterdle",
+            url: URL(string: "https://posterdle.com")!,
+            category: .trivia,
+            resultPattern: #"Posterdle.*?in \d+ guesses"#,
+            iconSystemName: "photo.artframe",
+            backgroundColor: CodableColor(.systemTeal),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let actorle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002F") ?? UUID(),
+            name: "actorle",
+            displayName: "Actorle",
+            url: URL(string: "https://actorle.com")!,
+            category: .trivia,
+            resultPattern: #"Actorle.*?in \d+ guesses"#,
+            iconSystemName: "person.crop.rectangle",
+            backgroundColor: CodableColor(.systemBrown),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let foodguessr = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440030") ?? UUID(),
+            name: "foodguessr",
+            displayName: "FoodGuessr",
+            url: URL(string: "https://foodguessr.com")!,
+            category: .trivia,
+            resultPattern: #"FoodGuessr.*?Score: \d+"#,
+            iconSystemName: "fork.knife",
+            backgroundColor: CodableColor(.systemOrange),
+            isPopular: false,
+            isCustom: false
+        )
+        
+        static let artdle = Game(
+            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440031") ?? UUID(),
+            name: "artdle",
+            displayName: "Artdle",
+            url: URL(string: "https://artdle.com")!,
+            category: .trivia,
+            resultPattern: #"Artdle.*?in \d+ guesses"#,
+            iconSystemName: "paintpalette",
+            backgroundColor: CodableColor(.systemPink),
+            isPopular: false,
+            isCustom: false
+        )
+    
+    // MARK: - Updated Popular Games Array
+    static let popularGames: [Game] = [
+        wordle,
+        quordle,
+        nerdle,
+        heardle,
+        connections,
+        spelling_bee,
+        worldle,
+        contexto,
+        mini_crossword,
+        sudoku
+    ]
+    
+    // MARK: - All Games Array (for GameCatalog)
+    static let allAvailableGames: [Game] = [
+            // Original Word Games (1-8)
+            wordle, quordle, connections, spelling_bee,
+            letterboxed, waffle, absurdle, semantle,
+            
+            // Additional Word Games (21-30)
+            octordle, dordle, sedecordle, kilordle,
+            antiwordle, wordscapes, wordhurdle, xordle,
+            squareword, phrazle,
+            
+            // Original Math Games (9-10)
+            nerdle, mathle, numberle,
+            
+            // Additional Math Games (31-35)
+            primel, ooodle, summle, timeguessr, rankdle,
+            
+            // Original Music Games (11-12)
+            heardle, lyricle,
+            
+            // Additional Music Games (36-40)
+            songlio, binb, songle, bandle, musicle,
+            
+            // Original Geography Games (13-14)
+            worldle, globle,
+            
+            // Additional Geography Games (41-45)
+            countryle, flagle, statele, citydle, wheretaken,
+            
+            // Original Trivia Games (15-16)
+            contexto, framed,
+            
+            // Additional Trivia Games (46-50)
+            moviedle, posterdle, actorle, foodguessr, artdle,
+            
+            // Original Puzzle Games (17-20)
+            crosswordle, mini_crossword, sudoku
+        ]
 }
 
 // MARK: - Game Category (Enhanced)

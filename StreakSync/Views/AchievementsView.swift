@@ -10,7 +10,7 @@ import SwiftUI
 // MARK: - Achievements View
 struct AchievementsView: View {
     @Environment(AppState.self) private var appState
-    @Environment(NavigationCoordinator.self) private var coordinator
+    @EnvironmentObject private var coordinator: NavigationCoordinator
     
     private var unlockedCount: Int {
         appState.achievements.filter(\.isUnlocked).count
@@ -137,6 +137,6 @@ struct AchievementCard: View {
     NavigationStack {
         AchievementsView()
             .environment(AppState())
-            .environment(NavigationCoordinator())
+            .environmentObject(NavigationCoordinator())
     }
 }

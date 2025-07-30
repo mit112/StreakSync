@@ -12,7 +12,7 @@ import Charts
 struct GameDetailPerformanceView: View {
     let results: [GameResult]
     let streak: GameStreak
-    @Environment(NavigationCoordinator.self) private var coordinator
+    @EnvironmentObject private var coordinator: NavigationCoordinator
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -251,6 +251,6 @@ struct DailyResult {
             streakStartDate: Date()
         )
     )
-    .environment(NavigationCoordinator())
+    .environmentObject(NavigationCoordinator())
     .padding()
 }

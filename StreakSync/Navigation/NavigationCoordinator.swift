@@ -6,12 +6,13 @@
 //
 
 import SwiftUI
+import Observation
 
 // MARK: - Navigation Coordinator
-@Observable
-class NavigationCoordinator {
-    var path = NavigationPath()
-    var presentedSheet: SheetDestination?
+@MainActor
+final class NavigationCoordinator: ObservableObject {
+    @Published var path = NavigationPath()
+    @Published var presentedSheet: SheetDestination?
 
     
     enum Destination: Hashable {

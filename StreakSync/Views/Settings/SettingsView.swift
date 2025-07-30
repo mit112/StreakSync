@@ -13,7 +13,7 @@ import UserNotifications
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     @Environment(\.dismiss) private var dismiss
-    @Environment(NavigationCoordinator.self) private var coordinator
+    @EnvironmentObject private var coordinator: NavigationCoordinator
     @Environment(AppState.self) private var appState
     
     var body: some View {
@@ -160,6 +160,6 @@ struct NotificationSettingsView: View {
 #Preview {
     NavigationStack {
         SettingsView()
-            .environment(NavigationCoordinator())
+            .environmentObject(NavigationCoordinator())
     }
 }
