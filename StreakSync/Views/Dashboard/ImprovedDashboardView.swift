@@ -10,6 +10,7 @@ import SwiftUI
 struct ImprovedDashboardView: View {
     @Environment(AppState.self) private var appState
     @EnvironmentObject private var coordinator: NavigationCoordinator
+    @Binding var showTabBar: Bool
     @Environment(GameCatalog.self) private var gameCatalog
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
@@ -29,6 +30,10 @@ struct ImprovedDashboardView: View {
     @State private var selectedSort: GameSortOption = .lastPlayed
     @State private var sortDirection: SortDirection = .descending
     @FocusState private var isSearchFieldFocused: Bool
+    
+    init(showTabBar: Binding<Bool> = .constant(true)) {
+        self._showTabBar = showTabBar
+    }
     
     // MARK: - Computed Properties
     private var greetingText: String {
@@ -124,26 +129,24 @@ struct ImprovedDashboardView: View {
         }.count
     }
     
+    // Replace your current body with this:
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Main content
+            // Main content - keep your existing PullToRefreshContainer
             PullToRefreshContainer(isRefreshing: $isRefreshing) {
                 await refreshData()
             } content: {
                 VStack(spacing: 16) {
-                    // Compact header with integrated progress
+                    // Your existing content...
                     compactHeaderSection
                         .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 0, totalCount: 3))
                     
-                    // Enhanced search with integrated filter
                     enhancedSearchSection
                         .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 1, totalCount: 3))
                     
-                    // Games centerpiece - takes up most space
                     gamesCenterpieceSection
                         .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: 2, totalCount: 3))
                     
-                    // Extra spacer for lower tab bar
                     Spacer(minLength: 120)
                 }
                 .padding(.vertical)
@@ -152,6 +155,7 @@ struct ImprovedDashboardView: View {
             
             // Lowered tab bar
             modernTabBar
+                .tabBarTransition(isVisible: showTabBar)
         }
         .navigationBarHidden(true)
         .onAppear {
@@ -161,12 +165,6 @@ struct ImprovedDashboardView: View {
                 }
             }
         }
-        .refreshable {
-            await refreshData()
-        }
-        //        .sheet(isPresented: $showSettings) {
-        //            SettingsView()
-        //        }
     }
     
     // MARK: - Compact Header Section
@@ -378,6 +376,7 @@ struct ImprovedDashboardView: View {
             
             Group {
                 if filteredStreaks.isEmpty {
+                    // Add frame to fill available space and center content
                     EmptyStateView(
                         icon: "gamecontroller",
                         title: searchText.isEmpty ?
@@ -390,7 +389,9 @@ struct ImprovedDashboardView: View {
                             "Try adjusting your search or filters",
                         action: nil
                     )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)  // ← ADD THIS
                     .padding(.horizontal)
+                    .padding(.top, 40)  // ← ADD THIS for better vertical centering
                 } else {
                     // Switch based on display mode
                     switch displayMode {
@@ -409,11 +410,16 @@ struct ImprovedDashboardView: View {
                                     }
                                 ) {
                                     if let game = appState.games.first(where: { $0.id == streak.gameId }) {
-                                        coordinator.navigateTo(.gameDetail(game))
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                                    coordinator.navigateTo(.gameDetail(game))
+                                                }
                                     }
                                 }
+                                .scaleEffect(1.0) // Add this
+                                .animation(.spring(response: 0.2), value: streak.id)
                                 .id("\(refreshID)-\(streak.id)")
                             }
+                            
                         }
                         .padding(.horizontal)
                         
@@ -470,7 +476,7 @@ struct ImprovedDashboardView: View {
     
     
     
-    // MARK: - Modern Tab Bar (FIXED VERSION)
+    // MARK: - Modern Tab Bar (with smooth transitions)
     private var modernTabBar: some View {
         HStack(spacing: 0) {
             TabBarButton(
@@ -478,11 +484,10 @@ struct ImprovedDashboardView: View {
                 title: "Home",
                 isSelected: selectedTab == 0
             ) {
-                // Always highlight home immediately
+                HapticManager.shared.trigger(.buttonTap)
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                     selectedTab = 0
                 }
-                HapticManager.shared.trigger(.buttonTap)
             }
             
             TabBarButton(
@@ -490,19 +495,21 @@ struct ImprovedDashboardView: View {
                 title: "Stats",
                 isSelected: selectedTab == 1
             ) {
-                // Temporarily highlight, then navigate
+                HapticManager.shared.trigger(.buttonTap)
+                
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                     selectedTab = 1
                 }
-                HapticManager.shared.trigger(.buttonTap)
                 
-                // Navigate after brief delay, then reset to home
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    coordinator.navigateTo(.allStreaks)
+                // Smooth transition before navigation
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        coordinator.navigateTo(.allStreaks)
+                    }
                     
-                    // Reset to home after navigation
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    // Reset after navigation completes
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        withAnimation(.spring(response: 0.3)) {
                             selectedTab = 0
                         }
                     }
@@ -514,16 +521,19 @@ struct ImprovedDashboardView: View {
                 title: "Awards",
                 isSelected: selectedTab == 2
             ) {
+                HapticManager.shared.trigger(.buttonTap)
+                
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                     selectedTab = 2
                 }
-                HapticManager.shared.trigger(.buttonTap)
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    coordinator.navigateTo(.achievements)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        coordinator.navigateTo(.achievements)
+                    }
                     
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        withAnimation(.spring(response: 0.3)) {
                             selectedTab = 0
                         }
                     }
@@ -535,16 +545,19 @@ struct ImprovedDashboardView: View {
                 title: "Settings",
                 isSelected: selectedTab == 3
             ) {
+                HapticManager.shared.trigger(.buttonTap)
+                
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                     selectedTab = 3
                 }
-                HapticManager.shared.trigger(.buttonTap)
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    coordinator.navigateTo(.settings)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        coordinator.navigateTo(.settings)
+                    }
                     
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        withAnimation(.spring(response: 0.3)) {
                             selectedTab = 0
                         }
                     }
@@ -559,7 +572,6 @@ struct ImprovedDashboardView: View {
                 .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
         )
         .padding(.horizontal, 16)
-//        .padding(.bottom, 10)
     }
     
     // MARK: - Helper Methods
@@ -709,39 +721,125 @@ struct EmptyStateView: View {
     let icon: String
     let title: String
     let subtitle: String
-    let action: (String, () -> Void)?  // Already optional, good!
+    let action: (() -> Void)?
+    
+    @State private var isAnimating = false
+    @State private var particleOffset: CGFloat = 0
+    @EnvironmentObject private var themeManager: ThemeManager
+    
+    init(
+        icon: String,
+        title: String,
+        subtitle: String,
+        action: (() -> Void)? = nil
+    ) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.action = action
+    }
     
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: icon)
-                .font(.system(size: 50))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color.blue, Color.purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+        VStack(spacing: 24) {
+            // Animated illustration
+            ZStack {
+                // Background glow
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                themeManager.primaryAccent.opacity(0.3),
+                                themeManager.primaryAccent.opacity(0.05)
+                            ],
+                            center: .center,
+                            startRadius: 30,
+                            endRadius: 100
+                        )
                     )
-                )
-                .symbolEffect(.bounce, options: .speed(0.5))
+                    .frame(width: 200, height: 200)
+                    .blur(radius: 20)
+                    .scaleEffect(isAnimating ? 1.2 : 0.8)
+                    .animation(
+                        Animation.easeInOut(duration: 3.0).repeatForever(autoreverses: true),
+                        value: isAnimating
+                    )
+                
+                // Floating particles
+                ForEach(0..<6, id: \.self) { index in
+                    Circle()
+                        .fill(themeManager.primaryAccent.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                        .offset(
+                            x: cos(CGFloat(index) * .pi / 3) * 60,
+                            y: sin(CGFloat(index) * .pi / 3) * 60
+                        )
+                        .offset(y: particleOffset)
+                        .animation(
+                            Animation.easeInOut(duration: 2.0)
+                                .repeatForever(autoreverses: true)
+                                .delay(Double(index) * 0.2),
+                            value: particleOffset
+                        )
+                }
+                
+                // Main icon
+                Image(systemName: icon)
+                    .font(.system(size: 64, weight: .light))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [
+                                themeManager.primaryAccent,
+                                themeManager.primaryAccent.opacity(0.7)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .rotationEffect(.degrees(isAnimating ? 5 : -5))
+                    .animation(
+                        Animation.easeInOut(duration: 4.0).repeatForever(autoreverses: true),
+                        value: isAnimating
+                    )
+            }
+            .frame(height: 160)
             
-            VStack(spacing: 8) {
+            // Text content
+            VStack(spacing: 12) {
                 Text(title)
-                    .font(.title3.bold())
+                    .font(.headline)
+                    .foregroundStyle(.primary)
                 
                 Text(subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .padding(.horizontal)
             }
             
+            // Action button if provided
             if let action = action {
-                Button(action.0, action: action.1)
-                    .buttonStyle(.borderedProminent)
-                    .pressable(hapticType: .buttonTap)
+                Button(action: action) {
+                    Text("Get Started")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(themeManager.primaryAccent)
+                        )
+                }
+                .pressable(hapticType: .buttonTap)
+                .padding(.top, 8)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        .padding()
+        .onAppear {
+            isAnimating = true
+            withAnimation {
+                particleOffset = -10
+            }
+        }
     }
 }
 
@@ -825,6 +923,46 @@ extension EnhancedStreakCard {
             isFavorite: false,
             onFavoriteToggle: nil,
             onTap: onTap
+        )
+    }
+}
+
+
+// MARK: - Preset Empty States
+extension EmptyStateView {
+    static func noGames(action: (() -> Void)? = nil) -> EmptyStateView {
+        EmptyStateView(
+            icon: "gamecontroller",
+            title: NSLocalizedString("empty.no_games", comment: ""),
+            subtitle: NSLocalizedString("empty.no_games_message", comment: ""),
+            action: action
+        )
+    }
+    
+    static func noFavorites(action: (() -> Void)? = nil) -> EmptyStateView {
+        EmptyStateView(
+            icon: "star",
+            title: "No Favorite Games",
+            subtitle: "Star your favorite games to see them here",
+            action: action
+        )
+    }
+    
+    static func noResults(searchTerm: String) -> EmptyStateView {
+        EmptyStateView(
+            icon: "magnifyingglass",
+            title: "No Results",
+            subtitle: "No games found matching '\(searchTerm)'",
+            action: nil
+        )
+    }
+    
+    static func noStreaks(action: (() -> Void)? = nil) -> EmptyStateView {
+        EmptyStateView(
+            icon: "flame",
+            title: NSLocalizedString("empty.no_streaks", comment: ""),
+            subtitle: NSLocalizedString("empty.no_streaks_message", comment: ""),
+            action: action
         )
     }
 }

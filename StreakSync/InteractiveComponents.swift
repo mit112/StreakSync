@@ -133,42 +133,12 @@ struct PullToRefreshContainer<Content: View>: View {
     }
 }
 
-// MARK: - Flare Refresh Indicator
-private struct FlareRefreshIndicator: View {
-    let isRefreshing: Bool
-    @StateObject private var themeManager = ThemeManager.shared
-    @Environment(\.colorScheme) var colorScheme
-    
-    private var gradientColors: [Color] {
-        let colors = themeManager.currentTheme.colors
-        let hexColors = colorScheme == .dark ? colors.gradientDark : colors.gradientLight
-        return hexColors.map { Color(hex: $0) }
-    }
-    
-    var body: some View {
-        ZStack {
-            if isRefreshing {
-                // Animated loading state
-                Image(systemName: "flame.fill")
-                    .font(.title2)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: gradientColors,
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                    .animation(
-                        Animation.linear(duration: 1.0).repeatForever(autoreverses: false),
-                        value: isRefreshing
-                    )
-            } else {
-                // Standard progress view for simplicity
-                ProgressView()
-            }
-        }
-        .frame(height: 50)
+
+// MARK: - Preference Key
+private struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 

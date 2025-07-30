@@ -9,19 +9,35 @@ struct ContentView: View {
     @EnvironmentObject private var container: AppContainer
     @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
     @Environment(\.scenePhase) private var scenePhase
+    @Namespace private var navigationNamespace
+    @State private var showTabBar = true
     
     var body: some View {
         NavigationStack(path: $navigationCoordinator.path) {
-            ImprovedDashboardView()
+            ImprovedDashboardView(showTabBar: $showTabBar)
                 .id(container.notificationCoordinator.refreshID)
                 .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
                     destinationView(for: destination)
+                        .navigationTransition()
+                        .onAppear {
+                            withAnimation(.spring(response: 0.3)) {
+                                showTabBar = false
+                            }
+                        }
+                        .onDisappear {
+                            withAnimation(.spring(response: 0.3)) {
+                                showTabBar = true
+                            }
+                        }
                 }
         }
         .environmentObject(container.themeManager)
         .sheet(item: $navigationCoordinator.presentedSheet) { sheet in
             sheetView(for: sheet)
                 .environmentObject(container.themeManager)
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(20)
+                .presentationBackground(.ultraThinMaterial)
         }
         .background(container.themeManager.primaryBackground)
         .onChange(of: scenePhase) { _, newPhase in

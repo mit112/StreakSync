@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import OSLog
 
 @MainActor
 @Observable
@@ -15,8 +16,10 @@ final class GameCatalog {
     private(set) var allGames: [Game] = []
     private(set) var favoriteGameIDs: Set<UUID> = []
     
-    // MARK: - Persistence Keys
-    private let favoritesKey = "favoriteGameIDs"
+    // MARK: - Persistence
+    private let logger = Logger(subsystem: "com.streaksync.app", category: "GameCatalog")
+    private let persistenceService = UserDefaultsPersistenceService()
+    private let favoritesKey = "streaksync_favorite_games"
     
     // MARK: - Computed Properties
     
@@ -48,20 +51,18 @@ final class GameCatalog {
     
     // MARK: - Game Loading
     private func loadAllGames() {
-        // Start with the existing popular games to maintain compatibility
-//        var games = Game.popularGames
         self.allGames = Game.allAvailableGames
-        // Add any additional games here in the future
-        // For example:
-        // games.append(contentsOf: GameRegistry.additionalGames)
+        logger.info("Loaded \(self.allGames.count) games into catalog")
     }
     
     // MARK: - Favorites Management
     func toggleFavorite(_ gameId: UUID) {
         if favoriteGameIDs.contains(gameId) {
             favoriteGameIDs.remove(gameId)
+            logger.info("Removed game from favorites: \(gameId)")
         } else {
             favoriteGameIDs.insert(gameId)
+            logger.info("Added game to favorites: \(gameId)")
         }
         saveFavorites()
     }
@@ -78,41 +79,51 @@ final class GameCatalog {
     
     // MARK: - Persistence
     private func loadFavorites() {
-        if let savedIDs = UserDefaults.standard.stringArray(forKey: favoritesKey) {
+        logger.info("Loading favorite games...")
+        
+        if let savedIDs = persistenceService.load([String].self, forKey: favoritesKey) {
             favoriteGameIDs = Set(savedIDs.compactMap { UUID(uuidString: $0) })
-            
-            // If no favorites saved, default to showing all current games as favorites
-            if favoriteGameIDs.isEmpty {
-                favoriteGameIDs = Set(Game.popularGames.map { $0.id })
-            }
+            logger.info("Loaded \(self.favoriteGameIDs.count) favorite games")
         } else {
-            // First time: all existing games are favorites by default
-            favoriteGameIDs = Set(Game.popularGames.map { $0.id })
-            saveFavorites()
+            logger.info("No saved favorites found - starting with empty favorites")
+            // Don't default to any favorites - let user choose
+            favoriteGameIDs = Set()
         }
     }
     
     private func saveFavorites() {
-        let idStrings = favoriteGameIDs.map { $0.uuidString }
-        UserDefaults.standard.set(idStrings, forKey: favoritesKey)
+        let idsToSave = favoriteGameIDs.map { $0.uuidString }
+        do {
+            try persistenceService.save(idsToSave, forKey: favoritesKey)
+            logger.info("✅ Saved \(idsToSave.count) favorite games")
+        } catch {
+            logger.error("❌ Failed to save favorites: \(error)")
+        }
     }
     
     // MARK: - Game Management (Future)
     
     /// Add a new game to the catalog (for future custom games)
     func addCustomGame(_ game: Game) {
-        guard !allGames.contains(where: { $0.id == game.id }) else { return }
+        guard !allGames.contains(where: { $0.id == game.id }) else {
+            logger.warning("Attempted to add duplicate game: \(game.id)")
+            return
+        }
         allGames.append(game)
-        // Could persist custom games separately
+        logger.info("Added custom game: \(game.displayName)")
     }
     
     /// Remove a custom game (only custom games can be removed)
     func removeCustomGame(_ gameId: UUID) {
         guard let game = allGames.first(where: { $0.id == gameId }),
-              game.isCustom else { return }
+              game.isCustom else {
+            logger.warning("Cannot remove non-custom game: \(gameId)")
+            return
+        }
         
         allGames.removeAll { $0.id == gameId }
         favoriteGameIDs.remove(gameId)
         saveFavorites()
+        logger.info("Removed custom game: \(game.displayName)")
     }
 }
