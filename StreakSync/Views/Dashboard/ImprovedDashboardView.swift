@@ -16,7 +16,7 @@ struct ImprovedDashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("userName") private var userName: String = ""
     @AppStorage("gameDisplayMode") private var displayMode: GameDisplayMode = .card
-    
+    @EnvironmentObject private var gameManagementState: GameManagementState
     @State private var searchText = ""
     @State private var showOnlyActive = false
     @State private var refreshID = UUID()
@@ -69,9 +69,17 @@ struct ImprovedDashboardView: View {
             gamesToShow = gameCatalog.allGames
         }
         
-        // Filter streaks to only include games we want to show
+        // Apply custom ordering from GameManagementState
+        let orderedGames = gameManagementState.orderedGames(from: gamesToShow)
+        
+        // Filter out archived games
+        let activeGames = orderedGames.filter { game in
+            !gameManagementState.isArchived(game.id)
+        }
+        
+        // Filter streaks to only include non-archived games
         var streaks = appState.streaks.filter { streak in
-            gamesToShow.contains { $0.id == streak.gameId }
+            activeGames.contains { $0.id == streak.gameId }
         }
         
         // Apply category filter
@@ -95,8 +103,19 @@ struct ImprovedDashboardView: View {
             }
         }
         
-        // Apply sorting
-        return streaks.sorted(by: selectedSort, direction: sortDirection, games: appState.games)
+        // Apply sorting - respecting the custom order when sort is not applied
+        if selectedSort == .lastPlayed && sortDirection == .descending {
+            // This is the default - respect custom game order
+            let gameOrderMap = Dictionary(uniqueKeysWithValues: activeGames.enumerated().map { ($1.id, $0) })
+            return streaks.sorted { streak1, streak2 in
+                let order1 = gameOrderMap[streak1.gameId] ?? Int.max
+                let order2 = gameOrderMap[streak2.gameId] ?? Int.max
+                return order1 < order2
+            }
+        } else {
+            // Apply the selected sort
+            return streaks.sorted(by: selectedSort, direction: sortDirection, games: appState.games)
+        }
     }
     
     // Add this property to get available categories:
@@ -360,6 +379,22 @@ struct ImprovedDashboardView: View {
                             }
                         } label: {
                             Label(section.rawValue, systemImage: section.icon)
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    // Add Manage Games option
+                    Button {
+                        coordinator.navigateTo(.gameManagement)
+                    } label: {
+                        HStack {
+                            Label("Manage Games", systemImage: "slider.horizontal.3")
+                            if !gameManagementState.archivedGameIds.isEmpty {
+                                Text("(\(gameManagementState.archivedGameIds.count) archived)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 } label: {

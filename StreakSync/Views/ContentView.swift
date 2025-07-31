@@ -16,6 +16,7 @@ struct ContentView: View {
         NavigationStack(path: $navigationCoordinator.path) {
             ImprovedDashboardView(showTabBar: $showTabBar)
                 .id(container.notificationCoordinator.refreshID)
+                .environmentObject(container.gameManagementState)
                 .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
                     destinationView(for: destination)
                         .navigationTransition()
@@ -85,6 +86,11 @@ struct ContentView: View {
         case .settings:
             SettingsView()
                 .environmentObject(container)
+        case .gameManagement:
+            GameManagementView()
+                .environment(container.appState)
+                .environment(container.gameCatalog)
+                .environmentObject(container.gameManagementState)
         }
     }
     

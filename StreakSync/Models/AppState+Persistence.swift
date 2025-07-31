@@ -150,13 +150,14 @@ extension AppState {
     }
     
     // MARK: - Saving Methods (Unchanged)
-    func saveAllData() async {
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.saveGameResults() }
-            group.addTask { await self.saveAchievements() }
-            group.addTask { await self.saveStreaks() }
-        }
-    }
+//    func saveAllData() async {
+//        await withTaskGroup(of: Void.self) { group in
+//            group.addTask { await self.saveGameResults() }
+//            group.addTask { await self.saveAchievements() }
+//            group.addTask { await self.saveStreaks() }
+//        }
+//    }
+
     
     func saveGameResults() async {
         do {

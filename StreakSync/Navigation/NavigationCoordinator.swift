@@ -21,8 +21,9 @@ final class NavigationCoordinator: ObservableObject {
         case allStreaks
         case achievements
         case settings
+        case gameManagement  // ADD THIS
         
-        // Custom Hashable implementation for performance
+        // Update the hash function:
         func hash(into hasher: inout Hasher) {
             switch self {
             case .gameDetail(let game):
@@ -37,10 +38,12 @@ final class NavigationCoordinator: ObservableObject {
                 hasher.combine("achievements")
             case .settings:
                 hasher.combine("settings")
+            case .gameManagement:  // ADD THIS
+                hasher.combine("gameManagement")
             }
         }
         
-        // Equatable conformance (automatic synthesis now works)
+        // Update the == function:
         static func == (lhs: Destination, rhs: Destination) -> Bool {
             switch (lhs, rhs) {
             case (.gameDetail(let lhsGame), .gameDetail(let rhsGame)):
@@ -52,6 +55,8 @@ final class NavigationCoordinator: ObservableObject {
             case (.achievements, .achievements):
                 return true
             case (.settings, .settings):
+                return true
+            case (.gameManagement, .gameManagement):  // ADD THIS
                 return true
             default:
                 return false

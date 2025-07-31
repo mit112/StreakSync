@@ -27,6 +27,8 @@ final class AppContainer: ObservableObject {
     let appGroupBridge: AppGroupBridge
     
     let gameCatalog: GameCatalog
+    let gameManagementState: GameManagementState
+
     
     // MARK: - UI Services
     let themeManager: ThemeManager
@@ -69,6 +71,8 @@ final class AppContainer: ObservableObject {
         
         // 5b. Game Management (NEW)
         self.gameCatalog = GameCatalog()
+        
+        self.gameManagementState = GameManagementState()
         
         // 6. Notification handling
         self.notificationCoordinator = NotificationCoordinator()

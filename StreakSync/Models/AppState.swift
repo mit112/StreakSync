@@ -22,9 +22,9 @@ final class AppState {
     }
     
     // MARK: - Core Data (Persisted)
-    private(set) var games: [Game] = []
-    private(set) var streaks: [GameStreak] = []
-    private(set) var achievements: [Achievement] = []
+    var games: [Game] = []
+    var streaks: [GameStreak] = []
+    var achievements: [Achievement] = []
     private(set) var recentResults: [GameResult] = []
     
     // MARK: - UI State (Not Persisted)
@@ -360,6 +360,10 @@ final class AppState {
     internal func setStreaks(_ streaks: [GameStreak]) {
         self.streaks = streaks
     }
+    
+    
+    
+    
 }
 
 // MARK: - GameResult iOS Extensions

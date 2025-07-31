@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UserNotifications
+import OSLog
 
 // MARK: - Settings View Model
 @MainActor
@@ -158,15 +159,20 @@ private struct FeatureRow: View {
     }
 }
 
-// MARK: - Data Management View
+// MARK: - Data Management View (FIXED)
 struct DataManagementView: View {
     @Environment(AppState.self) private var appState
+    @EnvironmentObject private var container: AppContainer  // Add this!
     @State private var showExportSheet = false
     @State private var showImportPicker = false
     @State private var showClearDataAlert = false
     @State private var exportURL: URL?
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var isExporting = false
+    @State private var isImporting = false
+    @State private var showImportSuccess = false
+    @State private var importedItemsCount = 0
     
     var body: some View {
         List {
@@ -178,21 +184,62 @@ struct DataManagementView: View {
                     HStack {
                         Label("Export Data", systemImage: "square.and.arrow.up")
                         Spacer()
-                        Text("JSON")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if isExporting {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Text("JSON")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
+                .disabled(isExporting || appState.games.isEmpty)
                 
                 Button {
                     showImportPicker = true
                 } label: {
-                    Label("Import Data", systemImage: "square.and.arrow.down")
+                    HStack {
+                        Label("Import Data", systemImage: "square.and.arrow.down")
+                        Spacer()
+                        if isImporting {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
                 }
+                .disabled(isImporting)
+                
             } header: {
                 Text("Backup")
             } footer: {
                 Text("Export your streak data or import from a previous backup.")
+            }
+            
+            // Storage Info Section
+            Section {
+                HStack {
+                    Label("Total Games", systemImage: "gamecontroller")
+                    Spacer()
+                    Text("\(appState.games.count)")
+                        .foregroundStyle(.secondary)
+                }
+                
+                HStack {
+                    Label("Game Results", systemImage: "list.bullet")
+                    Spacer()
+                    Text("\(appState.recentResults.count)")  // Fixed: recentResults
+                        .foregroundStyle(.secondary)
+                }
+                
+                HStack {
+                    Label("Achievements", systemImage: "trophy")
+                    Spacer()
+                    Text("\(appState.unlockedAchievements.count)")
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Data Summary")
             }
             
             // Clear Data Section
@@ -203,20 +250,11 @@ struct DataManagementView: View {
                     Label("Clear All Data", systemImage: "trash")
                         .foregroundStyle(.red)
                 }
-            } header: {
-                Text("Danger Zone")
-            } footer: {
-                Text("This will permanently delete all your streak data. This action cannot be undone.")
             }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Data & Privacy")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showExportSheet) {
-            if let url = exportURL {
-                ShareSheet(activityItems: [url])
-            }
-        }
         .fileImporter(
             isPresented: $showImportPicker,
             allowedContentTypes: [.json],
@@ -224,11 +262,18 @@ struct DataManagementView: View {
         ) { result in
             handleImport(result)
         }
+        .sheet(isPresented: $showExportSheet) {
+            if let exportURL = exportURL {
+                ShareSheet(activityItems: [exportURL])
+                    .ignoresSafeArea()
+            }
+        }
         .alert("Clear All Data?", isPresented: $showClearDataAlert) {
             Button("Cancel", role: .cancel) { }
             Button("Clear", role: .destructive) {
                 Task {
                     await appState.clearAllData()
+                    HapticManager.shared.trigger(.error)
                 }
             }
         } message: {
@@ -239,76 +284,261 @@ struct DataManagementView: View {
         } message: {
             Text(errorMessage)
         }
+        .alert("Import Successful", isPresented: $showImportSuccess) {
+            Button("OK") { }
+        } message: {
+            Text("Successfully imported \(importedItemsCount) items.")
+        }
     }
     
     private func exportData() {
-        // Implement export functionality
-        do {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = .prettyPrinted
-            encoder.dateEncodingStrategy = .iso8601
-            
-            let exportData = ExportData(
-                version: 1,
-                exportDate: Date(),
-                gameResults: appState.recentResults,
-                achievements: appState.achievements,
-                streaks: appState.streaks
-            )
-            
-            let data = try encoder.encode(exportData)
-            
-            let fileName = "StreakSync_Backup_\(Date().ISO8601Format()).json"
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-            
-            try data.write(to: url)
-            
-            exportURL = url
-            showExportSheet = true
-            
-        } catch {
-            errorMessage = "Failed to export data: \(error.localizedDescription)"
-            showError = true
+        guard !isExporting else { return }
+        
+        isExporting = true
+        
+        Task {
+            do {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                encoder.dateEncodingStrategy = .iso8601
+                
+                // Gather all data - FIXED property names
+                let exportData = ExportData(
+                    version: 1,
+                    exportDate: Date(),
+                    appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
+                    gameResults: appState.recentResults,  // Fixed: recentResults
+                    achievements: appState.achievements,
+                    streaks: appState.streaks,
+                    favoriteGameIds: Array(container.gameCatalog.favoriteGameIDs),  // Fixed: use container
+                    customGames: [] // For future use
+                )
+                
+                let jsonData = try encoder.encode(exportData)
+                
+                // Create filename with timestamp
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd_HHmmss"
+                let timestamp = formatter.string(from: Date())
+                let fileName = "StreakSync_Backup_\(timestamp).json"
+                
+                // Save to temporary directory
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(fileName)
+                
+                try jsonData.write(to: tempURL)
+                
+                await MainActor.run {
+                    self.exportURL = tempURL
+                    self.showExportSheet = true
+                    self.isExporting = false
+                    HapticManager.shared.trigger(.achievement)
+                }
+                
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Failed to export data: \(error.localizedDescription)"
+                    self.showError = true
+                    self.isExporting = false
+                    HapticManager.shared.trigger(.error)
+                }
+            }
         }
     }
     
     private func handleImport(_ result: Result<[URL], Error>) {
-        // Implement import functionality
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }
             
-            do {
-                let data = try Data(contentsOf: url)
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                
-                let _ = try decoder.decode(ExportData.self, from: data)
-                
-                // TODO: Implement actual import logic
-                errorMessage = "Import functionality coming soon!"
-                showError = true
-                
-            } catch {
-                errorMessage = "Failed to import data: \(error.localizedDescription)"
-                showError = true
+            isImporting = true
+            
+            Task {
+                await performImport(from: url)
             }
             
         case .failure(let error):
             errorMessage = "Failed to select file: \(error.localizedDescription)"
             showError = true
+            HapticManager.shared.trigger(.error)
+        }
+    }
+    
+    private func performImport(from url: URL) async {
+        do {
+            // Start accessing the security-scoped resource
+            guard url.startAccessingSecurityScopedResource() else {
+                throw ImportError.cannotAccessFile
+            }
+            defer { url.stopAccessingSecurityScopedResource() }
+            
+            // Read the data
+            let jsonData = try Data(contentsOf: url)
+            
+            // Try to parse as JSON first to check validity
+            if let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
+               let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: .prettyPrinted),
+               let jsonString = String(data: prettyData, encoding: .utf8) {
+                print("JSON Preview: \(String(jsonString.prefix(500)))")
+            }
+            
+            // Decode the data
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            
+            do {
+                let importedData = try decoder.decode(ExportData.self, from: jsonData)
+                
+                // Validate the data
+                try validateImportData(importedData)
+                
+                // Import the data
+                await importDataToAppState(importedData)
+                
+                await MainActor.run {
+                    self.isImporting = false
+                    self.importedItemsCount = importedData.gameResults.count +
+                                             importedData.achievements.count
+                    self.showImportSuccess = true
+                    HapticManager.shared.trigger(.achievement)
+                }
+                
+            } catch let decodingError as DecodingError {
+                // Specific decoding error handling
+                switch decodingError {
+                case .keyNotFound(let key, let context):
+                    await showImportError("Missing required field: \(key.stringValue)\n\nDetails: \(context.debugDescription)")
+                case .typeMismatch(let type, let context):
+                    await showImportError("Type mismatch for \(type)\n\nDetails: \(context.debugDescription)")
+                case .valueNotFound(let type, let context):
+                    await showImportError("Missing value for \(type)\n\nDetails: \(context.debugDescription)")
+                case .dataCorrupted(let context):
+                    await showImportError("Corrupted data\n\nDetails: \(context.debugDescription)")
+                @unknown default:
+                    await showImportError("Unknown decoding error: \(decodingError.localizedDescription)")
+                }
+            }
+            
+        } catch ImportError.invalidVersion {
+            await showImportError("This backup was created with a newer version of StreakSync.")
+        } catch ImportError.corruptedData {
+            await showImportError("The backup file appears to be corrupted.")
+        } catch ImportError.cannotAccessFile {
+            await showImportError("Cannot access the selected file.")
+        } catch {
+            await showImportError("Import failed: \(error.localizedDescription)")
+        }
+    }
+    
+    private func validateImportData(_ data: ExportData) throws {
+        // Check version compatibility
+        if data.version > 1 {
+            throw ImportError.invalidVersion
+        }
+        
+        // Validate data integrity
+        for result in data.gameResults {
+            if result.gameName.isEmpty || result.date > Date() {
+                throw ImportError.corruptedData
+            }
+        }
+    }
+    
+    private func importDataToAppState(_ data: ExportData) async {
+        var importCount = 0
+        
+        // Import game results (merge, don't duplicate)
+        for result in data.gameResults {
+            if !appState.recentResults.contains(where: { $0.id == result.id }) {
+                appState.addGameResult(result)
+                importCount += 1
+//                logger.info("Imported game result: \(result.gameName) - \(result.date)")
+            }
+        }
+        
+        // Import achievements
+        await appState.importAchievements(data.achievements)
+        importCount += data.achievements.filter { $0.isUnlocked }.count
+        
+        // Update favorite games
+        for gameId in data.favoriteGameIds {
+            container.gameCatalog.addFavorite(gameId)
+//            logger.info("Added favorite: \(gameId)")
+        }
+        
+        // Rebuild streaks from imported results
+        await appState.rebuildStreaksFromResults()
+        
+        // Save everything
+        await appState.saveAllData()
+        
+        // Update the count to show actual imported items
+        await MainActor.run {
+            self.importedItemsCount = importCount
+        }
+        // Ensure games are still loaded
+        if appState.games.isEmpty {
+            
+            // Re-initialize games
+            appState.games = Game.allAvailableGames
+        }
+    }
+    
+    private func showImportError(_ message: String) async {
+        await MainActor.run {
+            self.isImporting = false
+            self.errorMessage = message
+            self.showError = true
+            HapticManager.shared.trigger(.error)
         }
     }
 }
 
-// MARK: - Export Data Model
-private struct ExportData: Codable {
+// MARK: - Import Errors
+private enum ImportError: LocalizedError {
+    case invalidVersion
+    case corruptedData
+    case cannotAccessFile
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidVersion:
+            return "Incompatible backup version"
+        case .corruptedData:
+            return "Corrupted backup data"
+        case .cannotAccessFile:
+            return "Cannot access file"
+        }
+    }
+}
+
+// MARK: - Enhanced Export Data Model
+struct ExportData: Codable {
     let version: Int
     let exportDate: Date
+    let appVersion: String
     let gameResults: [GameResult]
     let achievements: [Achievement]
     let streaks: [GameStreak]
+    let favoriteGameIds: [UUID]
+    let customGames: [Game] // For future use
 }
+
+// MARK: - Share Sheet (for Export)
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: activityItems,
+            applicationActivities: nil
+        )
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
 
 
 
