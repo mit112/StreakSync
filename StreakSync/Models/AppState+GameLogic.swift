@@ -108,19 +108,6 @@ extension AppState {
         return updatedStreak
     }
     
-    // MARK: - Achievement Checking
-    func checkAchievements(for result: GameResult) {
-        var newlyUnlocked: [Achievement] = []
-        
-        newlyUnlocked.append(contentsOf: checkFirstGameAchievements())
-        newlyUnlocked.append(contentsOf: checkStreakAchievements(for: result))
-        newlyUnlocked.append(contentsOf: checkTotalGamesAchievements())
-        newlyUnlocked.append(contentsOf: checkMultipleGamesAchievements())
-        
-        for achievement in newlyUnlocked {
-            unlockAchievement(achievement)
-        }
-    }
     
     private func checkFirstGameAchievements() -> [Achievement] {
         guard self.recentResults.count == 1 else { return [] }

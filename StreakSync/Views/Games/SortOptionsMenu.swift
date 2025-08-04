@@ -12,6 +12,7 @@ enum GameSortOption: String, CaseIterable, Identifiable {
     case lastPlayed = "Last Played"
     case name = "Name"
     case streakLength = "Streak Length"
+    case completionRate = "Success Rate"  // ADD THIS LINE
     
     var id: String { rawValue }
     
@@ -23,6 +24,8 @@ enum GameSortOption: String, CaseIterable, Identifiable {
             return "textformat"
         case .streakLength:
             return "flame"
+        case .completionRate:  // ADD THIS CASE
+            return "percent"
         }
     }
     
@@ -34,10 +37,11 @@ enum GameSortOption: String, CaseIterable, Identifiable {
             return "A-Z"
         case .streakLength:
             return "Streak"
+        case .completionRate:  // ADD THIS CASE
+            return "Success"
         }
     }
 }
-
 // MARK: - Sort Direction Enum
 enum SortDirection: String, CaseIterable {
     case ascending = "Ascending"
@@ -161,6 +165,10 @@ extension Array where Element == GameStreak {
                 
             case .streakLength:
                 ascending = streak1.currentStreak < streak2.currentStreak
+                
+            case .completionRate:
+                // Add the implementation for completion rate sorting
+                ascending = streak1.completionRate < streak2.completionRate
             }
             
             return direction == .ascending ? ascending : !ascending

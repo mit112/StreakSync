@@ -35,6 +35,8 @@ final class AppContainer: ObservableObject {
     let hapticManager: HapticManager
     let browserLauncher: BrowserLauncher
     
+    let achievementCelebrationCoordinator: AchievementCelebrationCoordinator
+
     // MARK: - Notification Coordinator
     let notificationCoordinator: NotificationCoordinator
     
@@ -76,6 +78,9 @@ final class AppContainer: ObservableObject {
         
         // 6. Notification handling
         self.notificationCoordinator = NotificationCoordinator()
+        // 7. Achievement celebrations
+        self.achievementCelebrationCoordinator = AchievementCelebrationCoordinator()
+
         
         // Wire up dependencies
         setupDependencies()

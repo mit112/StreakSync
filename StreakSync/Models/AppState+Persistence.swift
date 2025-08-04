@@ -17,29 +17,46 @@ extension AppState {
         AppGroupSyncCoordinator()
     }
     
-    // MARK: - Data Loading (Simplified)
+    // In your existing AppState implementation, update the loadPersistedData method:
+
     func loadPersistedData() async {
-        logger.info("📥 Loading persisted data...")
-        
         setLoading(true)
         defer { setLoading(false) }
         
-        clearError()
+        logger.info("🔄 Loading persisted data...")
         
-        // Load all data in parallel
-        await loadAllData()
+        // Load game results
+        await loadGameResults()
         
-        // Then sync from Share Extension
-        await syncFromShareExtension()
+        // Load legacy achievements
+        await loadAchievements()
         
-        // Listen for new results
-        setupShareExtensionListener()
+        // NEW: Load tiered achievements
+        await loadTieredAchievements()
         
+        // Load streaks
+        await loadStreaks()
+        
+        // NEW: Initialize tiered achievements if first time
+        if _tieredAchievements == nil {
+            _tieredAchievements = AchievementFactory.createDefaultAchievements()
+            recalculateAllTieredAchievementProgress()
+            await saveTieredAchievements()
+        }
+        
+        // Mark data as loaded
         isDataLoaded = true
         lastDataLoad = Date()
         
-        logger.info("✅ Data loading complete")
+        // Sync from share extension
+        await syncFromShareExtension()
+        
+        // Setup listener
+        setupShareExtensionListener()
+        
+        logger.info("✅ Data loading complete with tiered achievements")
     }
+    
     
     // MARK: - Parallel Data Loading
     private func loadAllData() async {

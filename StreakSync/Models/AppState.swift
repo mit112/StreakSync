@@ -16,6 +16,9 @@ final class AppState {
     internal let logger = Logger(subsystem: "com.streaksync.app", category: "AppState")
     internal let persistenceService: PersistenceServiceProtocol
     internal let appGroupPersistence: AppGroupPersistenceService
+    // Add this as a new property alongside existing achievements
+    @ObservationIgnored
+    internal var _tieredAchievements: [TieredAchievement]?
     // Add to AppState:
     func getStreak(for game: Game) -> GameStreak? {
         streaks.first { $0.gameId == game.id }
@@ -25,7 +28,7 @@ final class AppState {
     var games: [Game] = []
     var streaks: [GameStreak] = []
     var achievements: [Achievement] = []
-    private(set) var recentResults: [GameResult] = []
+    var recentResults: [GameResult] = []
     
     // MARK: - UI State (Not Persisted)
     var selectedGame: Game?
