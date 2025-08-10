@@ -1,0 +1,740 @@
+//
+//  GameResultDetailView.swift
+//  StreakSync
+//
+//  iOS 26 Enhanced game result detail with animations and materials
+//
+
+import SwiftUI
+import UIKit
+
+// MARK: - Game Result Detail View
+struct GameResultDetailView: View {
+    let result: GameResult
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(AppState.self) private var appState
+    @EnvironmentObject private var themeManager: ThemeManager
+    
+    @State private var hasAppeared = false
+    @State private var scoreRevealed = false
+    @State private var showShareSheet = false
+    @State private var copiedToClipboard = false
+    @State private var selectedShareFormat: ShareFormat = .full
+    @State private var isHoveringShare = false
+    @State private var isHoveringCopy = false
+    
+    // Animation states
+    @State private var emojiScale: CGFloat = 0.1
+    @State private var detailsOpacity: Double = 0
+    @State private var buttonsScale: CGFloat = 0.8
+    
+    private var game: Game? {
+        appState.games.first { $0.id == result.gameId }
+    }
+    
+    private var gameColor: Color {
+        game?.backgroundColor.color ?? .gray
+    }
+    
+    enum ShareFormat: String, CaseIterable {
+        case full = "Full Result"
+        case compact = "Compact"
+        case stats = "With Stats"
+        
+        var icon: String {
+            switch self {
+            case .full: return "doc.text"
+            case .compact: return "text.alignleft"
+            case .stats: return "chart.bar"
+            }
+        }
+    }
+    
+    var body: some View {
+        NavigationStack {
+            if #available(iOS 26.0, *) {
+                iOS26DetailView
+            } else {
+                legacyDetailView
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+    
+    // MARK: - iOS 26 Implementation
+    @available(iOS 26.0, *)
+    private var iOS26DetailView: some View {
+        ScrollView {
+            VStack(spacing: 32) {
+                // Hero Score Section with Animation
+                iOS26ScoreHeroSection
+                    .scrollTransition { content, phase in
+                        content
+                            .scaleEffect(
+                                x: phase.isIdentity ? 1 : 0.85,
+                                y: phase.isIdentity ? 1 : 0.85
+                            )
+                            .opacity(phase.isIdentity ? 1 : 0.3)
+                    }
+                
+                // Game Details Grid
+                iOS26DetailsGrid
+                    .scrollTransition { content, phase in
+                        content
+                            .opacity(phase.isIdentity ? 1 : 0.7)
+                            .blur(radius: phase.isIdentity ? 0 : 2)
+                    }
+                
+                // Share Preview Section
+                iOS26SharePreview
+                    .scrollTransition { content, phase in
+                        content
+                            .offset(y: phase.isIdentity ? 0 : 20)
+                            .opacity(phase.isIdentity ? 1 : 0.5)
+                    }
+                
+                // Action Buttons
+                iOS26ActionButtons
+                    .scrollTransition { content, phase in
+                        content
+                            .scaleEffect(phase.isIdentity ? 1 : 0.95)
+                    }
+            }
+            .padding()
+            .padding(.bottom, 20)
+        }
+        .scrollBounceBehavior(.automatic)
+        .scrollIndicators(.hidden)
+        .background {
+            iOS26BackgroundGradient
+        }
+        .navigationTitle(result.gameName.capitalized)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Done") {
+                    dismiss()
+                }
+                .fontWeight(.medium)
+            }
+        }
+        .onAppear {
+            startAnimationSequence()
+        }
+        .sheet(isPresented: $showShareSheet) {
+            ShareSheet(activityItems: [formatShareText()])
+        }
+        .sensoryFeedback(.success, trigger: copiedToClipboard)
+    }
+    
+    // MARK: - iOS 26 Score Hero Section
+    @available(iOS 26.0, *)
+    private var iOS26ScoreHeroSection: some View {
+        VStack(spacing: 20) {
+            // Animated emoji with particles
+            ZStack {
+                // Background glow
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                gameColor.opacity(0.3),
+                                gameColor.opacity(0.1),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 100
+                        )
+                    )
+                    .frame(width: 200, height: 200)
+                    .blur(radius: 20)
+                    .opacity(scoreRevealed ? 1 : 0)
+                    .animation(.easeOut(duration: 1).delay(0.3), value: scoreRevealed)
+                
+                // Main emoji
+                Text(result.scoreEmoji)
+                    .font(.system(size: 100))
+                    .scaleEffect(emojiScale)
+                    .rotationEffect(.degrees(scoreRevealed ? 0 : -180))
+                    .animation(
+                        .spring(response: 0.5, dampingFraction: 0.6)
+                        .delay(0.2),
+                        value: scoreRevealed
+                    )
+                    .symbolEffect(
+                        .bounce.up,
+                        options: .repeating.speed(0.3),
+                        value: scoreRevealed
+                    )
+                
+                // Success particles (if completed)
+                if result.completed {
+                    ForEach(0..<8, id: \.self) { index in
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(gameColor)
+                            .offset(
+                                x: scoreRevealed ? cos(Double(index) * .pi / 4) * 80 : 0,
+                                y: scoreRevealed ? sin(Double(index) * .pi / 4) * 80 : 0
+                            )
+                            .opacity(scoreRevealed ? 0 : 1)
+                            .scaleEffect(scoreRevealed ? 0.1 : 1)
+                            .animation(
+                                .spring(response: 0.8, dampingFraction: 0.5)
+                                .delay(0.5 + Double(index) * 0.05),
+                                value: scoreRevealed
+                            )
+                    }
+                }
+            }
+            .frame(height: 150)
+            
+            // Game name and score
+            VStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: game?.iconSystemName ?? "gamecontroller")
+                        .font(.title2)
+                        .foregroundStyle(gameColor)
+                        .symbolEffect(.pulse, value: scoreRevealed)
+                    
+                    Text(result.gameName.capitalized)
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.primary)
+                }
+                .opacity(detailsOpacity)
+                
+                // Animated score reveal
+                HStack(spacing: 16) {
+                    // Score badge
+                    ScoreBadge(
+                        score: result.displayScore,
+                        color: gameColor,
+                        revealed: scoreRevealed
+                    )
+                    
+                    // Completion status
+                    if result.completed {
+                        Label("Completed", systemImage: "checkmark.circle.fill")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.green)
+                            .symbolEffect(.appear, isActive: scoreRevealed)
+                    } else {
+                        Label("Not Completed", systemImage: "xmark.circle")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .opacity(detailsOpacity)
+            }
+        }
+        .padding(.top, 20)
+    }
+    
+    // MARK: - iOS 26 Details Grid
+    @available(iOS 26.0, *)
+    private var iOS26DetailsGrid: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ],
+            spacing: 16
+        ) {
+            DetailCard(
+                icon: "calendar",
+                label: "Date",
+                value: result.date.formatted(date: .abbreviated, time: .omitted),
+                color: .blue
+            )
+            .opacity(detailsOpacity)
+            .animation(.easeOut(duration: 0.3).delay(0.4), value: detailsOpacity)
+            
+            if let puzzleNumber = result.parsedData["puzzleNumber"] {
+                DetailCard(
+                    icon: "number.square",
+                    label: "Puzzle",
+                    value: "#\(puzzleNumber)",
+                    color: .purple
+                )
+                .opacity(detailsOpacity)
+                .animation(.easeOut(duration: 0.3).delay(0.5), value: detailsOpacity)
+            }
+            
+            DetailCard(
+                icon: "target",
+                label: "Attempts",
+                value: result.displayScore,
+                color: .orange
+            )
+            .opacity(detailsOpacity)
+            .animation(.easeOut(duration: 0.3).delay(0.6), value: detailsOpacity)
+            
+            if let time = result.parsedData["time"] {
+                DetailCard(
+                    icon: "clock",
+                    label: "Time",
+                    value: time,
+                    color: .green
+                )
+                .opacity(detailsOpacity)
+                .animation(.easeOut(duration: 0.3).delay(0.7), value: detailsOpacity)
+            }
+        }
+    }
+    
+    // MARK: - iOS 26 Share Preview
+    @available(iOS 26.0, *)
+    private var iOS26SharePreview: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Format selector
+            HStack {
+                Text("Share Format")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+                
+                Picker("Format", selection: $selectedShareFormat) {
+                    ForEach(ShareFormat.allCases, id: \.self) { format in
+                        Label(format.rawValue, systemImage: format.icon)
+                            .tag(format)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(gameColor)
+            }
+            
+            // Preview card
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Preview")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    
+                    Spacer()
+                    
+                    Button {
+                        copyToClipboard()
+                    } label: {
+                        Image(systemName: copiedToClipboard ? "checkmark.circle.fill" : "doc.on.doc")
+                            .font(.caption)
+                            .foregroundStyle(copiedToClipboard ? .green : gameColor)
+                            .symbolEffect(.bounce, value: copiedToClipboard)
+                    }
+                    .buttonStyle(.plain)
+                }
+                
+                Text(formatShareText())
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.primary.opacity(0.8))
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(.thinMaterial)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .strokeBorder(gameColor.opacity(0.2), lineWidth: 1)
+                            }
+                    }
+            }
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            }
+        }
+        .opacity(detailsOpacity)
+        .animation(.easeOut(duration: 0.3).delay(0.8), value: detailsOpacity)
+    }
+    
+    // MARK: - iOS 26 Action Buttons
+    @available(iOS 26.0, *)
+    private var iOS26ActionButtons: some View {
+        HStack(spacing: 16) {
+            // Copy button
+            Button {
+                copyToClipboard()
+            } label: {
+                Label(
+                    copiedToClipboard ? "Copied!" : "Copy",
+                    systemImage: copiedToClipboard ? "checkmark" : "doc.on.doc"
+                )
+                .font(.body.weight(.medium))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(.regularMaterial)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(
+                                    copiedToClipboard ? Color.green : gameColor.opacity(0.3),
+                                    lineWidth: 1
+                                )
+                        }
+                }
+                .scaleEffect(isHoveringCopy ? 1.05 : 1)
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                withAnimation(.smooth(duration: 0.2)) {
+                    isHoveringCopy = hovering
+                }
+            }
+            .hoverEffect(.highlight)
+            .scaleEffect(buttonsScale)
+            .animation(.spring(response: 0.4, dampingFraction: 0.6).delay(0.9), value: buttonsScale)
+            
+            // Share button
+            Button {
+                showShareSheet = true
+                HapticManager.shared.trigger(.buttonTap)
+            } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [gameColor, gameColor.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .shadow(
+                                color: gameColor.opacity(0.3),
+                                radius: isHoveringShare ? 12 : 6,
+                                x: 0,
+                                y: isHoveringShare ? 6 : 3
+                            )
+                    }
+                    .scaleEffect(isHoveringShare ? 1.05 : 1)
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                withAnimation(.smooth(duration: 0.2)) {
+                    isHoveringShare = hovering
+                }
+            }
+            .hoverEffect(.lift)
+            .scaleEffect(buttonsScale)
+            .animation(.spring(response: 0.4, dampingFraction: 0.6).delay(1.0), value: buttonsScale)
+        }
+    }
+    
+    // MARK: - iOS 26 Background
+    @available(iOS 26.0, *)
+    private var iOS26BackgroundGradient: some View {
+        ZStack {
+            // Base background
+            Rectangle()
+                .fill(.background)
+            
+            // Gradient overlay
+            LinearGradient(
+                colors: [
+                    gameColor.opacity(0.05),
+                    Color.clear,
+                    gameColor.opacity(0.02)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            
+            // Mesh gradient for depth (iOS 26 only)
+            if result.completed {
+                MeshGradient(
+                    width: 3,
+                    height: 3,
+                    points: [
+                        [0, 0], [0.5, 0], [1, 0],
+                        [0, 0.5], [0.5, 0.5], [1, 0.5],
+                        [0, 1], [0.5, 1], [1, 1]
+                    ],
+                    colors: [
+                        gameColor.opacity(0.1), Color.clear, gameColor.opacity(0.05),
+                        Color.clear, gameColor.opacity(0.08), Color.clear,
+                        gameColor.opacity(0.05), Color.clear, gameColor.opacity(0.1)
+                    ]
+                )
+                .blur(radius: 30)
+                .opacity(0.5)
+            }
+        }
+        .ignoresSafeArea()
+    }
+    
+    // MARK: - Legacy Implementation
+    private var legacyDetailView: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Score display
+                VStack(spacing: 16) {
+                    Text(result.scoreEmoji)
+                        .font(.system(size: 72))
+                        .scaleEffect(scoreRevealed ? 1 : 0.5)
+                        .opacity(scoreRevealed ? 1 : 0)
+                    
+                    Text(result.gameName.capitalized)
+                        .font(.title3.weight(.medium))
+                    
+                    Text(result.displayScore)
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 20)
+                
+                // Details section
+                VStack(spacing: 0) {
+                    DetailRow(label: "Date", value: result.date.formatted(date: .abbreviated, time: .omitted))
+                    Divider()
+                    DetailRow(label: "Status", value: result.completed ? "Completed" : "Not Completed")
+                    Divider()
+                    DetailRow(label: "Attempts", value: result.displayScore)
+                    
+                    if let puzzleNumber = result.parsedData["puzzleNumber"] {
+                        Divider()
+                        DetailRow(label: "Puzzle", value: "#\(puzzleNumber)")
+                    }
+                }
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                
+                // Share button
+                ShareLink(item: formatShareText()) {
+                    Label("Share Result", systemImage: "square.and.arrow.up")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
+        }
+        .navigationTitle("Game Result")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Done") {
+                    dismiss()
+                }
+            }
+        }
+        .onAppear {
+            startAnimationSequence()
+        }
+    }
+    
+    // MARK: - Helper Methods
+    private func startAnimationSequence() {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+            hasAppeared = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                emojiScale = 1.0
+                scoreRevealed = true
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.easeOut(duration: 0.4)) {
+                detailsOpacity = 1
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                buttonsScale = 1.0
+            }
+        }
+    }
+    
+    private func copyToClipboard() {
+        UIPasteboard.general.string = formatShareText()
+        
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            copiedToClipboard = true
+        }
+        
+        HapticManager.shared.trigger(.achievement)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation {
+                copiedToClipboard = false
+            }
+        }
+    }
+    
+    private func formatShareText() -> String {
+        switch selectedShareFormat {
+        case .full:
+            return result.sharedText
+        case .compact:
+            let puzzleInfo = result.parsedData["puzzleNumber"].map { " #\($0)" } ?? ""
+            return "\(result.gameName)\(puzzleInfo) \(result.displayScore)"
+        case .stats:
+            let puzzleInfo = result.parsedData["puzzleNumber"].map { " #\($0)" } ?? ""
+            let streak = appState.streaks.first { $0.gameId == result.gameId }
+            let streakInfo = streak.map { "\nStreak: \($0.currentStreak) days 🔥" } ?? ""
+            return """
+            \(result.gameName)\(puzzleInfo)
+            Score: \(result.displayScore)
+            \(result.scoreEmoji)\(streakInfo)
+            
+            via @StreakSync
+            """
+        }
+    }
+}
+
+// MARK: - Supporting Views
+
+// Score Badge Component
+struct ScoreBadge: View {
+    let score: String
+    let color: Color
+    let revealed: Bool
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("Score:")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            
+            Text(score)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(color)
+                .contentTransition(.numericText())
+                .animation(.spring(response: 0.3), value: score)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background {
+            Capsule()
+                .fill(color.opacity(0.1))
+                .overlay {
+                    Capsule()
+                        .strokeBorder(color.opacity(0.3), lineWidth: 1)
+                }
+        }
+        .scaleEffect(revealed ? 1 : 0.8)
+        .opacity(revealed ? 1 : 0)
+        .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.2), value: revealed)
+    }
+}
+
+// Detail Card Component
+@available(iOS 26.0, *)
+struct DetailCard: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(color)
+                    .symbolEffect(.pulse, value: isHovered)
+                
+                Text(label)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            
+            Text(value)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(color.opacity(0.2), lineWidth: 1)
+                }
+                .shadow(
+                    color: isHovered ? color.opacity(0.1) : .clear,
+                    radius: 8,
+                    x: 0,
+                    y: 4
+                )
+        }
+        .onHover { hovering in
+            withAnimation(.smooth(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
+        .hoverEffect(.highlight)
+    }
+}
+
+// Legacy Detail Row
+struct DetailRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+        }
+        .padding()
+    }
+}
+
+// Share Sheet for iOS
+//struct ShareSheet: UIViewControllerRepresentable {
+//    let items: [Any]
+//    
+//    func makeUIViewController(context: Context) -> UIActivityViewController {
+//        let controller = UIActivityViewController(
+//            activityItems: items,
+//            applicationActivities: nil
+//        )
+//        return controller
+//    }
+//    
+//    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+//}
+
+// MARK: - Preview
+#Preview("Game Result Detail") {
+    GameResultDetailView(
+        result: GameResult(
+//            id: UUID(),
+            gameId: UUID(),
+            gameName: "Wordle",
+            date: Date(),
+            score: 3,
+            maxAttempts: 6,
+            completed: true,
+            sharedText: "Wordle 1,234 3/6\n\n⬛🟨⬛🟨⬛\n🟨⬛🟨⬛⬛\n🟩🟩🟩🟩🟩",
+            parsedData: ["puzzleNumber": "1,234", "time": "2:34"]
+        )
+    )
+    .environment(AppState())
+    .environmentObject(ThemeManager.shared)
+}

@@ -49,8 +49,8 @@ struct StreakSyncApp: App {
         
         do {
             // Request notification permissions
-            await requestNotificationPermissions()
-            
+            try await requestNotificationPermissions()
+
             // Load app data
             await container.appState.loadPersistedData()
             
@@ -78,21 +78,17 @@ struct StreakSyncApp: App {
     }
     
     // MARK: - Notification Permissions
-    private func requestNotificationPermissions() async {
-        do {
-            let center = UNUserNotificationCenter.current()
-            let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
-            
-            if granted {
-                logger.info("✅ Notification permissions granted")
-            } else {
-                logger.warning("⚠️ Notification permissions denied")
-            }
-            
-        } catch {
-            logger.error("❌ Failed to request notification permissions: \(error.localizedDescription)")
+    private func requestNotificationPermissions() async throws {
+        let center = UNUserNotificationCenter.current()
+        let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+
+        if granted {
+            logger.info("✅ Notification permissions granted")
+        } else {
+            logger.warning("⚠️ Notification permissions denied")
         }
     }
+
 }
 
 // MARK: - Initialization Views

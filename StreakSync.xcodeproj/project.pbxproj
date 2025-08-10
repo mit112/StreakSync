@@ -42,20 +42,17 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CCA36BFF2E47B81400761153 /* Exceptions for "StreakSync" folder in "StreakSyncShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Core/Models/Shared/SharedModels.swift,
+			);
+			target = CCD1ED0D2E2DCE4F00053DAC /* StreakSyncShareExtension */;
+		};
 		CCD1ED192E2DCE4F00053DAC /* Exceptions for "StreakSyncShareExtension" folder in "StreakSyncShareExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-			);
-			target = CCD1ED0D2E2DCE4F00053DAC /* StreakSyncShareExtension */;
-		};
-		CCD1ED1F2E2DCF7A00053DAC /* Exceptions for "StreakSync" folder in "StreakSyncShareExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Errors/AppError.swift,
-				Extensions/ColorTheme.swift,
-				Models/SharedModels.swift,
-				Services/SharedDataManager.swift,
 			);
 			target = CCD1ED0D2E2DCE4F00053DAC /* StreakSyncShareExtension */;
 		};
@@ -73,7 +70,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				CCF3B2372E3034D600C4ABCE /* Exceptions for "StreakSync" folder in "StreakSync" target */,
-				CCD1ED1F2E2DCF7A00053DAC /* Exceptions for "StreakSync" folder in "StreakSyncShareExtension" target */,
+				CCA36BFF2E47B81400761153 /* Exceptions for "StreakSync" folder in "StreakSyncShareExtension" target */,
 			);
 			path = StreakSync;
 			sourceTree = "<group>";
@@ -183,7 +180,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1600;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					CCD1ECDA2E2DBF1100053DAC = {
 						CreatedOnToolsVersion = 16.0;
@@ -316,6 +313,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 3P89U4WZAB;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -339,6 +337,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -379,6 +378,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 3P89U4WZAB;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -395,6 +395,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -409,7 +410,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"StreakSync/Preview Content\"";
-				DEVELOPMENT_TEAM = 3P89U4WZAB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -439,7 +439,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"StreakSync/Preview Content\"";
-				DEVELOPMENT_TEAM = 3P89U4WZAB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -466,7 +465,6 @@
 				CODE_SIGN_ENTITLEMENTS = StreakSyncShareExtension/StreakSyncShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3P89U4WZAB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StreakSyncShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = StreakSyncShareExtension;
@@ -492,7 +490,6 @@
 				CODE_SIGN_ENTITLEMENTS = StreakSyncShareExtension/StreakSyncShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3P89U4WZAB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StreakSyncShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = StreakSyncShareExtension;

@@ -11,10 +11,24 @@ import SwiftUI
 /// Core glass effect view modifier
 struct GlassEffect: ViewModifier {
     let type: GlassConstants.GlassType
+    let tintColor: Color?
     @Environment(\.colorScheme) private var colorScheme
+    
+    // Add explicit initializer
+    init(type: GlassConstants.GlassType, tintColor: Color? = nil) {
+        self.type = type
+        self.tintColor = tintColor
+    }
     
     private var backgroundColor: Color {
         let baseOpacity: Double
+        
+        // Add vibrant tint overlay for game cards
+        if let tint = tintColor {
+            return colorScheme == .dark ?
+                tint.opacity(0.15) : // More visible in dark mode
+                tint.opacity(0.08)   // Subtle in light mode
+        }
         
         switch type {
         case .light:
@@ -54,38 +68,42 @@ struct GlassEffect: ViewModifier {
         content
             .background(
                 ZStack {
-                    // Blur layer
+                    // Existing blur layer
                     Rectangle()
                         .fill(.ultraThinMaterial)
                         .blur(radius: type.blurRadius)
                     
-                    // Color layer
+                    // Enhanced color layer with tint
                     backgroundColor
                     
-                    // Gradient overlay for depth
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(colorScheme == .dark ? 0.05 : 0.1),
-                            Color.white.opacity(colorScheme == .dark ? 0.02 : 0.05)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+                    // Add colored gradient for game cards
+                    if let tint = tintColor {
+                        LinearGradient(
+                            colors: [
+                                tint.opacity(colorScheme == .dark ? 0.2 : 0.1),
+                                tint.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    }
+                    
+                    // Existing gradient overlay
                 }
             )
-            .overlay(
-                // Border
-                RoundedRectangle(cornerRadius: 0)
-                    .strokeBorder(borderColor, lineWidth: 1)
+            // Enhanced colored shadow
+            .shadow(
+                color: tintColor?.opacity(0.3) ?? shadowColor,
+                radius: 12,
+                x: 0,
+                y: 6
             )
-            .shadow(color: shadowColor, radius: 8, x: 0, y: 4)
     }
 }
 
 // MARK: - View Extension
 extension View {
-    /// Applies glass effect to any view
-    func glassEffect(type: GlassConstants.GlassType = .medium) -> some View {
-        self.modifier(GlassEffect(type: type))
+    func glassEffect(type: GlassConstants.GlassType = .medium, tint: Color? = nil) -> some View {
+        self.modifier(GlassEffect(type: type, tintColor: tint))
     }
 }

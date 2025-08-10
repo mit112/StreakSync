@@ -1,7 +1,7 @@
 import SwiftUI
 import Combine
 
-final class ThemeManager: ObservableObject {
+internal class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
 
     @Published var currentTheme: ColorTheme = .indigo

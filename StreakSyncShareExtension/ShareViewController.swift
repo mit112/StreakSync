@@ -1,411 +1,209 @@
 //
-//  ShareViewController.swift - COMPLETE FIXED VERSION
+//  ShareViewController.swift - WORKING VERSION
 //  StreakSyncShareExtension
 //
-//  Self-contained with all required models
+//  Simple UIViewController without SLComposeServiceViewController
 //
 
 import UIKit
-import Social
-import MobileCoreServices
 import UniformTypeIdentifiers
 import Foundation
 import OSLog
 
-// MARK: - Share Extension Error (Self-Contained)
-enum ShareExtensionError: LocalizedError {
-    case noContent
-    case invalidContentType(String)
-    case processingTimeout
-    case appGroupAccessFailed
-    case saveFailed(underlying: Error?)
-    case parsingFailed(reason: String)
-    case unknownGameFormat
-    
-    var errorDescription: String? {
-        switch self {
-        case .noContent:
-            return "No content to process"
-        case .invalidContentType:
-            return "Only text content is supported"
-        case .processingTimeout:
-            return "Processing took too long"
-        case .appGroupAccessFailed:
-            return "Cannot access shared data"
-        case .saveFailed:
-            return "Failed to save game result"
-        case .parsingFailed(let reason):
-            return "Could not parse game: \(reason)"
-        case .unknownGameFormat:
-            return "Unknown game format"
-        }
-    }
-    
-    var recoverySuggestion: String? {
-        switch self {
-        case .noContent:
-            return "Make sure to select text before sharing"
-        case .invalidContentType:
-            return "Copy your game result as text and try again"
-        case .processingTimeout:
-            return "Try again or use Manual Entry in the app"
-        case .appGroupAccessFailed:
-            return "Try reinstalling the app"
-        case .saveFailed:
-            return "Check your storage and try again"
-        case .parsingFailed:
-            return "Make sure to share the complete game result"
-        case .unknownGameFormat:
-            return "This game might not be supported yet"
-        }
-    }
-}
-
-// MARK: - SELF-CONTAINED MODELS (These were missing!)
-struct ShareGameResult: Codable {
-    let id: UUID
-    let gameId: UUID
-    let gameName: String
-    let date: Date
-    let score: Int?
-    let maxAttempts: Int
-    let completed: Bool
-    let sharedText: String
-    let parsedData: [String: String]
-    
-    init(gameId: UUID, gameName: String, date: Date = Date(), score: Int?, maxAttempts: Int, completed: Bool, sharedText: String, parsedData: [String: String] = [:]) {
-        self.id = UUID()
-        self.gameId = gameId
-        self.gameName = gameName.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.date = date
-        self.score = score
-        self.maxAttempts = maxAttempts
-        self.completed = completed
-        self.sharedText = sharedText
-        self.parsedData = parsedData
-    }
-    
-    var displayScore: String {
-        guard let score = score else { return "X/\(maxAttempts)" }
-        return "\(score)/\(maxAttempts)"
-    }
-}
-
-struct ShareGame {
-    let id: UUID
-    let name: String
-    let displayName: String
-    
-    static let wordle = ShareGame(
-        id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440000")!,
-        name: "wordle",
-        displayName: "Wordle"
-    )
-    
-    static let quordle = ShareGame(
-        id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440001")!,
-        name: "quordle",
-        displayName: "Quordle"
-    )
-    
-    static let nerdle = ShareGame(
-        id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440002")!,
-        name: "nerdle",
-        displayName: "Nerdle"
-    )
-    
-    static let heardle = ShareGame(
-        id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440003")!,
-        name: "heardle",
-        displayName: "Heardle"
-    )
-    
-    static let popularGames = [wordle, quordle, nerdle, heardle]
-}
-
-// MARK: - Share Extension Main Class
-class ShareViewController: SLComposeServiceViewController {
+class ShareViewController: UIViewController {
     
     private let appGroupID = "group.com.mitsheth.StreakSync"
-    private var parsedResult: ShareGameResult?
-    private var detectedGame: ShareGame?
     private let logger = Logger(subsystem: "com.streaksync.shareExtension", category: "ShareViewController")
     
-    // CRITICAL: ISO8601 encoder/decoder
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = .prettyPrinted
         return encoder
-    }()
-    
-    private let decoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
     }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        logger.info("ShareViewController loaded")
+        // Minimal iOS-style background
+        view.backgroundColor = .clear
         
-        setupUI()
+        // Create blur effect background
+        let blurEffect = UIBlurEffect(style: .systemMaterial)
+        let blurView = UIVisualEffectView(effect: blurEffect)
+        blurView.frame = view.bounds
+        blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(blurView)
+        
+        // Process content
         processSharedContent()
     }
     
-    private func setupUI() {
-        navigationController?.navigationBar.tintColor = UIColor.systemBlue
-        placeholder = "Add a note about this result (optional)"
-        navigationController?.navigationBar.topItem?.rightBarButtonItem?.title = "Save"
-    }
-    
     private func processSharedContent() {
-        guard let extensionItem = extensionContext?.inputItems.first as? NSExtensionItem,
-              let itemProvider = extensionItem.attachments?.first else {
-            showError(ShareExtensionError.noContent)
+        guard let item = extensionContext?.inputItems.first as? NSExtensionItem,
+              let provider = item.attachments?.first else {
+            showResult(success: false, gameName: nil)
             return
         }
         
-        if itemProvider.hasItemConformingToTypeIdentifier(UTType.text.identifier) {
-            itemProvider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { [weak self] (item, error) in
+        if provider.hasItemConformingToTypeIdentifier(UTType.text.identifier) {
+            provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { [weak self] (text, error) in
                 DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    
-                    if let error = error {
-                        self.showError(ShareExtensionError.saveFailed(underlying: error))
-                        return
+                    if let sharedText = text as? String {
+                        self?.handleText(sharedText)
+                    } else {
+                        self?.showResult(success: false, gameName: nil)
                     }
-                    
-                    guard let sharedText = item as? String else {
-                        self.showError(ShareExtensionError.invalidContentType("Unknown"))
-                        return
-                    }
-                    
-                    self.logger.debug("Processing shared text")
-                    self.parseGameResult(from: sharedText)
                 }
             }
         } else {
-            showError(ShareExtensionError.invalidContentType("Non-text"))
+            showResult(success: false, gameName: nil)
         }
     }
     
-    private func parseGameResult(from text: String) {
-        logger.debug("Parsing game result")
-        
+    private func handleText(_ text: String) {
         let parser = ShareGameResultParser()
         
-        if let result = parser.parseResult(from: text) {
-            logger.info("Successfully parsed \(result.gameName)")
-            
-            parsedResult = result
-            detectedGame = findGame(by: result.gameName)
-            updateUIForDetectedGame()
-        } else {
-            showError(ShareExtensionError.unknownGameFormat)
-        }
-    }
-    
-    private func findGame(by name: String) -> ShareGame? {
-        return ShareGame.popularGames.first { $0.name.lowercased() == name.lowercased() }
-    }
-    
-    private func updateUIForDetectedGame() {
-        guard let result = parsedResult,
-              let game = detectedGame else { return }
-        
-        title = "\(game.displayName) Result Detected"
-        
-        let puzzleInfo = result.parsedData["puzzleNumber"].map { " #\($0)" } ?? ""
-        placeholder = "Score: \(result.displayScore)\(puzzleInfo) - Add a note (optional)"
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            self.showSuccessMessage(for: game, result: result)
-        }
-    }
-    
-    private func showSuccessMessage(for game: ShareGame, result: ShareGameResult) {
-        let puzzleInfo = result.parsedData["puzzleNumber"].map { " (Puzzle #\($0))" } ?? ""
-        
-        let alert = UIAlertController(
-            title: "🎉 \(game.displayName) Result Detected!",
-            message: "Score: \(result.displayScore)\(puzzleInfo)\nReady to save to StreakSync?",
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "Save Now", style: .default) { [weak self] _ in
-            self?.saveResult()
-        })
-        
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
-            self?.cancel()
-        })
-        
-        present(alert, animated: true)
-    }
-    
-    private func showError(_ error: ShareExtensionError) {
-        logger.error("Error: \(error.localizedDescription)")
-        
-        let alert = UIAlertController(
-            title: error.errorDescription ?? "Error",
-            message: error.recoverySuggestion,
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
-            self?.cancel()
-        })
-        
-        present(alert, animated: true)
-    }
-    
-    override func isContentValid() -> Bool {
-        return parsedResult != nil
-    }
-    
-    override func didSelectPost() {
-        saveResult()
-    }
-    
-    override func didSelectCancel() {
-        cancel()
-    }
-    
-    private func saveResult() {
-        guard let result = parsedResult else {
-            showError(ShareExtensionError.noContent)
+        guard let result = parser.parseResult(from: text) else {
+            showResult(success: false, gameName: nil)
             return
         }
         
-        logger.info("Saving result for \(result.gameName)")
-        
-        if saveToAppGroup(result: result) {
-            logger.info("Successfully saved to app group")
-            
-            // Also save to file for better reliability
-            _ = saveToSharedFile(result: result)
-            
-            notifyMainApp()
-            
-            // Try to open the app
-            openMainApp(for: result)
-            
-            // Complete after a short delay to ensure data is written
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-            }
-        } else {
-            showError(ShareExtensionError.saveFailed(underlying: nil))
-        }
-    }
-    
-    private func saveToAppGroup(result: ShareGameResult) -> Bool {
+        // Save to app group
         guard let userDefaults = UserDefaults(suiteName: appGroupID) else {
-            logger.error("Failed to access App Group: \(self.appGroupID)")
-            showError(ShareExtensionError.appGroupAccessFailed)
-            return false
+            showResult(success: false, gameName: result.gameName)
+            return
         }
         
         do {
-            // Save as latest result
-            let resultData = try encoder.encode(result)
-            userDefaults.set(resultData, forKey: "latestGameResult")
-            
-            // CRITICAL: Add a timestamp to help with detection
+            let data = try encoder.encode(result)
+            userDefaults.set(data, forKey: "latestGameResult")
             userDefaults.set(Date(), forKey: "lastShareExtensionSave")
+            userDefaults.synchronize()
             
-            logger.debug("Saved to 'latestGameResult' key")
+            // Notify main app
+            CFNotificationCenterPostNotification(
+                CFNotificationCenterGetDarwinNotifyCenter(),
+                CFNotificationName("com.streaksync.app.newResult" as CFString),
+                nil, nil, true
+            )
             
-            // Also save to history array
-            var allResults: [ShareGameResult] = []
-            if let existingData = userDefaults.data(forKey: "gameResults") {
-                if let existingResults = try? decoder.decode([ShareGameResult].self, from: existingData) {
-                    allResults = existingResults
-                    logger.debug("Loaded \(existingResults.count) existing results")
+            // Show success
+            showResult(success: true, gameName: result.gameName)
+            
+        } catch {
+            showResult(success: false, gameName: result.gameName)
+        }
+    }
+    
+    private func showResult(success: Bool, gameName: String?) {
+        // Create the toast container
+        let toastContainer = UIView()
+        toastContainer.translatesAutoresizingMaskIntoConstraints = false
+        toastContainer.backgroundColor = .clear
+        
+        // Create the toast content
+        let toast = UIView()
+        toast.translatesAutoresizingMaskIntoConstraints = false
+        toast.backgroundColor = .systemBackground
+        toast.layer.cornerRadius = 20
+        toast.layer.shadowColor = UIColor.black.cgColor
+        toast.layer.shadowOpacity = 0.1
+        toast.layer.shadowOffset = CGSize(width: 0, height: 2)
+        toast.layer.shadowRadius = 8
+        
+        // Icon and label stack
+        let stackView = UIStackView()
+        stackView.axis = .horizontal
+        stackView.spacing = 8
+        stackView.alignment = .center
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Icon
+        let iconConfig = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+        let icon = UIImageView()
+        icon.preferredSymbolConfiguration = iconConfig
+        
+        if success {
+            icon.image = UIImage(systemName: "checkmark.circle.fill")
+            icon.tintColor = .systemGreen
+        } else {
+            icon.image = UIImage(systemName: "exclamationmark.triangle.fill")
+            icon.tintColor = .systemOrange
+        }
+        
+        // Label
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 16, weight: .medium)
+        
+        if success {
+            let game = gameName?.capitalized ?? "Result"
+            label.text = "\(game) saved"
+        } else {
+            label.text = "Couldn't save"
+        }
+        
+        stackView.addArrangedSubview(icon)
+        stackView.addArrangedSubview(label)
+        
+        toast.addSubview(stackView)
+        toastContainer.addSubview(toast)
+        view.addSubview(toastContainer)
+        
+        // Constraints
+        NSLayoutConstraint.activate([
+            // Container fills the view
+            toastContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            toastContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            toastContainer.topAnchor.constraint(equalTo: view.topAnchor),
+            toastContainer.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            
+            // Toast centered
+            toast.centerXAnchor.constraint(equalTo: toastContainer.centerXAnchor),
+            toast.centerYAnchor.constraint(equalTo: toastContainer.centerYAnchor),
+            
+            // Stack inside toast
+            stackView.leadingAnchor.constraint(equalTo: toast.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: toast.trailingAnchor, constant: -20),
+            stackView.topAnchor.constraint(equalTo: toast.topAnchor, constant: 14),
+            stackView.bottomAnchor.constraint(equalTo: toast.bottomAnchor, constant: -14)
+        ])
+        
+        // Haptic feedback
+        if success {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+        } else {
+            let notificationFeedback = UINotificationFeedbackGenerator()
+            notificationFeedback.notificationOccurred(.warning)
+        }
+        
+        // Animate in
+        toast.transform = CGAffineTransform(scaleX: 0.8, y: 0.8)
+        toast.alpha = 0
+        
+        UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.5) {
+            toast.transform = .identity
+            toast.alpha = 1
+        }
+        
+        // Dismiss after delay
+        let dismissDelay = success ? 0.7 : 1.2
+        DispatchQueue.main.asyncAfter(deadline: .now() + dismissDelay) { [weak self] in
+            UIView.animate(withDuration: 0.2, animations: {
+                toast.alpha = 0
+                toast.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+            }) { _ in
+                if success {
+                    self?.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+                } else {
+                    self?.extensionContext?.cancelRequest(withError: NSError(
+                        domain: "StreakSync",
+                        code: 1,
+                        userInfo: nil
+                    ))
                 }
             }
-            
-            // Check for duplicates in history
-            let isDuplicate = allResults.contains { existing in
-                existing.gameId == result.gameId &&
-                existing.parsedData["puzzleNumber"] == result.parsedData["puzzleNumber"]
-            }
-            
-            if isDuplicate {
-                logger.info("Duplicate detected - will process as already saved")
-                // Still save and return true - this isn't an error
-                return true
-            } else {
-                allResults.append(result)
-                logger.debug("Added to history (now \(allResults.count) results)")
-            }
-            
-            // Keep only last 100 results
-            if allResults.count > 100 {
-                allResults = Array(allResults.suffix(100))
-            }
-            
-            let allResultsData = try encoder.encode(allResults)
-            userDefaults.set(allResultsData, forKey: "gameResults")
-            userDefaults.set(Date(), forKey: "lastResultTimestamp")
-            
-            // CRITICAL: Force synchronization
-            let synchronized = userDefaults.synchronize()
-            logger.debug("UserDefaults.synchronize() returned: \(synchronized)")
-            
-            return true
-        } catch {
-            logger.error("Encoding error: \(error)")
-            showError(ShareExtensionError.saveFailed(underlying: error))
-            return false
         }
-    }
-    
-    private func saveToSharedFile(result: ShareGameResult) -> Bool {
-        // Implementation remains the same
-        return true
-    }
-    
-    private func openMainApp(for result: ShareGameResult) {
-        // Create deep link URL with proper encoding
-        let gameName = result.gameName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? result.gameName
-        let urlString = "streaksync://game?id=\(result.gameId.uuidString)&name=\(gameName)"
-        
-        guard let url = URL(string: urlString) else {
-            logger.error("Failed to create deep link URL")
-            return
-        }
-        
-        logger.info("Opening main app with URL: \(url.absoluteString)")
-        
-        // Open URL using the extension context
-        self.extensionContext?.open(url, completionHandler: { success in
-            if success {
-                self.logger.info("Successfully opened main app")
-            } else {
-                self.logger.warning("Failed to open main app - this is expected on iOS 14+")
-                // Don't show error - this is expected behavior
-                self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-            }
-        })
-    }
-    
-    private func notifyMainApp() {
-        // Post Darwin notification
-        CFNotificationCenterPostNotification(
-            CFNotificationCenterGetDarwinNotifyCenter(),
-            CFNotificationName("com.streaksync.newGameResult" as CFString),
-            nil, nil, true
-        )
-        
-        logger.debug("Posted Darwin notification")
-    }
-    
-    internal override func cancel() {
-        logger.info("User cancelled share extension")
-        extensionContext?.cancelRequest(withError: NSError(domain: "StreakSyncShareExtension", code: 0, userInfo: [NSLocalizedDescriptionKey: "User cancelled"]))
     }
 }
 
@@ -413,7 +211,7 @@ class ShareViewController: SLComposeServiceViewController {
 class ShareGameResultParser {
     private let logger = Logger(subsystem: "com.streaksync.shareExtension", category: "Parser")
     
-    func parseResult(from text: String) -> ShareGameResult? {
+    func parseResult(from text: String) -> GameResult? {  // ← Returns shared GameResult
         let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         logger.debug("Parsing text")
         
@@ -431,7 +229,7 @@ class ShareGameResultParser {
         return nil
     }
     
-    private func parseWordle(from text: String) -> ShareGameResult? {
+    private func parseWordle(from text: String) -> GameResult? {
         logger.debug("Attempting Wordle parse")
         
         // Pattern: "Wordle 1,493 1/6" or "Wordle 1493 X/6"
@@ -461,8 +259,8 @@ class ShareGameResultParser {
         
         logger.info("Successfully parsed Wordle #\(puzzleNumber)")
         
-        return ShareGameResult(
-            gameId: ShareGame.wordle.id,
+        return GameResult(  // ← Using shared GameResult
+            gameId: Game.wordle.id,  // ← Using Game.wordle from SharedModels
             gameName: "wordle",
             date: currentDate,
             score: score,
@@ -478,7 +276,7 @@ class ShareGameResultParser {
         )
     }
     
-    private func parseQuordle(from text: String) -> ShareGameResult? {
+    private func parseQuordle(from text: String) -> GameResult? {
         logger.debug("Attempting Quordle parse")
         
         let pattern = #"Daily Quordle\s+(\d+)"#
@@ -497,8 +295,8 @@ class ShareGameResultParser {
         
         logger.info("Successfully parsed Quordle #\(puzzleNumber)")
         
-        return ShareGameResult(
-            gameId: ShareGame.quordle.id,
+        return GameResult(
+            gameId: Game.quordle.id,  // ← Using Game.quordle from SharedModels
             gameName: "quordle",
             date: currentDate,
             score: score,
@@ -513,7 +311,7 @@ class ShareGameResultParser {
         )
     }
     
-    private func parseNerdle(from text: String) -> ShareGameResult? {
+    private func parseNerdle(from text: String) -> GameResult? {
         logger.debug("Attempting Nerdle parse")
         
         let pattern = #"nerdlegame\s+(\d+)\s+([X1-6])/6"#
@@ -534,8 +332,8 @@ class ShareGameResultParser {
         
         logger.info("Successfully parsed Nerdle #\(puzzleNumber)")
         
-        return ShareGameResult(
-            gameId: ShareGame.nerdle.id,
+        return GameResult(
+            gameId: Game.nerdle.id,  // ← Using Game.nerdle from SharedModels
             gameName: "nerdle",
             date: currentDate,
             score: score,
@@ -551,7 +349,7 @@ class ShareGameResultParser {
         )
     }
     
-    private func parseHeardle(from text: String) -> ShareGameResult? {
+    private func parseHeardle(from text: String) -> GameResult? {
         logger.debug("Attempting Heardle parse")
         
         let pattern = #"#?Heardle\s+#?(\d+)"#
@@ -578,8 +376,8 @@ class ShareGameResultParser {
         
         let currentDate = Date()
         
-        return ShareGameResult(
-            gameId: ShareGame.heardle.id,
+        return GameResult(
+            gameId: Game.heardle.id,  // ← Using Game.heardle from SharedModels
             gameName: "heardle",
             date: currentDate,
             score: score,

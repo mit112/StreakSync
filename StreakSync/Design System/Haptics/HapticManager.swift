@@ -227,8 +227,8 @@ struct HapticModifier: ViewModifier {
     
     func body(content: Content) -> some View {
         content
-            .onChange(of: trigger) { newValue in
-                if newValue {
+            .onChange(of: trigger) {
+                if trigger {
                     Task { @MainActor in
                         HapticManager.shared.trigger(type)
                     }
