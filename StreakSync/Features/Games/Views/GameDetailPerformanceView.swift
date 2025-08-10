@@ -2,141 +2,381 @@
 //  GameDetailPerformanceView.swift
 //  StreakSync
 //
-//  Performance chart component extracted from GameDetailView
+//  FIXED: Dynamic scale and simplified time ranges
 //
 
 import SwiftUI
 import Charts
 
-// MARK: - Game Detail Performance View
+// MARK: - Enhanced Game Detail Performance View
 struct GameDetailPerformanceView: View {
     let results: [GameResult]
     let streak: GameStreak
     @EnvironmentObject private var coordinator: NavigationCoordinator
+    @Environment(AppState.self) private var appState
+    
+    @State private var selectedBar: DailyResult?
+    @State private var showingExportMenu = false
+    @State private var chartHasAppeared = false
+    
+    // Get the game for max attempts
+    private var game: Game? {
+        appState.games.first { $0.id == streak.gameId }
+    }
+    
+    // Dynamic max value based on game type
+    private var chartMaxValue: Int {
+        // Use the max attempts from actual results, or default to 6
+        if let maxFromResults = results.map(\.maxAttempts).max() {
+            return maxFromResults + 1 // Add 1 for failed attempts
+        }
+        return 7 // Default for most games
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeaderView(title: "Recent Performance", icon: "chart.line.uptrend.xyaxis")
+            // Simplified header - just showing "Recent Performance"
+            HStack {
+                Label("Recent Performance", systemImage: "chart.line.uptrend.xyaxis")
+                    .font(.headline)
+                
+                Spacer()
+                
+                // Export button
+                Button {
+                    showingExportMenu = true
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
+            }
             
-            PerformanceChart(results: results, streak: streak) {
-                // Navigate to streak history on tap
-                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                impactFeedback.impactOccurred()
+            // Chart - always 7 days for clarity
+            PerformanceChart(
+                results: results,
+                streak: streak,
+                maxValue: chartMaxValue,
+                selectedBar: $selectedBar,
+                hasAppeared: $chartHasAppeared
+            ) {
+                // Navigate to full history
+                HapticManager.shared.trigger(.buttonTap)
                 coordinator.navigateTo(.streakHistory(streak))
             }
         }
+        .onAppear {
+            withAnimation(.smooth.delay(0.3)) {
+                chartHasAppeared = true
+            }
+        }
+        .confirmationDialog("Export Performance Data", isPresented: $showingExportMenu) {
+            Button("Copy Stats to Clipboard") { copyToClipboard() }
+            Button("Cancel", role: .cancel) { }
+        }
+    }
+    
+    private func copyToClipboard() {
+        HapticManager.shared.trigger(.buttonTap)
+        let stats = """
+        \(streak.gameName) Performance
+        Last 7 Days
+        Games Played: \(min(results.count, 7))
+        Success Rate: \(streak.completionPercentage)
+        Current Streak: \(streak.currentStreak) days
+        """
+        UIPasteboard.general.string = stats
     }
 }
 
-// MARK: - Performance Chart
+// MARK: - Simplified Performance Chart (7 days only)
 private struct PerformanceChart: View {
     let results: [GameResult]
     let streak: GameStreak
+    let maxValue: Int
+    @Binding var selectedBar: DailyResult?
+    @Binding var hasAppeared: Bool
     let onTap: () -> Void
     
-    // Group results by calendar day
+    @State private var animateChart = false
+    
+    // Always show last 7 days
     private var dailyResults: [DailyResult] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         
-        // Get last 7 days
         var last7Days: [Date] = []
         for i in 0..<7 {
             if let date = calendar.date(byAdding: .day, value: -i, to: today) {
                 last7Days.append(date)
             }
         }
-        last7Days.reverse() // Oldest to newest
+        last7Days.reverse()
         
-        // Create daily results (one per day)
         return last7Days.map { dayStart in
             let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
-            
-            // Find result for this day
             let dayResult = results.first { result in
                 result.date >= dayStart && result.date < dayEnd
             }
-            
             return DailyResult(date: dayStart, result: dayResult)
         }
     }
     
+    private var stats: SimpleStats {
+        SimpleStats(from: dailyResults)
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with stats
-            ChartHeader(
-                gamesPlayed: gamesPlayedCount,
-                averageScore: averageScoreText
-            )
+            // Stats header
+            SimpleChartHeader(stats: stats)
             
-            // Chart area
-            chartArea
-                .contentShape(Rectangle())
-                .onTapGesture(perform: onTap)
+            // Chart
+            if #available(iOS 16.0, *), !dailyResults.isEmpty {
+                ModernChart(
+                    dailyResults: dailyResults,
+                    maxValue: maxValue,
+                    selectedBar: $selectedBar,
+                    animateChart: animateChart
+                )
+            } else {
+                LegacyPerformanceIndicators(dailyResults: dailyResults)
+            }
+            
+            // Selected bar detail
+            if let selected = selectedBar {
+                SelectedBarDetail(dailyResult: selected)
+                    .transition(.scale.combined(with: .opacity))
+            }
         }
         .padding()
-        .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(
+        .background {
             RoundedRectangle(cornerRadius: 12)
-                .stroke(.tertiary.opacity(0.5), lineWidth: 0.5)
-        )
-    }
-    
-    @ViewBuilder
-    private var chartArea: some View {
-        if #available(iOS 16.0, *), hasAnyResults {
-            ModernPerformanceChart(dailyResults: dailyResults)
-        } else {
-            LegacyPerformanceIndicators(dailyResults: dailyResults)
+                .fill(.ultraThinMaterial)
         }
-    }
-    
-    private var hasAnyResults: Bool {
-        dailyResults.contains { $0.result != nil }
-    }
-    
-    private var gamesPlayedCount: Int {
-        dailyResults.compactMap(\.result).count
-    }
-    
-    private var averageScoreText: String {
-        let completedResults = dailyResults.compactMap(\.result).filter { $0.completed && $0.score != nil }
-        guard !completedResults.isEmpty else { return "No completions" }
-        
-        let total = completedResults.compactMap(\.score).reduce(0, +)
-        let average = Double(total) / Double(completedResults.count)
-        return String(format: "Avg: %.1f", average)
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(.tertiary.opacity(0.3), lineWidth: 0.5)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+        .onAppear {
+            withAnimation(.smooth.delay(0.1)) {
+                animateChart = true
+            }
+        }
     }
 }
 
-// MARK: - Chart Header
-private struct ChartHeader: View {
-    let gamesPlayed: Int
-    let averageScore: String
+// MARK: - Modern Chart with Dynamic Scale
+@available(iOS 16.0, *)
+private struct ModernChart: View {
+    let dailyResults: [DailyResult]
+    let maxValue: Int
+    @Binding var selectedBar: DailyResult?
+    let animateChart: Bool
+    
+    private var dayFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "E" // Always use weekday for 7 days
+        return formatter
+    }
+    
+    var body: some View {
+        Chart(dailyResults.indices, id: \.self) { index in
+            let daily = dailyResults[index]
+            let dayString = dayFormatter.string(from: daily.date)
+            
+            if let result = daily.result {
+                // Use actual score or max+1 for failed
+                let score = result.score ?? (result.maxAttempts + 1)
+                let barColor = result.completed ? Color.green : Color.red
+                
+                BarMark(
+                    x: .value("Day", dayString),
+                    y: .value("Score", animateChart ? score : 0)
+                )
+                .foregroundStyle(barColor.gradient)
+                .opacity(selectedBar == nil || selectedBar?.date == daily.date ? 1 : 0.5)
+                .cornerRadius(4)
+            } else {
+                // Empty day indicator - very small
+                BarMark(
+                    x: .value("Day", dayString),
+                    y: .value("Score", animateChart ? 0.2 : 0)
+                )
+                .foregroundStyle(.tertiary.opacity(0.2))
+                .cornerRadius(2)
+            }
+        }
+        .chartYScale(domain: 0...maxValue) // Dynamic scale!
+        .chartXAxis {
+            AxisMarks { _ in
+                AxisGridLine()
+                AxisValueLabel()
+                    .font(.caption2)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing) { value in
+                if let intValue = value.as(Int.self) {
+                    if intValue > 0 && intValue <= maxValue {
+                        AxisGridLine()
+                        AxisValueLabel {
+                            Text("\(intValue)")
+                                .font(.caption2)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(height: 120)
+        .animation(.smooth(duration: 0.6), value: animateChart)
+        .onTapGesture { location in
+            handleTap(at: location)
+        }
+    }
+    
+    private func handleTap(at location: CGPoint) {
+        let width = UIScreen.main.bounds.width - 64 // Account for padding
+        let barWidth = width / 7 // Always 7 days
+        let index = Int(location.x / barWidth)
+        
+        if index >= 0 && index < dailyResults.count {
+            withAnimation(.smooth) {
+                let daily = dailyResults[index]
+                selectedBar = daily.result != nil ? daily : nil
+            }
+            HapticManager.shared.trigger(.buttonTap)
+        }
+    }
+}
+
+// MARK: - Simplified Chart Header
+private struct SimpleChartHeader: View {
+    let stats: SimpleStats
     
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
-                Text("Last 7 Days")
+                Text("\(stats.gamesPlayed) games")
                     .font(.subheadline.weight(.medium))
-                Text("\(gamesPlayed) games played")
+                Text("Past week")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             
             Spacer()
             
-            HStack(spacing: 4) {
-                if gamesPlayed > 0 {
-                    Text(averageScore)
+            HStack(spacing: 16) {
+                StatBadge(label: "Avg", value: stats.averageScore, color: .blue)
+                StatBadge(label: "Best", value: "\(stats.bestScore)", color: .green)
+                StatBadge(label: "Rate", value: stats.successRate, color: .purple)
+            }
+        }
+        
+        // Simple progress bar
+        if stats.gamesPlayed > 0 {
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(.quaternary)
+                        .frame(height: 3)
+                    
+                    Capsule()
+                        .fill(Color.green.gradient)
+                        .frame(width: geometry.size.width * stats.completionRatio, height: 3)
+                }
+            }
+            .frame(height: 3)
+        }
+    }
+}
+
+// MARK: - Stat Badge (unchanged)
+private struct StatBadge: View {
+    let label: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.caption.bold())
+                .foregroundStyle(color)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Selected Bar Detail (unchanged)
+private struct SelectedBarDetail: View {
+    let dailyResult: DailyResult
+    
+    var body: some View {
+        HStack {
+            Image(systemName: dailyResult.result?.completed == true ? "checkmark.circle.fill" : "xmark.circle")
+                .foregroundStyle(dailyResult.result?.completed == true ? .green : .orange)
+            
+            VStack(alignment: .leading) {
+                Text(dailyResult.date.formatted(.dateTime.weekday(.abbreviated)))
+                    .font(.caption.weight(.medium))
+                
+                if let result = dailyResult.result {
+                    Text("Score: \(result.displayScore)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                } else {
+                    Text("No game played")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
             }
+            
+            Spacer()
+        }
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+// MARK: - Simple Stats
+private struct SimpleStats {
+    let gamesPlayed: Int
+    let averageScore: String
+    let bestScore: Int
+    let successRate: String
+    let completionRatio: Double
+    
+    init(from dailyResults: [DailyResult]) {
+        let results = dailyResults.compactMap(\.result)
+        self.gamesPlayed = results.count
+        
+        // Calculate average
+        let completedResults = results.filter { $0.completed && $0.score != nil }
+        if !completedResults.isEmpty {
+            let total = completedResults.compactMap(\.score).reduce(0, +)
+            let avg = Double(total) / Double(completedResults.count)
+            self.averageScore = String(format: "%.1f", avg)
+        } else {
+            self.averageScore = "—"
+        }
+        
+        // Best score (lowest is best)
+        self.bestScore = completedResults.compactMap(\.score).min() ?? 0
+        
+        // Success rate
+        let successCount = results.filter(\.completed).count
+        if gamesPlayed > 0 {
+            let rate = Double(successCount) / Double(gamesPlayed) * 100
+            self.successRate = "\(Int(rate))%"
+            self.completionRatio = Double(successCount) / Double(gamesPlayed)
+        } else {
+            self.successRate = "—"
+            self.completionRatio = 0
         }
     }
 }
