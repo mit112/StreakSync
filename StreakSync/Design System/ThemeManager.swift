@@ -1,153 +1,171 @@
+//
+//  ThemeManager.swift
+//  StreakSync
+//
+//  CONSOLIDATED: Single source of truth for theme management
+//
+
 import SwiftUI
 import Combine
 
-internal class ThemeManager: ObservableObject {
+@MainActor
+final class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
-
-    @Published var currentTheme: ColorTheme = .indigo
-    @Published var useTimeBasedThemes: Bool = true
+    
     @Published var followSystemColorScheme: Bool = true
-
-    var colorScheme: ColorScheme? {
-        followSystemColorScheme ? nil : (prefersDarkMode ? .dark : .light)
-    }
-
-    private var prefersDarkMode: Bool = false
-
+    
     private init() {
         loadSettings()
-        updateThemeIfNeeded()
-
-        Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
-            DispatchQueue.main.async { [weak self] in
-                self?.updateThemeIfNeeded()
-            }
-        }
     }
-
-    var colors: ThemeColors {
-        currentTheme.colors
+    
+    // MARK: - System Color Scheme
+    
+    var colorScheme: ColorScheme? {
+        followSystemColorScheme ? nil : nil // Always follow system
     }
-
+    
     var isDarkMode: Bool {
         UITraitCollection.current.userInterfaceStyle == .dark
     }
-
-    var backgroundGradient: LinearGradient {
-        LinearGradient(
-            colors: isDarkMode ?
-                colors.gradientDark.map { Color(hex: $0) } :
-                colors.gradientLight.map { Color(hex: $0) },
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    var subtleBackgroundGradient: LinearGradient {
-        LinearGradient(
-            colors: isDarkMode ?
-                colors.gradientDark.map { Color(hex: $0).opacity(0.3) } :
-                colors.gradientLight.map { Color(hex: $0).opacity(0.6) },
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
+    
+    // MARK: - Background Colors (System colors only)
+    
     var primaryBackground: Color {
-        Color(hex: isDarkMode ? colors.backgroundDark : colors.backgroundLight)
+        Color(.systemBackground)
     }
-
+    
     var cardBackground: Color {
-        isDarkMode
-            ? Color(.systemGray6).opacity(0.5)
-            : Color(hex: "F9FAFB") // light solid card background
+        Color(.secondarySystemBackground)
     }
-
+    
+    var tertiaryBackground: Color {
+        Color(.tertiarySystemBackground)
+    }
+    
+    var groupedBackground: Color {
+        Color(.systemGroupedBackground)
+    }
+    
+    // MARK: - Accent Colors
+    
+    var primaryAccent: Color {
+        Color.accentColor
+    }
+    
+    var successColor: Color {
+        Color(.systemGreen)
+    }
+    
+    var warningColor: Color {
+        Color(.systemOrange)
+    }
+    
+    var errorColor: Color {
+        Color(.systemRed)
+    }
+    
+    // MARK: - Streak Colors
+    
+    var streakActiveColor: Color {
+        Color(.systemGreen)
+    }
+    
+    var streakInactiveColor: Color {
+        Color(.systemOrange)
+    }
+    
+    var streakBrokenColor: Color {
+        Color(.systemRed)
+    }
+    
+    // MARK: - Simple Gradients (UI elements only)
+    
     var statOrangeGradient: LinearGradient {
         LinearGradient(
-            colors: colors.statOrange.map { Color(hex: $0) },
+            colors: [
+                Color(.systemOrange),
+                Color(.systemOrange).opacity(0.8)
+            ],
             startPoint: .leading,
             endPoint: .trailing
         )
     }
-
+    
     var statGreenGradient: LinearGradient {
         LinearGradient(
-            colors: colors.statGreen.map { Color(hex: $0) },
+            colors: [
+                Color(.systemGreen),
+                Color(.systemGreen).opacity(0.8)
+            ],
             startPoint: .leading,
             endPoint: .trailing
         )
     }
-
+    
     var accentGradient: LinearGradient {
         LinearGradient(
-            colors: isDarkMode ? colors.accentDark.map { Color(hex: $0) } : colors.accentLight.map { Color(hex: $0) },
+            colors: [
+                primaryAccent,
+                primaryAccent.opacity(0.8)
+            ],
             startPoint: .leading,
             endPoint: .trailing
         )
     }
-
-    var primaryAccent: Color {
-        Color(hex: isDarkMode ? colors.accentDark[0] : colors.accentLight[0])
+    
+    // MARK: - Deprecated Properties (For backward compatibility)
+    
+    @available(*, deprecated, message: "Use primaryBackground instead")
+    var backgroundGradient: LinearGradient {
+        LinearGradient(
+            colors: [primaryBackground],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
-
-    var streakActiveColor: Color {
-        Color(hex: colors.statGreen[0])
+    
+    @available(*, deprecated, message: "Use primaryBackground instead")
+    var subtleBackgroundGradient: LinearGradient {
+        LinearGradient(
+            colors: [primaryBackground],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
-
-    var streakInactiveColor: Color {
-        Color(hex: colors.statOrange[0])
-    }
-
-    func timeBasedTheme() -> ColorTheme {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<9: return .aurora
-        case 9..<12: return .ocean
-        case 12..<17: return .forest
-        case 17..<21: return .sunset
-        default: return .indigo
-        }
-    }
-
-    func updateThemeIfNeeded() {
-        guard useTimeBasedThemes else { return }
-        let newTheme = timeBasedTheme()
-        if newTheme != currentTheme {
-            withAnimation(.smooth(duration: 1.0)) {
-                currentTheme = newTheme
-            }
-        }
-    }
-
-    func setTheme(_ theme: ColorTheme) {
-        withAnimation(.smooth) {
-            currentTheme = theme
-            useTimeBasedThemes = false
-            saveSettings()
-        }
-    }
-
-    func enableTimeBasedThemes() {
-        useTimeBasedThemes = true
-        updateThemeIfNeeded()
-        saveSettings()
-    }
-
+    
+    // MARK: - Settings
+    
     private func loadSettings() {
         let defaults = UserDefaults.standard
-        if let themeRaw = defaults.string(forKey: "selectedTheme"),
-           let theme = ColorTheme(rawValue: themeRaw) {
-            currentTheme = theme
-        }
-        useTimeBasedThemes = defaults.bool(forKey: "useTimeBasedThemes")
         followSystemColorScheme = defaults.bool(forKey: "followSystemColorScheme")
+        if !defaults.bool(forKey: "hasSetDefaults") {
+            followSystemColorScheme = true
+            defaults.set(true, forKey: "followSystemColorScheme")
+            defaults.set(true, forKey: "hasSetDefaults")
+        }
     }
-
-    private func saveSettings() {
+    
+    func saveSettings() {
         let defaults = UserDefaults.standard
-        defaults.set(currentTheme.rawValue, forKey: "selectedTheme")
-        defaults.set(useTimeBasedThemes, forKey: "useTimeBasedThemes")
         defaults.set(followSystemColorScheme, forKey: "followSystemColorScheme")
+    }
+    
+    // MARK: - Removed Features
+    
+    @available(*, deprecated, message: "Time-based themes removed")
+    func updateThemeIfNeeded() {
+        // No-op
+    }
+    
+    @available(*, deprecated, message: "Use system colors")
+    var currentTheme: ColorTheme {
+        get { .indigo }
+        set { /* No-op */ }
+    }
+    
+    @available(*, deprecated, message: "Time-based themes removed")
+    var useTimeBasedThemes: Bool {
+        get { false }
+        set { /* No-op */ }
     }
 }

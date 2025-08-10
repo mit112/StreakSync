@@ -239,54 +239,54 @@ struct GlassTabBar: View {
     }
 }
 
-// MARK: - Animated Gradient Text
-struct AnimatedGradientText: View {
-    let text: String
-    let font: Font
-    
-    @State private var animationOffset: CGFloat = 0
-    private let theme = ThemeManager.shared
-    
-    var body: some View {
-        Text(text)
-            .font(font)
-            .foregroundStyle(
-                LinearGradient(
-                    colors: theme.isDarkMode ?
-                        theme.colors.accentDark.map { Color(hex: $0) } :
-                        theme.colors.accentLight.map { Color(hex: $0) },
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .opacity(0.9)
-            )
-            .overlay(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.4),
-                        Color.white.opacity(0.0),
-                        Color.white.opacity(0.4)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .mask(
-                    Text(text)
-                        .font(font)
-                )
-                .offset(x: animationOffset)
-                .mask(
-                    Text(text)
-                        .font(font)
-                )
-            )
-            .onAppear {
-                withAnimation(.linear(duration: 3).repeatForever(autoreverses: false)) {
-                    animationOffset = 300
-                }
-            }
-    }
-}
+//// MARK: - Animated Gradient Text
+//struct AnimatedGradientText: View {
+//    let text: String
+//    let font: Font
+//    
+//    @State private var animationOffset: CGFloat = 0
+//    private let theme = ThemeManager.shared
+//    
+//    var body: some View {
+//        Text(text)
+//            .font(font)
+//            .foregroundStyle(
+//                LinearGradient(
+//                    colors: theme.isDarkMode ?
+//                        theme.colors.accentDark.map { Color(hex: $0) } :
+//                        theme.colors.accentLight.map { Color(hex: $0) },
+//                    startPoint: .leading,
+//                    endPoint: .trailing
+//                )
+//                .opacity(0.9)
+//            )
+//            .overlay(
+//                LinearGradient(
+//                    colors: [
+//                        Color.white.opacity(0.4),
+//                        Color.white.opacity(0.0),
+//                        Color.white.opacity(0.4)
+//                    ],
+//                    startPoint: .leading,
+//                    endPoint: .trailing
+//                )
+//                .mask(
+//                    Text(text)
+//                        .font(font)
+//                )
+//                .offset(x: animationOffset)
+//                .mask(
+//                    Text(text)
+//                        .font(font)
+//                )
+//            )
+//            .onAppear {
+//                withAnimation(.linear(duration: 3).repeatForever(autoreverses: false)) {
+//                    animationOffset = 300
+//                }
+//            }
+//    }
+//}
 
 // MARK: - View Extensions
 extension View {
