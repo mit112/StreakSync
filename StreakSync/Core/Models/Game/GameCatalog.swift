@@ -12,6 +12,9 @@ import OSLog
 @MainActor
 @Observable
 final class GameCatalog {
+    // MARK: - Singleton
+    static let shared = GameCatalog()
+
     // MARK: - Properties
     private(set) var allGames: [Game] = []
     private(set) var favoriteGameIDs: Set<UUID> = []

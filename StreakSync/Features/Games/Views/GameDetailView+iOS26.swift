@@ -66,12 +66,45 @@ extension GameDetailView {
         }
         .task {
             viewModel.setup(with: appState)
+            
+            // Check if we're navigating from notification
+            if appState.isNavigatingFromNotification {
+                isNavigatingFromNotification = true
+                
+                // Hide loading overlay after data loads
+                Task {
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                    await MainActor.run {
+                        isNavigatingFromNotification = false
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showingManualEntry) {
-            ManualEntryView()
+            ManualEntryView(preSelectedGame: game)
         }
         .sheet(isPresented: $showingShareSheet) {
             ShareSheet(activityItems: [shareContent])
+        }
+        .overlay {
+            // Loading overlay for notification navigation
+            if isNavigatingFromNotification {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .overlay {
+                        VStack(spacing: 16) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(1.2)
+                            
+                            Text("Loading...")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+                        .padding(24)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    }
+            }
         }
     }
     

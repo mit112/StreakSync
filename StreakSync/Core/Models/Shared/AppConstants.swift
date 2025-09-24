@@ -39,6 +39,13 @@ enum AppConstants {
         static let refreshGameData = "RefreshGameData"
         static let darwinNotificationName = "com.streaksync.app.newResult"
     }
+
+    // MARK: - Deep Link Keys
+    enum DeepLinkKeys {
+        static let gameId = "gameId"
+        static let name = "name"
+        static let achievementId = "achievementId"
+    }
     
     // MARK: - Animation Durations
     enum Animation {
@@ -52,4 +59,12 @@ enum AppConstants {
         static let scheme = "streaksync"
         static let shareActivity = "com.streaksync.share"
     }
+}
+
+// MARK: - Typed Notification Names
+extension Notification.Name {
+    static let appGameResultReceived = Notification.Name(AppConstants.Notification.gameResultReceived)
+    static let appShareExtensionResultAvailable = Notification.Name(AppConstants.Notification.shareExtensionResultAvailable)
+    static let appGameDataUpdated = Notification.Name(AppConstants.Notification.gameDataUpdated)
+    static let appRefreshGameData = Notification.Name(AppConstants.Notification.refreshGameData)
 }

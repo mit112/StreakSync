@@ -254,7 +254,7 @@ enum iOS26Components {
             .padding(14)
             .background {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(.thinMaterial)
+                    .fill(Color(hex: "FFF5ED"))
                     .stroke(.quaternary, lineWidth: 0.5)
             }
         }
@@ -278,17 +278,22 @@ enum iOS26Components {
     
     // MARK: - Scroll Transition Modifier
     struct ScrollTransitionModifier: ViewModifier {
-        var opacity: (Bool) -> Double = { $0 ? 1 : 0.8 }
-        var scale: (Bool) -> Double = { $0 ? 1 : 0.95 }
-        var blur: (Bool) -> Double = { $0 ? 0 : 2 }
+        var opacity: @Sendable (Bool) -> Double = { $0 ? 1 : 0.8 }
+        var scale: @Sendable (Bool) -> Double = { $0 ? 1 : 0.95 }
+        var blur: @Sendable (Bool) -> Double = { $0 ? 0 : 2 }
         
         func body(content: Content) -> some View {
-            content
+            // Copy to locals to avoid capturing main-actor isolated properties in a Sendable closure
+            let opacityTransform = opacity
+            let scaleTransform = scale
+            let blurTransform = blur
+            
+            return content
                 .scrollTransition { innerContent, phase in
                     innerContent
-                        .opacity(opacity(phase.isIdentity))
-                        .scaleEffect(scale(phase.isIdentity))
-                        .blur(radius: blur(phase.isIdentity))
+                        .opacity(opacityTransform(phase.isIdentity))
+                        .scaleEffect(scaleTransform(phase.isIdentity))
+                        .blur(radius: blurTransform(phase.isIdentity))
                 }
         }
     }
@@ -431,9 +436,9 @@ extension View {
     }
     
     func ios26ScrollTransition(
-        opacity: @escaping (Bool) -> Double = { $0 ? 1 : 0.8 },
-        scale: @escaping (Bool) -> Double = { $0 ? 1 : 0.95 },
-        blur: @escaping (Bool) -> Double = { $0 ? 0 : 2 }
+        opacity: @Sendable @escaping (Bool) -> Double = { $0 ? 1 : 0.8 },
+        scale: @Sendable @escaping (Bool) -> Double = { $0 ? 1 : 0.95 },
+        blur: @Sendable @escaping (Bool) -> Double = { $0 ? 0 : 2 }
     ) -> some View {
         self.modifier(
             iOS26Components.ScrollTransitionModifier(

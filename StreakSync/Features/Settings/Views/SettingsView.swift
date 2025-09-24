@@ -12,15 +12,14 @@ import UserNotifications
 // MARK: - Settings View
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
-    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var coordinator: NavigationCoordinator
     @Environment(AppState.self) private var appState
     
     var body: some View {
         if #available(iOS 26.0, *) {
-            iOS26SettingsContent(viewModel: viewModel, dismiss: dismiss)
+            iOS26SettingsContent(viewModel: viewModel)
         } else {
-            LegacySettingsContent(viewModel: viewModel, dismiss: dismiss)
+            LegacySettingsContent(viewModel: viewModel)
         }
     }
 }
@@ -29,7 +28,6 @@ struct SettingsView: View {
 @available(iOS 26.0, *)
 private struct iOS26SettingsContent: View {
     @ObservedObject var viewModel: SettingsViewModel
-    let dismiss: DismissAction
     
     @State private var scrollPosition = ScrollPosition()
     @State private var hoveredSection: SettingsSection? = nil
@@ -53,7 +51,7 @@ private struct iOS26SettingsContent: View {
                         subtitle: viewModel.notificationsEnabled ? "Enabled" : "Disabled",
                         showChevron: true
                     ) {
-                        NotificationSettingsView(viewModel: viewModel)
+                        NotificationSettingsView()
                     }
                 }
                 .onHover { isHovered in
@@ -154,14 +152,6 @@ private struct iOS26SettingsContent: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-                .fontWeight(.medium)
-            }
-        }
         .task {
             await viewModel.loadSettings()
         }
@@ -329,14 +319,13 @@ private struct iOS26SettingsLinkRow: View {
 // MARK: - Legacy iOS 25 Implementation
 private struct LegacySettingsContent: View {
     @ObservedObject var viewModel: SettingsViewModel
-    let dismiss: DismissAction
     
     var body: some View {
         List {
             // Notifications section
             Section {
                 NavigationLink {
-                    NotificationSettingsView(viewModel: viewModel)
+                    NotificationSettingsView()
                 } label: {
                     SettingsRow(
                         icon: "bell",
@@ -404,13 +393,6 @@ private struct LegacySettingsContent: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
-        }
         .task {
             await viewModel.loadSettings()
         }
@@ -451,29 +433,6 @@ struct SettingsRow: View {
     NavigationStack {
         SettingsView()
             .environmentObject(NavigationCoordinator())
-    }
-}
-// MARK: - Notification Settings View
-struct NotificationSettingsView: View {
-    @ObservedObject var viewModel: SettingsViewModel
-    
-    var body: some View {
-        List {
-            Section {
-                Toggle("Streak Reminders", isOn: $viewModel.streakRemindersEnabled)
-                    .disabled(!viewModel.notificationsEnabled)
-                
-                Toggle("Achievement Alerts", isOn: $viewModel.achievementAlertsEnabled)
-                    .disabled(!viewModel.notificationsEnabled)
-            } footer: {
-                if !viewModel.notificationsEnabled {
-                    Text("Enable notifications in iOS Settings to receive alerts.")
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle("Notifications")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

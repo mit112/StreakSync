@@ -8,16 +8,13 @@ import Foundation
 
 enum GameDisplayMode: String, CaseIterable, Codable {
     case card = "card"
-    case list = "list"
-    case compact = "compact"
+    case grid = "grid"
     
     var iconName: String {
         switch self {
         case .card:
             return "square.stack"
-        case .list:
-            return "list.bullet"
-        case .compact:
+        case .grid:
             return "square.grid.2x2"
         }
     }
@@ -26,9 +23,7 @@ enum GameDisplayMode: String, CaseIterable, Codable {
         switch self {
         case .card:
             return "Cards"
-        case .list:
-            return "List"
-        case .compact:
+        case .grid:
             return "Grid"
         }
     }

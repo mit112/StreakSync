@@ -75,6 +75,28 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         nil
     }
     
+    // MARK: - Sample Data
+    static var sample: Game {
+        Game(
+            name: "Wordle",
+            displayName: "Wordle",
+            url: URL(string: "https://www.nytimes.com/games/wordle")!,
+            category: .word,
+            resultPattern: "Wordle \\d+ \\d+/6",
+            iconSystemName: "textformat.abc",
+            backgroundColor: CodableColor(.green),
+            isPopular: true,
+            isCustom: false
+        )
+    }
+    
+    // MARK: - Computed Properties for Results
+    var recentResults: [GameResult] {
+        // This would be populated from your app state
+        // For now, return empty array
+        []
+    }
+    
     var accessibilityDescription: String {
         "\(displayName) game, \(category.displayName) category"
     }
@@ -107,7 +129,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         category: .word,
         resultPattern: #"Wordle \d+ [1-6X]/6"#,
         iconSystemName: "square.grid.3x3.fill",
-        backgroundColor: CodableColor(.systemGreen),
+        backgroundColor: CodableColor(UIColor(red: 0.345, green: 0.8, blue: 0.008, alpha: 1.0)), // #58CC02
         isPopular: true,
         isCustom: false
     )
@@ -120,7 +142,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         category: .word,
         resultPattern: #"Daily Quordle \d+"#,
         iconSystemName: "square.grid.2x2.fill",
-        backgroundColor: CodableColor(.systemBlue),
+        backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
         isPopular: true,
         isCustom: false
     )
@@ -133,7 +155,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         category: .math,
         resultPattern: #"nerdlegame \d+ [1-6]/6"#,
         iconSystemName: "function",
-        backgroundColor: CodableColor(.systemPurple),
+        backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
         isPopular: true,
         isCustom: false
     )
@@ -159,7 +181,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
            category: .word,
            resultPattern: #"Connections\nPuzzle #\d+"#,
            iconSystemName: "square.grid.3x3",
-           backgroundColor: CodableColor(.systemPurple),
+           backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
            isPopular: true,
            isCustom: false
        )
@@ -172,7 +194,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
            category: .word,
            resultPattern: #"Spelling Bee.*?\d+ words"#,
            iconSystemName: "hexagon",
-           backgroundColor: CodableColor(.systemYellow),
+           backgroundColor: CodableColor(UIColor(red: 0.345, green: 0.8, blue: 0.008, alpha: 1.0)), // #58CC02
            isPopular: true,
            isCustom: false
        )
@@ -185,7 +207,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
            category: .word,
            resultPattern: #"Letter Boxed.*?in \d+ words"#,
            iconSystemName: "square.on.square",
-           backgroundColor: CodableColor(.systemOrange),
+           backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
            isPopular: false,
            isCustom: false
        )

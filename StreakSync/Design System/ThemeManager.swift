@@ -8,164 +8,73 @@
 import SwiftUI
 import Combine
 
+// MARK: - Updated ThemeManager
 @MainActor
 final class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
     
     @Published var followSystemColorScheme: Bool = true
     
-    private init() {
-        loadSettings()
-    }
-    
-    // MARK: - System Color Scheme
-    
-    var colorScheme: ColorScheme? {
-        followSystemColorScheme ? nil : nil // Always follow system
-    }
-    
-    var isDarkMode: Bool {
-        UITraitCollection.current.userInterfaceStyle == .dark
-    }
-    
-    // MARK: - Background Colors (System colors only)
-    
-    var primaryBackground: Color {
-        Color(.systemBackground)
-    }
-    
-    var cardBackground: Color {
-        Color(.secondarySystemBackground)
-    }
-    
-    var tertiaryBackground: Color {
-        Color(.tertiarySystemBackground)
-    }
-    
-    var groupedBackground: Color {
-        Color(.systemGroupedBackground)
-    }
-    
-    // MARK: - Accent Colors
-    
-    var primaryAccent: Color {
-        Color.accentColor
-    }
-    
-    var successColor: Color {
-        Color(.systemGreen)
-    }
-    
-    var warningColor: Color {
-        Color(.systemOrange)
-    }
-    
-    var errorColor: Color {
-        Color(.systemRed)
-    }
-    
-    // MARK: - Streak Colors
-    
-    var streakActiveColor: Color {
-        Color(.systemGreen)
-    }
-    
-    var streakInactiveColor: Color {
-        Color(.systemOrange)
-    }
-    
-    var streakBrokenColor: Color {
-        Color(.systemRed)
-    }
-    
-    // MARK: - Simple Gradients (UI elements only)
-    
-    var statOrangeGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color(.systemOrange),
-                Color(.systemOrange).opacity(0.8)
-            ],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
-    
-    var statGreenGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color(.systemGreen),
-                Color(.systemGreen).opacity(0.8)
-            ],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
-    
-    var accentGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                primaryAccent,
-                primaryAccent.opacity(0.8)
-            ],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
-    
-    // MARK: - Deprecated Properties (For backward compatibility)
-    
-    @available(*, deprecated, message: "Use primaryBackground instead")
-    var backgroundGradient: LinearGradient {
-        LinearGradient(
-            colors: [primaryBackground],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    @available(*, deprecated, message: "Use primaryBackground instead")
-    var subtleBackgroundGradient: LinearGradient {
-        LinearGradient(
-            colors: [primaryBackground],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    // MARK: - Settings
-    
-    private func loadSettings() {
-        let defaults = UserDefaults.standard
-        followSystemColorScheme = defaults.bool(forKey: "followSystemColorScheme")
-        if !defaults.bool(forKey: "hasSetDefaults") {
-            followSystemColorScheme = true
-            defaults.set(true, forKey: "followSystemColorScheme")
-            defaults.set(true, forKey: "hasSetDefaults")
+    // Derive a best-effort color scheme outside of a View context
+    private var colorScheme: ColorScheme {
+        switch UIScreen.main.traitCollection.userInterfaceStyle {
+        case .dark: return .dark
+        case .light: return .light
+        case .unspecified: return .light
+        @unknown default: return .light
         }
     }
     
-    func saveSettings() {
-        let defaults = UserDefaults.standard
-        defaults.set(followSystemColorScheme, forKey: "followSystemColorScheme")
+    // MARK: - Primary Palette Colors
+    var primaryColor: Color {
+        StreakSyncColors.primary(for: colorScheme)
     }
     
-    // MARK: - Removed Features
-    
-    @available(*, deprecated, message: "Time-based themes removed")
-    func updateThemeIfNeeded() {
-        // No-op
+    var secondaryColor: Color {
+        StreakSyncColors.secondary(for: colorScheme)
     }
     
-    @available(*, deprecated, message: "Use system colors")
-    var currentTheme: ColorTheme {
-        get { .indigo }
-        set { /* No-op */ }
+    var tertiaryColor: Color {
+        StreakSyncColors.tertiary(for: colorScheme)
     }
     
-    @available(*, deprecated, message: "Time-based themes removed")
-    var useTimeBasedThemes: Bool {
-        get { false }
-        set { /* No-op */ }
+    // MARK: - Background Colors
+    var primaryBackground: Color {
+        StreakSyncColors.background(for: colorScheme)
+    }
+    
+    var cardBackground: Color {
+        StreakSyncColors.cardBackground(for: colorScheme)
+    }
+    
+    var secondaryBackground: Color {
+        StreakSyncColors.secondaryBackground(for: colorScheme)
+    }
+    
+    // MARK: - Gradients
+    var accentGradient: LinearGradient {
+        StreakSyncColors.accentGradient(for: colorScheme)
+    }
+    
+    var fullSpectrumGradient: LinearGradient {
+        StreakSyncColors.fullSpectrumGradient(for: colorScheme)
+    }
+    
+    // MARK: - Status Colors
+    var successColor: Color {
+        StreakSyncColors.success(for: colorScheme)
+    }
+    
+    var warningColor: Color {
+        StreakSyncColors.warning(for: colorScheme)
+    }
+    
+    var errorColor: Color {
+        StreakSyncColors.error(for: colorScheme)
+    }
+    
+    // MARK: - Game Category Colors
+    func gameColor(for category: GameCategory) -> Color {
+        StreakSyncColors.gameColor(for: category, colorScheme: colorScheme)
     }
 }

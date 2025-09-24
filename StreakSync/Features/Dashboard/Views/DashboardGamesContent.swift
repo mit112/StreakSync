@@ -1,8 +1,8 @@
 //
-//  DashboardGamesContent.swift
+//  DashboardGamesContent.swift (Updated)
 //  StreakSync
 //
-//  Games content display with different view modes
+//  Updated to use modern game cards
 //
 
 import SwiftUI
@@ -33,88 +33,106 @@ struct DashboardGamesContent: View {
         } else {
             switch displayMode {
             case .card:
-                cardView
-            case .list:
-                listView
-            case .compact:
-                compactView
+                modernCardView
+            case .grid:
+                modernGridView
             }
         }
     }
     
-    // MARK: - View Modes
-    
-    private var cardView: some View {
-        LazyVStack(spacing: 12) {
+    // MARK: - Modern Card View
+    private var modernCardView: some View {
+        LazyVStack(spacing: 8) {
             ForEach(Array(filteredStreaks.enumerated()), id: \.element.id) { index, streak in
-                EnhancedStreakCard(
-                    streak: streak,
-                    hasAppeared: hasInitiallyAppeared,
-                    animationIndex: index,
-                    isFavorite: gameCatalog.isFavorite(streak.gameId),
-                    onFavoriteToggle: {
-                        gameCatalog.toggleFavorite(streak.gameId)
-                        HapticManager.shared.trigger(.toggleSwitch)
-                    }
-                ) {
-                    if let game = appState.games.first(where: { $0.id == streak.gameId }) {
-                        // Add a minimal delay to ensure gesture completion
-                        DispatchQueue.main.async {
+                if let game = appState.games.first(where: { $0.id == streak.gameId }) {
+                    ModernGameCard(
+                        streak: streak,
+                        game: game,
+                        isFavorite: gameCatalog.isFavorite(streak.gameId),
+                        onFavoriteToggle: {
+                            gameCatalog.toggleFavorite(streak.gameId)
+                            HapticManager.shared.trigger(.toggleSwitch)
+                        },
+                        action: {
+                            DispatchQueue.main.async {
+                                coordinator.navigateTo(.gameDetail(game))
+                            }
+                        }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .bottom)),
+                        removal: .opacity.combined(with: .scale)
+                    ))
+                    .id("\(refreshID)-\(streak.id)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Modern Grid View
+    private var modernGridView: some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ], spacing: 12) {
+            ForEach(Array(filteredStreaks.enumerated()), id: \.element.id) { index, streak in
+                if let game = appState.games.first(where: { $0.id == streak.gameId }) {
+                    GameCompactCardView(
+                        streak: streak,
+                        isFavorite: gameCatalog.isFavorite(streak.gameId),
+                        onFavoriteToggle: {
+                            gameCatalog.toggleFavorite(streak.gameId)
+                            HapticManager.shared.trigger(.toggleSwitch)
+                        },
+                        onTap: {
                             coordinator.navigateTo(.gameDetail(game))
                         }
-                    }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.8)).combined(with: .move(edge: .bottom)),
+                        removal: .opacity.combined(with: .scale(scale: 0.8))
+                    ))
+                    .id("\(refreshID)-\(streak.id)")
+                    .modifier(InitialAnimationModifier(
+                        hasAppeared: hasInitiallyAppeared,
+                        index: index,
+                        totalCount: filteredStreaks.count
+                    ))
                 }
-                .id("\(refreshID)-\(streak.id)")
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 16)
+        // Removed top padding completely
     }
-    
-    private var listView: some View {
-        LazyVStack(spacing: 8) {
-            ForEach(filteredStreaks) { streak in
-                GameListItemView(
-                    streak: streak,
-                    isFavorite: gameCatalog.isFavorite(streak.gameId),
-                    onFavoriteToggle: {
-                        gameCatalog.toggleFavorite(streak.gameId)
-                        HapticManager.shared.trigger(.toggleSwitch)
-                    }
-                ) {
-                    if let game = appState.games.first(where: { $0.id == streak.gameId }) {
-                        coordinator.navigateTo(.gameDetail(game))
-                    }
-                }
-                .id("\(refreshID)-\(streak.id)")
-            }
+}
+
+// MARK: - Preview
+#Preview {
+    NavigationStack {
+        ScrollView {
+            DashboardGamesContent(
+                filteredGames: [Game.wordle, Game.quordle],
+                filteredStreaks: [
+                    GameStreak(
+                        gameId: Game.wordle.id,
+                        gameName: "wordle",
+                        currentStreak: 5,
+                        maxStreak: 12,
+                        totalGamesPlayed: 30,
+                        totalGamesCompleted: 25,
+                        lastPlayedDate: Date(),
+                        streakStartDate: Date()
+                    )
+                ],
+                displayMode: .card,
+                searchText: "",
+                refreshID: UUID(),
+                hasInitiallyAppeared: true
+            )
+            .padding()
         }
-        .padding(.horizontal)
-    }
-    
-    private var compactView: some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12)
-            ],
-            spacing: 12
-        ) {
-            ForEach(filteredStreaks) { streak in
-                GameCompactCardView(
-                    streak: streak,
-                    isFavorite: gameCatalog.isFavorite(streak.gameId),
-                    onFavoriteToggle: {
-                        gameCatalog.toggleFavorite(streak.gameId)
-                        HapticManager.shared.trigger(.toggleSwitch)
-                    }
-                ) {
-                    if let game = appState.games.first(where: { $0.id == streak.gameId }) {
-                        coordinator.navigateTo(.gameDetail(game))
-                    }
-                }
-                .id("\(refreshID)-\(streak.id)")
-            }
-        }
-        .padding(.horizontal)
+        .environment(AppState())
+        .environment(GameCatalog())
+        .environmentObject(NavigationCoordinator())
     }
 }

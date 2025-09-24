@@ -26,17 +26,21 @@ extension AppState {
         updatedStreaks[streakIndex] = updatedStreak
         setStreaks(updatedStreaks)
         
+        #if DEBUG
         logger.info("Updated streak for \(result.gameName): \(currentStreak.currentStreak) → \(updatedStreak.currentStreak)")
         logger.info("Streaks array now contains \(self.streaks.count) streaks")
         logger.info("Updated streak verified: \(self.streaks[streakIndex].currentStreak) days, \(self.streaks[streakIndex].totalGamesPlayed) played")
         
         // NOTE: Caller is responsible for saving streaks
         logger.info("⚠️ Streak updated in memory - caller must save!")
+        #endif
     }
     
     internal func calculateUpdatedStreak(current: GameStreak, with result: GameResult) -> GameStreak {
+        #if DEBUG
         logger.info("📊 Calculating updated streak for \(result.gameName)")
         logger.info("  Current state: streak=\(current.currentStreak), played=\(current.totalGamesPlayed), completed=\(current.totalGamesCompleted)")
+        #endif
         
         let newTotalPlayed = current.totalGamesPlayed + 1
         let newTotalCompleted = current.totalGamesCompleted + (result.completed ? 1 : 0)
@@ -50,7 +54,9 @@ extension AppState {
                 // Starting a new streak
                 newCurrentStreak = 1
                 newStreakStartDate = result.date
+                #if DEBUG
                 logger.info("  Starting new streak")
+                #endif
             } else {
                 // Check if this extends the streak
                 if let lastPlayed = current.lastPlayedDate {
@@ -59,26 +65,36 @@ extension AppState {
                     let resultDay = calendar.startOfDay(for: result.date)
                     let daysBetween = calendar.dateComponents([.day], from: lastPlayedDay, to: resultDay).day ?? 0
                     
+                    #if DEBUG
                     logger.info("  Days between plays: \(daysBetween)")
+                    #endif
                     
                     if daysBetween == 1 {
                         // Consecutive day - extend streak
                         newCurrentStreak += 1
+                        #if DEBUG
                         logger.info("  Extending streak to \(newCurrentStreak)")
+                        #endif
                     } else if daysBetween == 0 {
                         // Same day - don't increment streak
+                        #if DEBUG
                         logger.info("  Same day play - maintaining streak at \(newCurrentStreak)")
+                        #endif
                     } else {
                         // Streak broken - start new one
                         newCurrentStreak = 1
                         newStreakStartDate = result.date
+                        #if DEBUG
                         logger.info("  Streak broken - starting new streak")
+                        #endif
                     }
                 } else {
                     // No previous play date - start streak at 1
                     newCurrentStreak = 1
                     newStreakStartDate = result.date
+                    #if DEBUG
                     logger.info("  First play - starting streak at 1")
+                    #endif
                 }
             }
             
@@ -88,7 +104,9 @@ extension AppState {
             // Failed game - break streak
             newCurrentStreak = 0
             newStreakStartDate = nil
+            #if DEBUG
             logger.info("  Failed game - breaking streak")
+            #endif
         }
         
         let updatedStreak = GameStreak(
@@ -103,53 +121,13 @@ extension AppState {
             streakStartDate: newStreakStartDate
         )
         
+        #if DEBUG
         logger.info("  New state: streak=\(updatedStreak.currentStreak), played=\(updatedStreak.totalGamesPlayed), completed=\(updatedStreak.totalGamesCompleted)")
+        #endif
         
         return updatedStreak
     }
     
-    
-    private func checkFirstGameAchievements() -> [Achievement] {
-        guard self.recentResults.count == 1 else { return [] }
-        
-        return self.achievements.filter { achievement in
-            if case .firstGame = achievement.requirement {
-                return !achievement.isUnlocked
-            }
-            return false
-        }
-    }
-    
-    private func checkStreakAchievements(for result: GameResult) -> [Achievement] {
-        guard let gameStreak = self.streaks.first(where: { $0.gameId == result.gameId }) else { return [] }
-        
-        return self.achievements.filter { achievement in
-            if case .streakLength(let days) = achievement.requirement {
-                return !achievement.isUnlocked && gameStreak.currentStreak >= days
-            }
-            return false
-        }
-    }
-    
-    private func checkTotalGamesAchievements() -> [Achievement] {
-        return self.achievements.filter { achievement in
-            if case .totalGames(let count) = achievement.requirement {
-                return !achievement.isUnlocked && self.recentResults.count >= count
-            }
-            return false
-        }
-    }
-    
-    private func checkMultipleGamesAchievements() -> [Achievement] {
-        let today = Calendar.current.startOfDay(for: Date())
-        let todayResults = self.recentResults.filter { Calendar.current.isDate($0.date, inSameDayAs: today) }
-        let uniqueGamesToday = Set(todayResults.map(\.gameId)).count
-        
-        return self.achievements.filter { achievement in
-            if case .multipleGames(let count) = achievement.requirement {
-                return !achievement.isUnlocked && uniqueGamesToday >= count
-            }
-            return false
-        }
-    }
+    // Legacy achievement helper methods have been consolidated in
+    // AppState+TieredAchievements to avoid duplication.
 }

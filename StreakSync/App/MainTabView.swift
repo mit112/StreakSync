@@ -3,6 +3,7 @@
 //  StreakSync
 //
 //  SIMPLIFIED Native iOS 26 TabView
+//  FIXED: Updated to use new StreakSyncColors system
 //
 
 import SwiftUI
@@ -10,7 +11,7 @@ import SwiftUI
 struct MainTabView: View {
     @EnvironmentObject private var container: AppContainer
     @EnvironmentObject private var coordinator: NavigationCoordinator
-    @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(AppState.self) private var appState
     
     var body: some View {
@@ -39,17 +40,6 @@ struct MainTabView: View {
             }
             .tag(MainTab.home)
             
-            // Stats Tab
-            NavigationStack(path: $coordinator.statsPath) {
-                AllStreaksView()
-                    .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                        destinationView(for: destination)
-                    }
-            }
-            .tabItem {
-                Label("Stats", systemImage: "chart.line.uptrend.xyaxis")
-            }
-            .tag(MainTab.stats)
             
             // Awards Tab
             NavigationStack(path: $coordinator.awardsPath) {
@@ -76,7 +66,7 @@ struct MainTabView: View {
             .tag(MainTab.settings)
         }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tint(themeManager.primaryAccent)
+        .tint(StreakSyncColors.primary(for: colorScheme))
         .onChange(of: coordinator.selectedTab) { _, _ in
             HapticManager.shared.trigger(.buttonTap)
         }
@@ -95,13 +85,11 @@ struct MainTabView: View {
                 GameDetailView(game: game)
                     .environmentObject(container)
                     .navigationTransition(.zoom(sourceID: "game-\(game.id)", in: namespace))
-//                    .preloadForTransition()
                 
             case .streakHistory(let streak):
                 StreakHistoryView(streak: streak)
                     .environmentObject(container)
                     .navigationTransition(.zoom(sourceID: "streak-\(streak.id)", in: namespace))
-//                    .preloadForTransition()
                 
             case .allStreaks:
                 AllStreaksView()
@@ -132,12 +120,11 @@ struct MainTabView: View {
                         sourceID: "achievement-\(achievement.id)",
                         in: namespace
                     ))
-//                    .preloadForTransition()
             }
         }
     }
     
-    // MARK: - Standard TabView (Pre-iOS 26) - UNCHANGED
+    // MARK: - Standard TabView (Pre-iOS 26)
     private var standardTabView: some View {
         TabView(selection: $coordinator.selectedTab) {
             // Home Tab
@@ -154,17 +141,6 @@ struct MainTabView: View {
             }
             .tag(MainTab.home)
             
-            // Stats Tab
-            NavigationStack(path: $coordinator.statsPath) {
-                AllStreaksView()
-                    .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                        destinationView(for: destination)
-                    }
-            }
-            .tabItem {
-                Label("Stats", systemImage: "chart.line.uptrend.xyaxis")
-            }
-            .tag(MainTab.stats)
             
             // Awards Tab
             NavigationStack(path: $coordinator.awardsPath) {
@@ -190,13 +166,13 @@ struct MainTabView: View {
             }
             .tag(MainTab.settings)
         }
-        .tint(themeManager.primaryAccent)
+        .tint(StreakSyncColors.primary(for: colorScheme))
         .onChange(of: coordinator.selectedTab) { _, _ in
             HapticManager.shared.trigger(.buttonTap)
         }
     }
     
-    // MARK: - Destination Views (SIMPLIFIED)
+    // MARK: - Destination Views
     @ViewBuilder
     private func destinationView(for destination: NavigationCoordinator.Destination) -> some View {
         switch destination {
@@ -231,16 +207,7 @@ struct MainTabView: View {
                 .environmentObject(container)
         }
     }
-    
 }
-
-//@available(iOS 26.0, *)
-//extension View {
-//    /// Preload view to avoid nil view transitions
-//    func preloadForTransition(delay: TimeInterval = 0.1) -> some View {
-//        self.modifier(PreloadViewModifier(delay: delay))
-//    }
-//}
 
 // MARK: - Tab Switch Animation Configuration
 @available(iOS 26.0, *)
@@ -257,4 +224,3 @@ struct TabSwitchConfiguration {
         }
     }
 }
-

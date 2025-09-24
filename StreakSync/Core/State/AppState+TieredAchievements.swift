@@ -176,41 +176,27 @@ extension AppState {
 extension AppState {
     
     // Recalculate progress from existing data
-    internal func recalculateAllTieredAchievementProgress() {
-        logger.info("🔄 Calculating tiered achievement progress from existing data...")
-        
-        var updatedAchievements = tieredAchievements
-        
-        // Game Collector - total games played
-        if let index = updatedAchievements.firstIndex(where: { $0.category == .gameCollector }) {
-            updatedAchievements[index].updateProgress(value: recentResults.count)
-        }
-        
-        // Perfectionist - successful games
-        let successfulGames = recentResults.filter { $0.isSuccess }.count
-        if let index = updatedAchievements.firstIndex(where: { $0.category == .perfectionist }) {
-            updatedAchievements[index].updateProgress(value: successfulGames)
-        }
-        
-        // Marathon Runner - unique days
-        let uniqueDays = Set(recentResults.map { result in
-            Calendar.current.startOfDay(for: result.date)
-        }).count
-        if let index = updatedAchievements.firstIndex(where: { $0.category == .marathonRunner }) {
-            updatedAchievements[index].updateProgress(value: uniqueDays)
-        }
-        
-        // Streak Master - check current streaks
-        if let longestCurrentStreak = streaks.map({ $0.currentStreak }).max() {
-            if let index = updatedAchievements.firstIndex(where: {
-                $0.category == .streakMaster &&
-                $0.requirements.first?.specificGameId == nil
-            }) {
-                updatedAchievements[index].updateProgress(value: longestCurrentStreak)
+        internal func recalculateAllTieredAchievementProgress() {
+            logger.info("🔄 Recomputing tiered achievements from all results...")
+            var current = AchievementFactory.createDefaultAchievements()
+            let checker = TieredAchievementChecker()
+            // Iterate deterministically by date ascending so progression is stable
+            let orderedResults = recentResults.sorted { $0.date < $1.date }
+            for r in orderedResults {
+                _ = checker.checkAllAchievements(
+                    for: r,
+                    allResults: recentResults,
+                    streaks: streaks,
+                    games: games,
+                    currentAchievements: &current
+                )
+            }
+            // Persist if changed
+            if current != tieredAchievements {
+                tieredAchievements = current
+                logger.info("✅ Tiered achievements recomputed")
+            } else {
+                logger.info("ℹ️ Tiered achievements already up to date")
             }
         }
-        
-        tieredAchievements = updatedAchievements
-        logger.info("✅ Initial progress calculation complete")
-    }
 }

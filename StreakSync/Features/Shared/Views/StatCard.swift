@@ -3,6 +3,7 @@
 //  StreakSync
 //
 //  Reusable stat card component for displaying metrics
+//  FIXED: Simplified gradient handling for StreakSyncColors
 //
 
 import SwiftUI
@@ -12,10 +13,11 @@ struct StatCard: View {
     let icon: String
     let value: String
     let label: String
-    let gradient: LinearGradient
+    let gradientColors: [Color] // Store colors instead of gradient
     let action: (() -> Void)?
     
     @State private var isPressed = false
+    @Environment(\.colorScheme) private var colorScheme
     
     init(
         icon: String,
@@ -27,21 +29,33 @@ struct StatCard: View {
         self.icon = icon
         self.value = value
         self.label = label
-        self.gradient = gradient
+        // For backward compatibility, we'll store placeholder colors
+        self.gradientColors = [Color.blue, Color.purple]
         self.action = action
     }
     
-    // Convenience initializers for common stat types
+    // New initializer that takes colors directly
+    init(
+        icon: String,
+        value: String,
+        label: String,
+        colors: [Color],
+        action: (() -> Void)? = nil
+    ) {
+        self.icon = icon
+        self.value = value
+        self.label = label
+        self.gradientColors = colors
+        self.action = action
+    }
+    
+    // Convenience initializers using palette colors
     static func activeStreaks(_ count: Int, action: (() -> Void)? = nil) -> StatCard {
         StatCard(
             icon: "flame.fill",
             value: "\(count)",
             label: "Active",
-            gradient: LinearGradient(
-                colors: [Color.orange, Color.red],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
+            colors: [PaletteColor.secondary.color, PaletteColor.primary.color],
             action: action
         )
     }
@@ -51,11 +65,7 @@ struct StatCard: View {
             icon: "checkmark.circle.fill",
             value: "\(count)",
             label: "Today",
-            gradient: LinearGradient(
-                colors: [Color.green, Color.mint],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
+            colors: [PaletteColor.primary.color],
             action: action
         )
     }
@@ -65,11 +75,7 @@ struct StatCard: View {
             icon: "gamecontroller.fill",
             value: "\(count)",
             label: "Games",
-            gradient: LinearGradient(
-                colors: [Color.blue, Color.purple],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
+            colors: [PaletteColor.textSecondary.color, PaletteColor.cardBackground.color],
             action: action
         )
     }
@@ -88,7 +94,7 @@ struct StatCard: View {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(gradient)
+                    .foregroundStyle(adaptedGradient)
                     .symbolEffect(.bounce, value: isPressed)
                 
                 VStack(alignment: .leading, spacing: 0) {
@@ -110,7 +116,7 @@ struct StatCard: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
                             .strokeBorder(
-                                gradient.opacity(0.3),
+                                adaptedGradient.opacity(0.3),
                                 lineWidth: 1
                             )
                     )
@@ -124,6 +130,37 @@ struct StatCard: View {
                 .onChanged { _ in isPressed = true }
                 .onEnded { _ in isPressed = false }
         )
+    }
+    
+    // Create gradient with adapted colors for current color scheme
+    private var adaptedGradient: LinearGradient {
+        let adaptedColors = gradientColors.map { color in
+            adaptColorForScheme(color)
+        }
+        
+        return LinearGradient(
+            colors: adaptedColors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
+    // Adapt individual colors to color scheme
+    private func adaptColorForScheme(_ color: Color) -> Color {
+        // Check if this is one of our palette colors and adapt accordingly
+        if color == PaletteColor.primary.color {
+            return colorScheme == .dark ? PaletteColor.primary.darkVariant : PaletteColor.primary.color
+        } else if color == PaletteColor.secondary.color {
+            return colorScheme == .dark ? PaletteColor.secondary.darkVariant : PaletteColor.secondary.color
+        } else if color == PaletteColor.textSecondary.color {
+            return colorScheme == .dark ? PaletteColor.textSecondary.darkVariant : PaletteColor.textSecondary.color
+        } else if color == PaletteColor.cardBackground.color {
+            return colorScheme == .dark ? PaletteColor.cardBackground.darkVariant : PaletteColor.cardBackground.color
+        } else if color == PaletteColor.background.color {
+            return colorScheme == .dark ? PaletteColor.background.darkVariant : PaletteColor.background.color
+        }
+        // Return original color if not a palette color
+        return color
     }
 }
 
@@ -187,11 +224,15 @@ struct StatCardRow: View {
         }
         .padding()
         
-        // Using StatCardRow
+        // Using StatCardRow with palette colors
         StatCardRow(
             stats: [
-                ("flame.fill", "8", "Streak", LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing)),
-                ("trophy.fill", "15", "Awards", LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing))
+                ("flame.fill", "8", "Streak", StreakSyncColors.accentGradient(for: .light)),
+                ("trophy.fill", "15", "Awards", LinearGradient(
+                    colors: [PaletteColor.background.color, PaletteColor.textSecondary.color],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
             ],
             hasAppeared: true
         )

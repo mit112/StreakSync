@@ -167,24 +167,30 @@ final class NotificationCoordinator: ObservableObject {
     }
     
     private func handleGameDeepLink(_ notification: Notification) {
-        guard let gameInfo = notification.object as? [String: Any],
-              let gameId = gameInfo["gameId"] as? UUID else {
-            logger.error("❌ Invalid game deep link data")
+        guard let payload = notification.object as? [String: Any] else {
+            logger.error("❌ Invalid game deep link payload")
             return
         }
-        
-        logger.info("🔗 Handling game deep link: \(gameId)")
-        
-        // Find the game and navigate
-        if let game = appState?.games.first(where: { $0.id == gameId }) {
+        // Prefer id; fallback to name
+        if let gameId = payload[AppConstants.DeepLinkKeys.gameId] as? UUID,
+           let game = appState?.games.first(where: { $0.id == gameId }) {
+            logger.info("🔗 Handling game deep link by id: \(gameId)")
             navigationCoordinator?.navigateTo(.gameDetail(game))
+            return
         }
+        if let name = payload[AppConstants.DeepLinkKeys.name] as? String,
+           let game = appState?.games.first(where: { $0.name.lowercased() == name.lowercased() || $0.displayName.lowercased() == name.lowercased() }) {
+            logger.info("🔗 Handling game deep link by name: \(name)")
+            navigationCoordinator?.navigateTo(.gameDetail(game))
+            return
+        }
+        logger.error("❌ Game not found for deep link payload: \(payload)")
     }
     
     private func handleAchievementDeepLink(_ notification: Notification) {
-        guard let achievementInfo = notification.object as? [String: Any],
-              let achievementId = achievementInfo["achievementId"] as? UUID else {
-            logger.error("❌ Invalid achievement deep link data")
+        guard let payload = notification.object as? [String: Any],
+              let achievementId = payload[AppConstants.DeepLinkKeys.achievementId] as? UUID else {
+            logger.error("❌ Invalid achievement deep link payload")
             return
         }
         
@@ -203,6 +209,12 @@ final class NotificationCoordinator: ObservableObject {
     
     private func handleAppDidBecomeActive() async {
         logger.info("📱 App became active (via notification)")
+        
+        // Skip expensive operations if navigating from notification
+        if appState?.isNavigatingFromNotification == true {
+            logger.info("🚀 Skipping share extension check - navigating from notification")
+            return
+        }
         
         // Check for new results from share extension
         if appGroupBridge?.hasNewResults ?? false {

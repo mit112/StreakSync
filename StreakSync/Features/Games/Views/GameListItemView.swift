@@ -13,6 +13,7 @@ struct GameListItemView: View {
     let onTap: () -> Void
     
     @Environment(AppState.self) private var appState
+    @Environment(\.colorScheme) private var colorScheme
     
     private var game: Game? {
         appState.games.first { $0.id == streak.gameId }
@@ -61,17 +62,9 @@ struct GameListItemView: View {
             .padding()
             .background {
                 if #available(iOS 26.0, *) {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
+                    StreakSyncColors.gameListItemBackgroundiOS26(for: colorScheme)
                 } else {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.systemBackground))
-                        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .strokeBorder(Color(.systemGray5), lineWidth: 0.5)
-                        )
+                    StreakSyncColors.gameListItemBackground(for: colorScheme)
                 }
             }
         }

@@ -15,13 +15,13 @@ struct SimplifiedGamesHeader: View {
     
     let navigateToGameManagement: () -> Void
     
-    // Simplified display modes (just card and list)
+    // Simplified display modes (just card and grid)
     private var simplifiedDisplayModes: [GameDisplayMode] {
-        [.card, .list]
+        [.card, .grid]
     }
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) { // Reduced from 12 to 8
             // Row 1: Title and Browse button
             HStack {
                 Text("Your Games")
@@ -139,11 +139,9 @@ struct CompactToggleStyle: ToggleStyle {
             HapticManager.shared.trigger(.toggleSwitch)
         } label: {
             HStack(spacing: 4) {
-                if let label = configuration.label as? Label<Text, Image> {
-                    Image(systemName: configuration.isOn ? "flame.fill" : "flame")
-                        .font(.caption)
-                        .foregroundStyle(configuration.isOn ? .orange : .secondary)
-                }
+                Image(systemName: configuration.isOn ? "flame.fill" : "flame")
+                    .font(.caption)
+                    .foregroundStyle(configuration.isOn ? .orange : .secondary)
                 Text("Active")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(configuration.isOn ? .orange : .secondary)

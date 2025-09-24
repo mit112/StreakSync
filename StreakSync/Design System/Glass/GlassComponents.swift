@@ -5,6 +5,13 @@
 //  Glassmorphic UI components following Design System.pdf specifications
 //
 
+//
+//  GlassComponents.swift
+//  StreakSync
+//
+//  FIXED: Updated to use new StreakSyncColors system
+//
+
 import SwiftUI
 
 // MARK: - Glass Effect Depths
@@ -50,28 +57,31 @@ enum GlassDepth {
 struct GlassCard: ViewModifier {
     let depth: GlassDepth
     let cornerRadius: CGFloat
+    let tintColor: Color?
     
-    @Environment(\.colorScheme) var colorScheme
-    private let theme = ThemeManager.shared
+    @Environment(\.colorScheme) private var colorScheme
     
-    init(depth: GlassDepth = .medium, cornerRadius: CGFloat = 20) {
+    init(depth: GlassDepth = .medium, cornerRadius: CGFloat = 20, tintColor: Color? = nil) {
         self.depth = depth
         self.cornerRadius = cornerRadius
+        self.tintColor = tintColor
     }
     
     func body(content: Content) -> some View {
         content
-            .background(
+            .background {
                 ZStack {
                     // Base glass layer
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .fill(.ultraThinMaterial)
                         .opacity(depth.opacity)
                     
-                    // Gradient overlay
+                    // Add subtle gradient overlay
                     RoundedRectangle(cornerRadius: cornerRadius)
-                        .fill(theme.subtleBackgroundGradient)
-                        .opacity(0.3)
+                        .fill(
+                            StreakSyncColors.accentGradient(for: colorScheme)
+                                .opacity(colorScheme == .dark ? 0.05 : 0.03)
+                        )
                     
                     // Inner shadow for depth
                     RoundedRectangle(cornerRadius: cornerRadius)
@@ -87,11 +97,10 @@ struct GlassCard: ViewModifier {
                             lineWidth: 1
                         )
                 }
-            )
+            }
             .shadow(
-                color: colorScheme == .dark ?
-                    Color.black.opacity(0.5) :
-                    Color.black.opacity(0.15),
+                color: tintColor?.opacity(0.15) ??
+                       StreakSyncColors.primary(for: colorScheme).opacity(0.1),
                 radius: depth.shadowRadius,
                 x: 0,
                 y: depth.shadowY
@@ -103,8 +112,7 @@ struct GlassCard: ViewModifier {
 struct GlassButton: ButtonStyle {
     let isProminent: Bool
     
-    @Environment(\.colorScheme) var colorScheme
-    private let theme = ThemeManager.shared
+    @Environment(\.colorScheme) private var colorScheme
     
     init(isProminent: Bool = false) {
         self.isProminent = isProminent
@@ -119,7 +127,7 @@ struct GlassButton: ButtonStyle {
                     if isProminent {
                         // Prominent button with gradient
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(theme.accentGradient)
+                            .fill(StreakSyncColors.accentGradient(for: colorScheme))
                             .opacity(configuration.isPressed ? 0.8 : 1.0)
                     } else {
                         // Subtle glass button
@@ -160,7 +168,7 @@ struct GlassTabBar: View {
     @Binding var selectedTab: Int
     let tabs: [(icon: String, label: String)]
     
-    private let theme = ThemeManager.shared
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         HStack(spacing: 0) {
@@ -169,15 +177,14 @@ struct GlassTabBar: View {
                     icon: tabs[index].icon,
                     label: tabs[index].label,
                     isSelected: selectedTab == index,
-                    theme: theme
+                    colorScheme: colorScheme
                 ) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         selectedTab = index
                     }
                     
                     // Haptic feedback
-                    let impact = UIImpactFeedbackGenerator(style: .light)
-                    impact.impactOccurred()
+                    HapticManager.shared.trigger(.buttonTap)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -206,7 +213,7 @@ struct GlassTabBar: View {
         let icon: String
         let label: String
         let isSelected: Bool
-        let theme: ThemeManager
+        let colorScheme: ColorScheme
         let action: () -> Void
         
         var body: some View {
@@ -221,7 +228,7 @@ struct GlassTabBar: View {
                 }
                 .foregroundStyle(
                     isSelected ?
-                        AnyShapeStyle(theme.accentGradient) :
+                        AnyShapeStyle(StreakSyncColors.accentGradient(for: colorScheme)) :
                         AnyShapeStyle(Color.secondary)
                 )
                 .frame(maxWidth: .infinity)
@@ -229,7 +236,7 @@ struct GlassTabBar: View {
                 .background(
                     isSelected ?
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(theme.primaryAccent.opacity(0.15))
+                            .fill(StreakSyncColors.primary(for: colorScheme).opacity(0.15))
                             .padding(.horizontal, 4) :
                         nil
                 )
@@ -239,61 +246,14 @@ struct GlassTabBar: View {
     }
 }
 
-//// MARK: - Animated Gradient Text
-//struct AnimatedGradientText: View {
-//    let text: String
-//    let font: Font
-//    
-//    @State private var animationOffset: CGFloat = 0
-//    private let theme = ThemeManager.shared
-//    
-//    var body: some View {
-//        Text(text)
-//            .font(font)
-//            .foregroundStyle(
-//                LinearGradient(
-//                    colors: theme.isDarkMode ?
-//                        theme.colors.accentDark.map { Color(hex: $0) } :
-//                        theme.colors.accentLight.map { Color(hex: $0) },
-//                    startPoint: .leading,
-//                    endPoint: .trailing
-//                )
-//                .opacity(0.9)
-//            )
-//            .overlay(
-//                LinearGradient(
-//                    colors: [
-//                        Color.white.opacity(0.4),
-//                        Color.white.opacity(0.0),
-//                        Color.white.opacity(0.4)
-//                    ],
-//                    startPoint: .leading,
-//                    endPoint: .trailing
-//                )
-//                .mask(
-//                    Text(text)
-//                        .font(font)
-//                )
-//                .offset(x: animationOffset)
-//                .mask(
-//                    Text(text)
-//                        .font(font)
-//                )
-//            )
-//            .onAppear {
-//                withAnimation(.linear(duration: 3).repeatForever(autoreverses: false)) {
-//                    animationOffset = 300
-//                }
-//            }
-//    }
-//}
-
 // MARK: - View Extensions
 extension View {
-    func glassCard(depth: GlassDepth = .medium, cornerRadius: CGFloat = 20) -> some View {
-        self.modifier(GlassCard(depth: depth, cornerRadius: cornerRadius))
+    /// Apply glass card effect with optional tint color
+    func glassCard(depth: GlassDepth = .medium, cornerRadius: CGFloat = 20, tintColor: Color? = nil) -> some View {
+        self.modifier(GlassCard(depth: depth, cornerRadius: cornerRadius, tintColor: tintColor))
     }
     
+    /// Apply glass button style
     func glassButton(isProminent: Bool = false) -> some View {
         self.buttonStyle(GlassButton(isProminent: isProminent))
     }

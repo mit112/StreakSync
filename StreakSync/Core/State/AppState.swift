@@ -37,6 +37,17 @@ final class AppState {
     var currentError: AppError?  // This will be observable with @Observable
     var showingAddCustomGame = false
     
+    // MARK: - Navigation State
+    var isNavigatingFromNotification = false
+    
+    // MARK: - Favorite Games Management
+    var favoriteGames: [Game] {
+        games.filter { game in
+            // Check if game is in favorites using GameCatalog
+            GameCatalog.shared.isFavorite(game.id)
+        }
+    }
+    
     // MARK: - Persistence State
     internal var isDataLoaded = false
     internal var lastDataLoad: Date?
@@ -56,10 +67,7 @@ final class AppState {
         
         setupInitialData()
         
-        // Load persisted data
-        Task {
-            await loadPersistedData()
-        }
+        // Defer data loading to app bootstrap to avoid double-loading
         
         logger.info("AppState initialized with persistence support")
     }
@@ -278,6 +286,39 @@ final class AppState {
         }
         
         logger.info("Added game result for \(result.gameName)")
+        
+        // Check for streak risk and schedule reminders
+        Task {
+            await checkAndScheduleStreakReminders()
+        }
+    }
+    
+    // MARK: - Deletion & Recompute APIs
+    /// Removes a specific game result and recomputes dependent state (streaks and achievements)
+    func removeGameResult(_ resultId: UUID) {
+        let beforeCount = recentResults.count
+        recentResults.removeAll { $0.id == resultId }
+        guard recentResults.count != beforeCount else { return }
+        
+        // Rebuild cache
+        buildResultsCache()
+        
+        // Rebuild streaks from remaining results
+        Task { @MainActor in
+            await rebuildStreaksFromResults()
+            // Recompute tiered achievements from remaining results
+            recalculateAllTieredAchievementProgress()
+            
+            // Persist
+            await saveGameResults()
+            await saveStreaks()
+            await saveTieredAchievements()
+            
+            // Notify UI
+            invalidateCache()
+            NotificationCenter.default.post(name: NSNotification.Name("GameDataUpdated"), object: nil)
+            logger.info("🗑️ Removed game result and recomputed dependent state")
+        }
     }
     
 
@@ -304,6 +345,149 @@ final class AppState {
         logger.info("Achievement unlocked: \(achievement.title)")
     }
     
+    // MARK: - Streak Risk Detection
+    func checkAndScheduleStreakReminders() async {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        // Check global notification settings
+        let streakMaintenanceEnabled = UserDefaults.standard.object(forKey: "streakMaintenanceEnabled") as? Bool ?? true
+        
+        logger.info("🔍 Checking streak reminders for \(self.games.count) games...")
+        logger.info("🔧 Global settings: streakMaintenance=\(streakMaintenanceEnabled)")
+        
+        for game in games {
+            logger.info("🎮 Checking game: \(game.name)")
+            
+            guard let streak = streaks.first(where: { $0.gameId == game.id }) else { 
+                logger.info("  ⏭️ No streak found for \(game.name)")
+                continue 
+            }
+            
+            logger.info("  📊 Streak: \(streak.currentStreak) days")
+            
+            // Skip if streak is 0 (no active streak)
+            guard streak.currentStreak > 0 else { 
+                logger.info("  ⏭️ No active streak for \(game.name)")
+                continue 
+            }
+            
+            // Maintain Streaks toggle controls end-of-day reminders only (no favorites filter)
+            
+            // End-of-day streak protection (Maintain Streaks): after 9 PM if not played today
+            if streakMaintenanceEnabled {
+                let hasPlayedTodayForGame = recentResults.contains { result in
+                    result.gameId == game.id &&
+                    calendar.isDate(result.date, inSameDayAs: now) &&
+                    result.completed
+                }
+                // Only for games with streak count == 1
+                if streak.currentStreak == 1 && !hasPlayedTodayForGame {
+                    await NotificationScheduler.shared.scheduleEndOfDayStreakReminder(for: game, now: now)
+                    logger.info("  ✅ Scheduled EOD reminder for \(game.name) (Maintain Streaks, streak=1)")
+                } else {
+                    NotificationScheduler.shared.cancelTodayEndOfDayStreakReminder(for: game.id, now: now)
+                    logger.info("  🗑️ Cancelled EOD reminder for \(game.name) - already played or streak != 1")
+                }
+            }
+            
+            // Get user's custom reminder settings for this game (per-game reminders)
+            let reminderSettings = getGameReminderSettings(for: game.id)
+            logger.info("  ⚙️ Reminder settings: enabled=\(reminderSettings.isEnabled), time=\(reminderSettings.preferredHour):\(String(format: "%02d", reminderSettings.preferredMinute))")
+            
+            guard reminderSettings.isEnabled else { 
+                logger.info("  ⏭️ Reminders disabled for \(game.name)")
+                continue 
+            }
+            
+            // Check if user has played today
+            let hasPlayedToday = recentResults.contains { result in
+                result.gameId == game.id && 
+                calendar.isDate(result.date, inSameDayAs: now) &&
+                result.completed
+            }
+            
+            logger.info("  🎯 Played today: \(hasPlayedToday)")
+            
+            // For testing: if user set a time in the near future (within 2 hours), schedule it regardless
+            let preferredTime = calendar.date(
+                bySettingHour: reminderSettings.preferredHour, 
+                minute: reminderSettings.preferredMinute, 
+                second: 0, 
+                of: now
+            ) ?? now
+            
+            let timeUntilPreferred = preferredTime.timeIntervalSince(now) / 3600 // hours
+            let isNearFuture = timeUntilPreferred > 0 && timeUntilPreferred <= 2 // within 2 hours
+            
+            logger.info("  ⏰ Time until preferred: \(String(format: "%.1f", timeUntilPreferred)) hours")
+            logger.info("  🧪 Is near future: \(isNearFuture)")
+            
+            // Schedule if: (not played today AND 20+ hours since last play) OR (near future for testing)
+            // For testing: also schedule if user has a very recent last play (within 1 hour) and near future time
+            let hasRecentPlay = streak.lastPlayedDate != nil && now.timeIntervalSince(streak.lastPlayedDate!) / 3600 <= 1
+            
+            let shouldSchedule = (!hasPlayedToday && 
+                                (streak.lastPlayedDate == nil || 
+                                 now.timeIntervalSince(streak.lastPlayedDate!) / 3600 >= 20)) || 
+                               isNearFuture ||
+                               (hasRecentPlay && isNearFuture)
+            
+            logger.info("  🧪 Has recent play (within 1 hour): \(hasRecentPlay)")
+            logger.info("  🧪 Should schedule: \(shouldSchedule)")
+            
+            if shouldSchedule {
+                // If the preferred time has already passed today, schedule for tomorrow
+                let finalTime = preferredTime > now ? preferredTime : calendar.date(byAdding: .day, value: 1, to: preferredTime) ?? preferredTime
+                
+                await NotificationScheduler.shared.scheduleStreakReminder(for: game, at: finalTime)
+                logger.info("  ✅ Scheduled streak reminder for \(game.name) at \(finalTime) (user's preferred time: \(reminderSettings.preferredHour):\(String(format: "%02d", reminderSettings.preferredMinute)))")
+            } else {
+                if hasPlayedToday {
+                    logger.info("  ⏭️ Already played today for \(game.name)")
+                } else if let lastPlayed = streak.lastPlayedDate {
+                    let hoursSinceLastPlay = now.timeIntervalSince(lastPlayed) / 3600
+                    logger.info("  ⏭️ Not enough time passed for \(game.name) (need 20+ hours, got \(String(format: "%.1f", hoursSinceLastPlay)))")
+                } else {
+                    logger.info("  ⏭️ No last played date for \(game.name)")
+                }
+            }
+        }
+        
+        logger.info("✅ Streak reminder check completed")
+    }
+    
+    // MARK: - Game Reminder Settings Helper
+    private func getGameReminderSettings(for gameId: UUID) -> GameReminderSettings {
+        let key = "gameReminder_\(gameId.uuidString)"
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let settings = try? JSONDecoder().decode(GameReminderSettings.self, from: data) else {
+            return GameReminderSettings() // Default settings
+        }
+        return settings
+    }
+    
+    // MARK: - Notification Logic Helper
+    private func shouldNotifyForGame(game: Game, isFavorite: Bool, streakMaintenanceEnabled: Bool, favoriteGamesEnabled: Bool) -> Bool {
+        // If both toggles are off, no notifications
+        if !streakMaintenanceEnabled && !favoriteGamesEnabled {
+            return false
+        }
+        
+        // If only streak maintenance is enabled, notify for all games with streaks
+        if streakMaintenanceEnabled && !favoriteGamesEnabled {
+            return true
+        }
+        
+        // If only favorite games is enabled, notify only for favorites
+        if !streakMaintenanceEnabled && favoriteGamesEnabled {
+            return isFavorite
+        }
+        
+        // If both are enabled, notify for all games (favorites get priority but all games get notifications)
+        return true
+    }
+    
     // MARK: - State Management
     func setLoading(_ loading: Bool) {
         isLoading = loading
@@ -317,9 +501,6 @@ final class AppState {
         currentError = mapStringToAppError(message)
         isLoading = false
         
-        // Temporary debug
-        logger.info("📍 DEBUG - String error: \(message)")
-        logger.info("📍 DEBUG - Mapped AppError: \(self.currentError?.errorDescription ?? "nil")")
         
         logger.error("App error: \(message)")
     }
@@ -394,3 +575,4 @@ extension GameResult {
         return true
     }
 }
+

@@ -29,6 +29,11 @@ struct StreakSyncApp: App {
                         .onOpenURL { url in
                             _ = container.handleURLScheme(url)
                         }
+                        .onAppear {
+                            // Initialize notification delegate
+                            NotificationDelegate.shared.appState = container.appState
+                            NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
+                        }
                 } else if let error = initializationError {
                     InitializationErrorView(error: error) {
                         retryInitialization()
@@ -47,24 +52,16 @@ struct StreakSyncApp: App {
     private func initializeApp() async {
         logger.info("🚀 Starting app initialization")
         
-        do {
-            // Request notification permissions
-            try await requestNotificationPermissions()
-
-            // Load app data
-            await container.appState.loadPersistedData()
-            
-            // Mark as initialized
-            await MainActor.run {
-                isInitialized = true
-                logger.info("✅ App initialization completed")
-            }
-            
-        } catch {
-            await MainActor.run {
-                initializationError = error.localizedDescription
-                logger.error("❌ App initialization failed: \(error.localizedDescription)")
-            }
+        // Load app data
+        await container.appState.loadPersistedData()
+        
+        // Check for streak reminders on app launch
+        await container.appState.checkAndScheduleStreakReminders()
+        
+        // Mark as initialized
+        await MainActor.run {
+            isInitialized = true
+            logger.info("✅ App initialization completed")
         }
     }
     
@@ -77,17 +74,6 @@ struct StreakSyncApp: App {
         }
     }
     
-    // MARK: - Notification Permissions
-    private func requestNotificationPermissions() async throws {
-        let center = UNUserNotificationCenter.current()
-        let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
-
-        if granted {
-            logger.info("✅ Notification permissions granted")
-        } else {
-            logger.warning("⚠️ Notification permissions denied")
-        }
-    }
 
 }
 

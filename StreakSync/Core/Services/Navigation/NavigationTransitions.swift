@@ -27,7 +27,7 @@ struct HeroAnimationModifier: ViewModifier {
     
     func body(content: Content) -> some View {
         content
-//            .matchedGeometryEffect(id: id, in: namespace)
+            // Intentionally left disabled; re-enable when using matched geometry
     }
 }
 

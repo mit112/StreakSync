@@ -1,6 +1,7 @@
 //
 //  ContentView.swift
 //  Root view with tab-based navigation
+//  FIXED: Removed deprecated ThemeManager references
 //
 
 import SwiftUI
@@ -9,19 +10,21 @@ struct ContentView: View {
     @EnvironmentObject private var container: AppContainer
     @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         MainTabView()
             .achievementCelebrations(coordinator: container.achievementCelebrationCoordinator)
-            .environmentObject(container.themeManager)
             .sheet(item: $navigationCoordinator.presentedSheet) { sheet in
                 sheetView(for: sheet)
-                    .environmentObject(container.themeManager)
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(20)
                     .presentationBackground(.ultraThinMaterial)
             }
-//            .background(container.themeManager.primaryBackground)
+            .background(
+                StreakSyncColors.backgroundGradient(for: colorScheme)
+                    .ignoresSafeArea()
+            )
             .onChange(of: scenePhase) { _, newPhase in
                 handleScenePhaseChange(newPhase)
             }
@@ -31,7 +34,7 @@ struct ContentView: View {
     private func handleScenePhaseChange(_ phase: ScenePhase) {
         switch phase {
         case .active:
-            container.themeManager.updateThemeIfNeeded()
+            // No need to update theme - it follows system automatically
             Task {
                 await container.handleAppBecameActive()
             }
@@ -65,4 +68,11 @@ struct ContentView: View {
                 .environmentObject(container)
         }
     }
+}
+
+// MARK: - Preview
+#Preview {
+    ContentView()
+        .environmentObject(AppContainer())
+        .environmentObject(NavigationCoordinator())
 }

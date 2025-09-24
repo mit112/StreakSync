@@ -75,6 +75,11 @@ final class GameDetailViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
+            // Skip expensive reload if navigating from notification
+            if let appState = self?.appState, appState.isNavigatingFromNotification {
+                return
+            }
+            
             // Delay slightly to ensure data is loaded
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 Task { @MainActor in

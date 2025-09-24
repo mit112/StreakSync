@@ -33,43 +33,23 @@ struct ImprovedDashboardView: View {
     @State private var scrollPosition = ScrollPosition()
     @State private var visibleItems: Set<String> = []
     
-    // MARK: - Computed Properties (unchanged)
-    private var greetingText: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        let name = userName.isEmpty ? "" : ", \(userName)"
-        
-        switch hour {
-        case 5..<9:
-            return "Rise and shine\(name)! ☀️"
-        case 9..<12:
-            return "Good morning\(name)! 🌤"
-        case 12..<14:
-            return "Lunch break\(name)? 🥗"
-        case 14..<17:
-            return "Afternoon hustle\(name)! 💪"
-        case 17..<20:
-            return "Evening vibes\(name)! 🌅"
-        case 20..<23:
-            return "Winding down\(name)? 🌙"
-        default:
-            return "Night owl mode\(name)! 🦉"
-        }
+    private var longestCurrentStreak: Int {
+        appState.streaks.map(\.currentStreak).max() ?? 0
     }
     
     private var activeStreakCount: Int {
-        appState.streaks.filter { streak in
-            guard let game = appState.games.first(where: { $0.id == streak.gameId }) else { return false }
-            return game.isActiveToday
-        }.count
-    }
-    
-    private var todayCompletedCount: Int {
-        appState.games.filter { $0.hasPlayedToday }.count
+        appState.streaks.filter { $0.isActive }.count
     }
     
     private var filteredGames: [Game] {
         let baseGames = showOnlyActive ?
-            appState.games.filter { $0.isActiveToday } :
+            appState.games.filter { game in
+                // Use streak data to determine if game is active
+                guard let streak = appState.getStreak(for: game) else { return false }
+                guard let lastPlayed = streak.lastPlayedDate else { return false }
+                let daysSinceLastPlayed = Calendar.current.dateComponents([.day], from: lastPlayed, to: Date()).day ?? 0
+                return daysSinceLastPlayed < 7
+            } :
             appState.games
         
         // Apply search
@@ -113,196 +93,221 @@ struct ImprovedDashboardView: View {
         return GameCategory.allCases.filter { categories.contains($0) && $0 != .custom }
     }
     
+    // (Removed inline greeting override)
+    
     // MARK: - Body
-    var body: some View {
-        if #available(iOS 26.0, *) {
-            iOS26NativeNavigationBody
-        } else {
-            legacyNativeNavigationBody
+        var body: some View {
+            if #available(iOS 26.0, *) {
+                iOS26NativeNavigationBody
+            } else {
+                legacyNativeNavigationBody
+            }
         }
-    }
-    
+        
     // MARK: - Legacy Body with Native Navigation
-    private var legacyNativeNavigationBody: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Compact greeting under nav bar
-                HStack {
-                    Text(greetingText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-                
-                // Games section with SIMPLIFIED header
-                VStack(alignment: .leading, spacing: 16) {
-                    SimplifiedGamesHeader(
-                        displayMode: $displayMode,
-                        selectedSort: $selectedSort,
-                        sortDirection: $sortDirection,
-                        showOnlyActive: $showOnlyActive,
-                        navigateToGameManagement: {
-                            coordinator.navigateTo(.gameManagement)
-                        }
-                    )
+        private var legacyNativeNavigationBody: some View {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Games section with SIMPLIFIED header
+                    VStack(alignment: .leading, spacing: 8) { // Reduced from 16 to 8
+                        SimplifiedGamesHeader(
+                            displayMode: $displayMode,
+                            selectedSort: $selectedSort,
+                            sortDirection: $sortDirection,
+                            showOnlyActive: $showOnlyActive,
+                            navigateToGameManagement: {
+                                coordinator.navigateTo(.gameManagement)
+                            }
+                        )
+                        
+                        DashboardGamesContent(
+                            filteredGames: filteredGames,
+                            filteredStreaks: filteredStreaks,
+                            displayMode: displayMode,
+                            searchText: searchText,
+                            refreshID: refreshID,
+                            hasInitiallyAppeared: hasInitiallyAppeared
+                        )
+                    }
+                    .padding(.horizontal)
                     
-                    DashboardGamesContent(
-                        filteredGames: filteredGames,
-                        filteredStreaks: filteredStreaks,
-                        displayMode: displayMode,
-                        searchText: searchText,
-                        refreshID: refreshID,
-                        hasInitiallyAppeared: hasInitiallyAppeared
-                    )
+                    // Recent activity
+                    if activeStreakCount > 0 && searchText.isEmpty {
+                        RecentActivitySection(filteredStreaks: filteredStreaks)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                    }
                 }
-                .padding(.horizontal)
-                
-                // Recent activity
-                if activeStreakCount > 0 && searchText.isEmpty {
-                    RecentActivitySection(filteredStreaks: filteredStreaks)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                }
+                .padding(.bottom, 20)
             }
-            .padding(.bottom, 20)
-        }
-        .background(Color(.systemBackground))
-        .scrollDismissesKeyboard(.interactively)
-        .navigationTitle("StreakSync")
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                HStack(spacing: 8) {
-                    ToolbarStatChip(
-                        icon: "flame.fill",
-                        value: activeStreakCount,
-                        color: .orange
-                    )
-                    
-                    ToolbarStatChip(
-                        icon: "checkmark.circle.fill",
-                        value: todayCompletedCount,
-                        color: .green
-                    )
-                }
-            }
-        }
-        .searchable(
-            text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Search games..."
-        )
-        .refreshable {
-            await performRefresh()
-        }
-        .onAppear {
-            if !hasInitiallyAppeared {
-                withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
-                    hasInitiallyAppeared = true
-                }
-            }
-        }
-    }
-    
-    // MARK: - iOS 26 Body with Native Navigation
-    @available(iOS 26.0, *)
-    private var iOS26NativeNavigationBody: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Compact greeting as subtitle
-                HStack {
-                    Text(greetingText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-                
-                // Games section with SIMPLIFIED header
-                VStack(alignment: .leading, spacing: 16) {
-                    SimplifiedGamesHeader(
-                        displayMode: $displayMode,
-                        selectedSort: $selectedSort,
-                        sortDirection: $sortDirection,
-                        showOnlyActive: $showOnlyActive,
-                        navigateToGameManagement: {
-                            coordinator.navigateTo(.gameManagement)
+            .background(
+                StreakSyncColors.backgroundGradient(for: colorScheme)
+                    .ignoresSafeArea()
+            )
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle("StreakSync")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        coordinator.navigateTo(.allStreaks)
+                    } label: {
+                        HStack(spacing: 8) {
+                            ToolbarStatChip(
+                                icon: "flame.fill",
+                                value: longestCurrentStreak,
+                                color: .orange
+                            )
+                            .allowsHitTesting(false)
+                            
+                            ToolbarStatChip(
+                                icon: "bolt.fill",
+                                value: activeStreakCount,
+                                color: .green
+                            )
+                            .allowsHitTesting(false)
+                            
+                            // Analytics icon
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .font(.caption)
+                                .foregroundStyle(.blue)
                         }
-                    )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("View All Streaks")
+                }
+            }
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Search games..."
+            )
+            .refreshable {
+                await performRefresh()
+            }
+            .onAppear {
+                if !hasInitiallyAppeared {
+                    withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
+                        hasInitiallyAppeared = true
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NavigateToGame"))) { notification in
+                if let userInfo = notification.object as? [String: Any],
+                   let gameId = userInfo["gameId"] as? UUID,
+                   let game = appState.games.first(where: { $0.id == gameId }) {
+                    coordinator.navigateTo(.gameDetail(game))
+                }
+            }
+        }
+        
+        // MARK: - iOS 26 Body with Native Navigation
+        @available(iOS 26.0, *)
+        private var iOS26NativeNavigationBody: some View {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Games section with SIMPLIFIED header
+                    VStack(alignment: .leading, spacing: 8) { // Reduced from 16 to 8
+                        SimplifiedGamesHeader(
+                            displayMode: $displayMode,
+                            selectedSort: $selectedSort,
+                            sortDirection: $sortDirection,
+                            showOnlyActive: $showOnlyActive,
+                            navigateToGameManagement: {
+                                coordinator.navigateTo(.gameManagement)
+                            }
+                        )
+                        
+                        DashboardGamesContent(
+                            filteredGames: filteredGames,
+                            filteredStreaks: filteredStreaks,
+                            displayMode: displayMode,
+                            searchText: searchText,
+                            refreshID: refreshID,
+                            hasInitiallyAppeared: hasInitiallyAppeared
+                        )
+                        .modifier(iOS26ContentTransitionModifier())
+                    }
+                    .padding(.horizontal)
                     
-                    DashboardGamesContent(
-                        filteredGames: filteredGames,
-                        filteredStreaks: filteredStreaks,
-                        displayMode: displayMode,
-                        searchText: searchText,
-                        refreshID: refreshID,
-                        hasInitiallyAppeared: hasInitiallyAppeared
-                    )
-                    .modifier(iOS26ContentTransitionModifier())
+                    // Recent activity
+                    if activeStreakCount > 0 && searchText.isEmpty {
+                        RecentActivitySection(filteredStreaks: filteredStreaks)
+                            .padding(.horizontal)
+                            .padding(.vertical)
+                            .background {
+                                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                    .fill(.regularMaterial)
+                                    .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+                            }
+                            .padding(.horizontal)
+                            .scrollTransition { content, phase in
+                                content
+                                    .opacity(phase.isIdentity ? 1 : 0.8)
+                                    .scaleEffect(phase.isIdentity ? 1 : 0.95)
+                            }
+                    }
                 }
-                .padding(.horizontal)
-                
-                // Recent activity
-                if activeStreakCount > 0 && searchText.isEmpty {
-                    RecentActivitySection(filteredStreaks: filteredStreaks)
-                        .padding(.horizontal)
-                        .padding(.vertical)
-                        .background {
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .fill(.regularMaterial)
-                                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+                .padding(.bottom, 20)
+            }
+            .background(StreakSyncColors.background(for: colorScheme))
+            .scrollBounceBehavior(.automatic)
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle("StreakSync")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        coordinator.navigateTo(.allStreaks)
+                    } label: {
+                        HStack(spacing: 8) {
+                            ToolbarStatChip(
+                                icon: "flame.fill",
+                                value: longestCurrentStreak,
+                                color: .orange
+                            )
+                            .allowsHitTesting(false)
+                            
+                            ToolbarStatChip(
+                                icon: "bolt.fill",
+                                value: activeStreakCount,
+                                color: .green
+                            )
+                            .allowsHitTesting(false)
+                            
+                            // Analytics icon
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .font(.caption)
+                                .foregroundStyle(.blue)
                         }
-                        .padding(.horizontal)
-                        .scrollTransition { content, phase in
-                            content
-                                .opacity(phase.isIdentity ? 1 : 0.8)
-                                .scaleEffect(phase.isIdentity ? 1 : 0.95)
-                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("View All Streaks")
                 }
             }
-            .padding(.bottom, 20)
-        }
-        .background(Color(.systemBackground))
-        .scrollBounceBehavior(.automatic)
-        .scrollDismissesKeyboard(.interactively)
-        .navigationTitle("StreakSync")
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                HStack(spacing: 8) {
-                    ToolbarStatChip(
-                        icon: "flame.fill",
-                        value: activeStreakCount,
-                        color: .orange
-                    )
-                    
-                    ToolbarStatChip(
-                        icon: "checkmark.circle.fill",
-                        value: todayCompletedCount,
-                        color: .green
-                    )
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Search games..."
+            )
+            .refreshable {
+                await performRefresh()
+            }
+            .onAppear {
+                if !hasInitiallyAppeared {
+                    withAnimation(.smooth(duration: 0.6).delay(0.1)) {
+                        hasInitiallyAppeared = true
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NavigateToGame"))) { notification in
+                if let userInfo = notification.object as? [String: Any],
+                   let gameId = userInfo["gameId"] as? UUID,
+                   let game = appState.games.first(where: { $0.id == gameId }) {
+                    coordinator.navigateTo(.gameDetail(game))
                 }
             }
         }
-        .searchable(
-            text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Search games..."
-        )
-        .refreshable {
-            await performRefresh()
-        }
-        .onAppear {
-            if !hasInitiallyAppeared {
-                withAnimation(.smooth(duration: 0.6).delay(0.1)) {
-                    hasInitiallyAppeared = true
-                }
-            }
-        }
-    }
     
     // MARK: - Helper Methods (keep unchanged)
     @MainActor
@@ -310,7 +315,7 @@ struct ImprovedDashboardView: View {
         isRefreshing = true
         
         if #available(iOS 26.0, *) {
-            await UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
         } else {
             HapticManager.shared.trigger(.pullToRefresh)
         }

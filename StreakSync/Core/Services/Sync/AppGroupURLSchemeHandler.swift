@@ -58,37 +58,39 @@ final class AppGroupURLSchemeHandler {
     }
     
     private func handleGameDeepLink(_ parameters: [String: String]) -> Bool {
-        guard let gameParameter = parameters["name"] else {
-            logger.warning("Game deep link missing name parameter")
-            return false
+        // Prefer UUID id when available; fall back to name for best-effort routing
+        if let idString = parameters["id"], let uuid = UUID(uuidString: idString) {
+            NotificationCenter.default.post(
+                name: .openGameRequested,
+                object: [AppConstants.DeepLinkKeys.gameId: uuid]
+            )
+            logger.info("Handled game deep link for id: \(uuid)")
+            return true
         }
-        
-        let gameInfo: [String: String] = [
-            "name": gameParameter,
-            "id": parameters["id"] ?? ""
-        ]
-        
-        NotificationCenter.default.post(
-            name: .openGameRequested,
-            object: gameInfo
-        )
-        
-        logger.info("Handled game deep link for: \(gameParameter)")
-        return true
+        if let name = parameters[AppConstants.DeepLinkKeys.name], !name.isEmpty {
+            NotificationCenter.default.post(
+                name: .openGameRequested,
+                object: [AppConstants.DeepLinkKeys.name: name]
+            )
+            logger.info("Handled game deep link for name: \(name)")
+            return true
+        }
+        logger.warning("Game deep link missing identifiers")
+        return false
     }
     
     private func handleAchievementDeepLink(_ parameters: [String: String]) -> Bool {
-        guard let achievementId = parameters["id"] else {
-            logger.warning("Achievement deep link missing id parameter")
+        guard let idString = parameters["id"], let uuid = UUID(uuidString: idString) else {
+            logger.warning("Achievement deep link missing or invalid id parameter")
             return false
         }
         
         NotificationCenter.default.post(
             name: .openAchievementRequested,
-            object: achievementId
+            object: [AppConstants.DeepLinkKeys.achievementId: uuid]
         )
         
-        logger.info("Handled achievement deep link for: \(achievementId)")
+        logger.info("Handled achievement deep link for: \(uuid)")
         return true
     }
 }

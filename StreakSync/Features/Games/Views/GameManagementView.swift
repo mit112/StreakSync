@@ -50,18 +50,26 @@ struct GameManagementView: View {
                 ForEach(filteredGames) { game in
                     GameManagementRow(
                         game: game,
-                        isArchived: managementState.isArchived(game.id),
-                        onArchiveToggle: {
+                        isArchived: managementState.isArchived(game.id)
+                    )
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button {
                             managementState.toggleArchived(for: game.id)
                             HapticManager.shared.trigger(.toggleSwitch)
+                        } label: {
+                            Label(
+                                managementState.isArchived(game.id) ? "Unarchive" : "Archive",
+                                systemImage: managementState.isArchived(game.id) ? "tray.and.arrow.up" : "archivebox"
+                            )
                         }
-                    )
+                        .tint(managementState.isArchived(game.id) ? .blue : .orange)
+                    }
                 }
                 .onMove { source, destination in
                     moveGames(from: source, to: destination)
-                }
-                .onDelete { indexSet in
-                    archiveGames(at: indexSet)
                 }
             }
             .listStyle(.plain)
@@ -111,12 +119,6 @@ struct GameManagementView: View {
         HapticManager.impact(.light)
     }
     
-    private func archiveGames(at indexSet: IndexSet) {
-        let gamesToArchive = indexSet.map { filteredGames[$0].id }
-        for gameId in gamesToArchive {
-            managementState.toggleArchived(for: gameId)
-        }
-    }
     
     // MARK: - Subviews
     private var searchBar: some View {
@@ -186,65 +188,80 @@ struct GameManagementView: View {
     }
 }
 
+
 // MARK: - Game Row
 struct GameManagementRow: View {
     let game: Game
     let isArchived: Bool
-    let onArchiveToggle: () -> Void
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             // Icon
             Image(systemName: game.iconSystemName)
                 .font(.title2)
                 .foregroundStyle(game.backgroundColor.color)
-                .frame(width: 44, height: 44)
+                .frame(width: 50, height: 50)
                 .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(game.backgroundColor.color.opacity(0.1))
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(game.backgroundColor.color.opacity(0.15))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(game.backgroundColor.color.opacity(0.3), lineWidth: 1)
+                        )
                 )
                 .opacity(isArchived ? 0.6 : 1.0)
             
             // Info
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(game.displayName)
                     .font(.headline)
+                    .foregroundStyle(isArchived ? .secondary : .primary)
                     .strikethrough(isArchived)
                 
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     Text(game.category.displayName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color(.systemGray5))
+                        )
                     
                     if isArchived {
-                        Text("• Archived")
+                        Text("Archived")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(.orange)
+                            )
                     }
                 }
             }
             
             Spacer()
             
-            // Actions
-            Menu {
-                Button {
-                    onArchiveToggle()
-                } label: {
-                    Label(
-                        isArchived ? "Unarchive" : "Archive",
-                        systemImage: isArchived ? "tray.and.arrow.up" : "archivebox"
-                    )
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+            // Archive indicator
+            if isArchived {
+                Image(systemName: "archivebox.fill")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
             }
-            .buttonStyle(.plain)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color(.systemGray5), lineWidth: 0.5)
+        )
     }
 }

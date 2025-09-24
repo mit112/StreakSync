@@ -302,8 +302,11 @@ private struct TierRequirementRow: View {
                         .font(.title3)
                         .foregroundStyle(.green)
                 } else {
-                    CircularProgressView(progress: progressToThisTier)
-                        .frame(width: 28, height: 28)
+                    CircularProgressView(
+                        progress: progressToThisTier,
+                        centerText: "\(progress.currentValue)/\(requirement.threshold)"
+                    )
+                    .frame(width: 36, height: 36)
                 }
             }
             .padding()
@@ -335,6 +338,7 @@ private struct TierRequirementRow: View {
 // MARK: - Circular Progress View
 private struct CircularProgressView: View {
     let progress: Double
+    let centerText: String?
     
     var body: some View {
         ZStack {
@@ -347,7 +351,7 @@ private struct CircularProgressView: View {
                 .rotationEffect(.degrees(-90))
                 .animation(.spring(response: 0.5, dampingFraction: 0.8), value: progress)
             
-            Text("\(Int(progress * 100))")
+            Text(centerText ?? "\(Int(progress * 100))%")
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
         }

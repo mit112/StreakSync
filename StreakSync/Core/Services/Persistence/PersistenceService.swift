@@ -51,7 +51,7 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
         do {
             let data = try encoder.encode(object)
             userDefaults.set(data, forKey: key)
-            userDefaults.synchronize()
+            // synchronize() is unnecessary on modern iOS; let the system flush
             
             // CRITICAL: Verify the save worked immediately
             if let _ = userDefaults.data(forKey: key) {
@@ -94,7 +94,7 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
     
     func remove(forKey key: String) {
         userDefaults.removeObject(forKey: key)
-        userDefaults.synchronize()
+        // synchronize() is unnecessary on modern iOS; let the system flush
         logger.info("🗑️ Removed data for key: \(key)")
     }
     
@@ -139,7 +139,7 @@ final class AppGroupPersistenceService {
         do {
             let data = try encoder.encode(object)
             userDefaults.set(data, forKey: key)
-            userDefaults.synchronize()
+            // synchronize() is unnecessary on modern iOS; let the system flush
             
             logger.info("✅ Successfully saved to App Group for key: \(key)")
         } catch let error as AppError {
@@ -181,7 +181,7 @@ final class AppGroupPersistenceService {
         guard let userDefaults = UserDefaults(suiteName: appGroupID) else { return }
         
         userDefaults.removeObject(forKey: key)
-        userDefaults.synchronize()
+        // synchronize() is unnecessary on modern iOS; let the system flush
         logger.info("🗑️ Removed App Group data for key: \(key)")
     }
 }

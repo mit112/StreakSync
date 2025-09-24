@@ -23,7 +23,7 @@ struct GameDetailActionsView: View {
             }
         }
         .sheet(isPresented: $showingManualEntry) {
-            ManualEntryView()
+            ManualEntryView(preSelectedGame: game)
         }
     }
 }

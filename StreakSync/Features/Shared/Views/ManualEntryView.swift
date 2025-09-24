@@ -16,6 +16,22 @@ struct ManualEntryView: View {
     @State private var showingError = false
     @State private var errorMessage = ""
     
+    // Optional pre-selected game (e.g., when navigating from a specific game's detail page)
+    private let preSelectedGame: Game?
+    
+    init(preSelectedGame: Game? = nil) {
+        self.preSelectedGame = preSelectedGame
+    }
+    
+    // MARK: - Computed Properties
+    private var instructionText: String {
+        if let preSelectedGame = preSelectedGame {
+            return "Paste your \(preSelectedGame.displayName) result below"
+        } else {
+            return "Paste your game result below"
+        }
+    }
+    
     var body: some View {
         NavigationStack {
             Form {
@@ -24,19 +40,21 @@ struct ManualEntryView: View {
                     HStack {
                         Image(systemName: "info.circle")
                             .foregroundStyle(.blue)
-                        Text("Paste your game result below")
+                        Text(instructionText)
                             .font(.subheadline)
                     }
                 }
                 
-                // Game selection
-                Section("Select Game") {
-                    ForEach(appState.games.filter(\.isPopular)) { game in
-                        GameSelectionRow(
-                            game: game,
-                            isSelected: selectedGame?.id == game.id
-                        ) {
-                            selectedGame = game
+                // Game selection (only show if no game is pre-selected)
+                if preSelectedGame == nil {
+                    Section("Select Game") {
+                        ForEach(appState.games.filter(\.isPopular)) { game in
+                            GameSelectionRow(
+                                game: game,
+                                isSelected: selectedGame?.id == game.id
+                            ) {
+                                selectedGame = game
+                            }
                         }
                     }
                 }
@@ -90,6 +108,12 @@ struct ManualEntryView: View {
             Button("OK") { }
         } message: {
             Text(errorMessage)
+        }
+        .onAppear {
+            // Pre-select the game if provided
+            if let preSelectedGame = preSelectedGame {
+                selectedGame = preSelectedGame
+            }
         }
     }
     

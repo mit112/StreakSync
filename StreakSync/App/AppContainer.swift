@@ -103,10 +103,7 @@ final class AppContainer: ObservableObject {
     
     /// Creates a new DashboardViewModel
     func makeDashboardViewModel() -> DashboardViewModel {
-        DashboardViewModel(
-            appState: appState,
-            themeManager: themeManager
-        )
+        DashboardViewModel(appState: appState)  // Removed themeManager parameter
     }
     
     /// Creates a new GameDetailViewModel for a specific game
@@ -128,9 +125,23 @@ final class AppContainer: ObservableObject {
         // Start monitoring for share extension results
         appGroupBridge.startMonitoringForResults()
         
-        // Refresh data if needed
-        if !appGroupBridge.hasNewResults {
-            await appState.refreshData()
+        // Use lightweight refresh if we're navigating from notification
+        if appState.isNavigatingFromNotification {
+            logger.info("🚀 Using lightweight data refresh - navigating from notification")
+            await appState.refreshDataForNotification()
+            
+            // Reset the flag after a short delay
+            Task {
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                await MainActor.run {
+                    appState.isNavigatingFromNotification = false
+                }
+            }
+        } else {
+            // Refresh data if needed
+            if !appGroupBridge.hasNewResults {
+                await appState.refreshData()
+            }
         }
         
         // Stop monitoring after 10 seconds
@@ -174,29 +185,30 @@ final class AppContainer: ObservableObject {
     }
 #endif
     
-    // MARK: - Mock Persistence for Previews/Tests
-    final class MockPersistenceService: PersistenceServiceProtocol {
-        private var storage: [String: Data] = [:]
-        
-        func save<T: Codable>(_ object: T, forKey key: String) throws {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            storage[key] = try encoder.encode(object)
-        }
-        
-        func load<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
-            guard let data = storage[key] else { return nil }
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            return try? decoder.decode(type, from: data)
-        }
-        
-        func remove(forKey key: String) {
-            storage.removeValue(forKey: key)
-        }
-        
-        func clearAll() {
-            storage.removeAll()
-        }
+}
+
+// MARK: - Mock Persistence for Previews/Tests
+final class MockPersistenceService: PersistenceServiceProtocol {
+    private var storage: [String: Data] = [:]
+    
+    func save<T: Codable>(_ object: T, forKey key: String) throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        storage[key] = try encoder.encode(object)
+    }
+    
+    func load<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
+        guard let data = storage[key] else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(type, from: data)
+    }
+    
+    func remove(forKey key: String) {
+        storage.removeValue(forKey: key)
+    }
+    
+    func clearAll() {
+        storage.removeAll()
     }
 }

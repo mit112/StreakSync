@@ -31,7 +31,12 @@ final class TieredAchievementChecker {
         unlocks.append(contentsOf: checkPerfectionist(result: result, allResults: allResults, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkDailyDevotee(allResults: allResults, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkVarietyPlayer(result: result, allResults: allResults, games: games, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkSpeedDemon(result: result, allResults: allResults, achievements: &currentAchievements))
+        unlocks.append(contentsOf: checkSpeedDemon(
+            result: result,
+            allResults: allResults,
+            games: games,
+            achievements: &currentAchievements
+        ))
         unlocks.append(contentsOf: checkTimeBasedAchievements(result: result, allResults: allResults, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkComebackChampion(result: result, streaks: streaks, allResults: allResults, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkMarathonRunner(allResults: allResults, achievements: &currentAchievements))
@@ -199,32 +204,22 @@ final class TieredAchievementChecker {
     private func checkSpeedDemon(
         result: GameResult,
         allResults: [GameResult],
+        games: [Game],
         achievements: inout [TieredAchievement]
     ) -> [AchievementUnlock] {
         var unlocks: [AchievementUnlock] = []
         
-        // Count games won quickly
-        let quickWins = allResults.filter { result in
-            guard let score = result.score, result.isSuccess else { return false }
-            return score <= 3
-        }.count
-        
-        let veryQuickWins = allResults.filter { result in
-            guard let score = result.score, result.isSuccess else { return false }
-            return score <= 2
-        }.count
-        
-        let perfectScores = allResults.filter { result in
-            guard let score = result.score, result.isSuccess else { return false }
-            return score == 1
+        // Count only minimal-attempt wins per game
+        let minimalAttemptWins = allResults.filter { r in
+            guard let score = r.score, r.isSuccess else { return false }
+            guard let minAttempts = minimalAttempts(for: r.gameId, games: games, defaultMax: r.maxAttempts) else { return false }
+            return score == minAttempts
         }.count
         
         if let index = achievements.firstIndex(where: { $0.category == .speedDemon }) {
             let oldTier = achievements[index].progress.currentTier
             
-            // Update with the highest applicable value
-            let value = perfectScores > 0 ? perfectScores : (veryQuickWins > 0 ? veryQuickWins : quickWins)
-            achievements[index].updateProgress(value: value)
+            achievements[index].updateProgress(value: minimalAttemptWins)
             
             if let newTier = achievements[index].progress.currentTier,
                oldTier != newTier {
@@ -233,7 +228,7 @@ final class TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-                logger.info("🏆 Unlocked Speed Demon \(newTier.displayName)")
+                logger.info("🏆 Unlocked Speed Demon \(newTier.displayName) - minimal-attempt wins: \(minimalAttemptWins)")
             }
         }
         
@@ -251,20 +246,15 @@ final class TieredAchievementChecker {
         
         let calendar = Calendar.current
         
-        // Early Bird - games before certain hours
-        let earlyGames = allResults.filter { result in
+        // Early Bird: 05:00–08:59 local time (exclusive band)
+        let earlyBirdCount = allResults.filter { result in
             let hour = calendar.component(.hour, from: result.date)
-            return hour < 8
-        }
-        
-        let veryEarlyGames = earlyGames.filter { result in
-            let hour = calendar.component(.hour, from: result.date)
-            return hour < 6
+            return hour >= 5 && hour < 9
         }.count
         
         if let index = achievements.firstIndex(where: { $0.category == .earlyBird }) {
             let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: veryEarlyGames > 0 ? veryEarlyGames : earlyGames.count)
+            achievements[index].updateProgress(value: earlyBirdCount)
             
             if let newTier = achievements[index].progress.currentTier,
                oldTier != newTier {
@@ -276,20 +266,15 @@ final class TieredAchievementChecker {
             }
         }
         
-        // Night Owl - games after certain hours
-        let lateGames = allResults.filter { result in
+        // Night Owl: 00:00–04:59 local time (exclusive band)
+        let nightOwlCount = allResults.filter { result in
             let hour = calendar.component(.hour, from: result.date)
-            return hour >= 22
-        }
-        
-        let veryLateGames = lateGames.filter { result in
-            let hour = calendar.component(.hour, from: result.date)
-            return hour >= 23 || hour < 4
+            return hour < 5
         }.count
         
         if let index = achievements.firstIndex(where: { $0.category == .nightOwl }) {
             let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: veryLateGames > 0 ? veryLateGames : lateGames.count)
+            achievements[index].updateProgress(value: nightOwlCount)
             
             if let newTier = achievements[index].progress.currentTier,
                oldTier != newTier {
@@ -430,6 +415,23 @@ final class TieredAchievementChecker {
         }
         
         return currentStreak
+    }
+
+    /// Returns the minimal attempts required to win for a given game.
+    /// If unknown, returns nil so the result won't count towards Speed Demon.
+    private func minimalAttempts(for gameId: UUID, games: [Game], defaultMax: Int) -> Int? {
+        guard let game = games.first(where: { $0.id == gameId }) else { return nil }
+        let name = game.name.lowercased()
+        switch name {
+        case "wordle", "nerdle", "framed", "xordle", "kilordle", "primel", "rankdle":
+            return 1
+        case "quordle":
+            // Consider minimal as solving in the first row across boards (best-case attempt count)
+            return 1
+        default:
+            // Heuristic: if the game uses attempts (maxAttempts > 1), minimal is 1
+            return defaultMax > 1 ? 1 : nil
+        }
     }
 }
 

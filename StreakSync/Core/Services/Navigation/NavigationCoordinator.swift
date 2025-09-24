@@ -11,14 +11,12 @@ import Observation
 // MARK: - Main Tab Enum
 enum MainTab: Int, CaseIterable {
     case home = 0
-    case stats = 1
-    case awards = 2
-    case settings = 3
+    case awards = 1
+    case settings = 2
     
     var title: String {
         switch self {
         case .home: return "Home"
-        case .stats: return "Stats"
         case .awards: return "Awards"
         case .settings: return "Settings"
         }
@@ -27,7 +25,6 @@ enum MainTab: Int, CaseIterable {
     var icon: String {
         switch self {
         case .home: return "house.fill"
-        case .stats: return "chart.line.uptrend.xyaxis"
         case .awards: return "trophy.fill"
         case .settings: return "gearshape.fill"
         }
@@ -42,7 +39,6 @@ final class NavigationCoordinator: ObservableObject {
     
     // MARK: - Individual Tab Navigation Paths
     @Published var homePath = NavigationPath()
-    @Published var statsPath = NavigationPath()
     @Published var awardsPath = NavigationPath()
     @Published var settingsPath = NavigationPath()
     
@@ -56,7 +52,6 @@ final class NavigationCoordinator: ObservableObject {
     var currentNavigationPath: NavigationPath {
         switch selectedTab {
         case .home: return homePath
-        case .stats: return statsPath
         case .awards: return awardsPath
         case .settings: return settingsPath
         }
@@ -158,15 +153,6 @@ final class NavigationCoordinator: ObservableObject {
                 }
                 self.homePath.append(destination)
                 
-            case .stats:
-                if !self.statsPath.isEmpty {
-                    let pathString = String(describing: self.statsPath)
-                    if pathString.contains(String(describing: destination)) {
-                        return
-                    }
-                }
-                self.statsPath.append(destination)
-                
             case .awards:
                 if !self.awardsPath.isEmpty {
                     let pathString = String(describing: self.awardsPath)
@@ -217,8 +203,6 @@ final class NavigationCoordinator: ObservableObject {
         switch selectedTab {
         case .home:
             homePath.removeLast(homePath.count)
-        case .stats:
-            statsPath.removeLast(statsPath.count)
         case .awards:
             awardsPath.removeLast(awardsPath.count)
         case .settings:
@@ -231,8 +215,6 @@ final class NavigationCoordinator: ObservableObject {
         switch tab {
         case .home:
             homePath.removeLast(homePath.count)
-        case .stats:
-            statsPath.removeLast(statsPath.count)
         case .awards:
             awardsPath.removeLast(awardsPath.count)
         case .settings:
@@ -243,10 +225,31 @@ final class NavigationCoordinator: ObservableObject {
     /// Reset all navigation
     func resetAllNavigation() {
         homePath = NavigationPath()
-        statsPath = NavigationPath()
         awardsPath = NavigationPath()
         settingsPath = NavigationPath()
         selectedTab = .home
         presentedSheet = nil
+    }
+    
+    // MARK: - Notification Navigation Methods
+    
+    /// Navigate to a specific game
+    func navigateToGame(gameId: UUID) {
+        // Find the game by ID from AppState
+        // We need to access the games from AppState to find the specific game
+        // For now, we'll navigate to the home tab and post a notification for the UI to handle
+        switchToTab(.home)
+        
+        // Post a notification to navigate to the specific game
+        NotificationCenter.default.post(
+            name: Notification.Name("NavigateToGame"),
+            object: ["gameId": gameId]
+        )
+    }
+    
+    /// Navigate to achievements with optional highlight
+    func navigateToAchievements(highlightId: UUID? = nil) {
+        switchToTab(.awards)
+        // The achievements view can handle highlighting based on the highlightId
     }
 }

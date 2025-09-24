@@ -27,7 +27,7 @@ struct DashboardGamesHeader: View {
             
             // View mode toggle
             Menu {
-                ForEach(GameDisplayMode.allCases, id: \.self) { mode in
+                ForEach([GameDisplayMode.card, .grid], id: \.self) { mode in
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             displayMode = mode

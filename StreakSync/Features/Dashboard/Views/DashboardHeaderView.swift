@@ -9,9 +9,8 @@ import SwiftUI
 
 struct DashboardHeaderView: View {
     // MARK: - Properties
+    let longestCurrentStreak: Int
     let activeStreakCount: Int
-    let todayCompletedCount: Int
-    let greetingText: String
     
     @Binding var isSearching: Bool
     @Binding var searchText: String
@@ -21,7 +20,7 @@ struct DashboardHeaderView: View {
     var body: some View {
         VStack(spacing: 8) {
             // App name and progress indicators
-            HStack {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("StreakSync")
                     .font(.largeTitle.bold())
                     .foregroundStyle(
@@ -39,13 +38,13 @@ struct DashboardHeaderView: View {
                 HStack(spacing: 8) {
                     CompactProgressBadge(
                         icon: "flame.fill",
-                        value: activeStreakCount,
+                        value: longestCurrentStreak,
                         color: .orange
                     )
                     
                     CompactProgressBadge(
-                        icon: "checkmark.circle.fill",
-                        value: todayCompletedCount,
+                        icon: "bolt.fill",
+                        value: activeStreakCount,
                         color: .green
                     )
                 }
@@ -53,13 +52,8 @@ struct DashboardHeaderView: View {
             .padding(.horizontal)
             .padding(.top, 8)
             
-            // Dynamic greeting with search toggle
+            // Search toggle only
             HStack {
-                Text(greetingText)
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .animation(.easeInOut, value: greetingText)
-                
                 Spacer()
                 
                 // Search toggle button
@@ -103,9 +97,8 @@ private struct DashboardHeaderPreviewWrapper: View {
 
     var body: some View {
         DashboardHeaderView(
-            activeStreakCount: 5,
-            todayCompletedCount: 3,
-            greetingText: "Good morning, Sarah! ☀️",
+            longestCurrentStreak: 7,
+            activeStreakCount: 3,
             isSearching: $isSearching,
             searchText: $searchText,
             isSearchFieldFocused: $isSearchFieldFocused

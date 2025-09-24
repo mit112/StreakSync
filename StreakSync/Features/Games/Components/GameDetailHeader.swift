@@ -80,11 +80,11 @@ private struct GameInfoSection: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 
-                if let lastPlayed = streak.lastPlayedDate {
+                if let _ = streak.lastPlayedDate {
                     Text("•")
                         .foregroundStyle(.tertiary)
                     
-                    Text(lastPlayed.formatted(.relative(presentation: .named)))
+                    Text(streak.lastPlayedText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

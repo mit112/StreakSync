@@ -8,9 +8,9 @@
 import SwiftUI
 
 struct NativeLargeTitleHeader: View {
+    let longestCurrentStreak: Int
     let activeStreakCount: Int
-    let todayCompletedCount: Int
-    let greetingText: String
+    let onStatsTap: () -> Void
     
     @Binding var searchText: String
     @FocusState.Binding var isSearchFieldFocused: Bool
@@ -62,9 +62,9 @@ struct ToolbarStatChip: View {
 
 // MARK: - Navigation Title View Modifier
 struct NativeLargeTitleModifier: ViewModifier {
+    let longestCurrentStreak: Int
     let activeStreakCount: Int
-    let todayCompletedCount: Int
-    let greetingText: String
+    let onStatsTap: () -> Void
     @Binding var searchText: String
     
     func body(content: Content) -> some View {
@@ -74,19 +74,32 @@ struct NativeLargeTitleModifier: ViewModifier {
             .toolbar {
                 // Stats chips in trailing position
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    HStack(spacing: 8) {
-                        ToolbarStatChip(
-                            icon: "flame.fill",
-                            value: activeStreakCount,
-                            color: .orange
-                        )
-                        
-                        ToolbarStatChip(
-                            icon: "checkmark.circle.fill",
-                            value: todayCompletedCount,
-                            color: .green
-                        )
+                    Button {
+                        onStatsTap()
+                    } label: {
+                        HStack(spacing: 8) {
+                            ToolbarStatChip(
+                                icon: "flame.fill",
+                                value: longestCurrentStreak,
+                                color: .orange
+                            )
+                            .allowsHitTesting(false)
+                            
+                            ToolbarStatChip(
+                                icon: "bolt.fill",
+                                value: activeStreakCount,
+                                color: .green
+                            )
+                            .allowsHitTesting(false)
+                            
+                            // Analytics icon
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .font(.caption)
+                                .foregroundStyle(.blue)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("View All Streaks")
                 }
             }
             .searchable(
@@ -96,7 +109,6 @@ struct NativeLargeTitleModifier: ViewModifier {
             )
             // Add greeting as toolbar subtitle
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-        //TODO: this was .automatic before, not .dark - Type 'ColorScheme?' has no member 'automatic'
+            .toolbarColorScheme(nil, for: .navigationBar)
     }
 }

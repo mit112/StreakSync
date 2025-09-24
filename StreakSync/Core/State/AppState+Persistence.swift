@@ -25,24 +25,18 @@ extension AppState {
         
         logger.info("🔄 Loading persisted data...")
         
-        // Load game results
-        await loadGameResults()
+        // Use parallel loading for better performance
+        await loadAllData()
         
-        // Load legacy achievements
-        await loadAchievements()
+        // Normalize streaks based on last played date
+        await normalizeStreaksForMissedDays()
         
-        // NEW: Load tiered achievements
-        await loadTieredAchievements()
-        
-        // Load streaks
-        await loadStreaks()
-        
-        // NEW: Initialize tiered achievements if first time
+        // Always recompute tiered achievements from current data
         if _tieredAchievements == nil {
             _tieredAchievements = AchievementFactory.createDefaultAchievements()
-            recalculateAllTieredAchievementProgress()
-            await saveTieredAchievements()
         }
+        recalculateAllTieredAchievementProgress()
+        await saveTieredAchievements()
         
         // Mark data as loaded
         isDataLoaded = true
@@ -64,6 +58,7 @@ extension AppState {
             group.addTask { await self.loadGameResults() }
             group.addTask { await self.loadAchievements() }
             group.addTask { await self.loadStreaks() }
+            group.addTask { await self.loadTieredAchievements() }
         }
     }
 
@@ -118,6 +113,47 @@ extension AppState {
             let emptyStreaks = games.map { GameStreak.empty(for: $0) }
             setStreaks(emptyStreaks)
             await saveStreaks()
+        }
+    }
+
+    // MARK: - Streak Normalization
+    /// Resets streaks that are no longer active (missed a full day)
+    @MainActor
+    private func normalizeStreaksForMissedDays(referenceDate: Date = Date()) async {
+        var updated: [GameStreak] = []
+        var didChange = false
+        for streak in streaks {
+            guard streak.currentStreak > 0, let lastPlayed = streak.lastPlayedDate else {
+                updated.append(streak)
+                continue
+            }
+            let daysSinceLastPlayed = Calendar.current
+                .dateComponents([.day], from: Calendar.current.startOfDay(for: lastPlayed), to: Calendar.current.startOfDay(for: referenceDate))
+                .day ?? 0
+            if daysSinceLastPlayed > 1 {
+                // Break the streak if a full day has been missed
+                let reset = GameStreak(
+                    id: streak.id,
+                    gameId: streak.gameId,
+                    gameName: streak.gameName,
+                    currentStreak: 0,
+                    maxStreak: streak.maxStreak,
+                    totalGamesPlayed: streak.totalGamesPlayed,
+                    totalGamesCompleted: streak.totalGamesCompleted,
+                    lastPlayedDate: streak.lastPlayedDate,
+                    streakStartDate: nil
+                )
+                updated.append(reset)
+                didChange = true
+            } else {
+                updated.append(streak)
+            }
+        }
+        if didChange {
+            setStreaks(updated)
+            await saveStreaks()
+            invalidateCache()
+            logger.info("🔥 Normalized streaks for missed days (some streaks reset)")
         }
     }
     
@@ -254,5 +290,19 @@ extension AppState {
     func refreshData() async {
         guard !isLoading else { return }
         await loadPersistedData()
+    }
+    
+    /// Lightweight data refresh for notification navigation - skips expensive operations
+    func refreshDataForNotification() async {
+        guard !isLoading else { return }
+        
+        logger.info("🚀 Lightweight data refresh for notification navigation")
+        
+        // Only load essential data, skip expensive operations
+        await loadGameResults()
+        await loadStreaks()
+        
+        // Skip tiered achievements recomputation and other expensive operations
+        logger.info("✅ Lightweight data refresh complete")
     }
 }

@@ -7,15 +7,14 @@
 
 import SwiftUI
 
-// MARK: - Animated Game Card
 struct AnimatedGameCard: View {
     let game: Game
     let animationIndex: Int
     let hasInitiallyAppeared: Bool
     let onTap: () -> Void
+    
     @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) private var colorScheme
-    @EnvironmentObject private var themeManager: ThemeManager
     
     @State private var showCheckmark = false
     @State private var hasAnimatedCheckmark = false
@@ -26,7 +25,7 @@ struct AnimatedGameCard: View {
     
     // Get vibrant color for the game category
     private var gameColor: Color {
-        Color.gameColor(for: game.category, isDarkMode: colorScheme == .dark)
+        StreakSyncColors.gameColor(for: game.category, colorScheme: colorScheme)
     }
     
     var body: some View {
@@ -69,75 +68,33 @@ struct AnimatedGameCard: View {
                     if game.hasPlayedToday {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title2)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [
-                                        Color(hex: "34D399"),
-                                        Color(hex: "10B981")
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
+                            .foregroundStyle(StreakSyncColors.success(for: colorScheme))
                             .transition(.scale.combined(with: .opacity))
                             .opacity(showCheckmark ? 1 : 0)
                             .scaleEffect(showCheckmark ? 1 : 0.5)
                     }
                 }
                 
-                // Streak info with enhanced colors
+                // Streak info
                 if let streak = streak, streak.currentStreak > 0 {
                     HStack(spacing: 16) {
                         AnimatedStreakStat(
                             value: "\(streak.currentStreak)",
                             label: "Current",
-                            colors: [Color(hex: "FB923C"), Color(hex: "F97316")] // Fire gradient
+                            colors: [
+                                StreakSyncColors.primary(for: colorScheme),
+                                StreakSyncColors.secondary(for: colorScheme)
+                            ]
                         )
                         
                         AnimatedStreakStat(
                             value: "\(streak.maxStreak)",
                             label: "Best",
-                            colors: [gameColor, gameColor.opacity(0.8)] // Game-themed gradient
+                            colors: [gameColor, gameColor.opacity(0.8)]
                         )
                         
                         Spacer()
-                        
-                        // Progress indicator
-                        HStack(spacing: 4) {
-                            Image(systemName: "gamecontroller.fill")
-                                .font(.caption2)
-                                .foregroundStyle(gameColor)
-                            Text("\(streak.totalGamesPlayed) played")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .contentTransition(.numericText())
-                        }
                     }
-                    
-                    // Optional: Add progress bar
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            // Background
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(gameColor.opacity(0.2))
-                                .frame(height: 4)
-                            
-                            // Progress
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [gameColor, gameColor.opacity(0.7)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(
-                                    width: geometry.size.width * min(Double(streak.currentStreak) / 30.0, 1.0),
-                                    height: 4
-                                )
-                        }
-                    }
-                    .frame(height: 4)
                 }
             }
             .padding()
@@ -145,21 +102,7 @@ struct AnimatedGameCard: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.clear)
-                    .glassEffect(type: .medium, tint: gameColor) // Use enhanced glass with tint
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                gameColor.opacity(0.3),
-                                gameColor.opacity(0.1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
+                    .glassEffect(type: .medium, tint: gameColor)
             )
         }
         .buttonStyle(ScaleButtonStyle())

@@ -119,13 +119,13 @@ final class AppGroupBridge: ObservableObject {
         isProcessing = true
         defer { isProcessing = false }
         
-        hasNewResults = dataManager.hasData(forKey: "latestGameResult")
+        hasNewResults = dataManager.hasData(forKey: AppConstants.AppGroup.latestResultKey)
         
         if hasNewResults {
             lastResultProcessedTime = Date()
             
             // Load the result
-            if let result = try? await dataManager.loadGameResult(forKey: "latestGameResult") {
+            if let result = try? await dataManager.loadGameResult(forKey: AppConstants.AppGroup.latestResultKey) {
                 latestResult = result
                 logger.info("📥 Loaded new result: \(result.gameName)")
             }
@@ -139,7 +139,7 @@ final class AppGroupBridge: ObservableObject {
     }
     
     func clearLatestResult() {
-        dataManager.removeData(forKey: "latestGameResult")
+        dataManager.removeData(forKey: AppConstants.AppGroup.latestResultKey)
         hasNewResults = false
         latestResult = nil
         logger.info("🗑️ Cleared latest result")

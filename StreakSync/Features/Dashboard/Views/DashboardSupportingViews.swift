@@ -199,15 +199,9 @@ struct EnhancedStreakCard: View {
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color(.systemGray5), lineWidth: 0.5)
-            )
+            .background {
+                StreakSyncColors.gameListItemBackground(for: colorScheme)
+            }
         }
         .buttonStyle(.plain)
         .scaleEffect(isPressed ? 0.97 : (isHovered ? 1.02 : 1.0))
@@ -370,50 +364,11 @@ private struct iOS26EnhancedStreakCard: View {
             }
             .padding(16)
             .background {
-                // Layered background for depth
-                ZStack {
-                    // Base card
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(cardBackgroundColor)
-                    
-                    // Gradient overlay for visual interest
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: gameColor.opacity(0.03), location: 0),
-                                    .init(color: .clear, location: 0.5)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                    
-                    // Active streak glow
-                    if streak.isActive && streak.currentStreak > 0 {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        gameColor.opacity(0.4),
-                                        gameColor.opacity(0.1)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
-                            )
-                    } else {
-                        // Subtle border for inactive
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(cardBorderColor, lineWidth: 0.5)
-                    }
-                }
-                .shadow(
-                    color: shadowColor,
-                    radius: isHovered ? 16 : 10,
-                    x: 0,
-                    y: isHovered ? 8 : 4
+                StreakSyncColors.enhancedGameCardBackground(
+                    for: colorScheme,
+                    gameColor: gameColor,
+                    isActive: streak.isActive && streak.currentStreak > 0,
+                    isHovered: isHovered
                 )
             }
         }
@@ -430,9 +385,7 @@ private struct iOS26EnhancedStreakCard: View {
                     isPressed = pressing
                 }
                 if pressing {
-                    Task {
-                        await UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    }
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 }
             },
             perform: {}
@@ -462,32 +415,17 @@ private struct iOS26EnhancedStreakCard: View {
         ))
     }
     
-    // MARK: - Game Icon (Enhanced with better colors)
+    // MARK: - Game Icon (Simplified)
     private var gameIcon: some View {
         ZStack {
-            // Colored background with better opacity
             Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            gameColor.opacity(colorScheme == .dark ? 0.3 : 0.15),
-                            gameColor.opacity(colorScheme == .dark ? 0.2 : 0.08)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(gameColor.opacity(0.2))
                 .frame(width: 56, height: 56)
                 .overlay {
-                    // Inner ring for definition
                     Circle()
-                        .stroke(
-                            gameColor.opacity(colorScheme == .dark ? 0.4 : 0.2),
-                            lineWidth: 1
-                        )
+                        .stroke(gameColor.opacity(0.4), lineWidth: 1)
                 }
             
-            // Icon with solid color
             Image(systemName: game?.iconSystemName ?? "gamecontroller")
                 .font(.title2.weight(.medium))
                 .foregroundStyle(gameColor)
@@ -496,7 +434,7 @@ private struct iOS26EnhancedStreakCard: View {
             // Activity indicator
             if game?.hasPlayedToday == true {
                 Circle()
-                    .fill(Color.green)
+                    .fill(PaletteColor.primary.color)
                     .frame(width: 12, height: 12)
                     .overlay {
                         Circle()
@@ -524,9 +462,7 @@ private struct iOS26EnhancedStreakCard: View {
                         favoriteScale.toggle()
                         onFavoriteToggle()
                     }
-                    Task {
-                        await UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    }
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 }) {
                     Image(systemName: isFavorite ? "star.fill" : "star")
                         .font(.system(size: 16))
@@ -657,4 +593,5 @@ private struct iOS26EnhancedStreakCard: View {
         }
         .frame(height: 4)
     }
+    
 }

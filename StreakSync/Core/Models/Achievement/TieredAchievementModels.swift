@@ -17,6 +17,12 @@ enum AchievementTier: Int, CaseIterable, Codable, Sendable {
     case master = 5
     case legendary = 6
     
+    var id: UUID {
+        // Create a consistent UUID based on the tier
+        let uuidString = "00000000-0000-0000-0000-00000000000\(rawValue)"
+        return UUID(uuidString: uuidString) ?? UUID()
+    }
+    
     var displayName: String {
         switch self {
         case .bronze: return "Bronze"
@@ -173,6 +179,8 @@ struct AchievementProgress: Codable, Hashable, Sendable {
         }
         
         let range = nextRequirement.threshold - previousThreshold
+        guard range > 0 else { return 0.0 } // Prevent division by zero
+        
         let progress = currentValue - previousThreshold
         
         return min(1.0, max(0.0, Double(progress) / Double(range)))
@@ -341,7 +349,8 @@ struct AchievementFactory {
                 TierRequirement(tier: .silver, threshold: 25),
                 TierRequirement(tier: .gold, threshold: 50),
                 TierRequirement(tier: .diamond, threshold: 100),
-                TierRequirement(tier: .master, threshold: 250)
+                TierRequirement(tier: .master, threshold: 250),
+                TierRequirement(tier: .legendary, threshold: 500)
             ]
         )
     }
@@ -378,11 +387,12 @@ struct AchievementFactory {
         TieredAchievement(
             category: .speedDemon,
             requirements: [
-                TierRequirement(tier: .bronze, threshold: 1),    // Win in 3 attempts once
+                TierRequirement(tier: .bronze, threshold: 1),    // Win in ≤3 attempts once
                 TierRequirement(tier: .silver, threshold: 5),    // Win in ≤3 attempts 5 times
-                TierRequirement(tier: .gold, threshold: 10),     // Win in 2 attempts
-                TierRequirement(tier: .diamond, threshold: 20),  // Win in ≤2 attempts 20 times
-                TierRequirement(tier: .master, threshold: 1)     // Perfect score
+                TierRequirement(tier: .gold, threshold: 10),     // Win in ≤3 attempts 10 times
+                TierRequirement(tier: .diamond, threshold: 20),  // Win in ≤3 attempts 20 times
+                TierRequirement(tier: .master, threshold: 50),   // Win in ≤3 attempts 50 times
+                TierRequirement(tier: .legendary, threshold: 100) // Win in ≤3 attempts 100 times
             ]
         )
     }
@@ -392,10 +402,10 @@ struct AchievementFactory {
         TieredAchievement(
             category: .earlyBird,
             requirements: [
-                TierRequirement(tier: .bronze, threshold: 1),   // Before 8 AM
-                TierRequirement(tier: .silver, threshold: 5),   // Before 7 AM
-                TierRequirement(tier: .gold, threshold: 10),    // Before 6 AM
-                TierRequirement(tier: .diamond, threshold: 20)  // Before 5 AM
+                TierRequirement(tier: .bronze, threshold: 1),   // Count plays between 05:00–08:59 (occurrence count tiers)
+                TierRequirement(tier: .silver, threshold: 5),   // Same band; tiers reflect total occurrences
+                TierRequirement(tier: .gold, threshold: 10),    // Same band; tiers reflect total occurrences
+                TierRequirement(tier: .diamond, threshold: 20)  // Same band; tiers reflect total occurrences
             ]
         )
     }
@@ -405,10 +415,10 @@ struct AchievementFactory {
         TieredAchievement(
             category: .nightOwl,
             requirements: [
-                TierRequirement(tier: .bronze, threshold: 1),   // After 10 PM
-                TierRequirement(tier: .silver, threshold: 5),   // After 11 PM
-                TierRequirement(tier: .gold, threshold: 10),    // After midnight
-                TierRequirement(tier: .diamond, threshold: 20)  // After 1 AM
+                TierRequirement(tier: .bronze, threshold: 1),   // Count plays between 00:00–04:59 (occurrence count tiers)
+                TierRequirement(tier: .silver, threshold: 5),   // Same band; tiers reflect total occurrences
+                TierRequirement(tier: .gold, threshold: 10),    // Same band; tiers reflect total occurrences
+                TierRequirement(tier: .diamond, threshold: 20)  // Same band; tiers reflect total occurrences
             ]
         )
     }
