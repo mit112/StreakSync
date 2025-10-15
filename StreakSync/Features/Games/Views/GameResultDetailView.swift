@@ -11,10 +11,12 @@ import UIKit
 // MARK: - Game Result Detail View
 struct GameResultDetailView: View {
     let result: GameResult
+    var onDelete: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(AppState.self) private var appState
     @EnvironmentObject private var themeManager: ThemeManager
+    @State private var showingDeleteConfirmation = false
     
     @State private var hasAppeared = false
     @State private var scoreRevealed = false
@@ -37,6 +39,13 @@ struct GameResultDetailView: View {
         game?.backgroundColor.color ?? .gray
     }
     
+    private var safeIconName: String {
+        guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
+            return "gamecontroller"
+        }
+        return iconName
+    }
+    
     enum ShareFormat: String, CaseIterable {
         case full = "Full Result"
         case compact = "Compact"
@@ -53,11 +62,33 @@ struct GameResultDetailView: View {
     
     var body: some View {
         NavigationStack {
-            if #available(iOS 26.0, *) {
-                iOS26DetailView
-            } else {
-                legacyDetailView
+            ZStack(alignment: .topLeading) {
+                if #available(iOS 26.0, *) {
+                    iOS26DetailView
+                } else {
+                    legacyDetailView
+                }
             }
+            .navigationTitle("Game Result")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+        }
+        .confirmationDialog("Delete this result?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+            Button("Delete Result", role: .destructive) {
+                deleteResult()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove the result and recalculate your streaks and achievements.")
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
@@ -173,7 +204,7 @@ struct GameResultDetailView: View {
                 // Success particles (if completed)
                 if result.completed {
                     ForEach(0..<8, id: \.self) { index in
-                        Image(systemName: "sparkle")
+                        Image.compatibleSystemName("sparkle")
                             .font(.system(size: 20))
                             .foregroundStyle(gameColor)
                             .offset(
@@ -195,7 +226,7 @@ struct GameResultDetailView: View {
             // Game name and score
             VStack(spacing: 12) {
                 HStack(spacing: 8) {
-                    Image(systemName: game?.iconSystemName ?? "gamecontroller")
+                    Image.safeSystemName(safeIconName, fallback: "gamecontroller")
                         .font(.title2)
                         .foregroundStyle(gameColor)
                         .symbolEffect(.pulse, value: scoreRevealed)
@@ -263,16 +294,34 @@ struct GameResultDetailView: View {
                 .animation(.easeOut(duration: 0.3).delay(0.5), value: detailsOpacity)
             }
             
+        // Only show Time/Attempts card for non-time-based games (time is already shown in header)
+        if !(result.gameName.lowercased() == "linkedinzip" || result.gameName.lowercased() == "linkedintango" || result.gameName.lowercased() == "linkedinqueens" || result.gameName.lowercased() == "linkedincrossclimb") {
             DetailCard(
-                icon: "target",
-                label: "Attempts",
+                icon: result.gameName.lowercased() == "linkedinpinpoint" ? "target" : (result.gameName.lowercased() == "strands" ? "lightbulb" : "target"),
+                label: result.gameName.lowercased() == "linkedinpinpoint" ? "Guesses" : (result.gameName.lowercased() == "strands" ? "Hints" : "Attempts"),
                 value: result.displayScore,
                 color: .orange
             )
             .opacity(detailsOpacity)
             .animation(.easeOut(duration: 0.3).delay(0.6), value: detailsOpacity)
+        }
             
-            if let time = result.parsedData["time"] {
+            // Show backtracks for Zip (always show, including 0)
+            if result.gameName.lowercased() == "linkedinzip",
+               let backtrackCount = result.parsedData["backtrackCount"] {
+                DetailCard(
+                    icon: "arrow.uturn.backward",
+                    label: "Backtracks",
+                    value: backtrackCount,
+                    color: .red
+                )
+                .opacity(detailsOpacity)
+                .animation(.easeOut(duration: 0.3).delay(0.7), value: detailsOpacity)
+            }
+            
+            // Show time for other games (not Zip since it's already shown above)
+            if result.gameName.lowercased() != "linkedinzip",
+               let time = result.parsedData["time"] {
                 DetailCard(
                     icon: "clock",
                     label: "Time",
@@ -496,16 +545,34 @@ struct GameResultDetailView: View {
                     DetailRow(label: "Date", value: result.date.formatted(date: .abbreviated, time: .omitted))
                     Divider()
                     DetailRow(label: "Status", value: result.completed ? "Completed" : "Not Completed")
-                    Divider()
-                    DetailRow(label: "Attempts", value: result.displayScore)
+                    
+        // Only show Time/Attempts row for non-time-based games (time is already shown in header)
+        // Skip for time-based games and Octordle (which only shows score)
+        if !(result.gameName.lowercased() == "linkedinzip" || result.gameName.lowercased() == "linkedintango" || result.gameName.lowercased() == "linkedinqueens" || result.gameName.lowercased() == "linkedincrossclimb" || result.gameName.lowercased() == "octordle") {
+            Divider()
+            DetailRow(label: result.gameName.lowercased() == "linkedinpinpoint" ? "Guesses" : (result.gameName.lowercased() == "strands" ? "Hints" : "Attempts"), value: result.displayScore)
+        }
                     
                     if let puzzleNumber = result.parsedData["puzzleNumber"] {
                         Divider()
                         DetailRow(label: "Puzzle", value: "#\(puzzleNumber)")
                     }
+                    
+                    // Show backtracks for Zip (always show, including 0)
+                    if result.gameName.lowercased() == "linkedinzip",
+                       let backtrackCount = result.parsedData["backtrackCount"] {
+                        Divider()
+                        DetailRow(label: "Backtracks", value: backtrackCount)
+                    }
                 }
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+                
+                // Quordle-specific breakdown
+                if result.gameName.lowercased() == "quordle" {
+                    QuordleDetailBreakdown(result: result)
+                        .opacity(detailsOpacity)
+                }
                 
                 // Share button
                 ShareLink(item: formatShareText()) {
@@ -515,15 +582,6 @@ struct GameResultDetailView: View {
                 .buttonStyle(.borderedProminent)
             }
             .padding()
-        }
-        .navigationTitle("Game Result")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
         }
         .onAppear {
             startAnimationSequence()
@@ -570,6 +628,21 @@ struct GameResultDetailView: View {
                 copiedToClipboard = false
             }
         }
+    }
+    
+    private func deleteResult() {
+        HapticManager.shared.trigger(.error)
+        
+        // Call the onDelete callback if provided (from parent view)
+        if let onDelete = onDelete {
+            onDelete()
+        } else {
+            // Fallback to direct AppState deletion
+            appState.deleteGameResult(result)
+        }
+        
+        // Dismiss the sheet
+        dismiss()
     }
     
     private func formatShareText() -> String {
@@ -643,7 +716,7 @@ struct DetailCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: icon)
+                Image.safeSystemName(icon, fallback: "questionmark.circle")
                     .font(.caption)
                     .foregroundStyle(color)
                     .symbolEffect(.pulse, value: isHovered)
@@ -702,6 +775,152 @@ struct DetailRow: View {
                 .foregroundStyle(.primary)
         }
         .padding()
+    }
+}
+
+// MARK: - Quordle Detail Breakdown
+struct QuordleDetailBreakdown: View {
+    let result: GameResult
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Section header
+            HStack {
+                Image(systemName: "chart.bar.fill")
+                    .foregroundStyle(.blue)
+                Text("Puzzle Breakdown")
+                    .font(.headline)
+            }
+            .padding(.bottom, 4)
+            
+            // Individual puzzle scores
+            VStack(spacing: 12) {
+                if let score1 = result.parsedData["score1"],
+                   let score2 = result.parsedData["score2"],
+                   let score3 = result.parsedData["score3"],
+                   let score4 = result.parsedData["score4"] {
+                    
+                    QuordlePuzzleRow(puzzleNumber: 1, score: score1, maxAttempts: result.maxAttempts)
+                    QuordlePuzzleRow(puzzleNumber: 2, score: score2, maxAttempts: result.maxAttempts)
+                    QuordlePuzzleRow(puzzleNumber: 3, score: score3, maxAttempts: result.maxAttempts)
+                    QuordlePuzzleRow(puzzleNumber: 4, score: score4, maxAttempts: result.maxAttempts)
+                }
+            }
+            
+            Divider()
+                .padding(.vertical, 4)
+            
+            // Summary stats
+            VStack(spacing: 8) {
+                if let completedStr = result.parsedData["completedPuzzles"],
+                   let failedStr = result.parsedData["failedPuzzles"],
+                   let completed = Int(completedStr),
+                   let failed = Int(failedStr) {
+                    
+                    HStack {
+                        Text("Success Rate")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(completed)/4 puzzles")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(completed == 4 ? .green : (completed > 0 ? .orange : .red))
+                    }
+                    
+                    // Average score (only if some completed)
+                    if completed > 0, let avgScore = calculateAverageScore() {
+                        HStack {
+                            Text("Average Attempts")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(String(format: "%.1f/\(result.maxAttempts)", avgScore))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+    
+    private func calculateAverageScore() -> Double? {
+        guard let score1 = result.parsedData["score1"],
+              let score2 = result.parsedData["score2"],
+              let score3 = result.parsedData["score3"],
+              let score4 = result.parsedData["score4"] else {
+            return nil
+        }
+        
+        let scores = [score1, score2, score3, score4]
+        let validScores = scores.compactMap { score -> Int? in
+            guard score != "failed" else { return nil }
+            return Int(score)
+        }
+        
+        guard !validScores.isEmpty else { return nil }
+        
+        let sum = validScores.reduce(0, +)
+        return Double(sum) / Double(validScores.count)
+    }
+}
+
+// MARK: - Quordle Puzzle Row
+struct QuordlePuzzleRow: View {
+    let puzzleNumber: Int
+    let score: String
+    let maxAttempts: Int
+    
+    private var isCompleted: Bool {
+        score != "failed"
+    }
+    
+    private var displayScore: String {
+        isCompleted ? "\(score)/\(maxAttempts)" : "Failed"
+    }
+    
+    private var emoji: String {
+        guard isCompleted, let scoreInt = Int(score) else {
+            return "❌"
+        }
+        
+        switch scoreInt {
+        case 1...3: return "🟢"
+        case 4...6: return "🟡"
+        case 7...8: return "🟠"
+        case 9: return "🔴"
+        default: return "⚪️"
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Puzzle indicator
+            Text(emoji)
+                .font(.title3)
+            
+            // Puzzle label
+            Text("Puzzle \(puzzleNumber)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            
+            Spacer()
+            
+            // Score
+            Text(displayScore)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isCompleted ? .green : .red)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(isCompleted ? Color.green.opacity(0.15) : Color.red.opacity(0.15))
+                )
+        }
+        .padding(.vertical, 4)
     }
 }
 

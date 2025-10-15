@@ -74,6 +74,11 @@ struct AchievementDetailView: View {
     let achievement: Achievement
     @Environment(\.dismiss) private var dismiss
     
+    private var safeIconName: String {
+        let iconName = achievement.iconSystemName
+        return iconName.isEmpty ? "star.fill" : iconName
+    }
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: Spacing.xxl) {
@@ -84,7 +89,7 @@ struct AchievementDetailView: View {
                             .fill(achievement.isUnlocked ? achievement.displayColor.opacity(0.2) : Color(.systemGray6))
                             .frame(width: 100, height: 100)
                         
-                        Image(systemName: achievement.iconSystemName)
+                        Image.safeSystemName(safeIconName, fallback: "star.fill")
                             .font(.system(size: 44))
                             .foregroundStyle(achievement.isUnlocked ? achievement.displayColor : .gray)
                     }

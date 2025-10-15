@@ -56,24 +56,6 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
     var isOfficial: Bool {
         !isCustom
     }
-    // Add to Game struct:
-    var isActiveToday: Bool {
-        // A game is active if it has been played recently (within last 7 days)
-        guard let lastPlayed = lastPlayedDate else { return false }
-        let daysSinceLastPlayed = Calendar.current.dateComponents([.day], from: lastPlayed, to: Date()).day ?? 0
-        return daysSinceLastPlayed < 7
-    }
-
-    var hasPlayedToday: Bool {
-        guard let lastPlayed = lastPlayedDate else { return false }
-        return Calendar.current.isDateInToday(lastPlayed)
-    }
-
-    var lastPlayedDate: Date? {
-        // This would come from your game results/streak data
-        // For now, return nil - you'll need to implement this based on your data structure
-        nil
-    }
     
     // MARK: - Sample Data
     static var sample: Game {
@@ -106,7 +88,19 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         static let wordle = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440000") ?? UUID()
         static let quordle = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440001") ?? UUID()
         static let nerdle = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440002") ?? UUID()
-        static let heardle = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440003") ?? UUID()
+        static let connections = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440003") ?? UUID()
+        static let spellingBee = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440004") ?? UUID()
+        static let miniCrossword = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440005") ?? UUID()
+        static let strands = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440007") ?? UUID()
+        // LinkedIn Games
+        static let linkedinQueens = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440100") ?? UUID()
+        static let linkedinTango = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440101") ?? UUID()
+        static let linkedinCrossclimb = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440102") ?? UUID()
+        static let linkedinPinpoint = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440103") ?? UUID()
+        static let linkedinZip = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440104") ?? UUID()
+        static let linkedinMiniSudoku = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440105") ?? UUID()
+        // Wordle Variants
+        static let octordle = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440200") ?? UUID()
     }
     
     // MARK: - Static Game URLs (Guaranteed Valid)
@@ -116,7 +110,20 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         static let wordle = URL(string: "https://www.nytimes.com/games/wordle") ?? URL(string: "https://www.nytimes.com")!
         static let quordle = URL(string: "https://www.quordle.com") ?? URL(string: "https://www.merriam-webster.com")!
         static let nerdle = URL(string: "https://nerdlegame.com") ?? URL(string: "https://nerdlegame.com")!
-        static let heardle = URL(string: "https://www.heardle.app") ?? URL(string: "https://www.heardle.app")!
+        static let connections = URL(string: "https://www.nytimes.com/games/connections") ?? URL(string: "https://www.nytimes.com")!
+        static let spellingBee = URL(string: "https://www.nytimes.com/puzzles/spelling-bee") ?? URL(string: "https://www.nytimes.com")!
+        static let miniCrossword = URL(string: "https://www.nytimes.com/crosswords/game/mini") ?? URL(string: "https://www.nytimes.com")!
+        static let strands = URL(string: "https://www.nytimes.com/games/strands") ?? URL(string: "https://www.nytimes.com")!
+        // LinkedIn Games (direct game URLs that open in LinkedIn app)
+        // These URLs open the specific games directly in the LinkedIn app
+        static let linkedinQueens = URL(string: "https://www.linkedin.com/games/queens") ?? URL(string: "https://www.linkedin.com")!
+        static let linkedinTango = URL(string: "https://www.linkedin.com/games/tango") ?? URL(string: "https://www.linkedin.com")!
+        static let linkedinCrossclimb = URL(string: "https://www.linkedin.com/games/crossclimb") ?? URL(string: "https://www.linkedin.com")!
+        static let linkedinPinpoint = URL(string: "https://www.linkedin.com/games/pinpoint") ?? URL(string: "https://www.linkedin.com")!
+        static let linkedinZip = URL(string: "https://www.linkedin.com/games/zip") ?? URL(string: "https://www.linkedin.com")!
+        static let linkedinMiniSudoku = URL(string: "https://www.linkedin.com/games/mini-sudoku") ?? URL(string: "https://www.linkedin.com")!
+        // Wordle Variants
+        static let octordle = URL(string: "https://octordle.com") ?? URL(string: "https://octordle.com")!
         // swiftlint:enable force_unwrapping
     }
     
@@ -126,7 +133,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         name: "wordle",
         displayName: "Wordle",
         url: GameURLs.wordle,
-        category: .word,
+        category: .nytGames,
         resultPattern: #"Wordle \d+ [1-6X]/6"#,
         iconSystemName: "square.grid.3x3.fill",
         backgroundColor: CodableColor(UIColor(red: 0.345, green: 0.8, blue: 0.008, alpha: 1.0)), // #58CC02
@@ -160,44 +167,165 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         isCustom: false
     )
     
-    static let heardle = Game(
-        id: GameIDs.heardle,
-        name: "heardle",
-        displayName: "Heardle",
-        url: GameURLs.heardle,
-        category: .music,
-        resultPattern: #"#Heardle #\d+"#,
-        iconSystemName: "music.note",
-        backgroundColor: CodableColor(.systemPink),
+    static let pips = Game(
+        id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440006") ?? UUID(),
+        name: "pips",
+        displayName: "Pips",
+        url: URL(string: "https://www.nytimes.com/games/pips")!,
+        category: .puzzle,
+        resultPattern: #"Pips #\d+ (Easy|Medium|Hard)"#,
+        iconSystemName: "square.grid.2x2.fill",
+        backgroundColor: CodableColor(.systemPurple),
         isPopular: true,
         isCustom: false
     )
-    // Word Games
-       static let connections = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440004") ?? UUID(),
-           name: "connections",
-           displayName: "Connections",
-           url: URL(string: "https://www.nytimes.com/games/connections")!,
-           category: .word,
-           resultPattern: #"Connections\nPuzzle #\d+"#,
-           iconSystemName: "square.grid.3x3",
-           backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
-           isPopular: true,
-           isCustom: false
-       )
-       
-       static let spelling_bee = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440005") ?? UUID(),
-           name: "spelling_bee",
-           displayName: "Spelling Bee",
-           url: URL(string: "https://www.nytimes.com/puzzles/spelling-bee")!,
-           category: .word,
-           resultPattern: #"Spelling Bee.*?\d+ words"#,
-           iconSystemName: "hexagon",
-           backgroundColor: CodableColor(UIColor(red: 0.345, green: 0.8, blue: 0.008, alpha: 1.0)), // #58CC02
-           isPopular: true,
-           isCustom: false
-       )
+    
+    static let connections = Game(
+        id: GameIDs.connections,
+        name: "connections",
+        displayName: "Connections",
+        url: GameURLs.connections,
+        category: .nytGames,
+        resultPattern: #"Connections Puzzle #\d+ [🟩🟨🟦🟪\s]+"#,
+        iconSystemName: "link",
+        backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)), // #007AFF
+        isPopular: true,
+        isCustom: false
+    )
+    
+    static let spellingBee = Game(
+        id: GameIDs.spellingBee,
+        name: "spellingbee",
+        displayName: "Spelling Bee",
+        url: GameURLs.spellingBee,
+        category: .nytGames,
+        resultPattern: #"Spelling Bee"#,
+        iconSystemName: "textformat.abc",
+        backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0)), // #FFCC00
+        isPopular: true,
+        isCustom: false
+    )
+    
+    static let miniCrossword = Game(
+        id: GameIDs.miniCrossword,
+        name: "minicrossword",
+        displayName: "Mini Crossword",
+        url: GameURLs.miniCrossword,
+        category: .nytGames,
+        resultPattern: #"Mini Crossword"#,
+        iconSystemName: "grid",
+        backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.6, blue: 0.0, alpha: 1.0)), // #009900
+        isPopular: true,
+        isCustom: false
+    )
+    
+    static let strands = Game(
+        id: GameIDs.strands,
+        name: "strands",
+        displayName: "Strands",
+        url: GameURLs.strands,
+        category: .nytGames,
+        resultPattern: #"Strands.*?#"#,
+        iconSystemName: "lightbulb.fill",
+        backgroundColor: CodableColor(UIColor(red: 0.8, green: 0.4, blue: 0.0, alpha: 1.0)), // Orange #CC6600
+        isPopular: true,
+        isCustom: false
+    )
+    
+    // MARK: - LinkedIn Games
+    static let linkedinQueens = Game(
+        id: GameIDs.linkedinQueens,
+        name: "linkedinqueens",
+        displayName: "Queens",
+        url: GameURLs.linkedinQueens,
+        category: .linkedinGames,
+        resultPattern: #"Queens.*?puzzle"#,
+        iconSystemName: "crown.fill",
+        backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)), // LinkedIn Blue #007AFF
+        isPopular: false,
+        isCustom: false
+    )
+    
+    static let linkedinTango = Game(
+        id: GameIDs.linkedinTango,
+        name: "linkedintango",
+        displayName: "Tango",
+        url: GameURLs.linkedinTango,
+        category: .linkedinGames,
+        resultPattern: #"Tango.*?puzzle"#,
+        iconSystemName: "sun.max.fill",
+        backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0)), // Sun/Moon colors #FFCC00
+        isPopular: false,
+        isCustom: false
+    )
+    
+    static let linkedinCrossclimb = Game(
+        id: GameIDs.linkedinCrossclimb,
+        name: "linkedincrossclimb",
+        displayName: "Crossclimb",
+        url: GameURLs.linkedinCrossclimb,
+        category: .linkedinGames,
+        resultPattern: #"Crossclimb.*?puzzle"#,
+        iconSystemName: "arrow.up.arrow.down",
+        backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.6, blue: 0.0, alpha: 1.0)), // Green #009900
+        isPopular: false,
+        isCustom: false
+    )
+    
+    static let linkedinPinpoint = Game(
+        id: GameIDs.linkedinPinpoint,
+        name: "linkedinpinpoint",
+        displayName: "Pinpoint",
+        url: GameURLs.linkedinPinpoint,
+        category: .linkedinGames,
+        resultPattern: #"Pinpoint.*?puzzle"#,
+        iconSystemName: "target",
+        backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.4, blue: 0.0, alpha: 1.0)), // Orange #FF6600
+        isPopular: false,
+        isCustom: false
+    )
+    
+    static let linkedinZip = Game(
+        id: GameIDs.linkedinZip,
+        name: "linkedinzip",
+        displayName: "Zip",
+        url: GameURLs.linkedinZip,
+        category: .linkedinGames,
+        resultPattern: #"Zip.*?puzzle"#,
+        iconSystemName: "line.3.horizontal",
+        backgroundColor: CodableColor(UIColor(red: 0.6, green: 0.0, blue: 1.0, alpha: 1.0)), // Purple #9900FF
+        isPopular: false,
+        isCustom: false
+    )
+    
+    static let linkedinMiniSudoku = Game(
+        id: GameIDs.linkedinMiniSudoku,
+        name: "linkedinminisudoku",
+        displayName: "Mini Sudoku",
+        url: GameURLs.linkedinMiniSudoku,
+        category: .linkedinGames,
+        resultPattern: #"Mini Sudoku.*?puzzle"#,
+        iconSystemName: "square.grid.3x3.topleft.filled",
+        backgroundColor: CodableColor(UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)), // Gray #808080
+        isPopular: false,
+        isCustom: false
+    )
+    
+    // MARK: - Wordle Variants
+    static let octordle = Game(
+        id: GameIDs.octordle,
+        name: "octordle",
+        displayName: "Octordle",
+        url: GameURLs.octordle,
+        category: .word,
+        resultPattern: #"Daily Octordle #\d+"#,
+        iconSystemName: "8.circle.fill",
+        backgroundColor: CodableColor(UIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1.0)), // Blue #3366CC
+        isPopular: true,
+        isCustom: false
+    )
+    
+    // Word Games (duplicates removed - using definitions above)
        
        static let letterboxed = Game(
            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440006") ?? UUID(),
@@ -388,18 +516,6 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
        )
     
     // MARK: - More Word Games (21-30)
-        static let octordle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440014") ?? UUID(),
-            name: "octordle",
-            displayName: "Octordle",
-            url: URL(string: "https://octordle.com")!,
-            category: .word,
-            resultPattern: #"Daily Octordle #\d+"#,
-            iconSystemName: "square.grid.4x3.fill",
-            backgroundColor: CodableColor(.systemPurple),
-            isPopular: false,
-            isCustom: false
-        )
         
         static let dordle = Game(
             id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440015") ?? UUID(),
@@ -782,57 +898,27 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
             isCustom: false
         )
     
-    // MARK: - Updated Popular Games Array
+    // MARK: - Updated Popular Games Array (Only games with proper parsers)
     static let popularGames: [Game] = [
         wordle,
         quordle,
         nerdle,
-        heardle,
+        pips,
         connections,
-        spelling_bee,
-        worldle,
-        contexto,
-        mini_crossword,
-        sudoku
+        spellingBee,
+        miniCrossword,
+        strands,
+        octordle
     ]
     
-    // MARK: - All Games Array (for GameCatalog)
+    // MARK: - All Games Array (Only games with proper parsers)
     static let allAvailableGames: [Game] = [
-            // Original Word Games (1-8)
-            wordle, quordle, connections, spelling_bee,
-            letterboxed, waffle, absurdle, semantle,
-            
-            // Additional Word Games (21-30)
-            octordle, dordle, sedecordle, kilordle,
-            antiwordle, wordscapes, wordhurdle, xordle,
-            squareword, phrazle,
-            
-            // Original Math Games (9-10)
-            nerdle, mathle, numberle,
-            
-            // Additional Math Games (31-35)
-            primel, ooodle, summle, timeguessr, rankdle,
-            
-            // Original Music Games (11-12)
-            heardle, lyricle,
-            
-            // Additional Music Games (36-40)
-            songlio, binb, songle, bandle, musicle,
-            
-            // Original Geography Games (13-14)
-            worldle, globle,
-            
-            // Additional Geography Games (41-45)
-            countryle, flagle, statele, citydle, wheretaken,
-            
-            // Original Trivia Games (15-16)
-            contexto, framed,
-            
-            // Additional Trivia Games (46-50)
-            moviedle, posterdle, actorle, foodguessr, artdle,
-            
-            // Original Puzzle Games (17-20)
-            crosswordle, mini_crossword, sudoku
+            // Games with implemented parsers
+            wordle, quordle, nerdle, pips, connections, spellingBee, miniCrossword, strands,
+            // LinkedIn Games
+            linkedinQueens, linkedinTango, linkedinCrossclimb, linkedinPinpoint, linkedinZip, linkedinMiniSudoku,
+            // Wordle Variants
+            octordle
         ]
 }
 
@@ -844,6 +930,8 @@ enum GameCategory: String, CaseIterable, Codable, Sendable {
     case geography = "geography"
     case trivia = "trivia"
     case puzzle = "puzzle"
+    case nytGames = "nyt_games"
+    case linkedinGames = "linkedin_games"
     case custom = "custom"
     
     var displayName: String {
@@ -854,6 +942,8 @@ enum GameCategory: String, CaseIterable, Codable, Sendable {
         case .geography: return NSLocalizedString("category.geography", comment: "Geography")
         case .trivia: return NSLocalizedString("category.trivia", comment: "Trivia")
         case .puzzle: return NSLocalizedString("category.puzzle", comment: "Puzzle Games")
+        case .nytGames: return NSLocalizedString("category.nyt_games", comment: "NYT Games")
+        case .linkedinGames: return NSLocalizedString("category.linkedin_games", comment: "LinkedIn Games")
         case .custom: return NSLocalizedString("category.custom", comment: "Custom Games")
         }
     }
@@ -866,6 +956,8 @@ enum GameCategory: String, CaseIterable, Codable, Sendable {
         case .geography: return "globe"
         case .trivia: return "questionmark.circle"
         case .puzzle: return "puzzlepiece"
+        case .nytGames: return "newspaper"
+        case .linkedinGames: return "briefcase"
         case .custom: return "plus.circle"
         }
     }
@@ -991,11 +1083,26 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
     ) {
         // Input validation
         precondition(!gameName.isEmpty, "Game name cannot be empty")
-        precondition(maxAttempts > 0, "Max attempts must be positive")
+        precondition(maxAttempts >= 0, "Max attempts must be non-negative")
         precondition(!sharedText.isEmpty, "Shared text cannot be empty")
         
         if let score = score {
-            precondition(score >= 1 && score <= maxAttempts, "Score must be between 1 and maxAttempts")
+            // Special handling for time-based games like Zip, Tango, Queens, and Crossclimb
+            if gameName.lowercased() == "linkedinzip" {
+                precondition(score >= 0, "Score (time) must be non-negative for Zip")
+            } else if gameName.lowercased() == "linkedintango" {
+                precondition(score >= 0, "Score (time) must be non-negative for Tango")
+            } else if gameName.lowercased() == "linkedinqueens" {
+                precondition(score >= 0, "Score (time) must be non-negative for Queens")
+            } else if gameName.lowercased() == "linkedincrossclimb" {
+                precondition(score >= 0, "Score (time) must be non-negative for Crossclimb")
+            } else if gameName.lowercased() == "linkedinpinpoint" {
+                precondition(score >= 1 && score <= maxAttempts, "Score (guesses) must be between 1 and maxAttempts for Pinpoint")
+            } else if gameName.lowercased() == "strands" {
+                precondition(score >= 0 && score <= maxAttempts, "Score (hints) must be between 0 and maxAttempts for Strands")
+            } else {
+                precondition(score >= 1 && score <= maxAttempts, "Score must be between 1 and maxAttempts")
+            }
         }
         
         self.id = UUID()
@@ -1015,19 +1122,303 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
     }
     
     var displayScore: String {
+        // Special handling for multi-puzzle games like Quordle
+        if gameName.lowercased() == "quordle" {
+            return quordleDisplayScore
+        }
+        
+        // Special handling for Pips difficulty-based scoring
+        if gameName.lowercased() == "pips" {
+            return pipsDisplayScore
+        }
+        
+        // Special handling for Connections
+        if gameName.lowercased() == "connections" {
+            return connectionsDisplayScore
+        }
+        
+        // Special handling for LinkedIn Zip
+        if gameName.lowercased() == "linkedinzip" {
+            return zipDisplayScore
+        }
+        
+        // Special handling for LinkedIn Tango
+        if gameName.lowercased() == "linkedintango" {
+            return tangoDisplayScore
+        }
+        
+        // Special handling for LinkedIn Queens
+        if gameName.lowercased() == "linkedinqueens" {
+            return queensDisplayScore
+        }
+        
+        // Special handling for LinkedIn Crossclimb
+        if gameName.lowercased() == "linkedincrossclimb" {
+            return crossclimbDisplayScore
+        }
+        
+        // Special handling for LinkedIn Pinpoint
+        if gameName.lowercased() == "linkedinpinpoint" {
+            return pinpointDisplayScore
+        }
+        
+        // Special handling for NYT Strands
+        if gameName.lowercased() == "strands" {
+            return strandsDisplayScore
+        }
+        
+        // Special handling for Octordle
+        if gameName.lowercased() == "octordle" {
+            return octordleDisplayScore
+        }
+        
+        // Standard score display
         guard let score = score else {
             return NSLocalizedString("game.failed_score", comment: "X/\(maxAttempts)")
         }
         return "\(score)/\(maxAttempts)"
     }
     
+    private var quordleDisplayScore: String {
+        // Try to get individual scores from parsedData
+        if let score1 = parsedData["score1"],
+           let score2 = parsedData["score2"],
+           let score3 = parsedData["score3"],
+           let score4 = parsedData["score4"] {
+            
+            // Format as "6-5-9-4" or "X-X-X-X"
+            let s1 = score1 == "failed" ? "X" : score1
+            let s2 = score2 == "failed" ? "X" : score2
+            let s3 = score3 == "failed" ? "X" : score3
+            let s4 = score4 == "failed" ? "X" : score4
+            
+            return "\(s1)-\(s2)-\(s3)-\(s4)"
+        }
+        
+        // Fallback to standard display if individual scores not available
+        guard let score = score else {
+            return "X/\(maxAttempts)"
+        }
+        return "\(score)/\(maxAttempts)"
+    }
+    
+    private var pipsDisplayScore: String {
+        // Get difficulty and time from parsedData
+        if let difficulty = parsedData["difficulty"],
+           let time = parsedData["time"] {
+            return "\(difficulty) - \(time)"
+        }
+        
+        // Fallback to standard display if difficulty/time not available
+        guard let score = score else {
+            return "X/\(maxAttempts)"
+        }
+        return "\(score)/\(maxAttempts)"
+    }
+    
+    private var connectionsDisplayScore: String {
+        // Get solved categories from parsedData
+        if let solvedCategories = parsedData["solvedCategories"],
+           let solved = Int(solvedCategories) {
+            return "\(solved)/4"
+        }
+        
+        // Fallback to score if available
+        if let score = score {
+            return "\(score)/4"
+        }
+        
+        return "0/4"
+    }
+    
+    private var zipDisplayScore: String {
+        // Get time from parsedData (this is the main score)
+        if let time = parsedData["time"], !time.isEmpty {
+            return time
+        }
+        
+        // Fallback to score converted back to time format
+        if let score = score, score > 0 {
+            let minutes = score / 60
+            let seconds = score % 60
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+        
+        return "Completed"
+    }
+    
+    private var tangoDisplayScore: String {
+        // Get time from parsedData (this is the main score)
+        if let time = parsedData["time"], !time.isEmpty {
+            return time
+        }
+        
+        // Fallback to score converted back to time format
+        if let score = score, score > 0 {
+            let minutes = score / 60
+            let seconds = score % 60
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+        
+        return "Completed"
+    }
+    
+    private var queensDisplayScore: String {
+        // Get time from parsedData (this is the main score)
+        if let time = parsedData["time"], !time.isEmpty {
+            return time
+        }
+        
+        // Fallback to score converted back to time format
+        if let score = score, score > 0 {
+            let minutes = score / 60
+            let seconds = score % 60
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+        
+        return "Completed"
+    }
+    
+    private var crossclimbDisplayScore: String {
+        // Get time from parsedData (this is the main score)
+        if let time = parsedData["time"], !time.isEmpty {
+            return time
+        }
+        
+        // Fallback to score converted back to time format
+        if let score = score, score > 0 {
+            let minutes = score / 60
+            let seconds = score % 60
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+        
+        return "Completed"
+    }
+    
+    private var pinpointDisplayScore: String {
+        // Get guess count from parsedData (this is the main score)
+        if let guessCount = parsedData["guessCount"], !guessCount.isEmpty {
+            return "\(guessCount) guesses"
+        }
+        
+        // Fallback to score converted to guess format
+        if let score = score, score > 0 {
+            return "\(score) guesses"
+        }
+        
+        return "Completed"
+    }
+    
+    private var strandsDisplayScore: String {
+        // Get hint count from parsedData (this is the main score)
+        if let hintCount = parsedData["hintCount"], !hintCount.isEmpty {
+            let count = Int(hintCount) ?? 0
+            return count == 0 ? "Perfect" : "\(count) hints"
+        }
+        
+        // Fallback to score converted to hint format
+        if let score = score {
+            return score == 0 ? "Perfect" : "\(score) hints"
+        }
+        
+        return "Completed"
+    }
+    
+    private var octordleDisplayScore: String {
+        // For Octordle, just show the score (not score/attempts)
+        // Lower scores are better (8 is perfect, higher scores indicate more attempts)
+        guard let score = score else {
+            return "Failed"
+        }
+        
+        return "\(score)"
+    }
+    
     var scoreEmoji: String {
+        // Special handling for Quordle
+        if gameName.lowercased() == "quordle" {
+            return quordleScoreEmoji
+        }
+        
+        // Special handling for Pips difficulty-based emojis
+        if gameName.lowercased() == "pips" {
+            return pipsScoreEmoji
+        }
+        
+        // Special handling for Connections
+        if gameName.lowercased() == "connections" {
+            return connectionsScoreEmoji
+        }
+        
+        // Standard emoji
         guard let score = score else { return "❌" }
         switch score {
         case 1: return "🥇"
         case 2: return "🥈"
         case 3: return "🥉"
         default: return "✅"
+        }
+    }
+    
+    private var quordleScoreEmoji: String {
+        // Check if all puzzles completed
+        if let completedStr = parsedData["completedPuzzles"],
+           let completed = Int(completedStr) {
+            switch completed {
+            case 4: return "🏆"  // All 4 completed
+            case 3: return "🥉"  // 3 completed
+            case 2: return "🥈"  // 2 completed
+            case 1: return "🥇"  // 1 completed
+            default: return "❌" // None completed
+            }
+        }
+        
+        // Fallback
+        return completed ? "✅" : "❌"
+    }
+    
+    private var pipsScoreEmoji: String {
+        // Get difficulty from parsedData and return appropriate emoji
+        if let difficulty = parsedData["difficulty"] {
+            switch difficulty.lowercased() {
+            case "easy": return "🟢"
+            case "medium": return "🟡"
+            case "hard": return "🟠"
+            default: return "✅"
+            }
+        }
+        
+        // Fallback based on score
+        guard let score = score else { return "❌" }
+        switch score {
+        case 1: return "🟢"  // Easy
+        case 2: return "🟡"  // Medium
+        case 3: return "🟠"  // Hard
+        default: return "✅"
+        }
+    }
+    
+    private var connectionsScoreEmoji: String {
+        // Get solved categories from parsedData
+        if let solvedCategories = parsedData["solvedCategories"],
+           let solved = Int(solvedCategories) {
+            switch solved {
+            case 4: return "🏆"  // Perfect - all 4 categories solved
+            case 3: return "🥇"  // Great - 3/4 categories solved
+            case 2: return "🥈"  // Good - 2/4 categories solved
+            case 1: return "🥉"  // Partial - 1/4 categories solved
+            default: return "❌" // Failed - 0 categories solved
+            }
+        }
+        
+        // Fallback based on score
+        guard let score = score else { return "❌" }
+        switch score {
+        case 4: return "🏆"  // Perfect
+        case 3: return "🥇"  // Great
+        case 2: return "🥈"  // Good
+        case 1: return "🥉"  // Partial
+        default: return "❌" // Failed
         }
     }
     
@@ -1041,9 +1432,109 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
     
     var isValid: Bool {
         !gameName.isEmpty &&
-        maxAttempts > 0 &&
-        (score == nil || (score! >= 1 && score! <= maxAttempts)) &&
+        maxAttempts >= 0 && // Allow 0 for games like Zip where maxAttempts is backtrack count
+        (score == nil || isValidScoreForGame()) &&
         !sharedText.isEmpty
+    }
+    
+    private func isValidScoreForGame() -> Bool {
+        guard let score = score else { return true }
+        
+        // Special handling for time-based games like Zip, Tango, Queens, and Crossclimb
+        if gameName.lowercased() == "linkedinzip" {
+            // For Zip, score is time in seconds, maxAttempts is backtrack count
+            // Time can be any positive value, backtracks can be 0 or more
+            return score >= 0
+        } else if gameName.lowercased() == "linkedintango" {
+            // For Tango, score is time in seconds, maxAttempts is 0 (no attempts/backtracks)
+            // Time can be any positive value
+            return score >= 0
+        } else if gameName.lowercased() == "linkedinqueens" {
+            // For Queens, score is time in seconds, maxAttempts is 0 (no attempts/backtracks)
+            // Time can be any positive value
+            return score >= 0
+        } else if gameName.lowercased() == "linkedincrossclimb" {
+            // For Crossclimb, score is time in seconds, maxAttempts is 0 (no attempts/backtracks)
+            // Time can be any positive value
+            return score >= 0
+        } else if gameName.lowercased() == "linkedinpinpoint" {
+            // For Pinpoint, score is number of guesses (1-5), maxAttempts is 5
+            // Standard validation applies
+            return score >= 1 && score <= maxAttempts
+        } else if gameName.lowercased() == "strands" {
+            // For Strands, score is number of hints (0-10), maxAttempts is 10
+            // Hints can be 0 or more, up to reasonable limit
+            return score >= 0 && score <= maxAttempts
+        } else if gameName.lowercased() == "octordle" {
+            // For Octordle, score is the actual score from "Score: XX" line
+            // maxAttempts = score, so score should equal maxAttempts
+            // Score can be 0 (if Score line not found) or any positive value (8 is perfect, higher is worse)
+            return score >= 0 && score == maxAttempts
+        }
+        
+        // Standard validation for other games
+        return score >= 1 && score <= maxAttempts
+    }
+}
+
+// MARK: - Grouped Game Result (for Pips)
+struct GroupedGameResult: Identifiable, Codable {
+    let id: UUID
+    let gameId: UUID
+    let gameName: String
+    let puzzleNumber: String
+    let date: Date
+    let results: [GameResult] // Individual difficulty results
+    
+    init(gameId: UUID, gameName: String, puzzleNumber: String, date: Date, results: [GameResult]) {
+        self.id = UUID()
+        self.gameId = gameId
+        self.gameName = gameName
+        self.puzzleNumber = puzzleNumber
+        self.date = date
+        self.results = results
+    }
+    
+    // Computed properties for display
+    var displayTitle: String {
+        return "Puzzle #\(puzzleNumber)"
+    }
+    
+    var completedDifficulties: [String] {
+        return results.compactMap { $0.parsedData["difficulty"] }
+    }
+    
+    var hasEasy: Bool { completedDifficulties.contains("Easy") }
+    var hasMedium: Bool { completedDifficulties.contains("Medium") }
+    var hasHard: Bool { completedDifficulties.contains("Hard") }
+    
+    var completionStatus: String {
+        let count = completedDifficulties.count
+        switch count {
+        case 1: return "1/3 Complete"
+        case 2: return "2/3 Complete"
+        case 3: return "All Complete"
+        default: return "Not Started"
+        }
+    }
+    
+    var bestTime: String? {
+        let times = results.compactMap { result -> (difficulty: String, time: String, seconds: Int)? in
+            guard let difficulty = result.parsedData["difficulty"],
+                  let time = result.parsedData["time"],
+                  let secondsStr = result.parsedData["totalSeconds"],
+                  let seconds = Int(secondsStr) else { return nil }
+            return (difficulty, time, seconds)
+        }
+        
+        guard let fastest = times.min(by: { $0.seconds < $1.seconds }) else { return nil }
+        return "\(fastest.difficulty) - \(fastest.time)"
+    }
+    
+    var isValid: Bool {
+        !gameName.isEmpty &&
+        !puzzleNumber.isEmpty &&
+        !results.isEmpty
     }
 }
 

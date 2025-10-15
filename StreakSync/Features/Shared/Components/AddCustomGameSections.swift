@@ -102,7 +102,7 @@ struct AddCustomGameAppearanceSection: View {
                         .font(.subheadline.weight(.medium))
                     
                     Button(action: { showingIconPicker = true }) {
-                        Image(systemName: selectedIcon)
+                        Image.safeSystemName(selectedIcon, fallback: "gamecontroller")
                             .font(.title2)
                             .foregroundStyle(selectedColor)
                             .frame(width: 50, height: 50)
@@ -201,7 +201,7 @@ struct AddCustomGamePreviewSection: View {
             
             HStack(spacing: 16) {
                 // Game Icon
-                Image(systemName: selectedIcon)
+                Image.safeSystemName(selectedIcon, fallback: "gamecontroller")
                     .font(.title)
                     .foregroundStyle(selectedColor)
                     .frame(width: 50, height: 50)

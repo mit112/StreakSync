@@ -129,26 +129,14 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     }
     
     private func handleSnooze(days: Int, userInfo: [AnyHashable: Any]) async {
-        guard let gameIdString = userInfo["gameId"] as? String,
-              let gameId = UUID(uuidString: gameIdString) else {
-            logger.warning("⚠️ Missing or invalid gameId in snooze action")
-            return
-        }
+        logger.info("😴 Snoozing reminder for \(days) days")
         
-        logger.info("😴 Snoozing reminder for \(days) days for game: \(gameId)")
+        // In the simplified system, we just cancel the daily reminder
+        // The next check will reschedule it if there are still games at risk
+        await NotificationScheduler.shared.cancelDailyStreakReminder()
         
-        // Cancel existing reminder
-        await NotificationScheduler.shared.cancelStreakReminder(for: gameId)
-        
-        // Schedule new reminder for later
-        let snoozeDate = Calendar.current.date(byAdding: .day, value: days, to: Date()) ?? Date()
-        await MainActor.run {
-            if let game = appState?.games.first(where: { $0.id == gameId }) {
-                Task {
-                    await NotificationScheduler.shared.scheduleStreakReminder(for: game, at: snoozeDate)
-                }
-            }
-        }
+        // The reminder will be automatically rescheduled at the next app check
+        // if there are still games with streaks at risk
     }
     
     private func handleMarkPlayed(userInfo: [AnyHashable: Any]) async {
@@ -160,11 +148,12 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         
         logger.info("✅ Marking game as played: \(gameId)")
         
-        // Cancel the reminder since user marked as played
-        await NotificationScheduler.shared.cancelStreakReminder(for: gameId)
+        // In the simplified system, we just cancel the daily reminder
+        // The next check will reschedule it if there are still other games at risk
+        await NotificationScheduler.shared.cancelDailyStreakReminder()
         
         // Could potentially add a placeholder result here if needed
-        // For now, just cancel the reminder
+        // For now, just cancel the reminder and let the system reschedule if needed
     }
     
     private func handleViewAchievement(userInfo: [AnyHashable: Any]) async {

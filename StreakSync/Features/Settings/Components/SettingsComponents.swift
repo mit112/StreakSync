@@ -97,7 +97,7 @@ struct AboutView: View {
                 FeatureRow(icon: "square.and.arrow.up", text: "Easy result sharing")
                 FeatureRow(icon: "flame.fill", text: "Automatic streak tracking")
                 FeatureRow(icon: "trophy.fill", text: "Achievement system")
-                FeatureRow(icon: "chart.line.uptrend.xyaxis", text: "Progress tracking")
+                FeatureRow(icon: SFSymbolCompatibility.getSymbol("chart.line.uptrend.xyaxis"), text: "Progress tracking")
             }
             
             // Links Section
@@ -146,7 +146,7 @@ private struct FeatureRow: View {
     
     var body: some View {
         HStack(spacing: Spacing.md) {
-            Image(systemName: icon)
+            Image.safeSystemName(icon, fallback: "gear")
                 .font(.body)
                 .foregroundStyle(.blue)
                 .frame(width: 28)

@@ -50,7 +50,7 @@ enum AchievementTier: Int, CaseIterable, Codable, Sendable {
         case .bronze, .silver, .gold:
             return "trophy.fill"
         case .diamond:
-            return "diamond.fill"
+            return SFSymbolCompatibility.getSymbol("diamond.fill")
         case .master:
             return "star.fill"
         case .legendary:

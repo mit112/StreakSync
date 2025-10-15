@@ -147,6 +147,10 @@ struct iOS26Colors {
             return Color(.systemIndigo)
         case .puzzle:
             return Color(.systemCyan)
+        case .nytGames:
+            return Color(.systemRed)
+        case .linkedinGames:
+            return Color(.systemBlue)
         case .custom:
             return Color(.systemGray)
         }

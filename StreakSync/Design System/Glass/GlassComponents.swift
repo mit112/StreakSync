@@ -219,7 +219,7 @@ struct GlassTabBar: View {
         var body: some View {
             Button(action: action) {
                 VStack(spacing: 4) {
-                    Image(systemName: icon)
+                    Image.safeSystemName(icon, fallback: "button")
                         .font(.system(size: 20))
                         .symbolVariant(isSelected ? .fill : .none)
                     

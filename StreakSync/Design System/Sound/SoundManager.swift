@@ -21,6 +21,12 @@ final class SoundManager: ObservableObject {
     private var audioPlayers: [SoundType: AVAudioPlayer] = [:]
     private let logger = Logger(subsystem: "com.streaksync.app", category: "SoundManager")
     
+    // MARK: - Sound Queue Management
+    private var soundQueue: [(SoundType, Date)] = []
+    private var isPlayingSound = false
+    private var lastSoundTime: Date = Date.distantPast
+    private let minimumSoundInterval: TimeInterval = 0.1 // 100ms minimum between sounds
+    
     // MARK: - Sound Types
     enum SoundType: String, CaseIterable {
         case achievementUnlock = "achievement_unlock"
@@ -83,6 +89,25 @@ final class SoundManager: ObservableObject {
     func play(_ type: SoundType) {
         guard soundEffectsEnabled else { return }
         
+        let now = Date()
+        
+        // Check if we should throttle this sound
+        if now.timeIntervalSince(lastSoundTime) < minimumSoundInterval {
+            // Queue the sound instead of playing immediately
+            soundQueue.append((type, now))
+            logger.info("🎵 Queued sound: \(type.rawValue) (throttled)")
+            return
+        }
+        
+        // Play the sound immediately
+        playSoundImmediately(type)
+        lastSoundTime = now
+        
+        // Process queued sounds after a delay
+        processQueuedSounds()
+    }
+    
+    private func playSoundImmediately(_ type: SoundType) {
         // Play system sound for now
         switch type {
         case .achievementUnlock, .success:
@@ -91,11 +116,31 @@ final class SoundManager: ObservableObject {
             AudioServicesPlaySystemSound(1306)
         case .woosh:
             AudioServicesPlaySystemSound(1050)
+        case .confetti:
+            AudioServicesPlaySystemSound(1103)
         default:
             AudioServicesPlaySystemSound(1103)
         }
         
-        logger.info("Playing sound: \(type.rawValue)")
+        logger.info("🔊 Playing sound: \(type.rawValue)")
+    }
+    
+    private func processQueuedSounds() {
+        guard !soundQueue.isEmpty else { return }
+        
+        // Process the next queued sound after minimum interval
+        DispatchQueue.main.asyncAfter(deadline: .now() + minimumSoundInterval) { [weak self] in
+            guard let self = self, !self.soundQueue.isEmpty else { return }
+            
+            let (nextSound, _) = self.soundQueue.removeFirst()
+            self.playSoundImmediately(nextSound)
+            self.lastSoundTime = Date()
+            
+            // Continue processing if there are more sounds
+            if !self.soundQueue.isEmpty {
+                self.processQueuedSounds()
+            }
+        }
     }
     
     func playSequence(_ types: [SoundType], delays: [TimeInterval]) {

@@ -29,7 +29,7 @@ struct ToolbarStatChip: View {
     
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: icon)
+            Image.safeSystemName(icon, fallback: "number")
                 .font(.system(size: 14, weight: .semibold))
             Text("\(value)")
                 .font(.system(size: 14, weight: .bold))
@@ -93,7 +93,7 @@ struct NativeLargeTitleModifier: ViewModifier {
                             .allowsHitTesting(false)
                             
                             // Analytics icon
-                            Image(systemName: "chart.line.uptrend.xyaxis")
+                            Image.compatibleSystemName("chart.line.uptrend.xyaxis")
                                 .font(.caption)
                                 .foregroundStyle(.blue)
                         }

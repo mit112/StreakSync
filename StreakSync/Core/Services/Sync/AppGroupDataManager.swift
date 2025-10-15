@@ -78,10 +78,69 @@ final class AppGroupDataManager {
         logger.debug("Removed data for key: \(key)")
     }
     
+    func loadGameResultQueue() async throws -> [GameResult] {
+        guard let userDefaults = userDefaults else {
+            throw AppError.sync(.appGroupCommunicationFailed)
+        }
+        
+        guard let keysData = userDefaults.data(forKey: "gameResultKeys") else {
+            return []
+        }
+        
+        do {
+            // Decode the array of result keys
+            guard let resultKeys = try JSONSerialization.jsonObject(with: keysData) as? [String] else {
+                logger.error("Failed to decode game result keys")
+                return []
+            }
+            
+            // Load each result by its key
+            var results: [GameResult] = []
+            for key in resultKeys {
+                if let resultData = userDefaults.data(forKey: key) {
+                    do {
+                        let result = try decoder.decode(GameResult.self, from: resultData)
+                        results.append(result)
+                    } catch {
+                        logger.error("Failed to decode game result for key \(key): \(error)")
+                        // Continue processing other results
+                    }
+                }
+            }
+            
+            logger.info("Loaded \(results.count) results from queue")
+            return results
+            
+        } catch {
+            logger.error("Failed to decode game result keys: \(error)")
+            throw AppError.persistence(.dataCorrupted(dataType: "GameResultKeys"))
+        }
+    }
+    
+    func clearGameResultQueue() {
+        guard let userDefaults = userDefaults else { return }
+        
+        // Get all result keys
+        if let keysData = userDefaults.data(forKey: "gameResultKeys"),
+           let resultKeys = try? JSONSerialization.jsonObject(with: keysData) as? [String] {
+            
+            // Remove each result
+            for key in resultKeys {
+                userDefaults.removeObject(forKey: key)
+            }
+        }
+        
+        // Clear the keys list
+        userDefaults.removeObject(forKey: "gameResultKeys")
+        userDefaults.synchronize()
+        
+        logger.info("Cleared game result queue")
+    }
+    
     func clearAll() {
         guard let userDefaults = userDefaults else { return }
         
-        let keys = ["latestGameResult", "queuedResults"] // Add all known keys
+        let keys = ["latestGameResult", "queuedResults", "gameResultQueue", "gameResultKeys"] // Add all known keys
         keys.forEach { key in
             userDefaults.removeObject(forKey: key)
         }

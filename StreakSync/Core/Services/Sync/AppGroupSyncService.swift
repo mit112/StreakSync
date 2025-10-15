@@ -15,7 +15,6 @@
 import Foundation
 import OSLog
 
-@MainActor
 final class AppGroupSyncCoordinator {
     private let appGroupPersistence: AppGroupPersistenceService
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AppGroupSyncCoordinator")

@@ -31,6 +31,14 @@ struct GameLaunchOption {
                 webURL: game.url
             )
             
+        // LinkedIn Games - use web URL (more reliable than deep links)
+        case "linkedinqueens", "linkedintango", "linkedincrossclimb", "linkedinpinpoint", "linkedinzip", "linkedinminisudoku":
+            return GameLaunchOption(
+                appURLScheme: nil, // No deep link - use web URL
+                appStoreURL: URL(string: "https://apps.apple.com/app/linkedin/id288429040"),
+                webURL: game.url
+            )
+            
         default:
             // Generic web games - no app
             return GameLaunchOption(

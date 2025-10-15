@@ -229,17 +229,24 @@ struct AllStreaksView: View {
         @Environment(AppState.self) private var appState
         @State private var isHovered = false
         
-        private var game: Game? {
-            appState.games.first { $0.id == streak.gameId }
+    private var game: Game? {
+        appState.games.first { $0.id == streak.gameId }
+    }
+    
+    private var safeIconName: String {
+        guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
+            return "gamecontroller"
         }
-        
-        var body: some View {
-            HStack(spacing: Spacing.md) {
-                // Game icon with animation
-                Image(systemName: game?.iconSystemName ?? "gamecontroller")
-                    .font(.title3)
-                    .foregroundStyle(game?.backgroundColor.color ?? .gray)
-                    .frame(width: 40, height: 40)
+        return iconName
+    }
+    
+    var body: some View {
+        HStack(spacing: Spacing.md) {
+            // Game icon with animation
+            Image.safeSystemName(safeIconName, fallback: "gamecontroller")
+                .font(.title3)
+                .foregroundStyle(game?.backgroundColor.color ?? .gray)
+                .frame(width: 40, height: 40)
                     .background {
                         Circle()
                             .fill(game?.backgroundColor.color.opacity(0.1) ?? Color.gray.opacity(0.1))
@@ -337,7 +344,7 @@ struct AllStreaksView: View {
         
         var body: some View {
             VStack(spacing: Spacing.xs) {
-                Image(systemName: icon)
+                Image.safeSystemName(icon, fallback: "questionmark.circle")
                     .font(.caption)
                     .foregroundStyle(color)
                     .symbolEffect(.bounce, value: isPressed)
@@ -593,7 +600,7 @@ struct ModernSummaryCard: View {
                         .blur(radius: 8)
                 }
                 
-                Image(systemName: icon)
+                Image.safeSystemName(icon, fallback: "questionmark.circle")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(color)
                     .symbolEffect(.bounce, value: isPressed)
@@ -660,7 +667,7 @@ struct ModernFilterButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Image(systemName: filter.icon)
+                Image.safeSystemName(filter.icon, fallback: "line.3.horizontal.decrease")
                     .font(.caption.weight(.medium))
                 
                 Text(filter.displayName)
@@ -729,6 +736,13 @@ struct ModernStreakCard: View {
         return Int((Double(streak.totalGamesCompleted) / Double(streak.totalGamesPlayed)) * 100)
     }
     
+    private var safeGameIconName: String {
+        guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
+            return "gamecontroller"
+        }
+        return iconName
+    }
+    
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
@@ -749,7 +763,7 @@ struct ModernStreakCard: View {
                         .frame(width: 56, height: 56)
                     
                     // Icon
-                    Image(systemName: game?.iconSystemName ?? "gamecontroller")
+                    Image.safeSystemName(safeGameIconName, fallback: "gamecontroller")
                         .font(.system(size: 24, weight: .medium))
                         .foregroundStyle(gameColor)
                         .symbolRenderingMode(.hierarchical)
@@ -964,7 +978,7 @@ struct LegacySummaryCard: View {
     var body: some View {
         VStack(spacing: 8) {
             // Icon
-            Image(systemName: icon)
+            Image.safeSystemName(icon, fallback: "questionmark.circle")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(color)
             
@@ -1027,7 +1041,7 @@ struct LegacyFilterButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Image(systemName: filter.icon)
+                Image.safeSystemName(filter.icon, fallback: "line.3.horizontal.decrease")
                     .font(.caption.weight(.medium))
                 
                 Text(filter.displayName)
@@ -1094,6 +1108,13 @@ struct LegacyStreakCard: View {
         return Int((Double(streak.totalGamesCompleted) / Double(streak.totalGamesPlayed)) * 100)
     }
     
+    private var safeCompactIconName: String {
+        guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
+            return "gamecontroller"
+        }
+        return iconName
+    }
+    
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
@@ -1103,7 +1124,7 @@ struct LegacyStreakCard: View {
                         .fill(gameColor.opacity(0.15))
                         .frame(width: 48, height: 48)
                     
-                    Image(systemName: game?.iconSystemName ?? "gamecontroller")
+                    Image.safeSystemName(safeCompactIconName, fallback: "gamecontroller")
                         .font(.system(size: 20, weight: .medium))
                         .foregroundStyle(gameColor)
                 }
@@ -1310,10 +1331,17 @@ struct StreakListRow: View {
         appState.games.first { $0.id == streak.gameId }
     }
     
+    private var safeStreakIconName: String {
+        guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
+            return "gamecontroller"
+        }
+        return iconName
+    }
+    
     var body: some View {
         HStack(spacing: Spacing.md) {
             // Game icon
-            Image(systemName: game?.iconSystemName ?? "gamecontroller")
+            Image.safeSystemName(safeStreakIconName, fallback: "gamecontroller")
                 .font(.title3)
                 .foregroundStyle(game?.backgroundColor.color ?? .gray)
                 .frame(width: 40, height: 40)

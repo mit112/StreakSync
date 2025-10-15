@@ -264,7 +264,7 @@ struct iOS26StatCard: View {
     
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: icon)
+            Image.safeSystemName(icon, fallback: "star.fill")
                 .font(.title2)
                 .foregroundStyle(accentColor)
                 .symbolEffect(.pulse, options: .repeating.speed(0.5), value: isHovered)
@@ -307,7 +307,7 @@ struct iOS26CategoryChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Image(systemName: icon)
+                Image.safeSystemName(icon, fallback: "star.fill")
                     .font(.caption)
                     .symbolEffect(.bounce, value: isSelected)
                 Text(title)
@@ -351,6 +351,11 @@ struct iOS26AchievementCard: View {
         return min(Double(achievement.progress.currentValue) / Double(nextRequirement.threshold), 1.0)
     }
     
+    private var safeIconName: String {
+        let iconName = achievement.iconSystemName
+        return iconName.isEmpty ? "star.fill" : iconName
+    }
+    
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 12) {
@@ -384,7 +389,7 @@ struct iOS26AchievementCard: View {
                         }
                     
                     // Icon
-                    Image(systemName: achievement.iconSystemName)
+                    Image.safeSystemName(safeIconName, fallback: "star.fill")
                         .font(.title)
                         .foregroundStyle(
                             achievement.isUnlocked ?

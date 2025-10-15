@@ -90,11 +90,13 @@ extension AppState {
     private func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
         logger.info("🎉 Tiered Achievement Unlocked: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
         
-        // Post notification for UI
-        NotificationCenter.default.post(
-            name: Notification.Name("TieredAchievementUnlocked"),
-            object: unlock
-        )
+        // Post notification for UI with delay to prevent race conditions
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            NotificationCenter.default.post(
+                name: Notification.Name("TieredAchievementUnlocked"),
+                object: unlock
+            )
+        }
         
         // Trigger haptic feedback
         HapticManager.shared.trigger(.achievement)

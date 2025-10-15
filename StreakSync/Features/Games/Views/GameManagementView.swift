@@ -197,7 +197,7 @@ struct GameManagementRow: View {
     var body: some View {
         HStack(spacing: 16) {
             // Icon
-            Image(systemName: game.iconSystemName)
+            Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
                 .font(.title2)
                 .foregroundStyle(game.backgroundColor.color)
                 .frame(width: 50, height: 50)

@@ -16,7 +16,8 @@ struct GameIcon: View {
     @Environment(\.colorScheme) private var colorScheme
     
     init(icon: String, backgroundColor: Color, size: CGFloat, gameType: GameType? = nil) {
-        self.icon = icon
+        // Always provide a fallback icon if empty
+        self.icon = icon.isEmpty ? "gamecontroller" : icon
         self.backgroundColor = backgroundColor
         self.size = size
         self.gameType = gameType
@@ -24,7 +25,10 @@ struct GameIcon: View {
     
     // Convenience initializer for Game
     init(game: Game, size: CGFloat) {
-        self.icon = game.iconSystemName
+        if game.iconSystemName.isEmpty {
+            print("⚠️ [GameIcon.init] Empty icon for game '\(game.displayName)' (\(game.name))")
+        }
+        self.icon = game.iconSystemName.isEmpty ? "gamecontroller" : game.iconSystemName
         self.backgroundColor = game.backgroundColor.color
         self.size = size
         self.gameType = nil
@@ -41,8 +45,8 @@ struct GameIcon: View {
                         .stroke(backgroundColor.opacity(0.4), lineWidth: 1)
                 }
 
-            // Icon with appropriate styling
-            Image(systemName: icon)
+            // Icon with appropriate styling - using safe wrapper
+            Image.safeSystemName(icon, fallback: "gamecontroller")
                 .font(.system(size: size * 0.5, weight: .medium))
                 .foregroundStyle(backgroundColor)
         }

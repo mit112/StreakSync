@@ -52,7 +52,7 @@ struct AnimatedButton: View {
         Button(action: performAction) {
             HStack(spacing: Spacing.sm) {
                 if let icon = icon {
-                    Image(systemName: icon)
+                    Image.safeSystemName(icon, fallback: "button")
                         .font(.body)
                 }
                 
@@ -98,7 +98,7 @@ struct IconButton: View {
     
     var body: some View {
         Button(action: performAction) {
-            Image(systemName: icon)
+            Image.safeSystemName(icon, fallback: "button")
                 .font(.body)
                 .foregroundStyle(.primary)
                 .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)

@@ -39,13 +39,23 @@ final class AppState {
     
     // MARK: - Navigation State
     var isNavigatingFromNotification = false
+
+    // MARK: - Social
+    var socialService: SocialService?
+    
+    // MARK: - Analytics
+    var analyticsService: AnalyticsService?
     
     // MARK: - Favorite Games Management
     var favoriteGames: [Game] {
-        games.filter { game in
+        var favorites: [Game] = []
+        for game in games {
             // Check if game is in favorites using GameCatalog
-            GameCatalog.shared.isFavorite(game.id)
+            if GameCatalog.shared.isFavorite(game.id) {
+                favorites.append(game)
+            }
         }
+        return favorites
     }
     
     // MARK: - Persistence State
@@ -66,6 +76,7 @@ final class AppState {
         self.appGroupPersistence = AppGroupPersistenceService(appGroupID: "group.com.mitsheth.StreakSync")
         
         setupInitialData()
+        setupDayChangeListener()
         
         // Defer data loading to app bootstrap to avoid double-loading
         
@@ -75,10 +86,61 @@ final class AppState {
     // MARK: - Initial Setup
     private func setupInitialData() {
         self.games = Game.allAvailableGames
-        self.streaks = self.games.map { GameStreak.empty(for: $0) }
+        var newStreaks: [GameStreak] = []
+        for game in self.games {
+            newStreaks.append(GameStreak.empty(for: game))
+        }
+        self.streaks = newStreaks
         self.achievements = createDefaultAchievements()
         
         logger.debug("Initial data setup complete")
+    }
+    
+    // MARK: - Game Refresh (for new games)
+    func refreshGames() {
+        logger.info("🔄 Refreshing games from catalog...")
+        let newGames = Game.allAvailableGames
+        
+        // Add new games that don't exist yet
+        for newGame in newGames {
+            if !self.games.contains(where: { $0.id == newGame.id }) {
+                self.games.append(newGame)
+                self.streaks.append(GameStreak.empty(for: newGame))
+                logger.info("✅ Added new game: \(newGame.displayName)")
+            }
+        }
+        
+        logger.info("✅ Games refresh complete. Total games: \(self.games.count)")
+    }
+    
+    private func setupDayChangeListener() {
+        // Listen for day change notifications
+        NotificationCenter.default.addObserver(
+            forName: .dayDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleDayChange(notification)
+        }
+        
+        logger.debug("Day change listener setup complete")
+    }
+    
+    private func handleDayChange(_ notification: Notification) {
+        logger.info("📅 Day changed - refreshing UI data")
+        
+        // Invalidate caches that depend on dates
+        invalidateCache()
+        
+        // Rebuild streaks to ensure they reflect the new day
+        Task {
+            await rebuildStreaksFromResults()
+            
+            // Check for new achievements that might be unlocked
+            await checkAllAchievements()
+            
+            logger.info("✅ UI refreshed for new day")
+        }
     }
     
     internal func createDefaultAchievements() -> [Achievement] {
@@ -93,14 +155,24 @@ final class AppState {
     // MARK: - Computed Properties
     var totalActiveStreaks: Int {
         if let cached = _totalActiveStreaks { return cached }
-        let count = streaks.lazy.filter(\.isActive).count
+        var count = 0
+        for streak in streaks {
+            if streak.isActive {
+                count += 1
+            }
+        }
         _totalActiveStreaks = count
         return count
     }
     
     var longestCurrentStreak: Int {
         if let cached = _longestCurrentStreak { return cached }
-        let longest = streaks.lazy.map(\.currentStreak).max() ?? 0
+        var longest = 0
+        for streak in streaks {
+            if streak.currentStreak > longest {
+                longest = streak.currentStreak
+            }
+        }
         _longestCurrentStreak = longest
         return longest
     }
@@ -108,13 +180,24 @@ final class AppState {
     var todaysResults: [GameResult] {
         if let cached = _todaysResults { return cached }
         let today = Calendar.current.startOfDay(for: Date())
-        let results: [GameResult] = recentResults.filter { Calendar.current.isDate($0.date, inSameDayAs: today) }
+        var results: [GameResult] = []
+        for result in recentResults {
+            if Calendar.current.isDate(result.date, inSameDayAs: today) {
+                results.append(result)
+            }
+        }
         _todaysResults = results
         return results
     }
     
     var unlockedAchievements: [Achievement] {
-        achievements.filter(\.isUnlocked)
+        var unlocked: [Achievement] = []
+        for achievement in achievements {
+            if achievement.isUnlocked {
+                unlocked.append(achievement)
+            }
+        }
+        return unlocked
     }
     
     // MARK: - Cache Management
@@ -122,6 +205,9 @@ final class AppState {
         _totalActiveStreaks = nil
         _longestCurrentStreak = nil
         _todaysResults = nil
+        
+        // Also clear analytics cache when data changes
+        analyticsService?.clearCache()
     }
     
     // MARK: - Duplicate Detection
@@ -145,9 +231,26 @@ final class AppState {
             logger.debug("  Existing: \(existingResult.gameName) #\(existingPuzzle) on \(existingResult.date)")
         }
         
-        // Build cache if needed
+        // Build cache if needed - ensure it's always up to date
         if self.gameResultsCache.isEmpty {
+            logger.info("🔄 Building results cache (was empty)")
             buildResultsCache()
+        } else {
+            // Double-check that the cache is current
+            let expectedCacheSize = self.recentResults.filter { result in
+                let puzzleNumber = result.parsedData["puzzleNumber"] ?? ""
+                let cleanPuzzleNumber = puzzleNumber
+                    .replacingOccurrences(of: ",", with: "")
+                    .replacingOccurrences(of: " ", with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                return !cleanPuzzleNumber.isEmpty && cleanPuzzleNumber != "unknown"
+            }.count
+            
+            let actualCacheSize = self.gameResultsCache.values.flatMap { $0 }.count
+            if expectedCacheSize != actualCacheSize {
+                logger.info("🔄 Rebuilding results cache (size mismatch: expected \(expectedCacheSize), actual \(actualCacheSize))")
+                buildResultsCache()
+            }
         }
         
         // Method 1: Check exact ID match
@@ -158,11 +261,23 @@ final class AppState {
         
         // Method 2: Check puzzle number for games that have them
         if !cleanPuzzleNumber.isEmpty && cleanPuzzleNumber != "unknown" {
-            // Check cache first
-            if let cachedPuzzles = self.gameResultsCache[result.gameId],
-               cachedPuzzles.contains(cleanPuzzleNumber) {
-                logger.info("❌ Duplicate detected: Puzzle #\(cleanPuzzleNumber) already exists for \(result.gameName)")
-                return true
+            // Special handling for Pips - check puzzle number + difficulty combination
+            if result.gameName.lowercased() == "pips" {
+                let difficulty = result.parsedData["difficulty"] ?? ""
+                let puzzleDifficultyKey = "\(cleanPuzzleNumber)-\(difficulty)"
+                
+                if let cachedPuzzles = self.gameResultsCache[result.gameId],
+                   cachedPuzzles.contains(puzzleDifficultyKey) {
+                    logger.info("❌ Duplicate detected: Puzzle #\(cleanPuzzleNumber) \(difficulty) already exists for \(result.gameName)")
+                    return true
+                }
+            } else {
+                // Standard puzzle number check for other games
+                if let cachedPuzzles = self.gameResultsCache[result.gameId],
+                   cachedPuzzles.contains(cleanPuzzleNumber) {
+                    logger.info("❌ Duplicate detected: Puzzle #\(cleanPuzzleNumber) already exists for \(result.gameName)")
+                    return true
+                }
             }
         }
         
@@ -202,7 +317,16 @@ final class AppState {
                 if self.gameResultsCache[result.gameId] == nil {
                     self.gameResultsCache[result.gameId] = Set<String>()
                 }
-                self.gameResultsCache[result.gameId]?.insert(cleanPuzzleNumber)
+                
+                // Special handling for Pips - store puzzle number + difficulty combination
+                if result.gameName.lowercased() == "pips" {
+                    let difficulty = result.parsedData["difficulty"] ?? ""
+                    let puzzleDifficultyKey = "\(cleanPuzzleNumber)-\(difficulty)"
+                    self.gameResultsCache[result.gameId]?.insert(puzzleDifficultyKey)
+                } else {
+                    // Standard puzzle number for other games
+                    self.gameResultsCache[result.gameId]?.insert(cleanPuzzleNumber)
+                }
             }
         }
         
@@ -235,7 +359,16 @@ final class AppState {
             if self.gameResultsCache[result.gameId] == nil {
                 self.gameResultsCache[result.gameId] = Set<String>()
             }
-            self.gameResultsCache[result.gameId]?.insert(cleanPuzzleNumber)
+            
+            // Special handling for Pips - store puzzle number + difficulty combination
+            if result.gameName.lowercased() == "pips" {
+                let difficulty = result.parsedData["difficulty"] ?? ""
+                let puzzleDifficultyKey = "\(cleanPuzzleNumber)-\(difficulty)"
+                self.gameResultsCache[result.gameId]?.insert(puzzleDifficultyKey)
+            } else {
+                // Standard puzzle number for other games
+                self.gameResultsCache[result.gameId]?.insert(cleanPuzzleNumber)
+            }
         }
         
         // Update streak SYNCHRONOUSLY
@@ -254,28 +387,30 @@ final class AppState {
         // Invalidate UI cache
         invalidateCache()
         
-        // CRITICAL: Post multiple notifications to ensure UI updates
-        DispatchQueue.main.async {
-            // Post general update notification
+        // CRITICAL: Post notifications SYNCHRONOUSLY to prevent race conditions
+        logger.info("📢 Posting notifications for new result: \(result.gameName) - \(result.displayScore)")
+        
+        // Post general update notification
+        NotificationCenter.default.post(
+            name: NSNotification.Name("GameResultAdded"),
+            object: result
+        )
+        
+        // Post game-specific update
+        NotificationCenter.default.post(
+            name: NSNotification.Name("GameDataUpdated"),
+            object: nil
+        )
+        
+        // Post refresh notification for the specific game
+        if let game = self.games.first(where: { $0.id == result.gameId }) {
             NotificationCenter.default.post(
-                name: NSNotification.Name("GameResultAdded"),
-                object: result
+                name: Notification.Name("RefreshGameData"),
+                object: game
             )
-            
-            // Post game-specific update
-            NotificationCenter.default.post(
-                name: NSNotification.Name("GameDataUpdated"),
-                object: nil
-            )
-            
-            // Post refresh notification for the specific game
-            if let game = self.games.first(where: { $0.id == result.gameId }) {
-                NotificationCenter.default.post(
-                    name: Notification.Name("RefreshGameData"),
-                    object: game
-                )
-            }
         }
+        
+        logger.info("✅ All notifications posted successfully")
         
         // CRITICAL: Save all data including updated streaks
         Task {
@@ -290,6 +425,27 @@ final class AppState {
         // Check for streak risk and schedule reminders
         Task {
             await checkAndScheduleStreakReminders()
+        }
+
+        // Publish to social service (best-effort, non-blocking)
+        Task { [weak self] in
+            guard let self else { return }
+            guard let social = self.socialService else { return }
+            // Build one DailyGameScore for this result
+            let userId = "local_user" // MockSocialService will map to real on publish
+            let dateInt = result.date.utcYYYYMMDD
+            let compositeId = "\(userId)|\(dateInt)|\(result.gameId.uuidString)"
+            let score = DailyGameScore(
+                id: compositeId,
+                userId: userId,
+                dateInt: dateInt,
+                gameId: result.gameId,
+                gameName: result.gameName,
+                score: result.score,
+                maxAttempts: result.maxAttempts,
+                completed: result.completed
+            )
+            try? await social.publishDailyScores(dateUTC: result.date, scores: [score])
         }
     }
     
@@ -321,6 +477,79 @@ final class AppState {
         }
     }
     
+    // MARK: - Grouped Results for Pips
+    func getGroupedResults(for game: Game) -> [GroupedGameResult] {
+        guard game.name.lowercased() == "pips" else {
+            // For non-Pips games, return empty array (they use regular results)
+            return []
+        }
+        
+        // Group results by puzzle number
+        var pipsResults: [GameResult] = []
+        for result in recentResults {
+            if result.gameId == game.id {
+                pipsResults.append(result)
+            }
+        }
+        logger.debug("🔍 getGroupedResults: Found \(pipsResults.count) Pips results")
+        
+        let groupedByPuzzle = Dictionary(grouping: pipsResults) { result in
+            result.parsedData["puzzleNumber"] ?? "unknown"
+        }
+        
+        logger.debug("🔍 getGroupedResults: Grouped into \(groupedByPuzzle.count) puzzles")
+        
+        // Convert to GroupedGameResult objects
+        var groupedResults: [GroupedGameResult] = []
+        
+        for (puzzleNumber, results) in groupedByPuzzle {
+            guard puzzleNumber != "unknown", !results.isEmpty else { continue }
+            
+            // Sort results by date (most recent first)
+            let sortedResults = results.sorted { (result1: GameResult, result2: GameResult) in
+                result1.date > result2.date
+            }
+            
+            logger.debug("🔍 Puzzle #\(puzzleNumber): \(sortedResults.count) results")
+            for result in sortedResults {
+                logger.debug("   - \(result.parsedData["difficulty"] ?? "?") - \(result.parsedData["time"] ?? "?")")
+            }
+            
+            let groupedResult = GroupedGameResult(
+                gameId: game.id,
+                gameName: game.name,
+                puzzleNumber: puzzleNumber,
+                date: sortedResults.first?.date ?? Date(),
+                results: sortedResults
+            )
+            groupedResults.append(groupedResult)
+        }
+        
+        // Sort by date, most recent first
+        groupedResults.sort { (result1: GroupedGameResult, result2: GroupedGameResult) in
+            result1.date > result2.date
+        }
+        
+        logger.debug("🔍 getGroupedResults: Returning \(groupedResults.count) grouped results")
+        return groupedResults
+    }
+    
+    /// Convenience method to delete a game result by passing the result object
+    func deleteGameResult(_ result: GameResult) {
+        removeGameResult(result.id)
+    }
+    
+    /// Check all achievements for all recent results (used during day changes)
+    func checkAllAchievements() async {
+        logger.info("🔍 Checking all achievements for day change")
+        
+        // Check achievements for each recent result
+        for result in recentResults {
+            checkAchievements(for: result)
+        }
+        
+        logger.info("✅ Completed checking all achievements")
+    }
 
     func unlockAchievement(_ achievement: Achievement) {
         guard let index = achievements.firstIndex(where: { $0.id == achievement.id }),
@@ -347,145 +576,124 @@ final class AppState {
     
     // MARK: - Streak Risk Detection
     func checkAndScheduleStreakReminders() async {
+        // Check if reminders are enabled globally
+        let remindersEnabled = UserDefaults.standard.bool(forKey: "streakRemindersEnabled")
+        guard remindersEnabled else {
+            await NotificationScheduler.shared.cancelAllStreakReminders()
+            logger.info("⏭️ Streak reminders disabled - cancelled all notifications")
+            return
+        }
+        
+        // Get user's preferred time
+        let preferredHour = UserDefaults.standard.object(forKey: "streakReminderHour") as? Int ?? 19
+        let preferredMinute = UserDefaults.standard.object(forKey: "streakReminderMinute") as? Int ?? 0
+        
+        // Find all games at risk (active streaks, not played today)
+        let gamesAtRisk = getGamesAtRisk()
+        
+        logger.info("🔍 Found \(gamesAtRisk.count) games at risk: \(gamesAtRisk.map { $0.name }.joined(separator: ", "))")
+        
+        if gamesAtRisk.isEmpty {
+            await NotificationScheduler.shared.cancelDailyStreakReminder()
+            logger.info("✅ No games at risk - cancelled daily reminder")
+        } else {
+            await NotificationScheduler.shared.scheduleDailyStreakReminder(
+                games: gamesAtRisk,
+                hour: preferredHour,
+                minute: preferredMinute
+            )
+            logger.info("✅ Scheduled daily reminder at \(preferredHour):\(String(format: "%02d", preferredMinute)) for \(gamesAtRisk.count) games")
+        }
+    }
+    
+    private func getGamesAtRisk() -> [Game] {
         let calendar = Calendar.current
         let now = Date()
         
-        // Check global notification settings
-        let streakMaintenanceEnabled = UserDefaults.standard.object(forKey: "streakMaintenanceEnabled") as? Bool ?? true
-        
-        logger.info("🔍 Checking streak reminders for \(self.games.count) games...")
-        logger.info("🔧 Global settings: streakMaintenance=\(streakMaintenanceEnabled)")
+        var atRiskGames: [Game] = []
         
         for game in games {
-            logger.info("🎮 Checking game: \(game.name)")
-            
-            guard let streak = streaks.first(where: { $0.gameId == game.id }) else { 
-                logger.info("  ⏭️ No streak found for \(game.name)")
-                continue 
+            // Check if game has active streak
+            guard let streak = streaks.first(where: { $0.gameId == game.id }),
+                  streak.currentStreak > 0 else {
+                continue
             }
             
-            logger.info("  📊 Streak: \(streak.currentStreak) days")
-            
-            // Skip if streak is 0 (no active streak)
-            guard streak.currentStreak > 0 else { 
-                logger.info("  ⏭️ No active streak for \(game.name)")
-                continue 
-            }
-            
-            // Maintain Streaks toggle controls end-of-day reminders only (no favorites filter)
-            
-            // End-of-day streak protection (Maintain Streaks): after 9 PM if not played today
-            if streakMaintenanceEnabled {
-                let hasPlayedTodayForGame = recentResults.contains { result in
-                    result.gameId == game.id &&
-                    calendar.isDate(result.date, inSameDayAs: now) &&
-                    result.completed
-                }
-                // Only for games with streak count == 1
-                if streak.currentStreak == 1 && !hasPlayedTodayForGame {
-                    await NotificationScheduler.shared.scheduleEndOfDayStreakReminder(for: game, now: now)
-                    logger.info("  ✅ Scheduled EOD reminder for \(game.name) (Maintain Streaks, streak=1)")
-                } else {
-                    NotificationScheduler.shared.cancelTodayEndOfDayStreakReminder(for: game.id, now: now)
-                    logger.info("  🗑️ Cancelled EOD reminder for \(game.name) - already played or streak != 1")
-                }
-            }
-            
-            // Get user's custom reminder settings for this game (per-game reminders)
-            let reminderSettings = getGameReminderSettings(for: game.id)
-            logger.info("  ⚙️ Reminder settings: enabled=\(reminderSettings.isEnabled), time=\(reminderSettings.preferredHour):\(String(format: "%02d", reminderSettings.preferredMinute))")
-            
-            guard reminderSettings.isEnabled else { 
-                logger.info("  ⏭️ Reminders disabled for \(game.name)")
-                continue 
-            }
-            
-            // Check if user has played today
+            // Check if user played today
             let hasPlayedToday = recentResults.contains { result in
-                result.gameId == game.id && 
+                result.gameId == game.id &&
                 calendar.isDate(result.date, inSameDayAs: now) &&
                 result.completed
             }
             
-            logger.info("  🎯 Played today: \(hasPlayedToday)")
-            
-            // For testing: if user set a time in the near future (within 2 hours), schedule it regardless
-            let preferredTime = calendar.date(
-                bySettingHour: reminderSettings.preferredHour, 
-                minute: reminderSettings.preferredMinute, 
-                second: 0, 
-                of: now
-            ) ?? now
-            
-            let timeUntilPreferred = preferredTime.timeIntervalSince(now) / 3600 // hours
-            let isNearFuture = timeUntilPreferred > 0 && timeUntilPreferred <= 2 // within 2 hours
-            
-            logger.info("  ⏰ Time until preferred: \(String(format: "%.1f", timeUntilPreferred)) hours")
-            logger.info("  🧪 Is near future: \(isNearFuture)")
-            
-            // Schedule if: (not played today AND 20+ hours since last play) OR (near future for testing)
-            // For testing: also schedule if user has a very recent last play (within 1 hour) and near future time
-            let hasRecentPlay = streak.lastPlayedDate != nil && now.timeIntervalSince(streak.lastPlayedDate!) / 3600 <= 1
-            
-            let shouldSchedule = (!hasPlayedToday && 
-                                (streak.lastPlayedDate == nil || 
-                                 now.timeIntervalSince(streak.lastPlayedDate!) / 3600 >= 20)) || 
-                               isNearFuture ||
-                               (hasRecentPlay && isNearFuture)
-            
-            logger.info("  🧪 Has recent play (within 1 hour): \(hasRecentPlay)")
-            logger.info("  🧪 Should schedule: \(shouldSchedule)")
-            
-            if shouldSchedule {
-                // If the preferred time has already passed today, schedule for tomorrow
-                let finalTime = preferredTime > now ? preferredTime : calendar.date(byAdding: .day, value: 1, to: preferredTime) ?? preferredTime
-                
-                await NotificationScheduler.shared.scheduleStreakReminder(for: game, at: finalTime)
-                logger.info("  ✅ Scheduled streak reminder for \(game.name) at \(finalTime) (user's preferred time: \(reminderSettings.preferredHour):\(String(format: "%02d", reminderSettings.preferredMinute)))")
-            } else {
-                if hasPlayedToday {
-                    logger.info("  ⏭️ Already played today for \(game.name)")
-                } else if let lastPlayed = streak.lastPlayedDate {
-                    let hoursSinceLastPlay = now.timeIntervalSince(lastPlayed) / 3600
-                    logger.info("  ⏭️ Not enough time passed for \(game.name) (need 20+ hours, got \(String(format: "%.1f", hoursSinceLastPlay)))")
-                } else {
-                    logger.info("  ⏭️ No last played date for \(game.name)")
-                }
+            if !hasPlayedToday {
+                atRiskGames.append(game)
             }
         }
         
-        logger.info("✅ Streak reminder check completed")
+        return atRiskGames
     }
     
-    // MARK: - Game Reminder Settings Helper
-    private func getGameReminderSettings(for gameId: UUID) -> GameReminderSettings {
-        let key = "gameReminder_\(gameId.uuidString)"
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let settings = try? JSONDecoder().decode(GameReminderSettings.self, from: data) else {
-            return GameReminderSettings() // Default settings
+    // MARK: - Migration Helper
+    func migrateNotificationSettings() {
+        let migrationKey = "notificationSystemMigrated_v2"
+        
+        guard !UserDefaults.standard.bool(forKey: migrationKey) else {
+            return
         }
-        return settings
+        
+        // Clean up all old notification requests
+        Task {
+            await NotificationScheduler.shared.cancelAllNotifications()
+        }
+        
+        // Set default values for new system
+        UserDefaults.standard.set(true, forKey: "streakRemindersEnabled")
+        
+        // Use smart default time based on user's play patterns
+        let smartTime = calculateSmartDefaultTime()
+        UserDefaults.standard.set(smartTime.hour, forKey: "streakReminderHour")
+        UserDefaults.standard.set(smartTime.minute, forKey: "streakReminderMinute")
+        
+        // Mark migration as complete
+        UserDefaults.standard.set(true, forKey: migrationKey)
+        
+        logger.info("✅ Migrated to simplified notification system with smart default time: \(smartTime.hour):\(String(format: "%02d", smartTime.minute))")
     }
     
-    // MARK: - Notification Logic Helper
-    private func shouldNotifyForGame(game: Game, isFavorite: Bool, streakMaintenanceEnabled: Bool, favoriteGamesEnabled: Bool) -> Bool {
-        // If both toggles are off, no notifications
-        if !streakMaintenanceEnabled && !favoriteGamesEnabled {
-            return false
+    /// Calculate smart default time based on user's typical play patterns
+    private func calculateSmartDefaultTime() -> (hour: Int, minute: Int) {
+        // Analyze recent game results to find typical play times
+        let calendar = Calendar.current
+        let now = Date()
+        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) ?? now
+        
+        // Get recent results from the last 30 days
+        let recentResults = self.recentResults.filter { result in
+            result.date >= thirtyDaysAgo && result.completed
         }
         
-        // If only streak maintenance is enabled, notify for all games with streaks
-        if streakMaintenanceEnabled && !favoriteGamesEnabled {
-            return true
+        guard !recentResults.isEmpty else {
+            // No recent data, use default 7 PM
+            return (hour: 19, minute: 0)
         }
         
-        // If only favorite games is enabled, notify only for favorites
-        if !streakMaintenanceEnabled && favoriteGamesEnabled {
-            return isFavorite
+        // Extract hours from recent play times
+        let playHours = recentResults.map { result in
+            calendar.component(.hour, from: result.date)
         }
         
-        // If both are enabled, notify for all games (favorites get priority but all games get notifications)
-        return true
+        // Calculate most common play hour
+        let hourCounts = Dictionary(grouping: playHours, by: { $0 })
+        let mostCommonHour = hourCounts.max(by: { $0.value.count < $1.value.count })?.key ?? 19
+        
+        // Set reminder for 2 hours before typical play time
+        // This gives users a heads up before they usually play
+        let reminderHour = max(6, mostCommonHour - 2) // Don't go earlier than 6 AM
+        
+        logger.info("📊 Smart default time: Most common play hour: \(mostCommonHour), Setting reminder for: \(reminderHour):00")
+        
+        return (hour: reminderHour, minute: 0)
     }
     
     // MARK: - State Management

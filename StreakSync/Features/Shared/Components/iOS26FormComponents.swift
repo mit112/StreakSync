@@ -54,7 +54,7 @@ struct iOS26CategoryPicker: View {
         var body: some View {
             Button(action: action) {
                 HStack(spacing: 6) {
-                    Image(systemName: category.iconSystemName)
+                    Image.safeSystemName(category.iconSystemName, fallback: "folder")
                         .font(.caption)
                     Text(category.displayName)
                         .font(.caption.weight(.medium))

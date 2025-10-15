@@ -14,6 +14,7 @@ struct AchievementUnlockCelebrationView: View {
     @State private var phase: CelebrationPhase = .hidden
     @State private var particlesActive = false
     @State private var confettiCounter = 0
+    @State private var badgePulse = false
     @Environment(\.dismiss) private var dismiss
     
     // Accessibility
@@ -135,6 +136,11 @@ struct AchievementUnlockCelebrationView: View {
             .accessibilityHidden(true) // Background is decorative
     }
     
+    private var safeIconName: String {
+        let iconName = unlock.achievement.iconSystemName
+        return iconName.isEmpty ? "star.fill" : iconName
+    }
+    
     // MARK: - Achievement Badge
     private var achievementBadge: some View {
         ZStack {
@@ -164,6 +170,8 @@ struct AchievementUnlockCelebrationView: View {
                 Circle()
                     .fill(unlock.tier.color.opacity(0.2))
                     .frame(width: 120, height: 120)
+                    .scaleEffect(badgePulse ? 1.1 : 1.0)
+                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: badgePulse)
                 
                 // Glass effect circle
                 Circle()
@@ -185,7 +193,7 @@ struct AchievementUnlockCelebrationView: View {
                     )
                 
                 // Achievement icon
-                Image(systemName: unlock.achievement.iconSystemName)
+                Image.safeSystemName(safeIconName, fallback: "star.fill")
                     .font(.system(size: 50, weight: .medium))
                     .foregroundStyle(unlock.tier.color)
                     .symbolEffect(.bounce, value: phase == .badgeScaling)
@@ -259,7 +267,7 @@ struct AchievementUnlockCelebrationView: View {
         VStack(spacing: 8) {
             // Progress value
             HStack(spacing: 4) {
-                Image(systemName: "chart.line.uptrend.xyaxis")
+                Image.compatibleSystemName("chart.line.uptrend.xyaxis")
                     .font(.caption)
                 Text("Progress: \(unlock.achievement.progress.currentValue)")
                     .font(.subheadline.weight(.medium))
@@ -368,6 +376,9 @@ struct AchievementUnlockCelebrationView: View {
             }
             SoundManager.shared.play(.pop)
             
+            // Start pulse animation
+            badgePulse = true
+            
             try? await Task.sleep(nanoseconds: 400_000_000) // 0.4s
             
             // Badge scales and particles burst
@@ -475,7 +486,7 @@ private struct TierMiniatureBadge: View {
                 .fill(tier.color)
                 .frame(width: 32, height: 32)
             
-            Image(systemName: tier.iconSystemName)
+            Image.safeSystemName(tier.iconSystemName, fallback: "trophy.fill")
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(.white)
         }
@@ -586,7 +597,7 @@ private struct ParticleView: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(color)
             case .diamond:
-                Image(systemName: "diamond.fill")
+                Image.compatibleSystemName("diamond.fill")
                     .font(.caption2)
                     .foregroundStyle(color)
             }

@@ -25,8 +25,14 @@ extension AppState {
         
         logger.info("🔄 Loading persisted data...")
         
+        // Migrate notification settings to simplified system
+        migrateNotificationSettings()
+        
         // Use parallel loading for better performance
         await loadAllData()
+        
+        // Fix existing Connections results with updated completion logic
+        await fixExistingConnectionsResults()
         
         // Normalize streaks based on last played date
         await normalizeStreaksForMissedDays()
@@ -72,7 +78,7 @@ extension AppState {
             [GameResult].self,
             forKey: UserDefaultsPersistenceService.Keys.gameResults
         ) {
-            let validResults = results.filter(\.isValid)
+            let validResults = results.filter { $0.isValid }
             setRecentResults(validResults.sorted { $0.date > $1.date })
             buildResultsCache()
             logger.debug("Loaded \(validResults.count) game results")
@@ -118,20 +124,25 @@ extension AppState {
 
     // MARK: - Streak Normalization
     /// Resets streaks that are no longer active (missed a full day)
+    /// FIXED: Only reset streaks if they were actually broken by missing a day,
+    /// not just because time has passed since the last play
     @MainActor
     private func normalizeStreaksForMissedDays(referenceDate: Date = Date()) async {
         var updated: [GameStreak] = []
         var didChange = false
+        let calendar = Calendar.current
+        
         for streak in streaks {
             guard streak.currentStreak > 0, let lastPlayed = streak.lastPlayedDate else {
                 updated.append(streak)
                 continue
             }
-            let daysSinceLastPlayed = Calendar.current
-                .dateComponents([.day], from: Calendar.current.startOfDay(for: lastPlayed), to: Calendar.current.startOfDay(for: referenceDate))
-                .day ?? 0
-            if daysSinceLastPlayed > 1 {
-                // Break the streak if a full day has been missed
+            
+            // Check if the streak should be broken based on actual game results
+            let shouldBreakStreak = shouldBreakStreakForGame(streak.gameId, lastPlayedDate: lastPlayed, referenceDate: referenceDate)
+            
+            if shouldBreakStreak {
+                // Break the streak if it should be broken
                 let reset = GameStreak(
                     id: streak.id,
                     gameId: streak.gameId,
@@ -145,16 +156,58 @@ extension AppState {
                 )
                 updated.append(reset)
                 didChange = true
+                logger.info("🔥 Breaking streak for \(streak.gameName) - missed day detected")
             } else {
                 updated.append(streak)
             }
         }
+        
         if didChange {
             setStreaks(updated)
             await saveStreaks()
             invalidateCache()
             logger.info("🔥 Normalized streaks for missed days (some streaks reset)")
         }
+    }
+    
+    /// Determines if a streak should be broken based on actual game results
+    /// A streak should only be broken if there's a gap in completed games
+    private func shouldBreakStreakForGame(_ gameId: UUID, lastPlayedDate: Date, referenceDate: Date) -> Bool {
+        let calendar = Calendar.current
+        let startOfLastPlayed = calendar.startOfDay(for: lastPlayedDate)
+        let startOfReference = calendar.startOfDay(for: referenceDate)
+        
+        // Get all results for this game, sorted by date
+        let gameResults = recentResults
+            .filter { $0.gameId == gameId && $0.completed }
+            .sorted { $0.date < $1.date }
+        
+        // If no completed results, don't break the streak
+        guard !gameResults.isEmpty else { return false }
+        
+        // Check if there's a gap in completed games
+        var currentDate = startOfLastPlayed
+        let endDate = startOfReference
+        
+        while currentDate < endDate {
+            let nextDay = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+            
+            // Check if there's a completed game result for this day
+            let hasCompletedGameOnDay = gameResults.contains { result in
+                calendar.isDate(result.date, inSameDayAs: currentDate)
+            }
+            
+            // If there's no completed game on this day, and it's not the reference day,
+            // then the streak should be broken
+            if !hasCompletedGameOnDay && currentDate < endDate {
+                logger.info("📅 No completed game found for \(gameId) on \(currentDate) - breaking streak")
+                return true
+            }
+            
+            currentDate = nextDay
+        }
+        
+        return false
     }
     
     // MARK: - Share Extension Sync
@@ -289,6 +342,10 @@ extension AppState {
     
     func refreshData() async {
         guard !isLoading else { return }
+        
+        // Refresh games first to pick up any new games
+        refreshGames()
+        
         await loadPersistedData()
     }
     

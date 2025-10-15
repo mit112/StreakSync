@@ -25,7 +25,8 @@ struct GameCompactCardView: View {
     }
     
     private var hasPlayedToday: Bool {
-        game?.hasPlayedToday ?? false
+        guard let lastPlayed = streak.lastPlayedDate else { return false }
+        return GameDateHelper.isGameResultFromToday(lastPlayed)
     }
     
     private var isActive: Bool {
@@ -34,20 +35,19 @@ struct GameCompactCardView: View {
     
     private var daysAgo: String {
         guard let lastPlayed = streak.lastPlayedDate else { return "Never" }
-        
-        let calendar = Calendar.current
-        let days = calendar.dateComponents([.day], from: lastPlayed, to: Date()).day ?? 0
-        
-        switch days {
-        case 0: return "Today"
-        case 1: return "Yesterday"
-        default: return "\(days)d ago"
-        }
+        return GameDateHelper.getGamePlayedDescription(lastPlayed)
     }
     
     private var completionRate: Int {
         guard streak.totalGamesPlayed > 0 else { return 0 }
         return Int((Double(streak.totalGamesCompleted) / Double(streak.totalGamesPlayed)) * 100)
+    }
+    
+    private var safeIconName: String {
+        guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
+            return "gamecontroller"
+        }
+        return iconName
     }
     
     var body: some View {
@@ -129,7 +129,7 @@ struct GameCompactCardView: View {
                                 .frame(width: 56, height: 56)
                         }
                         
-                        Image(systemName: game?.iconSystemName ?? "gamecontroller")
+                        Image.safeSystemName(safeIconName, fallback: "gamecontroller")
                             .font(.system(size: 26, weight: .medium))
                             .foregroundStyle(gameColor)
                             .symbolRenderingMode(.hierarchical)

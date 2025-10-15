@@ -23,20 +23,13 @@ struct ModernGameCard: View {
     }
     
     private var hasPlayedToday: Bool {
-        game.hasPlayedToday
+        guard let lastPlayed = streak.lastPlayedDate else { return false }
+        return GameDateHelper.isGameResultFromToday(lastPlayed)
     }
     
     private var daysAgo: String {
         guard let lastPlayed = streak.lastPlayedDate else { return "Never played" }
-        
-        let calendar = Calendar.current
-        let days = calendar.dateComponents([.day], from: lastPlayed, to: Date()).day ?? 0
-        
-        switch days {
-        case 0: return "Today"
-        case 1: return "Yesterday"
-        default: return "\(days) days ago"
-        }
+        return GameDateHelper.getGamePlayedDescription(lastPlayed)
     }
     
     private var completionRate: Int {
@@ -136,7 +129,7 @@ struct ModernGameCard: View {
                 .fill(gameColor.opacity(colorScheme == .dark ? 0.2 : 0.12))
                 .frame(width: 48, height: 48)
             
-            Image(systemName: game.iconSystemName)
+            Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
                 .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(gameColor)
                 .symbolRenderingMode(.hierarchical)

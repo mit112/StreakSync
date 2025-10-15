@@ -54,6 +54,12 @@ struct TypewriterText: View {
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + characterDelay) {
+            // Double-check bounds in case text changed during animation
+            guard currentIndex < text.count else {
+                onComplete?()
+                return
+            }
+            
             let index = text.index(text.startIndex, offsetBy: currentIndex)
             displayedText += String(text[index])
             currentIndex += 1

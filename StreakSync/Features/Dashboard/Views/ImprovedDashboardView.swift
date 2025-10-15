@@ -21,13 +21,13 @@ struct ImprovedDashboardView: View {
     
     @State private var searchText = ""
     @State private var showOnlyActive = false
-    @State private var refreshID = UUID()
     @State private var isRefreshing = false
     @State private var hasInitiallyAppeared = false
 //    @State private var selectedGameSection: GameSection = .all
-//    @State private var selectedCategory: GameCategory? = nil
+    @State private var selectedCategory: GameCategory? = nil
     @State private var selectedSort: GameSortOption = .lastPlayed
     @State private var sortDirection: SortDirection = .descending
+    @State private var hasSeenGuidance = UserDefaults.standard.bool(forKey: "hasSeenEmptyStateGuidance")
     
     // iOS 26: New scroll position tracking
     @State private var scrollPosition = ScrollPosition()
@@ -41,21 +41,39 @@ struct ImprovedDashboardView: View {
         appState.streaks.filter { $0.isActive }.count
     }
     
+    // Helper to determine if we should show stats
+    private var hasActiveStreaks: Bool {
+        longestCurrentStreak > 0 || activeStreakCount > 0
+    }
+    
+    // Check if user has ever played games before (for contextual messaging)
+    private var isReturningUser: Bool {
+        appState.streaks.contains { streak in
+            streak.lastPlayedDate != nil || streak.maxStreak > 0 || streak.totalGamesPlayed > 0
+        }
+    }
+    
     private var filteredGames: [Game] {
         let baseGames = showOnlyActive ?
             appState.games.filter { game in
                 // Use streak data to determine if game is active
                 guard let streak = appState.getStreak(for: game) else { return false }
-                guard let lastPlayed = streak.lastPlayedDate else { return false }
-                let daysSinceLastPlayed = Calendar.current.dateComponents([.day], from: lastPlayed, to: Date()).day ?? 0
-                return daysSinceLastPlayed < 7
+                // A game is active if it has an active streak (played within 1 day AND has streak > 0)
+                return streak.isActive
             } :
             appState.games
         
-        // Apply search
-        let searchFiltered = searchText.isEmpty ?
+        // Apply category filter
+        let categoryFiltered = selectedCategory == nil ?
             baseGames :
             baseGames.filter { game in
+                game.category == selectedCategory
+            }
+        
+        // Apply search
+        let searchFiltered = searchText.isEmpty ?
+            categoryFiltered :
+            categoryFiltered.filter { game in
                 game.displayName.localizedCaseInsensitiveContains(searchText)
             }
         
@@ -96,36 +114,55 @@ struct ImprovedDashboardView: View {
     // (Removed inline greeting override)
     
     // MARK: - Body
-        var body: some View {
-            if #available(iOS 26.0, *) {
-                iOS26NativeNavigationBody
-            } else {
-                legacyNativeNavigationBody
-            }
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            iOS26NativeNavigationBody
+        } else {
+            legacyNativeNavigationBody
         }
+    }
         
     // MARK: - Legacy Body with Native Navigation
         private var legacyNativeNavigationBody: some View {
             ScrollView {
                 VStack(spacing: 20) {
+                    // Empty state guidance card
+                    if !hasActiveStreaks && !hasSeenGuidance && appState.games.count > 0 {
+                        EmptyStateGuidanceCard(isReturningUser: isReturningUser) {
+                            hasSeenGuidance = true
+                            UserDefaults.standard.set(true, forKey: "hasSeenEmptyStateGuidance")
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    }
+                    
                     // Games section with SIMPLIFIED header
-                    VStack(alignment: .leading, spacing: 8) { // Reduced from 16 to 8
+                    VStack(alignment: .leading, spacing: 12) { // Optimized spacing
                         SimplifiedGamesHeader(
                             displayMode: $displayMode,
                             selectedSort: $selectedSort,
                             sortDirection: $sortDirection,
                             showOnlyActive: $showOnlyActive,
+                            selectedCategory: $selectedCategory,
                             navigateToGameManagement: {
                                 coordinator.navigateTo(.gameManagement)
                             }
                         )
+                        
+                        // Category filter (only show when multiple categories available)
+                        if availableCategories.count > 1 {
+                            CategoryFilterView(
+                                selectedCategory: $selectedCategory,
+                                categories: availableCategories
+                            )
+                            .padding(.horizontal, -16) // Extend to edges
+                        }
                         
                         DashboardGamesContent(
                             filteredGames: filteredGames,
                             filteredStreaks: filteredStreaks,
                             displayMode: displayMode,
                             searchText: searchText,
-                            refreshID: refreshID,
                             hasInitiallyAppeared: hasInitiallyAppeared
                         )
                     }
@@ -149,32 +186,24 @@ struct ImprovedDashboardView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    // Sort menu in toolbar (system-owned presentation = smooth animation)
+                    ToolbarSortMenu(
+                        selectedSort: $selectedSort,
+                        sortDirection: $sortDirection,
+                        showOnlyActive: $showOnlyActive
+                    )
+                    
+                    
+                    // Analytics button - always visible but styled based on data availability
                     Button {
-                        coordinator.navigateTo(.allStreaks)
+                        coordinator.navigateTo(.analyticsDashboard)
                     } label: {
-                        HStack(spacing: 8) {
-                            ToolbarStatChip(
-                                icon: "flame.fill",
-                                value: longestCurrentStreak,
-                                color: .orange
-                            )
-                            .allowsHitTesting(false)
-                            
-                            ToolbarStatChip(
-                                icon: "bolt.fill",
-                                value: activeStreakCount,
-                                color: .green
-                            )
-                            .allowsHitTesting(false)
-                            
-                            // Analytics icon
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                        }
+                        Image.compatibleSystemName("chart.line.uptrend.xyaxis")
+                            .font(.body)
+                            .foregroundStyle(hasActiveStreaks ? .blue : .secondary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("View All Streaks")
+                    .accessibilityLabel("View Analytics")
                 }
             }
             .searchable(
@@ -187,7 +216,7 @@ struct ImprovedDashboardView: View {
             }
             .onAppear {
                 if !hasInitiallyAppeared {
-                    withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
+                    withAnimation(.easeOut(duration: 0.4)) {
                         hasInitiallyAppeared = true
                     }
                 }
@@ -199,6 +228,31 @@ struct ImprovedDashboardView: View {
                     coordinator.navigateTo(.gameDetail(game))
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameDataUpdated"))) { _ in
+                // Force UI refresh when game data is updated
+                Task { @MainActor in
+                    // Trigger a UI update by invalidating any cached data
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameResultAdded"))) { _ in
+                // Force UI refresh when a new game result is added
+                Task { @MainActor in
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshGameData"))) { _ in
+                // Force UI refresh when game data needs to be refreshed
+                Task { @MainActor in
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    }
+                }
+            }
         }
         
         // MARK: - iOS 26 Body with Native Navigation
@@ -206,24 +260,43 @@ struct ImprovedDashboardView: View {
         private var iOS26NativeNavigationBody: some View {
             ScrollView {
                 VStack(spacing: 24) {
+                    // Empty state guidance card
+                    if !hasActiveStreaks && !hasSeenGuidance && appState.games.count > 0 {
+                        EmptyStateGuidanceCard(isReturningUser: isReturningUser) {
+                            hasSeenGuidance = true
+                            UserDefaults.standard.set(true, forKey: "hasSeenEmptyStateGuidance")
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    }
+                    
                     // Games section with SIMPLIFIED header
-                    VStack(alignment: .leading, spacing: 8) { // Reduced from 16 to 8
+                    VStack(alignment: .leading, spacing: 12) { // Optimized spacing
                         SimplifiedGamesHeader(
                             displayMode: $displayMode,
                             selectedSort: $selectedSort,
                             sortDirection: $sortDirection,
                             showOnlyActive: $showOnlyActive,
+                            selectedCategory: $selectedCategory,
                             navigateToGameManagement: {
                                 coordinator.navigateTo(.gameManagement)
                             }
                         )
+                        
+                        // Category filter (only show when multiple categories available)
+                        if availableCategories.count > 1 {
+                            CategoryFilterView(
+                                selectedCategory: $selectedCategory,
+                                categories: availableCategories
+                            )
+                            .padding(.horizontal, -16) // Extend to edges
+                        }
                         
                         DashboardGamesContent(
                             filteredGames: filteredGames,
                             filteredStreaks: filteredStreaks,
                             displayMode: displayMode,
                             searchText: searchText,
-                            refreshID: refreshID,
                             hasInitiallyAppeared: hasInitiallyAppeared
                         )
                         .modifier(iOS26ContentTransitionModifier())
@@ -257,32 +330,24 @@ struct ImprovedDashboardView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    // Sort menu in toolbar (system-owned presentation = smooth animation)
+                    ToolbarSortMenu(
+                        selectedSort: $selectedSort,
+                        sortDirection: $sortDirection,
+                        showOnlyActive: $showOnlyActive
+                    )
+                    
+                    
+                    // Analytics button - always visible but styled based on data availability
                     Button {
-                        coordinator.navigateTo(.allStreaks)
+                        coordinator.navigateTo(.analyticsDashboard)
                     } label: {
-                        HStack(spacing: 8) {
-                            ToolbarStatChip(
-                                icon: "flame.fill",
-                                value: longestCurrentStreak,
-                                color: .orange
-                            )
-                            .allowsHitTesting(false)
-                            
-                            ToolbarStatChip(
-                                icon: "bolt.fill",
-                                value: activeStreakCount,
-                                color: .green
-                            )
-                            .allowsHitTesting(false)
-                            
-                            // Analytics icon
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                        }
+                        Image.compatibleSystemName("chart.line.uptrend.xyaxis")
+                            .font(.body)
+                            .foregroundStyle(hasActiveStreaks ? .blue : .secondary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("View All Streaks")
+                    .accessibilityLabel("View Analytics")
                 }
             }
             .searchable(
@@ -295,16 +360,42 @@ struct ImprovedDashboardView: View {
             }
             .onAppear {
                 if !hasInitiallyAppeared {
-                    withAnimation(.smooth(duration: 0.6).delay(0.1)) {
+                    withAnimation(.easeOut(duration: 0.4)) {
                         hasInitiallyAppeared = true
                     }
                 }
             }
+            .skeletonLoading(isLoading: appState.isLoading && !hasInitiallyAppeared, style: .card)
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NavigateToGame"))) { notification in
                 if let userInfo = notification.object as? [String: Any],
                    let gameId = userInfo["gameId"] as? UUID,
                    let game = appState.games.first(where: { $0.id == gameId }) {
                     coordinator.navigateTo(.gameDetail(game))
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameDataUpdated"))) { _ in
+                // Force UI refresh when game data is updated
+                Task { @MainActor in
+                    // Trigger a UI update by invalidating any cached data
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameResultAdded"))) { _ in
+                // Force UI refresh when a new game result is added
+                Task { @MainActor in
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshGameData"))) { _ in
+                // Force UI refresh when game data needs to be refreshed
+                Task { @MainActor in
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    }
                 }
             }
         }
@@ -314,16 +405,27 @@ struct ImprovedDashboardView: View {
     private func performRefresh() async {
         isRefreshing = true
         
+        // Enhanced haptic feedback
         if #available(iOS 26.0, *) {
-            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         } else {
             HapticManager.shared.trigger(.pullToRefresh)
         }
         
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        // Refresh data without artificial delay
         await appState.refreshData()
         
-        refreshID = UUID()
+        // Success haptic feedback
+        if #available(iOS 26.0, *) {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } else {
+            HapticManager.shared.trigger(.achievement)
+        }
+        
+        // Accessibility announcement
+        AccessibilityAnnouncer.announceDataRefreshed()
+        
+        
         isRefreshing = false
     }
     

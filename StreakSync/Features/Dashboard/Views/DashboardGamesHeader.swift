@@ -39,7 +39,7 @@ struct DashboardGamesHeader: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: displayMode.iconName)
+                    Image.safeSystemName(displayMode.iconName, fallback: "list.bullet")
                         .font(.body)
                     Text(displayMode.displayName)
                         .font(.caption.weight(.medium))
@@ -81,7 +81,7 @@ struct DashboardGamesHeader: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: selectedGameSection.icon)
+                    Image.safeSystemName(selectedGameSection.icon, fallback: "folder")
                     Text(selectedGameSection.rawValue)
                         .font(.subheadline.weight(.medium))
                 }

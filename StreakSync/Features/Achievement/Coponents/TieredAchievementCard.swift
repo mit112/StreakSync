@@ -37,6 +37,11 @@ struct TieredAchievementCard: View {
         return min(max(progress, 0), 1)
     }
     
+    private var safeIconName: String {
+        let iconName = achievement.iconSystemName
+        return iconName.isEmpty ? "star.fill" : iconName
+    }
+    
     var body: some View {
         Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -90,7 +95,7 @@ struct TieredAchievementCard: View {
                     .frame(width: 52, height: 52)
                 
                 // Icon
-                Image(systemName: achievement.iconSystemName)
+                Image.safeSystemName(safeIconName, fallback: "star.fill")
                     .font(.title)
                     .foregroundStyle(
                         achievement.isUnlocked ?
@@ -171,7 +176,7 @@ struct TieredAchievementCard: View {
                     // Trophy showing NEXT tier to achieve
                     if let nextTier = achievement.progress.nextTier {
                         // Show next tier in its color
-                        Image(systemName: nextTier.iconSystemName)  // ← Uses tier's specific icon
+                        Image.safeSystemName(nextTier.iconSystemName, fallback: "trophy.fill")
                             .font(.caption)
                             .foregroundStyle(nextTier.color)
                     } else if achievement.progress.currentTier == .legendary {

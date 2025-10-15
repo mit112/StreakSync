@@ -81,6 +81,10 @@ struct CategoryFilterView: View {
             return "lightbulb"
         case .puzzle:
             return "puzzlepiece"
+        case .nytGames:
+            return "newspaper"
+        case .linkedinGames:
+            return "briefcase"
         case .custom:
             return "star"
         }
@@ -99,7 +103,7 @@ private struct CategoryChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Image(systemName: icon)
+                Image.safeSystemName(icon, fallback: "folder")
                     .font(.caption)
                     .symbolEffect(.bounce, value: isSelected)
                 

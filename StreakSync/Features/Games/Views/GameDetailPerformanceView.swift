@@ -26,7 +26,28 @@ struct GameDetailPerformanceView: View {
     
     // Dynamic max value based on game type
     private var chartMaxValue: Int {
-        // Use the max attempts from actual results, or default to 6
+        // Special handling for time-based games like LinkedIn Zip, Tango, Queens, and Crossclimb
+        if let game = game, (game.name.lowercased() == "linkedinzip" || game.name.lowercased() == "linkedintango" || game.name.lowercased() == "linkedinqueens" || game.name.lowercased() == "linkedincrossclimb") {
+            // For Zip, Tango, Queens, and Crossclimb, use actual score values (time in seconds) instead of maxAttempts
+            if let maxScore = results.compactMap(\.score).max() {
+                return maxScore + 5 // Add some padding above the max score
+            }
+            return 30 // Default for time-based games if no results
+        }
+        
+        // Special handling for guess-based games like LinkedIn Pinpoint
+        if let game = game, game.name.lowercased() == "linkedinpinpoint" {
+            // For Pinpoint, use maxAttempts (5) as the chart maximum
+            return 5
+        }
+        
+        // Special handling for hint-based games like NYT Strands
+        if let game = game, game.name.lowercased() == "strands" {
+            // For Strands, use maxAttempts (10) as the chart maximum
+            return 10
+        }
+        
+        // Standard games: Use the max attempts from actual results, or default to 6
         if let maxFromResults = results.map(\.maxAttempts).max() {
             return maxFromResults + 1 // Add 1 for failed attempts
         }
@@ -37,7 +58,7 @@ struct GameDetailPerformanceView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Simplified header - just showing "Recent Performance"
             HStack {
-                Label("Recent Performance", systemImage: "chart.line.uptrend.xyaxis")
+                Label("Recent Performance", systemImage: SFSymbolCompatibility.getSymbol("chart.line.uptrend.xyaxis"))
                     .font(.headline)
                 
                 Spacer()
@@ -392,6 +413,15 @@ private struct ModernPerformanceChart: View {
         return formatter
     }
     
+    // Dynamic max value based on actual scores
+    private var chartMaxValue: Int {
+        let scores = dailyResults.compactMap { $0.result?.score }
+        if let maxScore = scores.max() {
+            return maxScore + 5 // Add some padding above the max score
+        }
+        return 7 // Default for most games
+    }
+    
     var body: some View {
         Chart {
             ForEach(Array(dailyResults.enumerated()), id: \.offset) { index, daily in
@@ -413,7 +443,7 @@ private struct ModernPerformanceChart: View {
                 }
             }
         }
-        .chartYScale(domain: 0...6)
+        .chartYScale(domain: 0...chartMaxValue)
         .chartXAxis {
             AxisMarks(values: .automatic) { _ in
                 AxisGridLine()
@@ -422,7 +452,7 @@ private struct ModernPerformanceChart: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .trailing, values: [1, 2, 3, 4, 5, 6]) { value in
+            AxisMarks(position: .trailing, values: Array(1...chartMaxValue)) { value in
                 AxisGridLine()
                 AxisValueLabel()
                     .font(.caption2)

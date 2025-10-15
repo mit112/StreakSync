@@ -30,7 +30,6 @@ struct MainTabView: View {
             NavigationStack(path: $coordinator.homePath) {
                 ImprovedDashboardView()
                     .environmentObject(container.gameManagementState)
-                    .id(container.notificationCoordinator.refreshID)
                     .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
                         destinationView(for: destination)
                     }
@@ -43,7 +42,7 @@ struct MainTabView: View {
             
             // Awards Tab
             NavigationStack(path: $coordinator.awardsPath) {
-                TieredAchievementsGridView()
+                LazyAwardsTabContent()
                     .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
                         destinationView(for: destination)
                     }
@@ -52,10 +51,19 @@ struct MainTabView: View {
                 Label("Awards", systemImage: "trophy.fill")
             }
             .tag(MainTab.awards)
+
+            // Friends Tab
+            NavigationStack(path: $coordinator.friendsPath) {
+                LazyFriendsTabContent(socialService: container.socialService)
+            }
+            .tabItem {
+                Label("Friends", systemImage: "person.2.fill")
+            }
+            .tag(MainTab.friends)
             
             // Settings Tab
             NavigationStack(path: $coordinator.settingsPath) {
-                SettingsView()
+                LazySettingsTabContent()
                     .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
                         destinationView(for: destination)
                     }
@@ -120,6 +128,21 @@ struct MainTabView: View {
                         sourceID: "achievement-\(achievement.id)",
                         in: namespace
                     ))
+                    
+            case .analyticsDashboard:
+                AnalyticsDashboardView(analyticsService: container.analyticsService)
+                    .environmentObject(container)
+                    .navigationTransition(.automatic)
+                    
+            case .streakTrendsDetail(let timeRange, let game):
+                StreakTrendsDetailView(
+                    analyticsService: container.analyticsService,
+                    timeRange: timeRange,
+                    selectedGame: game
+                )
+                .environment(container.appState)
+                .environmentObject(container)
+                .navigationTransition(.automatic)
             }
         }
     }
@@ -131,7 +154,6 @@ struct MainTabView: View {
             NavigationStack(path: $coordinator.homePath) {
                 ImprovedDashboardView()
                     .environmentObject(container.gameManagementState)
-                    .id(container.notificationCoordinator.refreshID)
                     .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
                         destinationView(for: destination)
                     }
@@ -144,7 +166,7 @@ struct MainTabView: View {
             
             // Awards Tab
             NavigationStack(path: $coordinator.awardsPath) {
-                TieredAchievementsGridView()
+                LazyAwardsTabContent()
                     .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
                         destinationView(for: destination)
                     }
@@ -153,10 +175,19 @@ struct MainTabView: View {
                 Label("Awards", systemImage: "trophy.fill")
             }
             .tag(MainTab.awards)
+
+            // Friends Tab
+            NavigationStack(path: $coordinator.friendsPath) {
+                LazyFriendsTabContent(socialService: container.socialService)
+            }
+            .tabItem {
+                Label("Friends", systemImage: "person.2.fill")
+            }
+            .tag(MainTab.friends)
             
             // Settings Tab
             NavigationStack(path: $coordinator.settingsPath) {
-                SettingsView()
+                LazySettingsTabContent()
                     .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
                         destinationView(for: destination)
                     }
@@ -205,6 +236,86 @@ struct MainTabView: View {
         case .tieredAchievementDetail(let achievement):
             TieredAchievementDetailView(achievement: achievement)
                 .environmentObject(container)
+                
+        case .analyticsDashboard:
+            AnalyticsDashboardView(analyticsService: container.analyticsService)
+                .environmentObject(container)
+                
+        case .streakTrendsDetail(let timeRange, let game):
+            StreakTrendsDetailView(
+                analyticsService: container.analyticsService,
+                timeRange: timeRange,
+                selectedGame: game
+            )
+            .environment(container.appState)
+            .environmentObject(container)
+        }
+    }
+}
+
+// MARK: - Lazy Tab Wrappers
+/// Prevents TabView pre-rendering issues by deferring content load until tab is actually selected
+
+private struct LazyAwardsTabContent: View {
+    @EnvironmentObject private var coordinator: NavigationCoordinator
+    @State private var hasBeenSelected = false
+    
+    var body: some View {
+        Group {
+            if hasBeenSelected {
+                TieredAchievementsGridView()
+            } else {
+                Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .onChange(of: coordinator.selectedTab) { _, newTab in
+            if newTab == .awards && !hasBeenSelected { hasBeenSelected = true }
+        }
+        .onAppear {
+            if coordinator.selectedTab == .awards { hasBeenSelected = true }
+        }
+    }
+}
+
+private struct LazyFriendsTabContent: View {
+    let socialService: any SocialService
+    @EnvironmentObject private var coordinator: NavigationCoordinator
+    @State private var hasBeenSelected = false
+    
+    var body: some View {
+        Group {
+            if hasBeenSelected {
+                FriendsView(socialService: socialService)
+            } else {
+                Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .onChange(of: coordinator.selectedTab) { _, newTab in
+            if newTab == .friends && !hasBeenSelected { hasBeenSelected = true }
+        }
+        .onAppear {
+            if coordinator.selectedTab == .friends { hasBeenSelected = true }
+        }
+    }
+}
+
+private struct LazySettingsTabContent: View {
+    @EnvironmentObject private var coordinator: NavigationCoordinator
+    @State private var hasBeenSelected = false
+    
+    var body: some View {
+        Group {
+            if hasBeenSelected {
+                SettingsView()
+            } else {
+                Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .onChange(of: coordinator.selectedTab) { _, newTab in
+            if newTab == .settings && !hasBeenSelected { hasBeenSelected = true }
+        }
+        .onAppear {
+            if coordinator.selectedTab == .settings { hasBeenSelected = true }
         }
     }
 }

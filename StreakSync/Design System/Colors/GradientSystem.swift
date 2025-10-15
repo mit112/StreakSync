@@ -39,11 +39,6 @@ public struct GradientSystem {
                     [Color(hex: "1E3A8A"), Color(hex: "2563EB"), Color(hex: "1E40AF"), Color(hex: "3730A3")] :
                     [Color(hex: "3B82F6"), Color(hex: "93C5FD"), Color(hex: "DBEAFE"), Color(hex: "EFF6FF")]
                 
-            case "heardle":
-                return colorScheme == .dark ?
-                    [Color(hex: "831843"), Color(hex: "DB2777"), Color(hex: "BE185D"), Color(hex: "9D174D")] :
-                    [Color(hex: "EC4899"), Color(hex: "F9A8D4"), Color(hex: "FCE7F3"), Color(hex: "FDF2F8")]
-                
             default:
                 return colorScheme == .dark ?
                     [Color.gray, Color.gray.opacity(0.7)] :

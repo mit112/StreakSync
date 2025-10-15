@@ -12,12 +12,14 @@ import Observation
 enum MainTab: Int, CaseIterable {
     case home = 0
     case awards = 1
-    case settings = 2
+    case friends = 2
+    case settings = 3
     
     var title: String {
         switch self {
         case .home: return "Home"
         case .awards: return "Awards"
+        case .friends: return "Friends"
         case .settings: return "Settings"
         }
     }
@@ -26,6 +28,7 @@ enum MainTab: Int, CaseIterable {
         switch self {
         case .home: return "house.fill"
         case .awards: return "trophy.fill"
+        case .friends: return "person.2.fill"
         case .settings: return "gearshape.fill"
         }
     }
@@ -40,6 +43,7 @@ final class NavigationCoordinator: ObservableObject {
     // MARK: - Individual Tab Navigation Paths
     @Published var homePath = NavigationPath()
     @Published var awardsPath = NavigationPath()
+    @Published var friendsPath = NavigationPath()
     @Published var settingsPath = NavigationPath()
     
     // MARK: - Sheet Presentation
@@ -53,6 +57,7 @@ final class NavigationCoordinator: ObservableObject {
         switch selectedTab {
         case .home: return homePath
         case .awards: return awardsPath
+        case .friends: return friendsPath
         case .settings: return settingsPath
         }
     }
@@ -65,6 +70,8 @@ final class NavigationCoordinator: ObservableObject {
         case settings
         case gameManagement
         case tieredAchievementDetail(TieredAchievement)
+        case analyticsDashboard
+        case streakTrendsDetail(timeRange: AnalyticsTimeRange, game: Game?)
         
         func hash(into hasher: inout Hasher) {
             switch self {
@@ -85,6 +92,12 @@ final class NavigationCoordinator: ObservableObject {
             case .tieredAchievementDetail(let achievement):
                 hasher.combine("tieredAchievementDetail")
                 hasher.combine(achievement.id)
+            case .analyticsDashboard:
+                hasher.combine("analyticsDashboard")
+            case .streakTrendsDetail(let timeRange, let game):
+                hasher.combine("streakTrendsDetail")
+                hasher.combine(timeRange.rawValue)
+                hasher.combine(game?.id)
             }
         }
         
@@ -104,6 +117,10 @@ final class NavigationCoordinator: ObservableObject {
                 return true
             case (.tieredAchievementDetail(let lhsAchievement), .tieredAchievementDetail(let rhsAchievement)):
                 return lhsAchievement.id == rhsAchievement.id
+            case (.analyticsDashboard, .analyticsDashboard):
+                return true
+            case (.streakTrendsDetail(let lhsTimeRange, let lhsGame), .streakTrendsDetail(let rhsTimeRange, let rhsGame)):
+                return lhsTimeRange == rhsTimeRange && lhsGame?.id == rhsGame?.id
             default:
                 return false
             }
@@ -162,6 +179,15 @@ final class NavigationCoordinator: ObservableObject {
                 }
                 self.awardsPath.append(destination)
                 
+            case .friends:
+                if !self.friendsPath.isEmpty {
+                    let pathString = String(describing: self.friendsPath)
+                    if pathString.contains(String(describing: destination)) {
+                        return
+                    }
+                }
+                self.friendsPath.append(destination)
+                
             case .settings:
                 if !self.settingsPath.isEmpty {
                     let pathString = String(describing: self.settingsPath)
@@ -205,6 +231,8 @@ final class NavigationCoordinator: ObservableObject {
             homePath.removeLast(homePath.count)
         case .awards:
             awardsPath.removeLast(awardsPath.count)
+        case .friends:
+            friendsPath.removeLast(friendsPath.count)
         case .settings:
             settingsPath.removeLast(settingsPath.count)
         }
@@ -217,6 +245,8 @@ final class NavigationCoordinator: ObservableObject {
             homePath.removeLast(homePath.count)
         case .awards:
             awardsPath.removeLast(awardsPath.count)
+        case .friends:
+            friendsPath.removeLast(friendsPath.count)
         case .settings:
             settingsPath.removeLast(settingsPath.count)
         }
@@ -226,6 +256,7 @@ final class NavigationCoordinator: ObservableObject {
     func resetAllNavigation() {
         homePath = NavigationPath()
         awardsPath = NavigationPath()
+        friendsPath = NavigationPath()
         settingsPath = NavigationPath()
         selectedTab = .home
         presentedSheet = nil

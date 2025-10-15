@@ -119,6 +119,31 @@ final class AppGroupBridge: ObservableObject {
         isProcessing = true
         defer { isProcessing = false }
         
+        // Check for queued results first
+        let queuedResults = await resultMonitor.processQueuedResults()
+        
+        if !queuedResults.isEmpty {
+            hasNewResults = true
+            lastResultProcessedTime = Date()
+            
+            logger.info("📥 Processing \(queuedResults.count) queued results")
+            
+            // Process each result in the queue
+            for result in queuedResults {
+                latestResult = result
+                logger.info("📥 Processing queued result: \(result.gameName)")
+                
+                // Post notification with the result object
+                NotificationCenter.default.post(
+                    name: .gameResultReceived,
+                    object: result
+                )
+            }
+            
+            return
+        }
+        
+        // Fallback to single result for backward compatibility
         hasNewResults = dataManager.hasData(forKey: AppConstants.AppGroup.latestResultKey)
         
         if hasNewResults {
@@ -128,13 +153,13 @@ final class AppGroupBridge: ObservableObject {
             if let result = try? await dataManager.loadGameResult(forKey: AppConstants.AppGroup.latestResultKey) {
                 latestResult = result
                 logger.info("📥 Loaded new result: \(result.gameName)")
+                
+                // Post notification with the result object
+                NotificationCenter.default.post(
+                    name: .gameResultReceived,
+                    object: result
+                )
             }
-            
-            // Post notification
-            NotificationCenter.default.post(
-                name: .gameResultReceived,
-                object: nil
-            )
         }
     }
     

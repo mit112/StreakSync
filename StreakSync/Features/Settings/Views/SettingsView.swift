@@ -200,7 +200,7 @@ private struct iOS26SettingsNavigationRow<Destination: View>: View {
         } label: {
             HStack(spacing: 12) {
                 // Animated Icon
-                Image(systemName: icon)
+                Image.safeSystemName(icon, fallback: "gear")
                     .font(.system(size: 22))
                     .foregroundStyle(iconColor)
                     .symbolEffect(.bounce, value: iconBounce)
@@ -271,7 +271,7 @@ private struct iOS26SettingsLinkRow: View {
         Link(destination: url) {
             HStack(spacing: 12) {
                 // Animated Icon
-                Image(systemName: icon)
+                Image.safeSystemName(icon, fallback: "gear")
                     .font(.system(size: 22))
                     .foregroundStyle(iconColor)
                     .symbolEffect(.rotate, value: iconRotation)
@@ -407,7 +407,7 @@ struct SettingsRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: icon)
+            Image.safeSystemName(icon, fallback: "gear")
                 .font(.body)
                 .foregroundStyle(.blue)
                 .frame(width: 28)

@@ -289,6 +289,16 @@ struct StreakSyncColors {
             return colorScheme == .dark ?
                 PaletteColor.secondary.darkVariant :
                 PaletteColor.secondary.color
+        case .nytGames:
+            // NYT Games: Red for New York Times branding
+            return colorScheme == .dark ?
+                Color(hex: "FF3B30").opacity(0.8) :
+                Color(hex: "FF3B30")
+        case .linkedinGames:
+            // LinkedIn Games: LinkedIn blue
+            return colorScheme == .dark ?
+                Color(hex: "0077B5").opacity(0.8) :
+                Color(hex: "0077B5")
         case .custom:
             return colorScheme == .dark ?
                 PaletteColor.textSecondary.darkVariant :

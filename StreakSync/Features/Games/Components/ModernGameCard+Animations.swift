@@ -95,7 +95,7 @@ struct AchievementCelebration: View {
             
             // Achievement badge
             VStack(spacing: 16) {
-                Image(systemName: achievement.iconSystemName)
+                Image.safeSystemName(achievement.iconSystemName, fallback: "star.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(tier.color)
                     .symbolEffect(.bounce.up, options: .nonRepeating)

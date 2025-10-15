@@ -52,16 +52,28 @@ struct StreakSyncApp: App {
     private func initializeApp() async {
         logger.info("🚀 Starting app initialization")
         
-        // Load app data
-        await container.appState.loadPersistedData()
-        
-        // Check for streak reminders on app launch
-        await container.appState.checkAndScheduleStreakReminders()
-        
-        // Mark as initialized
-        await MainActor.run {
-            isInitialized = true
-            logger.info("✅ App initialization completed")
+        do {
+            // Load app data
+            await container.appState.loadPersistedData()
+            
+            // Check for streak reminders on app launch (with error handling)
+            // Skip if there's an issue to prevent app crashes
+            do {
+                await container.appState.checkAndScheduleStreakReminders()
+            } catch {
+                logger.warning("⚠️ Skipping streak reminders due to error: \(error.localizedDescription)")
+            }
+            
+            // Mark as initialized
+            await MainActor.run {
+                isInitialized = true
+                logger.info("✅ App initialization completed")
+            }
+        } catch {
+            logger.error("❌ App initialization failed: \(error.localizedDescription)")
+            await MainActor.run {
+                initializationError = error.localizedDescription
+            }
         }
     }
     

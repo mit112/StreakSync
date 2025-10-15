@@ -52,6 +52,15 @@ final class AppGroupResultMonitor {
     // MARK: - Result Checking
     func checkForNewResult() async -> Bool {
         do {
+            // Check for queued results first
+            let queuedResults = try await dataManager.loadGameResultQueue()
+            
+            if !queuedResults.isEmpty {
+                logger.info("✅ Found \(queuedResults.count) queued results")
+                return true
+            }
+            
+            // Fallback to single result for backward compatibility
             guard let result = try await dataManager.loadGameResult(forKey: "latestGameResult") else {
                 return false
             }
@@ -69,6 +78,25 @@ final class AppGroupResultMonitor {
         } catch {
             logger.error("Error checking for result: \(error)")
             return false
+        }
+    }
+    
+    // MARK: - Queue Processing
+    func processQueuedResults() async -> [GameResult] {
+        do {
+            let queuedResults = try await dataManager.loadGameResultQueue()
+            
+            if !queuedResults.isEmpty {
+                // Clear the queue after processing
+                dataManager.clearGameResultQueue()
+                logger.info("✅ Processed and cleared \(queuedResults.count) queued results")
+            }
+            
+            return queuedResults
+            
+        } catch {
+            logger.error("Error processing queued results: \(error)")
+            return []
         }
     }
     

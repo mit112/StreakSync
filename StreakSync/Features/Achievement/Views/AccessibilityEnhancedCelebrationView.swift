@@ -59,6 +59,11 @@ struct ReducedMotionCelebrationView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var opacity: Double = 0
     
+    private var safeIconName: String {
+        let iconName = unlock.achievement.iconSystemName
+        return iconName.isEmpty ? "star.fill" : iconName
+    }
+    
     var body: some View {
         ZStack {
             // Simple fade background
@@ -69,7 +74,7 @@ struct ReducedMotionCelebrationView: View {
             // Content without animations
             VStack(spacing: 24) {
                 // Icon
-                Image(systemName: unlock.achievement.iconSystemName)
+                Image.safeSystemName(safeIconName, fallback: "star.fill")
                     .font(.system(size: 60))
                     .foregroundStyle(unlock.tier.color)
                 

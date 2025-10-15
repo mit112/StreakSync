@@ -9,7 +9,7 @@
 // MARK: - App Name & General
 "app.name" = "StreakSync";
 "app.tagline" = "Track your daily puzzle streaks effortlessly";
-"app.description" = "Never lose track of your daily puzzle game streaks. StreakSync automatically detects and tracks your Wordle, Quordle, Nerdle, and Heardle results when you share them.";
+"app.description" = "Never lose track of your daily puzzle game streaks. StreakSync automatically detects and tracks your Wordle, Quordle, and Nerdle results when you share them.";
 
 // MARK: - Dashboard
 "dashboard.title" = "StreakSync";
@@ -27,7 +27,6 @@
 "game.wordle" = "Wordle";
 "game.quordle" = "Quordle";
 "game.nerdle" = "Nerdle";
-"game.heardle" = "Heardle";
 "game.unknown_host" = "Unknown Game";
 "game.play_button" = "Play %@";
 "game.failed_score" = "X/%d";
@@ -47,6 +46,8 @@
 "category.geography" = "Geography Games";
 "category.trivia" = "Trivia Games";
 "category.puzzle" = "Puzzle Games";
+"category.nyt_games" = "NYT Games";
+"category.linkedin_games" = "LinkedIn Games";
 "category.custom" = "Custom Games";
 "category.accessibility" = "%@ category";
 "category.description.word" = "Games that challenge your vocabulary and word knowledge";

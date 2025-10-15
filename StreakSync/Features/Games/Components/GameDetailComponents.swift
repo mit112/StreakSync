@@ -42,10 +42,14 @@ struct AnimatedStatPill: View {
 // MARK: - Game Result Row
 struct GameResultRow: View {
     let result: GameResult
-    @State private var isExpanded = false
+    var onDelete: (() -> Void)? = nil
+    @State private var showingDetail = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        Button {
+            HapticManager.shared.trigger(.toggleSwitch)
+            showingDetail = true
+        } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(result.displayScore)
@@ -62,25 +66,22 @@ struct GameResultRow: View {
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                    .animation(SpringPreset.snappy, value: isExpanded)
             }
-            
-            if isExpanded {
-                Text(result.sharedText)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .transition(.scale.combined(with: .opacity))
+            .padding()
+            .glassCard()
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if let onDelete = onDelete {
+                Button(role: .destructive) {
+                    onDelete()
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
             }
         }
-        .padding()
-        .glassCard()
-        .pressable(hapticType: .buttonTap, scaleAmount: 0.97)
-        .onTapGesture {
-            withAnimation(SpringPreset.snappy) {
-                isExpanded.toggle()
-            }
-            HapticManager.shared.trigger(.toggleSwitch)
+        .sheet(isPresented: $showingDetail) {
+            GameResultDetailView(result: result, onDelete: onDelete)
         }
     }
 }

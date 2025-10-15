@@ -52,7 +52,7 @@ private struct AnimatedGameIcon: View {
                     value: isAnimating
                 )
             
-            Image(systemName: game.iconSystemName)
+            Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
                 .font(.system(size: 44))
                 .foregroundStyle(game.backgroundColor.color)
         }

@@ -10,18 +10,19 @@ import UserNotifications
 import OSLog
 
 // MARK: - Permission Flow View Model
-@MainActor
 final class NotificationPermissionFlowViewModel: ObservableObject {
     @Published var showingPermissionFlow = false
     @Published var permissionStatus: UNAuthorizationStatus = .notDetermined
     
     private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationPermission")
     
+    @MainActor
     func checkPermissionStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         permissionStatus = settings.authorizationStatus
     }
     
+    @MainActor
     func requestPermission() async -> Bool {
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(
@@ -45,6 +46,7 @@ final class NotificationPermissionFlowViewModel: ObservableObject {
         }
     }
     
+    @MainActor
     func openSystemSettings() {
         if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(settingsUrl)
@@ -94,7 +96,7 @@ struct NotificationPermissionFlowView: View {
                     BenefitRow(
                         icon: "slider.horizontal.3",
                         title: "Full Control",
-                        description: "Customize per game, quiet hours, and frequency"
+                        description: "Simple daily reminders at your preferred time"
                     )
                 }
                 .padding(.horizontal)
@@ -147,7 +149,7 @@ struct BenefitRow: View {
     
     var body: some View {
         HStack(spacing: 16) {
-            Image(systemName: icon)
+            Image.safeSystemName(icon, fallback: "bell")
                 .font(.title2)
                 .foregroundColor(.accentColor)
                 .frame(width: 24)

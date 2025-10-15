@@ -1,227 +1,182 @@
 # Notification System
 
-A comprehensive, user-respectful notification system for StreakSync that provides gentle reminders while giving users full control over their experience.
-
 ## Overview
 
-The notification system is designed with these principles:
-- **User value first**: Only notify when it's clearly helpful
-- **Respect and control**: Explicit opt-in, quiet hours, per-game control, easy snooze/pause
-- **Non-intrusive UX**: Don't interrupt flow; in-app surfaces are subtle and contextual
+The StreakSync notification system provides a simple, user-friendly way to get daily reminders about games with streaks at risk. The system is designed to be easy to understand and use, with minimal configuration required.
+
+## Design Philosophy
+
+**"One thoughtful reminder > Multiple annoying alerts"**
+
+The notification system is built on the principle that users should receive helpful, timely reminders without being overwhelmed by notifications. Instead of multiple alerts throughout the day, users get a single, well-timed daily reminder that shows all games requiring attention.
+
+## Core Principles
+
+1. **Simplicity**: One notification per day maximum
+2. **User Value**: Clear, actionable reminders about streak maintenance
+3. **Respect**: Non-intrusive and easily customizable
+4. **Reliability**: Consistent, predictable notification behavior
+5. **Privacy**: All notification logic runs locally on device - no data sent to servers
 
 ## Components
 
-### 1. NotificationPermissionFlow.swift
-**Purpose**: In-app permission flow with clear benefits and user control
+### NotificationScheduler
+- **Purpose**: Centralized notification scheduling and management
+- **Key Features**:
+  - Permission handling and status checking
+  - Single daily streak reminder scheduling
+  - Achievement notifications
+  - Result imported notifications
+  - Comprehensive cancellation methods
+  - Test notification support for debugging
 
-**Key Features**:
-- Deferred permission request (not on first launch)
-- Clear explanation of benefits before asking
-- Fallback to system settings if denied
-- Beautiful, non-pushy UI
+### NotificationDelegate
+- **Purpose**: Handles notification presentation and user interactions
+- **Key Features**:
+  - Foreground notification presentation
+  - User interaction handling (tap, action buttons)
+  - Deep linking to specific game details
+  - Action button responses (Play Now, Remind Tomorrow, Mark as Played)
 
-**Usage**:
-```swift
-.sheet(isPresented: $showingPermissionFlow) {
-    NotificationPermissionFlowView()
-}
-```
+### NotificationPermissionFlow
+- **Purpose**: Guides users through the notification permission process
+- **Key Features**:
+  - Educational content about notification benefits
+  - Permission request handling
+  - Settings redirection for denied permissions
 
-### 2. NotificationScheduler.swift
-**Purpose**: Smart notification scheduling with frequency caps and quiet hours
+### NotificationSettingsView
+- **Purpose**: Simple user interface for configuring notification preferences
+- **Key Features**:
+  - Enable/disable streak reminders toggle
+  - Time picker for daily reminder time
+  - Debug tools for testing
 
-**Key Features**:
-- Per-game reminder scheduling
-- Achievement unlock notifications
-- Result import confirmations
-- Quiet hours respect
-- Daily frequency caps
-- Digest mode support
+## Notification Types
 
-**Usage**:
-```swift
-// Schedule a streak reminder
-await NotificationScheduler.shared.scheduleStreakReminder(
-    for: game, 
-    at: preferredTime
-)
+### 1. Daily Streak Reminder
+- **Trigger**: Sent once per day at user's preferred time
+- **Content**: Lists all games with active streaks that haven't been played today
+- **Actions**: Play Now, Remind Tomorrow, Mark as Played
 
-// Schedule achievement notification
-await NotificationScheduler.shared.scheduleAchievementNotification(
-    for: unlock
-)
-```
+### 2. Achievement Notifications
+- **Trigger**: When user unlocks a new achievement
+- **Content**: Achievement title and description
+- **Actions**: View achievement details
 
-### 3. NotificationDelegate.swift
-**Purpose**: Handles notification interactions and foreground display
+### 3. Result Imported Notifications
+- **Trigger**: When game results are imported via share extension
+- **Content**: Confirmation of successful import
+- **Actions**: View imported results
 
-**Key Features**:
-- Foreground notification handling
-- Action button responses (Open Game, Snooze, Mark Played)
-- In-app banner display
-- Deep linking to specific games/achievements
+## Settings and Customization
 
-**Usage**:
+### Simplified Settings
+- **Enable Streak Reminders**: Master toggle for all streak reminders
+- **Reminder Time**: Single time picker for daily reminder (default: 7 PM)
+
+### How It Works
+1. **Daily Check**: App checks all games with active streaks
+2. **Risk Assessment**: Identifies games not played today
+3. **Single Notification**: Sends one notification listing all at-risk games
+4. **Smart Content**: Adapts message based on number of games at risk
+
+### Smart Default Time
+The system analyzes the user's play patterns from the last 30 days to set an intelligent default reminder time:
+- Finds the most common hour when the user plays games
+- Sets the reminder for 2 hours before that time
+- Gives users a helpful heads-up before they usually play
+- Falls back to 7 PM if no play history is available
+
+### Privacy & Data Handling
+- **Local Processing**: All notification logic runs on the user's device
+- **No Server Communication**: No game data or play patterns are sent to external servers
+- **User Control**: Users can disable notifications or change timing at any time
+- **Minimal Data**: Only stores user's preferred reminder time locally
+
+## Technical Implementation
+
+### Notification Categories
+- **streakReminder**: Streak-related notifications with action buttons
+- **achievement**: Achievement notifications with view action
+- **resultImported**: Import confirmation notifications
+
+### Action Buttons
+- **Play Now**: Opens the specific game
+- **Remind Tomorrow**: Schedules reminder for next day
+- **Mark as Played**: Marks game as completed for today
+- **View Achievement**: Opens achievement details
+
+### Deep Linking
+- **Game Details**: `streaksync://game/{gameId}`
+- **Achievements**: `streaksync://achievements`
+- **Settings**: `streaksync://settings`
+
+## Benefits of Simplified System
+
+1. **No Multiple Notifications**: Users receive maximum one notification per day
+2. **Easy to Understand**: Simple on/off toggle and time picker
+3. **No Per-Game Configuration**: Works automatically for all games
+4. **Reliable**: Consistent behavior without complex settings
+5. **User-Friendly**: Clear, actionable notifications
+
+## Migration
+
+The system automatically migrates from the previous complex system:
+- Cleans up old notification settings
+- Sets sensible defaults (enabled, 7 PM)
+- Cancels all old notifications
+- Schedules new simplified daily reminder
+
+## Debug and Testing
+
+The system includes debug tools:
+- Test notification scheduling
+- Current notification state logging
+- Notification cleanup tools
+
+## Best Practices
+
+1. **Permission First**: Always check permission status before scheduling
+2. **Cleanup**: Cancel old notifications before scheduling new ones
+3. **User Control**: Respect user preferences and settings
+4. **Testing**: Use debug tools to test notification behavior
+5. **Error Handling**: Gracefully handle permission denials and errors
+
+## Usage Examples
+
+### Basic Setup
 ```swift
 // Initialize in app startup
 NotificationDelegate.shared.appState = appState
 NotificationDelegate.shared.navigationCoordinator = navigationCoordinator
 ```
 
-### 4. NotificationSettingsView.swift
-**Purpose**: Comprehensive notification settings with per-game controls
-
-**Key Features**:
-- Global settings (quiet hours, frequency caps, digest mode)
-- Per-game reminder customization
-- Time preferences and frequency options
-- Easy enable/disable toggles
-
-**Usage**:
+### Settings Integration
 ```swift
 NavigationLink {
     NotificationSettingsView()
 } label: {
-    // Settings row
-}
-```
-
-### 5. NotificationNudgeView.swift
-**Purpose**: Contextual nudges to suggest enabling notifications
-
-**Key Features**:
-- Smart timing (only after 3+ days of usage)
-- Game-specific nudges
-- Streak risk warnings
-- Non-intrusive presentation
-
-**Usage**:
-```swift
-// Global nudge
-NotificationNudgeView()
-
-// Game-specific nudge
-GameNotificationNudgeView(game: game)
-
-// Streak risk nudge
-StreakRiskNudgeView(game: game, streakCount: 7)
-```
-
-## Notification Types
-
-### 1. Streak Reminders
-- **Trigger**: Based on user's preferred play time for each game
-- **Content**: "Keep your [Game] streak alive! Play now to maintain your progress."
-- **Actions**: Play Now, Remind Tomorrow, Already Played
-
-### 2. Achievement Notifications
-- **Trigger**: When a tiered achievement is unlocked
-- **Content**: "🎉 Achievement Unlocked! [Achievement Name] - [Tier Name]"
-- **Actions**: View Achievement
-
-### 3. Result Import Confirmations
-- **Trigger**: When a result is imported via Share Extension
-- **Content**: "Result Imported - Your [Game] result has been added to your streak!"
-- **Actions**: None (informational)
-
-## User Controls
-
-### Global Settings
-- **Quiet Hours**: 9 PM - 9 AM (customizable)
-- **Max Daily Notifications**: 3 (customizable, 1-10 range)
-- **Digest Mode**: Group multiple notifications into daily summary
-- **Pause All**: Temporarily disable all notifications
-
-### Per-Game Settings
-- **Enable/Disable**: Toggle reminders for specific games
-- **Preferred Time**: Custom time for each game
-- **Frequency**: Daily, Weekdays Only, Weekends Only, Custom
-- **Days of Week**: Custom day selection for custom frequency
-
-## Implementation Notes
-
-### Permission Flow
-1. **No permission request on first launch** - respects user boundaries
-2. **Contextual requests** - only when user enables a reminder
-3. **Clear benefits** - explains value before asking
-4. **Easy fallback** - direct link to system settings if denied
-
-### Smart Scheduling
-1. **Learned preferences** - adapts to user's play patterns
-2. **Quiet hours respect** - never sends during sleep hours
-3. **Frequency caps** - prevents notification spam
-4. **Streak risk detection** - warns when streaks are at risk
-
-### User Experience
-1. **Non-intrusive nudges** - subtle suggestions, not demands
-2. **Contextual placement** - appears where relevant
-3. **Easy dismissal** - one-tap to dismiss or snooze
-4. **Actionable notifications** - buttons to take immediate action
-
-## Integration Examples
-
-### Dashboard Integration
-```swift
-struct DashboardView: View {
-    var body: some View {
-        VStack {
-            NotificationNudgeView() // Global nudge
-            
-            ForEach(games) { game in
-                VStack {
-                    GameCardView(game: game)
-                    GameNotificationNudgeView(game: game) // Per-game nudge
-                }
-            }
-        }
-    }
-}
-```
-
-### Settings Integration
-```swift
-struct SettingsView: View {
-    var body: some View {
-        List {
-            NavigationLink {
-                NotificationSettingsView()
-            } label: {
-                SettingsRow(
-                    icon: "bell",
-                    title: "Notifications",
-                    subtitle: notificationsEnabled ? "Enabled" : "Disabled"
-                )
-            }
-        }
-    }
-}
-```
-
-### Achievement Integration
-```swift
-// In achievement unlock handler
-func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
-    // Post internal notification for UI
-    NotificationCenter.default.post(
-        name: Notification.Name("TieredAchievementUnlocked"),
-        object: unlock
+    SettingsRow(
+        icon: "bell",
+        title: "Notifications",
+        subtitle: remindersEnabled ? "Enabled" : "Disabled"
     )
-    
-    // Schedule user notification
-    Task {
-        await NotificationScheduler.shared.scheduleAchievementNotification(for: unlock)
-    }
 }
 ```
 
-## Best Practices
+### Manual Scheduling
+```swift
+// Schedule daily reminder
+await NotificationScheduler.shared.scheduleDailyStreakReminder(
+    games: gamesAtRisk,
+    hour: 19,
+    minute: 0
+)
 
-1. **Always check permission status** before scheduling
-2. **Respect user preferences** - honor quiet hours and frequency caps
-3. **Provide clear value** - explain why the notification is helpful
-4. **Make it easy to disable** - prominent settings and quick actions
-5. **Test thoroughly** - ensure notifications work in all app states
-6. **Monitor feedback** - track user engagement and adjust accordingly
+// Cancel all reminders
+await NotificationScheduler.shared.cancelAllStreakReminders()
+```
 
 ## Future Enhancements
 

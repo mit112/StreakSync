@@ -21,10 +21,19 @@ struct GameDetailActionsView: View {
                 GameButton(game: game, browserLauncher: browserLauncher)
                 AddResultButton(showingManualEntry: $showingManualEntry)
             }
+            
+            // LinkedIn Games Instructions
+            if isLinkedInGame(game) {
+                LinkedInGameInstructions()
+            }
         }
         .sheet(isPresented: $showingManualEntry) {
             ManualEntryView(preSelectedGame: game)
         }
+    }
+    
+    private func isLinkedInGame(_ game: Game) -> Bool {
+        return game.name.lowercased().hasPrefix("linkedin")
     }
 }
 
@@ -80,6 +89,40 @@ private struct AddResultButton: View {
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - LinkedIn Game Instructions
+private struct LinkedInGameInstructions: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "info.circle.fill")
+                    .foregroundColor(.blue)
+                Text("How to Play This Game")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.primary)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("1. Tap 'Play' to open this game directly")
+                Text("2. If LinkedIn app is installed, the game opens automatically")
+                Text("3. If not, you'll be taken to LinkedIn website")
+                Text("4. Start playing immediately!")
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .padding(.leading, 20)
+        }
+        .padding(12)
+        .background(
+            Color(.secondarySystemBackground),
+            in: RoundedRectangle(cornerRadius: 10)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color(.separator), lineWidth: 0.5)
+        )
     }
 }
 

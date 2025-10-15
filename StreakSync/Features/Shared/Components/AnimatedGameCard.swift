@@ -34,7 +34,7 @@ struct AnimatedGameCard: View {
                 // Header
                 HStack {
                     // Colorful icon with gradient background
-                    Image(systemName: game.iconSystemName)
+                    Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
                         .font(.title2)
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
@@ -56,7 +56,7 @@ struct AnimatedGameCard: View {
                             .font(.headline)
                             .foregroundStyle(.primary)
                         
-                        if let lastPlayed = game.lastPlayedDate {
+                        if let lastPlayed = streak?.lastPlayedDate {
                             Text(lastPlayed.description)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -65,7 +65,7 @@ struct AnimatedGameCard: View {
                     
                     Spacer()
                     
-                    if game.hasPlayedToday {
+                    if let lastPlayed = streak?.lastPlayedDate, Calendar.current.isDateInToday(lastPlayed) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title2)
                             .foregroundStyle(StreakSyncColors.success(for: colorScheme))
@@ -108,7 +108,8 @@ struct AnimatedGameCard: View {
         .buttonStyle(ScaleButtonStyle())
         .modifier(InitialAnimationModifier(hasAppeared: hasInitiallyAppeared, index: animationIndex, totalCount: 10))
         .onAppear {
-            if game.hasPlayedToday && !hasAnimatedCheckmark {
+            let hasPlayedToday = streak?.lastPlayedDate.map { Calendar.current.isDateInToday($0) } ?? false
+            if hasPlayedToday && !hasAnimatedCheckmark {
                 withAnimation(.easeInOut.delay(Double(animationIndex) * 0.1)) {
                     showCheckmark = true
                 }

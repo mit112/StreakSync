@@ -110,9 +110,24 @@ final class GameDetailViewModel: ObservableObject {
     private func loadGameData() {
         guard let appState = appState else { return }
         
+        // Get the actual game name for logging
+        let gameName = appState.games.first(where: { $0.id == gameId })?.displayName ?? "Unknown"
+        
         // Load streak
         if let streak = appState.streaks.first(where: { $0.gameId == gameId }) {
             currentStreak = streak
+        } else {
+            // Create a default streak for games that don't have one yet
+            currentStreak = GameStreak(
+                gameId: gameId,
+                gameName: gameName,
+                currentStreak: 0,
+                maxStreak: 0,
+                totalGamesPlayed: 0,
+                totalGamesCompleted: 0,
+                lastPlayedDate: nil,
+                streakStartDate: nil
+            )
         }
         
         // Load recent results for this game
@@ -126,7 +141,7 @@ final class GameDetailViewModel: ObservableObject {
                 achievement.gameSpecific == gameId || achievement.gameSpecific == nil
             }
         
-        logger.debug("Loaded data for game: \(self.currentStreak.gameName)")
+        logger.info("🎮 Loaded data for game: \(gameName)")
     }
     
     func refreshData() async {

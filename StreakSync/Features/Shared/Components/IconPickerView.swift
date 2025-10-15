@@ -22,7 +22,7 @@ struct IconPickerView: View {
         "photo", "camera", "paintbrush", "paintpalette",
         "hammer", "wrench", "gearshape", "cpu",
         "hourglass", "timer", "clock", "calendar",
-        "chart.bar", "chart.pie", "chart.line.uptrend.xyaxis", "target"
+        "chart.bar", "chart.pie", SFSymbolCompatibility.getSymbol("chart.line.uptrend.xyaxis"), "target"
     ]
     
     // Break down grid columns into a computed property
@@ -84,7 +84,7 @@ struct IconPickerButton: View {
     }
     
     private var iconContent: some View {
-        Image(systemName: icon)
+        Image.safeSystemName(icon, fallback: "questionmark.circle")
             .font(.title)
             .frame(width: 60, height: 60)
             .background(backgroundCircle)

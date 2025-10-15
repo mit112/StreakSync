@@ -86,7 +86,7 @@ enum iOS26Components {
             Button(action: action) {
                 HStack(spacing: 8) {
                     if let icon = icon {
-                        Image(systemName: icon)
+                        Image.safeSystemName(icon, fallback: "questionmark.circle")
                             .symbolEffect(.bounce, value: isHovered)
                     }
                     Text(title)
@@ -122,7 +122,7 @@ enum iOS26Components {
             } label: {
                 HStack(spacing: 12) {
                     // Animated Icon
-                    Image(systemName: icon)
+                    Image.safeSystemName(icon, fallback: "questionmark.circle")
                         .font(.system(size: 22))
                         .foregroundStyle(iconColor)
                         .symbolEffect(.bounce, value: iconBounce)
@@ -197,7 +197,7 @@ enum iOS26Components {
             var body: some View {
                 Button(action: action) {
                     HStack(spacing: 6) {
-                        Image(systemName: category.iconSystemName)
+                        Image.safeSystemName(category.iconSystemName, fallback: "folder")
                             .font(.caption)
                             .symbolEffect(.bounce, value: isSelected)
                         Text(category.displayName)
@@ -310,6 +310,11 @@ enum iOS26Components {
             achievement.progress.percentageToNextTier(requirements: achievement.requirements)
         }
         
+        private var safeIconName: String {
+            let iconName = achievement.iconSystemName
+            return iconName.isEmpty ? "star.fill" : iconName
+        }
+        
         var body: some View {
             Button(action: action) {
                 VStack(spacing: 12) {
@@ -321,7 +326,7 @@ enum iOS26Components {
                                 Color(.systemGray5))
                             .frame(width: 80, height: 80)
                         
-                        Image(systemName: achievement.iconSystemName)
+                        Image.safeSystemName(safeIconName, fallback: "star.fill")
                             .font(.title)
                             .foregroundStyle(
                                 achievement.isUnlocked ?

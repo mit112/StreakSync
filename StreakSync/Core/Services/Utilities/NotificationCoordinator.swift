@@ -228,7 +228,7 @@ final class NotificationCoordinator: ObservableObject {
     }
     
     private func handleShareExtensionResult() async {
-        logger.info("📱 Received Share Extension notification")
+        logger.info("📤 Received Share Extension notification")
         
         // Let AppState handle the sync
         await appState?.loadPersistedData()

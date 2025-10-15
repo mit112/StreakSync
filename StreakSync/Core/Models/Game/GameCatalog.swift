@@ -48,8 +48,19 @@ final class GameCatalog {
     
     // MARK: - Initialization
     init() {
+        print("🔍 [GameCatalog.init] Starting game catalog initialization")
         loadAllGames()
         loadFavorites()
+        print("🔍 [GameCatalog.init] Game catalog initialization complete. Loaded \(allGames.count) games")
+        
+        // Check for empty icons
+        let emptyIconGames = allGames.filter { $0.iconSystemName.isEmpty }
+        if !emptyIconGames.isEmpty {
+            print("🚨 [GameCatalog.init] FOUND GAMES WITH EMPTY ICONS:")
+            for game in emptyIconGames {
+                print("  - \(game.displayName) (\(game.name)): icon='\(game.iconSystemName)'")
+            }
+        }
     }
     
     // MARK: - Game Loading

@@ -92,7 +92,7 @@ struct StatCard: View {
             }
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: icon)
+                Image.safeSystemName(icon, fallback: "chart.bar")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(adaptedGradient)
                     .symbolEffect(.bounce, value: isPressed)

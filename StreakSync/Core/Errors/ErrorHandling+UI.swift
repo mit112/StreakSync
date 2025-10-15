@@ -96,7 +96,7 @@ struct InlineErrorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: iconName)
+                Image.safeSystemName(iconName, fallback: "exclamationmark.triangle")
                     .foregroundColor(iconColor)
                 
                 Text(error.errorDescription ?? "An error occurred")

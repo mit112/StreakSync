@@ -45,9 +45,8 @@ final class DashboardViewModel: ObservableObject {
             appState.games.filter { game in
                 // Use streak data to determine if game is active
                 guard let streak = appState.getStreak(for: game) else { return false }
-                guard let lastPlayed = streak.lastPlayedDate else { return false }
-                let daysSinceLastPlayed = Calendar.current.dateComponents([.day], from: lastPlayed, to: Date()).day ?? 0
-                return daysSinceLastPlayed < 7
+                // A game is active if it has an active streak (played within 1 day AND has streak > 0)
+                return streak.isActive
             } :
             appState.games
         
@@ -201,10 +200,8 @@ final class DashboardViewModel: ObservableObject {
     }
     
     private func isActiveToday(_ game: Game) -> Bool {
-        guard let streak = appState.getStreak(for: game),
-              let lastPlayed = streak.lastPlayedDate else { return false }
-        let daysSinceLastPlayed = Calendar.current.dateComponents([.day], from: lastPlayed, to: Date()).day ?? 0
-        return daysSinceLastPlayed < 7
+        guard let streak = appState.getStreak(for: game) else { return false }
+        return streak.isActive
     }
 }
 

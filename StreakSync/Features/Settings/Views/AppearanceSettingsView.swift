@@ -64,7 +64,7 @@ private struct AppearanceOptionRow: View {
     var body: some View {
         Button(action: action) {
             HStack {
-                Image(systemName: mode.iconName)
+                Image.safeSystemName(mode.iconName, fallback: "gear")
                     .font(.system(size: 20))
                     .foregroundStyle(isSelected ? Color.accentColor : .primary)
                     .frame(width: 30)

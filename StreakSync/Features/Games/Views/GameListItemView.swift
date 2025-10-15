@@ -19,11 +19,18 @@ struct GameListItemView: View {
         appState.games.first { $0.id == streak.gameId }
     }
     
+    private var safeIconName: String {
+        guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
+            return "gamecontroller"
+        }
+        return iconName
+    }
+    
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
                 // Icon
-                Image(systemName: game?.iconSystemName ?? "gamecontroller")
+                Image.safeSystemName(safeIconName, fallback: "gamecontroller")
                     .font(.title3)
                     .foregroundStyle(game?.backgroundColor.color ?? .gray)
                     .frame(width: 32)

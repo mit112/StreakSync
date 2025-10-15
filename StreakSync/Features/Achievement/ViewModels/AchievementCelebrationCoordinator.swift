@@ -21,9 +21,15 @@ final class AchievementCelebrationCoordinator: ObservableObject {
     private var notificationObserver: NSObjectProtocol?
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AchievementCelebration")
     
+    // MARK: - Queue Management Properties
+    private var processedAchievements: Set<String> = []
+    private var isProcessingQueue = false
+    
     // MARK: - Initialization
     init() {
+        logger.info("🏗️ Initializing AchievementCelebrationCoordinator")
         setupObserver()
+        logger.info("✅ AchievementCelebrationCoordinator ready")
     }
     
     deinit {
@@ -39,7 +45,11 @@ final class AchievementCelebrationCoordinator: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            guard let unlock = notification.object as? AchievementUnlock else { return }
+            guard let unlock = notification.object as? AchievementUnlock else { 
+                self?.logger.warning("⚠️ Received invalid achievement unlock notification")
+                return 
+            }
+            self?.logger.info("📨 Received achievement unlock notification: \(unlock.achievement.displayName)")
             Task { @MainActor in
                 self?.queueCelebration(unlock)
             }
@@ -50,24 +60,46 @@ final class AchievementCelebrationCoordinator: ObservableObject {
     
     // MARK: - Queue Management
     private func queueCelebration(_ unlock: AchievementUnlock) {
+        // Create unique identifier for this achievement unlock
+        let achievementId = "\(unlock.achievement.id)-\(unlock.tier.rawValue)"
+        
+        // Prevent duplicate celebrations
+        if processedAchievements.contains(achievementId) {
+            logger.info("🚫 Skipping duplicate celebration: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
+            return
+        }
+        
         logger.info("🎊 Queueing celebration for \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
         
+        // Mark as processed to prevent duplicates
+        processedAchievements.insert(achievementId)
         celebrationQueue.append(unlock)
         
         // If not currently showing, start showing celebrations
-        if !isShowingCelebration {
-            showNextCelebration()
+        if !isShowingCelebration && !isProcessingQueue {
+            processCelebrationQueue()
         }
+    }
+    
+    private func processCelebrationQueue() {
+        guard !isProcessingQueue else {
+            logger.info("🔄 Already processing celebration queue")
+            return
+        }
+        
+        isProcessingQueue = true
+        showNextCelebration()
     }
     
     private func showNextCelebration() {
         guard !celebrationQueue.isEmpty else {
             logger.info("✅ All celebrations completed")
+            isProcessingQueue = false
             return
         }
         
         let nextUnlock = celebrationQueue.removeFirst()
-        logger.info("🎉 Showing celebration for \(nextUnlock.achievement.displayName)")
+        logger.info("🎉 Showing celebration for \(nextUnlock.achievement.displayName) - \(nextUnlock.tier.displayName)")
         
         currentCelebration = nextUnlock
         isShowingCelebration = true
@@ -80,10 +112,14 @@ final class AchievementCelebrationCoordinator: ObservableObject {
         currentCelebration = nil
         
         // Show next celebration if any
-        if !celebrationQueue.isEmpty {
+        if !self.celebrationQueue.isEmpty {
+            logger.info("⏭️ Showing next celebration in queue (\(self.celebrationQueue.count) remaining)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.showNextCelebration()
             }
+        } else {
+            logger.info("🏁 Celebration queue completed")
+            self.isProcessingQueue = false
         }
     }
     

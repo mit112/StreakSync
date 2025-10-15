@@ -53,7 +53,7 @@ private struct CategoryChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Image(systemName: icon)
+                Image.safeSystemName(icon, fallback: "star.fill")
                     .font(.caption)
                 Text(title)
                     .font(.caption.weight(.medium))

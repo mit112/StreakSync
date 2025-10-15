@@ -39,6 +39,19 @@ struct StreakHistoryView: View {
             .sorted { $0.date < $1.date }
     }
     
+    // MARK: - Month Grouped Results (for games like Pips)
+    private var monthGroupedResults: [GroupedGameResult] {
+        let calendar = Calendar.current
+        guard let month = calendar.dateInterval(of: .month, for: selectedMonth) else { return [] }
+        guard let game = game else { return [] }
+        
+        let allGroupedResults = appState.getGroupedResults(for: game)
+        let filteredByMonth = allGroupedResults.filter { month.contains($0.date) }
+        let sortedResults = filteredByMonth.sorted { $0.date < $1.date }
+        
+        return sortedResults
+    }
+    
     var body: some View {
         if #available(iOS 26.0, *) {
             iOS26HistoryView
@@ -179,60 +192,9 @@ struct StreakHistoryView: View {
     @available(iOS 26.0, *)
     private var iOS26CalendarGrid: some View {
         VStack(spacing: 12) {
-            // Weekday headers
-            HStack(spacing: 8) {
-                ForEach(Calendar.current.veryShortWeekdaySymbols, id: \.self) { day in
-                    Text(day)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            
-            // Calendar days
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7),
-                spacing: 8
-            ) {
-                ForEach(calendarDays(), id: \.self) { date in
-                    if let date = date {
-                        iOS26CalendarDayView(
-                            date: date,
-                            result: result(for: date),
-                            gameColor: gameColor,
-                            isSelected: selectedDate == date,
-                            isHovered: hoveredDate == date
-                        ) {
-                            withAnimation(.smooth(duration: 0.2)) {
-                                selectedDate = selectedDate == date ? nil : date
-                            }
-                            HapticManager.shared.trigger(.buttonTap)
-                        }
-                        .onHover { isHovering in
-                            withAnimation(.smooth(duration: 0.15)) {
-                                hoveredDate = isHovering ? date : nil
-                            }
-                        }
-                    } else {
-                        Color.clear
-                            .frame(height: 48)
-                    }
-                }
-            }
-            
-            // Selected date detail
-            if let selected = selectedDate,
-               let result = result(for: selected) {
-                iOS26SelectedDateDetail(
-                    date: selected,
-                    result: result,
-                    gameColor: gameColor
-                )
-                .transition(.asymmetric(
-                    insertion: .push(from: .bottom).combined(with: .opacity),
-                    removal: .push(from: .top).combined(with: .opacity)
-                ))
-            }
+            weekdayHeadersView
+            calendarDaysGrid
+            selectedDateDetailView
         }
         .padding(20)
         .background {
@@ -240,6 +202,95 @@ struct StreakHistoryView: View {
                 .fill(.regularMaterial)
                 .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
         }
+    }
+    
+    @available(iOS 26.0, *)
+    private var weekdayHeadersView: some View {
+        HStack(spacing: 8) {
+            ForEach(Array(Calendar.current.veryShortWeekdaySymbols.enumerated()), id: \.offset) { index, day in
+                Text(day)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+    
+    @available(iOS 26.0, *)
+    private var calendarDaysGrid: some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7),
+            spacing: 8
+        ) {
+            ForEach(Array(calendarDays().enumerated()), id: \.offset) { index, date in
+                if let date = date {
+                    calendarDayView(for: date)
+                } else {
+                    Color.clear
+                        .frame(height: 48)
+                }
+            }
+        }
+    }
+    
+    @available(iOS 26.0, *)
+    private func calendarDayView(for date: Date) -> some View {
+        iOS26CalendarDayView(
+            date: date,
+            result: result(for: date),
+            gameColor: gameColor,
+            isSelected: selectedDate == date,
+            isHovered: hoveredDate == date
+        ) {
+            withAnimation(.smooth(duration: 0.2)) {
+                selectedDate = selectedDate == date ? nil : date
+            }
+            HapticManager.shared.trigger(.buttonTap)
+        }
+        .onHover { isHovering in
+            withAnimation(.smooth(duration: 0.15)) {
+                hoveredDate = isHovering ? date : nil
+            }
+        }
+    }
+    
+    @available(iOS 26.0, *)
+    private var selectedDateDetailView: some View {
+        Group {
+            if let selected = selectedDate {
+                if let groupedResult = groupedResult(for: selected) {
+                    groupedDateDetailView(selected: selected, groupedResult: groupedResult)
+                } else if let result = result(for: selected) {
+                    individualDateDetailView(selected: selected, result: result)
+                }
+            }
+        }
+    }
+    
+    @available(iOS 26.0, *)
+    private func groupedDateDetailView(selected: Date, groupedResult: GroupedGameResult) -> some View {
+        iOS26SelectedDateGroupedDetail(
+            date: selected,
+            groupedResult: groupedResult,
+            gameColor: gameColor
+        )
+        .transition(.asymmetric(
+            insertion: .push(from: .bottom).combined(with: .opacity),
+            removal: .push(from: .top).combined(with: .opacity)
+        ))
+    }
+    
+    @available(iOS 26.0, *)
+    private func individualDateDetailView(selected: Date, result: GameResult) -> some View {
+        iOS26SelectedDateDetail(
+            date: selected,
+            result: result,
+            gameColor: gameColor
+        )
+        .transition(.asymmetric(
+            insertion: .push(from: .bottom).combined(with: .opacity),
+            removal: .push(from: .top).combined(with: .opacity)
+        ))
     }
     
     // MARK: - iOS 26 Month Stats
@@ -253,26 +304,88 @@ struct StreakHistoryView: View {
             }
             
             HStack {
-                Label("\(monthResults.count) games played", systemImage: "gamecontroller.fill")
+                Label("\(totalGamesPlayed) games played", systemImage: "gamecontroller.fill")
                     .font(.subheadline)
                 
                 Spacer()
                 
-                Label("\(monthResults.filter(\.completed).count) completed", systemImage: "checkmark.circle.fill")
+                Label("\(totalGamesCompleted) completed", systemImage: "checkmark.circle.fill")
                     .font(.subheadline)
                     .foregroundStyle(.green)
             }
             
+            // Time-based metrics for Pips - separate by difficulty
+            if game?.name.lowercased() == "pips" {
+                VStack(spacing: 8) {
+                    // Easy difficulty
+                    if let bestEasy = bestTime(for: "Easy"), let avgEasy = averageTime(for: "Easy") {
+                        HStack {
+                            Label("Easy Best: \(bestEasy)", systemImage: "clock.fill")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                            
+                            Spacer()
+                            
+                            Label("Avg: \(avgEasy)", systemImage: "chart.line.uptrend.xyaxis")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                    }
+                    
+                    // Medium difficulty
+                    if let bestMedium = bestTime(for: "Medium"), let avgMedium = averageTime(for: "Medium") {
+                        HStack {
+                            Label("Medium Best: \(bestMedium)", systemImage: "clock.fill")
+                                .font(.caption)
+                                .foregroundStyle(.yellow)
+                            
+                            Spacer()
+                            
+                            Label("Avg: \(avgMedium)", systemImage: "chart.line.uptrend.xyaxis")
+                                .font(.caption)
+                                .foregroundStyle(.yellow)
+                        }
+                    }
+                    
+                    // Hard difficulty
+                    if let bestHard = bestTime(for: "Hard"), let avgHard = averageTime(for: "Hard") {
+                        HStack {
+                            Label("Hard Best: \(bestHard)", systemImage: "clock.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            
+                            Spacer()
+                            
+                            Label("Avg: \(avgHard)", systemImage: "chart.line.uptrend.xyaxis")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+            }
+            
             if showingStats {
-                iOS26PerformanceChart(
-                    results: monthResults,
-                    gameColor: gameColor
-                )
-                .frame(height: 200)
-                .transition(.asymmetric(
-                    insertion: .push(from: .trailing).combined(with: .opacity),
-                    removal: .push(from: .leading).combined(with: .opacity)
-                ))
+                if game?.name.lowercased() == "pips" {
+                    iOS26TimeBasedChart(
+                        groupedResults: monthGroupedResults,
+                        gameColor: gameColor
+                    )
+                    .frame(height: 200)
+                    .transition(.asymmetric(
+                        insertion: .push(from: .trailing).combined(with: .opacity),
+                        removal: .push(from: .leading).combined(with: .opacity)
+                    ))
+                } else {
+                    iOS26PerformanceChart(
+                        results: monthResults,
+                        gameColor: gameColor
+                    )
+                    .frame(height: 200)
+                    .transition(.asymmetric(
+                        insertion: .push(from: .trailing).combined(with: .opacity),
+                        removal: .push(from: .leading).combined(with: .opacity)
+                    ))
+                }
             }
         }
         .padding()
@@ -361,7 +474,7 @@ struct StreakHistoryView: View {
         VStack(spacing: Spacing.sm) {
             // Weekday headers
             HStack(spacing: Spacing.xs) {
-                ForEach(Calendar.current.veryShortWeekdaySymbols, id: \.self) { day in
+                ForEach(Array(Calendar.current.veryShortWeekdaySymbols.enumerated()), id: \.offset) { index, day in
                     Text(day)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -374,11 +487,12 @@ struct StreakHistoryView: View {
                 columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.xs), count: 7),
                 spacing: Spacing.xs
             ) {
-                ForEach(calendarDays(), id: \.self) { date in
+                ForEach(Array(calendarDays().enumerated()), id: \.offset) { index, date in
                     if let date = date {
                         CalendarDayView(
                             date: date,
                             result: result(for: date),
+                            groupedResult: groupedResult(for: date),
                             gameColor: gameColor
                         )
                     } else {
@@ -399,12 +513,12 @@ struct StreakHistoryView: View {
                 .font(.headline)
             
             HStack {
-                Label("\(monthResults.count) games played", systemImage: "gamecontroller")
+                Label("\(totalGamesPlayed) games played", systemImage: "gamecontroller")
                     .font(.subheadline)
                 
                 Spacer()
                 
-                Label("\(monthResults.filter(\.completed).count) completed", systemImage: "checkmark.circle")
+                Label("\(totalGamesCompleted) completed", systemImage: "checkmark.circle")
                     .font(.subheadline)
                     .foregroundStyle(.green)
             }
@@ -412,6 +526,84 @@ struct StreakHistoryView: View {
         .padding()
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: CornerRadius.card))
+    }
+    
+    private var totalGamesPlayed: Int {
+        // For Pips (grouped results), only count grouped results
+        // For other games (individual results), count individual results
+        if game?.name.lowercased() == "pips" {
+            return monthGroupedResults.count
+        } else {
+            return monthResults.count
+        }
+    }
+    
+    private var totalGamesCompleted: Int {
+        // For Pips (grouped results), only count grouped results
+        // For other games (individual results), count individual results
+        if game?.name.lowercased() == "pips" {
+            return monthGroupedResults.filter { $0.completionStatus.contains("Completed") }.count
+        } else {
+            return monthResults.filter(\.completed).count
+        }
+    }
+    
+    // MARK: - Time-based Performance Metrics for Pips (by difficulty)
+    private func bestTime(for difficulty: String) -> String? {
+        guard game?.name.lowercased() == "pips" else { return nil }
+        
+        let difficultyTimes = monthGroupedResults.flatMap { $0.results }
+            .filter { $0.parsedData["difficulty"]?.lowercased() == difficulty.lowercased() }
+            .filter(\.completed)
+            .compactMap { $0.parsedData["time"] }
+        
+        guard !difficultyTimes.isEmpty else { return nil }
+        
+        // Convert times to seconds for comparison
+        let timesInSeconds = difficultyTimes.compactMap { timeString in
+            let components = timeString.split(separator: ":")
+            if components.count == 2,
+               let minutes = Int(components[0]),
+               let seconds = Int(components[1]) {
+                return minutes * 60 + seconds
+            }
+            return nil
+        }
+        
+        guard let bestSeconds = timesInSeconds.min() else { return nil }
+        
+        let minutes = bestSeconds / 60
+        let seconds = bestSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    private func averageTime(for difficulty: String) -> String? {
+        guard game?.name.lowercased() == "pips" else { return nil }
+        
+        let difficultyTimes = monthGroupedResults.flatMap { $0.results }
+            .filter { $0.parsedData["difficulty"]?.lowercased() == difficulty.lowercased() }
+            .filter(\.completed)
+            .compactMap { $0.parsedData["time"] }
+        
+        guard !difficultyTimes.isEmpty else { return nil }
+        
+        // Convert times to seconds for calculation
+        let timesInSeconds = difficultyTimes.compactMap { timeString in
+            let components = timeString.split(separator: ":")
+            if components.count == 2,
+               let minutes = Int(components[0]),
+               let seconds = Int(components[1]) {
+                return minutes * 60 + seconds
+            }
+            return nil
+        }
+        
+        guard !timesInSeconds.isEmpty else { return nil }
+        
+        let averageSeconds = timesInSeconds.reduce(0, +) / timesInSeconds.count
+        let minutes = averageSeconds / 60
+        let seconds = averageSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
     
     // MARK: - Helper Methods
@@ -441,6 +633,13 @@ struct StreakHistoryView: View {
         let calendar = Calendar.current
         return monthResults.first { result in
             calendar.isDate(result.date, inSameDayAs: date)
+        }
+    }
+    
+    private func groupedResult(for date: Date) -> GroupedGameResult? {
+        let calendar = Calendar.current
+        return monthGroupedResults.first { groupedResult in
+            calendar.isDate(groupedResult.date, inSameDayAs: date)
         }
     }
     
@@ -489,6 +688,7 @@ struct StatBox: View {
 struct CalendarDayView: View {
     let date: Date
     let result: GameResult?
+    let groupedResult: GroupedGameResult?
     let gameColor: Color
     
     private var isToday: Bool {
@@ -504,15 +704,38 @@ struct CalendarDayView: View {
                         .stroke(borderColor, lineWidth: isToday ? 2 : 0)
                 )
             
-            Text("\(Calendar.current.component(.day, from: date))")
-                .font(.system(.body, design: .rounded))
-                .foregroundStyle(textColor)
+            VStack(spacing: 2) {
+                Text("\(Calendar.current.component(.day, from: date))")
+                    .font(.system(.body, design: .rounded))
+                    .foregroundStyle(textColor)
+                
+                // Show indicators for grouped results
+                if let groupedResult = groupedResult {
+                    HStack(spacing: 2) {
+                        if groupedResult.hasEasy {
+                            Circle().fill(.green).frame(width: 4, height: 4)
+                        }
+                        if groupedResult.hasMedium {
+                            Circle().fill(.yellow).frame(width: 4, height: 4)
+                        }
+                        if groupedResult.hasHard {
+                            Circle().fill(.orange).frame(width: 4, height: 4)
+                        }
+                    }
+                } else if let result = result {
+                    Circle()
+                        .fill(result.completed ? Color.green : Color.red.opacity(0.7))
+                        .frame(width: 6, height: 6)
+                }
+            }
         }
         .frame(height: 44)
     }
     
     private var backgroundColor: Color {
-        if let result = result {
+        if let groupedResult = groupedResult {
+            return groupedResult.completionStatus.contains("Completed") ? gameColor.opacity(0.2) : Color(.systemGray6)
+        } else if let result = result {
             return result.completed ? gameColor.opacity(0.2) : Color(.systemGray6)
         }
         return Color.clear
@@ -523,7 +746,7 @@ struct CalendarDayView: View {
     }
     
     private var textColor: Color {
-        result != nil ? .primary : .secondary
+        (groupedResult != nil || result != nil) ? .primary : .secondary
     }
 }
 
@@ -539,7 +762,7 @@ struct iOS26StatBox: View {
     
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: icon)
+            Image.safeSystemName(icon, fallback: "chart.bar")
                 .font(.title2)
                 .foregroundStyle(color)
                 .symbolEffect(.bounce, value: isHovered)
@@ -685,6 +908,181 @@ struct iOS26SelectedDateDetail: View {
 }
 
 @available(iOS 26.0, *)
+struct iOS26SelectedDateGroupedDetail: View {
+    let date: Date
+    let groupedResult: GroupedGameResult
+    let gameColor: Color
+    @State private var isExpanded = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            headerView
+            if isExpanded {
+                expandedContentView
+            }
+        }
+        .padding()
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.ultraThinMaterial)
+        }
+    }
+    
+    private var headerView: some View {
+        Button {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                isExpanded.toggle()
+            }
+        } label: {
+            HStack(spacing: 16) {
+                dateInfoView
+                Spacer()
+                difficultyIndicatorsView
+                chevronView
+            }
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private var dateInfoView: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(date.formatted(.dateTime.weekday(.wide).month().day()))
+                .font(.subheadline.weight(.semibold))
+            
+            HStack(spacing: 8) {
+                completionStatusView
+                if let bestTime = groupedResult.bestTime {
+                    Text("• \(bestTime)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+    
+    private var completionStatusView: some View {
+        Label(
+            groupedResult.completionStatus,
+            systemImage: completionIcon
+        )
+        .font(.caption)
+        .foregroundStyle(completionColor)
+    }
+    
+    private var completionIcon: String {
+        let completedCount = groupedResult.results.filter(\.completed).count
+        let totalCount = groupedResult.results.count
+        
+        switch completedCount {
+        case 3:
+            return "trophy.fill" // Gold - all 3 completed
+        case 2:
+            return "medal.fill" // Silver - 2/3 completed
+        case 1:
+            return "rosette" // Bronze - 1/3 completed
+        default:
+            return "circle" // None completed
+        }
+    }
+    
+    private var completionColor: Color {
+        let completedCount = groupedResult.results.filter(\.completed).count
+        
+        switch completedCount {
+        case 3:
+            return .yellow // Gold
+        case 2:
+            return .gray // Silver
+        case 1:
+            return .brown // Bronze
+        default:
+            return .secondary
+        }
+    }
+    
+    private var difficultyIndicatorsView: some View {
+        HStack(spacing: 4) {
+            if groupedResult.hasEasy {
+                Circle().fill(.green).frame(width: 8, height: 8)
+            }
+            if groupedResult.hasMedium {
+                Circle().fill(.yellow).frame(width: 8, height: 8)
+            }
+            if groupedResult.hasHard {
+                Circle().fill(.orange).frame(width: 8, height: 8)
+            }
+        }
+    }
+    
+    private var chevronView: some View {
+        Image(systemName: "chevron.down")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .rotationEffect(.degrees(isExpanded ? 180 : 0))
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isExpanded)
+    }
+    
+    private var expandedContentView: some View {
+        VStack(spacing: 8) {
+            ForEach(Array(groupedResult.results.enumerated()), id: \.element.id) { index, result in
+                DifficultyResultRowView(result: result)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+@available(iOS 26.0, *)
+struct DifficultyResultRowView: View {
+    let result: GameResult
+    
+    var body: some View {
+        HStack {
+            Circle()
+                .fill(difficultyColor)
+                .frame(width: 12, height: 12)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(difficultyText)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                
+                Text(result.date.formatted(date: .omitted, time: .shortened))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial.opacity(0.8), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(.quaternary, lineWidth: 0.5)
+        )
+    }
+    
+    private var difficultyColor: Color {
+        guard let difficulty = result.parsedData["difficulty"] else { return .gray }
+        switch difficulty.lowercased() {
+        case "easy": return .green
+        case "medium": return .yellow
+        case "hard": return .orange
+        default: return .gray
+        }
+    }
+    
+    private var difficultyText: String {
+        guard let difficulty = result.parsedData["difficulty"],
+              let time = result.parsedData["time"] else { return "" }
+        return "\(difficulty) - \(time)"
+    }
+}
+
+@available(iOS 26.0, *)
 struct iOS26PerformanceChart: View {
     let results: [GameResult]
     let gameColor: Color
@@ -724,6 +1122,137 @@ struct iOS26PerformanceChart: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(.ultraThinMaterial)
         }
+    }
+}
+
+@available(iOS 26.0, *)
+struct iOS26TimeBasedChart: View {
+    let groupedResults: [GroupedGameResult]
+    let gameColor: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Time-based performance summary
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Best Times")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    HStack(spacing: 16) {
+                        if let bestEasy = bestTime(for: "Easy") {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Easy")
+                                    .font(.caption2)
+                                    .foregroundStyle(.green)
+                                Text(bestEasy)
+                                    .font(.caption.weight(.medium))
+                            }
+                        }
+                        
+                        if let bestMedium = bestTime(for: "Medium") {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Medium")
+                                    .font(.caption2)
+                                    .foregroundStyle(.yellow)
+                                Text(bestMedium)
+                                    .font(.caption.weight(.medium))
+                            }
+                        }
+                        
+                        if let bestHard = bestTime(for: "Hard") {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Hard")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                                Text(bestHard)
+                                    .font(.caption.weight(.medium))
+                            }
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Completion")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    Text("\(totalCompleted)/\(totalPossible)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(gameColor)
+                }
+            }
+            
+            // Simple completion chart
+            Chart(groupedResults.prefix(7)) { groupedResult in
+                let completedCount = groupedResult.results.filter(\.completed).count
+                let totalCount = groupedResult.results.count
+                let completionRate = Double(completedCount) / Double(totalCount)
+                
+                BarMark(
+                    x: .value("Date", groupedResult.date),
+                    y: .value("Completion", completionRate)
+                )
+                .foregroundStyle(gameColor.gradient)
+                .cornerRadius(4)
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { _ in
+                    AxisGridLine()
+                    AxisValueLabel(format: .dateTime.day())
+                        .font(.caption2)
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .trailing) { value in
+                    AxisGridLine()
+                    AxisValueLabel()
+                        .font(.caption2)
+                }
+            }
+            .chartYScale(domain: 0...1)
+        }
+        .padding()
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.ultraThinMaterial)
+        }
+    }
+    
+    private func bestTime(for difficulty: String) -> String? {
+        let times = groupedResults.flatMap { $0.results }
+            .filter { $0.parsedData["difficulty"]?.lowercased() == difficulty.lowercased() }
+            .filter(\.completed)
+            .compactMap { $0.parsedData["time"] }
+        
+        guard !times.isEmpty else { return nil }
+        
+        // Convert times to seconds for comparison
+        let timesInSeconds = times.compactMap { timeString in
+            let components = timeString.split(separator: ":")
+            if components.count == 2,
+               let minutes = Int(components[0]),
+               let seconds = Int(components[1]) {
+                return minutes * 60 + seconds
+            }
+            return nil
+        }
+        
+        guard let bestSeconds = timesInSeconds.min() else { return nil }
+        
+        let minutes = bestSeconds / 60
+        let seconds = bestSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    private var totalCompleted: Int {
+        groupedResults.flatMap { $0.results }.filter(\.completed).count
+    }
+    
+    private var totalPossible: Int {
+        groupedResults.flatMap { $0.results }.count
     }
 }
 

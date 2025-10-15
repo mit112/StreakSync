@@ -64,7 +64,7 @@ struct TieredAchievementDetailView: View {
                     .fill(achievement.displayColor.opacity(0.15))
                     .frame(width: 80, height: 80)
                 
-                Image(systemName: achievement.iconSystemName)
+                Image.safeSystemName(achievement.iconSystemName, fallback: "star.fill")
                     .font(.system(size: 36))
                     .foregroundStyle(achievement.displayColor)
             }
@@ -273,7 +273,7 @@ private struct TierRequirementRow: View {
         VStack(spacing: 8) {
             HStack(spacing: 12) {
                 // Tier icon
-                Image(systemName: requirement.tier.iconSystemName)
+                Image.safeSystemName(requirement.tier.iconSystemName, fallback: "trophy.fill")
                     .font(.title3)
                     .foregroundStyle(isUnlocked ? requirement.tier.color : .gray)
                     .frame(width: 24)

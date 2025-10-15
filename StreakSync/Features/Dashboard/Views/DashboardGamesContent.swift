@@ -12,7 +12,6 @@ struct DashboardGamesContent: View {
     let filteredStreaks: [GameStreak]
     let displayMode: GameDisplayMode
     let searchText: String
-    let refreshID: UUID
     let hasInitiallyAppeared: Bool
     
     @Environment(AppState.self) private var appState
@@ -63,7 +62,7 @@ struct DashboardGamesContent: View {
                         insertion: .opacity.combined(with: .move(edge: .bottom)),
                         removal: .opacity.combined(with: .scale)
                     ))
-                    .id("\(refreshID)-\(streak.id)")
+                    .id(streak.id)
                 }
             }
         }
@@ -92,7 +91,7 @@ struct DashboardGamesContent: View {
                         insertion: .opacity.combined(with: .scale(scale: 0.8)).combined(with: .move(edge: .bottom)),
                         removal: .opacity.combined(with: .scale(scale: 0.8))
                     ))
-                    .id("\(refreshID)-\(streak.id)")
+                    .id(streak.id)
                     .modifier(InitialAnimationModifier(
                         hasAppeared: hasInitiallyAppeared,
                         index: index,
@@ -126,7 +125,6 @@ struct DashboardGamesContent: View {
                 ],
                 displayMode: .card,
                 searchText: "",
-                refreshID: UUID(),
                 hasInitiallyAppeared: true
             )
             .padding()

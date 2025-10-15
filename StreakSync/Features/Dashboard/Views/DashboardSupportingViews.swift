@@ -15,7 +15,7 @@ struct CompactProgressBadge: View {
     
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: icon)
+            Image.safeSystemName(icon, fallback: "questionmark.circle")
                 .font(.caption)
                 .symbolEffect(.pulse, options: .repeating.speed(0.5), value: value > 0)
             Text("\(value)")
@@ -85,10 +85,15 @@ struct MiniStreakCard: View {
     
     @State private var isHovered = false
     
+    private var safeIconName: String {
+        let iconName = game.iconSystemName
+        return iconName.isEmpty ? "gamecontroller" : iconName
+    }
+    
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                Image(systemName: game.iconSystemName)
+                Image.safeSystemName(safeIconName, fallback: "gamecontroller")
                     .font(.title2)
                     .foregroundStyle(game.backgroundColor.color)
                     .symbolEffect(.bounce, value: isHovered)
@@ -143,6 +148,7 @@ struct EnhancedStreakCard: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isPressed = false
     @State private var isHovered = false
+    @State private var iconBounce = false
     
     private var game: Game? {
         appState.games.first { $0.id == streak.gameId }
@@ -204,16 +210,24 @@ struct EnhancedStreakCard: View {
             }
         }
         .buttonStyle(.plain)
-        .scaleEffect(isPressed ? 0.97 : (isHovered ? 1.02 : 1.0))
-        .animation(.smooth(duration: 0.2), value: isPressed)
+        .scaleEffect(isPressed ? 0.96 : (isHovered ? 1.02 : 1.0))
+        .animation(.smooth(duration: 0.15), value: isPressed)
         .animation(.smooth(duration: 0.2), value: isHovered)
         .onLongPressGesture(
             minimumDuration: 0,
             maximumDistance: .infinity,
             pressing: { pressing in
-                isPressed = pressing
+                withAnimation(.smooth(duration: 0.1)) {
+                    isPressed = pressing
+                }
                 if pressing {
                     HapticManager.shared.trigger(.buttonTap)
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        iconBounce = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        iconBounce = false
+                    }
                 }
             },
             perform: {}
@@ -226,6 +240,7 @@ struct EnhancedStreakCard: View {
             index: animationIndex,
             totalCount: 10
         ))
+        .gameCardAccessibility(game: game ?? Game.sample, streak: streak)
     }
     
     // MARK: - Helper Views
@@ -235,10 +250,20 @@ struct EnhancedStreakCard: View {
                 .fill(gameColor.opacity(0.15))
                 .frame(width: 56, height: 56)
             
-            Image(systemName: game?.iconSystemName ?? "gamecontroller")
+            Image.safeSystemName(safeIconName, fallback: "gamecontroller")
                 .font(.title2)
                 .foregroundStyle(gameColor)
+                .scaleEffect(iconBounce ? 1.2 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: iconBounce)
         }
+    }
+    
+    private var safeIconName: String {
+        guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
+            print("⚠️ MiniStreakCard: Empty/nil icon for game '\(game?.displayName ?? "nil")'")
+            return "gamecontroller"
+        }
+        return iconName
     }
     
     private var statsRow: some View {
@@ -373,19 +398,19 @@ private struct iOS26EnhancedStreakCard: View {
             }
         }
         .buttonStyle(.plain)
-        .scaleEffect(isPressed ? 0.97 : (isHovered ? 1.01 : 1.0))
-        .animation(.smooth(duration: 0.2), value: isPressed)
+        .scaleEffect(isPressed ? 0.95 : (isHovered ? 1.02 : 1.0))
+        .animation(.smooth(duration: 0.12), value: isPressed)
         .animation(.smooth(duration: 0.2), value: isHovered)
         .hoverEffect(.lift)
         .onLongPressGesture(
             minimumDuration: 0,
             maximumDistance: .infinity,
             pressing: { pressing in
-                withAnimation(.smooth(duration: 0.1)) {
+                withAnimation(.smooth(duration: 0.08)) {
                     isPressed = pressing
                 }
                 if pressing {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 }
             },
             perform: {}
@@ -426,13 +451,13 @@ private struct iOS26EnhancedStreakCard: View {
                         .stroke(gameColor.opacity(0.4), lineWidth: 1)
                 }
             
-            Image(systemName: game?.iconSystemName ?? "gamecontroller")
+            Image.safeSystemName(safeGameIconName, fallback: "gamecontroller")
                 .font(.title2.weight(.medium))
                 .foregroundStyle(gameColor)
                 .symbolEffect(.bounce, value: iconBounce)
             
             // Activity indicator
-            if game?.hasPlayedToday == true {
+            if let lastPlayed = streak.lastPlayedDate, Calendar.current.isDateInToday(lastPlayed) {
                 Circle()
                     .fill(PaletteColor.primary.color)
                     .frame(width: 12, height: 12)
@@ -444,6 +469,14 @@ private struct iOS26EnhancedStreakCard: View {
                     .transition(.scale.combined(with: .opacity))
             }
         }
+    }
+    
+    private var safeGameIconName: String {
+        guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
+            print("⚠️ [EnhancedStreakCard.safeGameIconName] Empty/nil icon for game '\(game?.displayName ?? "nil")' (streak: \(streak.gameName))")
+            return "gamecontroller"
+        }
+        return iconName
     }
     
     // MARK: - Header Row

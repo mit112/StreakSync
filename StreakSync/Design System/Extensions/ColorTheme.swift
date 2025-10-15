@@ -168,6 +168,10 @@ extension Color {
             return isDarkMode ? Color(hex: "818CF8") : Color(hex: "6366F1")
         case .puzzle:
             return isDarkMode ? Color(hex: "67E8F9") : Color(hex: "06B6D4")
+        case .nytGames:
+            return isDarkMode ? Color(hex: "F87171") : Color(hex: "DC2626")
+        case .linkedinGames:
+            return isDarkMode ? Color(hex: "60A5FA") : Color(hex: "0077B5")
         case .custom:
             return isDarkMode ? Color(hex: "9CA3AF") : Color(hex: "6B7280")
         }

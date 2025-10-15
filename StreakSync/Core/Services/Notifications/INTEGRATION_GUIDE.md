@@ -19,43 +19,18 @@ In your main app file (`StreakSyncApp.swift`), the notification delegate is alre
 The notification settings are already integrated into your main settings view. Users can access them via:
 - Settings → Notifications
 
-### 3. Add Contextual Nudges
+The simplified settings include:
+- **Enable Streak Reminders**: Master toggle for all streak reminders
+- **Reminder Time**: Single time picker for daily reminder (default: 7 PM)
 
-Add notification nudges to your views where appropriate:
+### 3. Schedule Notifications
 
-```swift
-struct YourView: View {
-    var body: some View {
-        VStack {
-            // Global notification nudge
-            NotificationNudgeView()
-            
-            // Your existing content
-            // ...
-            
-            // Game-specific nudges
-            ForEach(games) { game in
-                VStack {
-                    GameCardView(game: game)
-                    GameNotificationNudgeView(game: game)
-                }
-            }
-        }
-    }
-}
-```
-
-### 4. Schedule Notifications
-
-When you want to schedule notifications, use the `NotificationScheduler`:
+The system automatically schedules daily reminders based on user settings. To manually trigger a check:
 
 ```swift
-// Schedule a streak reminder
+// Check and schedule streak reminders
 Task {
-    await NotificationScheduler.shared.scheduleStreakReminder(
-        for: game, 
-        at: preferredTime
-    )
+    await appState.checkAndScheduleStreakReminders()
 }
 
 // Schedule achievement notification
@@ -66,7 +41,7 @@ Task {
 }
 ```
 
-### 5. Handle Achievement Unlocks
+### 4. Handle Achievement Unlocks
 
 In your achievement unlock handler, add notification scheduling:
 
@@ -93,54 +68,98 @@ func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
 - Provides easy opt-out
 
 ### NotificationSettingsView
-- Comprehensive settings for all notification preferences
-- Per-game customization
-- Global controls (quiet hours, frequency caps)
-
-### NotificationNudgeView
-- Smart contextual suggestions
-- Only shows after 3+ days of usage
-- Non-intrusive presentation
+- **Simplified Settings**: Just enable toggle and time picker
+- **No Per-Game Configuration**: Works automatically for all games
+- **Debug Tools**: Test notifications and check current state
 
 ### NotificationScheduler
-- Handles all notification scheduling
-- Respects user preferences
-- Manages frequency caps and quiet hours
+- **Single Daily Reminder**: Maximum one notification per day
+- **Smart Content**: Adapts message based on number of games at risk
+- **Automatic Scheduling**: Works with user's preferred time
+- **Legacy Cleanup**: Cancels old per-game notifications
 
 ### NotificationDelegate
-- Handles notification interactions
-- Manages foreground display
-- Routes actions to appropriate app sections
+- **Handles notification interactions**: Tap, action buttons
+- **Manages foreground display**: Shows notifications when app is open
+- **Routes actions**: Opens specific games or achievements
+- **Simplified Actions**: Works with new single daily reminder system
 
-## User Experience Flow
+## How the Simplified System Works
 
+### Daily Reminder Process
+1. **App Check**: System checks all games with active streaks
+2. **Risk Assessment**: Identifies games not played today
+3. **Single Notification**: Sends one notification listing all at-risk games
+4. **Smart Content**: Adapts message based on number of games at risk
+
+### Notification Content Examples
+- **1 Game**: "Don't lose your Wordle streak"
+- **2-3 Games**: "Don't lose your streaks in Wordle, Connections"
+- **4+ Games**: "Don't lose your streaks in Wordle, Connections, and 3 other games"
+
+### User Experience Flow
 1. **First Launch**: No permission request (respectful)
-2. **After 3 Days**: Contextual nudge appears suggesting notifications
-3. **User Enables**: Permission flow with clear benefits
-4. **Settings**: Full control over all notification preferences
-5. **Notifications**: Smart, contextual, actionable reminders
+2. **User Enables**: Simple permission flow with clear benefits
+3. **Settings**: Just 2 settings - enable toggle and time picker
+4. **Daily Reminders**: One notification per day maximum
+5. **Actions**: Play Now, Remind Tomorrow, Mark as Played
+
+## Migration from Old System
+
+The system automatically migrates from the previous complex system:
+- **Cleans up old settings**: Removes per-game configurations
+- **Sets sensible defaults**: Enabled, 7 PM reminder time
+- **Cancels old notifications**: Removes all per-game reminders
+- **Schedules new reminder**: Single daily reminder system
 
 ## Best Practices
 
-- Always check permission status before scheduling
-- Respect quiet hours and frequency caps
-- Provide clear value in notification content
-- Make it easy to disable or customize
-- Test thoroughly in all app states
+- **Permission First**: Always check permission status before scheduling
+- **User Control**: Respect user preferences and settings
+- **Simple Configuration**: Keep settings minimal and easy to understand
+- **Test Thoroughly**: Use debug tools to test notification behavior
+- **Error Handling**: Gracefully handle permission denials and errors
 
 ## Testing
 
-Use the preview files to test different notification states:
+Use the debug tools in NotificationSettingsView to test:
 
 ```swift
-#Preview("Permission Flow") {
-    NotificationPermissionFlowView()
+// Test notification (Debug builds only)
+Button("Test Notification") {
+    Task {
+        await viewModel.testNotification()
+    }
 }
 
-#Preview("Settings") {
-    NotificationSettingsView()
-        .environment(AppState(persistenceService: MockPersistenceService()))
+// Check current state
+Button("Check Current State") {
+    Task {
+        await NotificationScheduler.shared.logCurrentNotificationState()
+    }
 }
 ```
 
-The system is designed to be helpful without being pushy, giving users complete control while providing genuine value through smart, contextual reminders.
+## Benefits of Simplified System
+
+1. **No Multiple Notifications**: Users receive maximum one notification per day
+2. **Easy to Understand**: Simple on/off toggle and time picker
+3. **No Per-Game Configuration**: Works automatically for all games
+4. **Reliable**: Consistent behavior without complex settings
+5. **User-Friendly**: Clear, actionable notifications
+
+## Troubleshooting
+
+### Common Issues
+- **No notifications**: Check permission status and reminder settings
+- **Multiple notifications**: Old system remnants - migration should clean these up
+- **Wrong time**: Verify time picker settings in notification settings
+
+### Debug Steps
+1. Check notification permission status
+2. Verify reminder settings are enabled
+3. Check if games have active streaks
+4. Use debug tools to test notification scheduling
+5. Check current notification state
+
+The simplified system is designed to be helpful without being pushy, giving users complete control while providing genuine value through smart, daily reminders.

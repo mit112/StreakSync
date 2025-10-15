@@ -157,7 +157,7 @@ struct GameSelectionRow: View {
     var body: some View {
         Button(action: action) {
             HStack {
-                Image(systemName: game.iconSystemName)
+                Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
                     .font(.title3)
                     .foregroundStyle(game.backgroundColor.color)
                     .frame(width: 30, height: 30)

@@ -2,7 +2,7 @@
 //  NotificationScheduler.swift
 //  StreakSync
 //
-//  Smart notification scheduling with frequency caps and quiet hours
+//  Simple daily notification scheduling system
 //
 
 import Foundation
@@ -41,17 +41,9 @@ final class NotificationScheduler: ObservableObject {
     
     // MARK: - Settings Keys
     private enum SettingsKeys {
-        static let quietHoursEnabled = "notificationQuietHoursEnabled"
-        static let quietHoursStart = "notificationQuietHoursStart"
-        static let quietHoursEnd = "notificationQuietHoursEnd"
-        static let enableDigest = "enableNotificationDigest"
         static let lastNotificationDate = "lastNotificationDate"
         static let dailyNotificationCount = "dailyNotificationCount"
     }
-    
-    // MARK: - Default Settings
-    private let defaultQuietHoursStart = 21 // 9 PM
-    private let defaultQuietHoursEnd = 9    // 9 AM
     
     // MARK: - Initialization
     private init() {
@@ -127,78 +119,91 @@ final class NotificationScheduler: ObservableObject {
         return settings.authorizationStatus
     }
     
-    // MARK: - Streak Reminders
-    func scheduleImmediateStreakReminder(for game: Game, in seconds: Int = 3) async {
+    // MARK: - Daily Streak Reminder
+    func scheduleDailyStreakReminder(games: [Game], hour: Int, minute: Int) async {
         guard await checkPermissionStatus() == .authorized else {
             logger.warning("⚠️ Cannot schedule reminder: notifications not authorized")
             return
         }
         
-        let content = UNMutableNotificationContent()
-        content.title = "\(game.name) Streak Reminder"
-        content.body = "Keep your streak alive! Play now to maintain your progress."
-        content.sound = .default
-        content.categoryIdentifier = NotificationCategory.streakReminder.identifier
-        content.userInfo = [
-            "gameId": game.id.uuidString,
-            "gameName": game.name,
-            "type": "streak_reminder"
-        ]
-        
-        // Schedule for immediate delivery
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(seconds), repeats: false)
-        let request = UNNotificationRequest(
-            identifier: "immediate_streak_\(game.id.uuidString)_\(UUID().uuidString)",
-            content: content,
-            trigger: trigger
-        )
-        
-        do {
-            try await center.add(request)
-            logger.info("✅ Scheduled immediate streak reminder for \(game.name) in \(seconds) seconds")
-        } catch {
-            logger.error("❌ Failed to schedule immediate streak reminder: \(error.localizedDescription)")
-        }
-    }
-    
-    func scheduleStreakReminder(for game: Game, at preferredTime: Date) async {
-        guard await checkPermissionStatus() == .authorized else {
-            logger.warning("⚠️ Cannot schedule reminder: notifications not authorized")
-            return
-        }
-        
+        // Cancel any existing daily reminder first
+        await cancelDailyStreakReminder()
         
         let content = UNMutableNotificationContent()
-        content.title = "\(game.name) Streak Reminder"
-        content.body = "Keep your streak alive! Play now to maintain your progress."
+        
+        // Create notification content based on number of games
+        if games.count == 1 {
+            let game = games[0]
+            content.title = "Streak Reminder"
+            content.body = "Don't lose your \(game.name) streak"
+            content.userInfo = [
+                "gameId": game.id.uuidString,
+                "type": "daily_streak_reminder"
+            ]
+        } else if games.count <= 3 {
+            let gameNames = games.map { $0.name }.joined(separator: ", ")
+            content.title = "Streak Reminders"
+            content.body = "Don't lose your streaks in \(gameNames)"
+            content.userInfo = ["type": "daily_streak_reminder"]
+        } else {
+            let firstTwo = games.prefix(2).map { $0.name }.joined(separator: ", ")
+            let remaining = games.count - 2
+            content.title = "Streak Reminders"
+            content.body = "Don't lose your streaks in \(firstTwo), and \(remaining) other game\(remaining > 1 ? "s" : "")"
+            content.userInfo = ["type": "daily_streak_reminder"]
+        }
+        
         content.sound = .default
         content.categoryIdentifier = NotificationCategory.streakReminder.identifier
-        content.userInfo = [
-            "gameId": game.id.uuidString,
-            "gameName": game.name,
-            "type": "streak_reminder"
-        ]
         
-        // Schedule for preferred time, respecting quiet hours
-        let scheduledTime = adjustedDeliveryDate(for: preferredTime)
+        // Schedule for user's preferred time
+        var dateComponents = DateComponents()
+        dateComponents.hour = hour
+        dateComponents.minute = minute
+        
         let trigger = UNCalendarNotificationTrigger(
-            dateMatching: Calendar.current.dateComponents([.hour, .minute], from: scheduledTime),
+            dateMatching: dateComponents,
             repeats: true
         )
         
         let request = UNNotificationRequest(
-            identifier: "streak_\(game.id.uuidString)",
+            identifier: "daily_streak_reminder",
             content: content,
             trigger: trigger
         )
         
         do {
             try await center.add(request)
-            logger.info("✅ Scheduled streak reminder for \(game.name) at \(scheduledTime)")
+            logger.info("✅ Scheduled daily streak reminder at \(hour):\(String(format: "%02d", minute)) for \(games.count) games")
         } catch {
-            logger.error("❌ Failed to schedule streak reminder: \(error.localizedDescription)")
+            logger.error("❌ Failed to schedule daily streak reminder: \(error.localizedDescription)")
         }
     }
+    
+    func cancelDailyStreakReminder() async {
+        center.removePendingNotificationRequests(withIdentifiers: ["daily_streak_reminder"])
+        logger.info("🗑️ Cancelled daily streak reminder")
+    }
+    
+    func cancelAllStreakReminders() async {
+        // Cancel the daily reminder
+        await cancelDailyStreakReminder()
+        
+        // Cancel any legacy per-game reminders
+        let pendingRequests = await center.pendingNotificationRequests()
+        let streakReminderIds = pendingRequests.compactMap { request in
+            if request.identifier.contains("streak") {
+                return request.identifier
+            }
+            return nil
+        }
+        
+        if !streakReminderIds.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: streakReminderIds)
+            logger.info("🗑️ Cancelled \(streakReminderIds.count) legacy streak reminders")
+        }
+    }
+    
     
     // MARK: - Digest Preview (Debug/Testing)
     func scheduleDigestPreview(for games: [Game]) async {
@@ -241,61 +246,6 @@ final class NotificationScheduler: ObservableObject {
         }
     }
     
-    /// Schedule a one-time end-of-day reminder (9 PM local time) for a game
-    func scheduleEndOfDayStreakReminder(for game: Game, now: Date = Date()) async {
-        guard await checkPermissionStatus() == .authorized else {
-            logger.warning("⚠️ Cannot schedule EOD reminder: notifications not authorized")
-            return
-        }
-        
-        // Build content
-        let content = UNMutableNotificationContent()
-        content.title = "Don't lose your \(game.name) streak"
-        content.body = "The day is almost over. Play now to keep your streak alive."
-        content.sound = .default
-        content.categoryIdentifier = NotificationCategory.streakReminder.identifier
-        content.userInfo = [
-            "gameId": game.id.uuidString,
-            "gameName": game.name,
-            "type": "streak_reminder_eod"
-        ]
-        
-        // Determine 9 PM today, or if past 9 PM, schedule in 5 minutes
-        let calendar = Calendar.current
-        let ninePMToday = calendar.date(bySettingHour: 21, minute: 0, second: 0, of: now) ?? now
-        let triggerDate: Date
-        if now < ninePMToday {
-            triggerDate = ninePMToday
-        } else {
-            triggerDate = now.addingTimeInterval(5 * 60)
-        }
-        
-        // Do NOT apply quiet hours to EOD reminders; they intentionally happen late
-        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: triggerDate)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        
-        // Use a deterministic identifier per day so we can replace if needed
-        let dayKey = calendar.startOfDay(for: now).timeIntervalSince1970
-        let identifier = "eod_streak_\(game.id.uuidString)_\(Int(dayKey))"
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-        
-        do {
-            // Remove previous EOD reminder for today before adding
-            center.removePendingNotificationRequests(withIdentifiers: [identifier])
-            try await center.add(request)
-            logger.info("✅ Scheduled EOD streak reminder for \(game.name) at \(triggerDate)")
-        } catch {
-            logger.error("❌ Failed to schedule EOD streak reminder: \(error.localizedDescription)")
-        }
-    }
-    
-    /// Cancel today's end-of-day reminder for a game, if any
-    func cancelTodayEndOfDayStreakReminder(for gameId: UUID, now: Date = Date()) {
-        let dayKey = Int(Calendar.current.startOfDay(for: now).timeIntervalSince1970)
-        let identifier = "eod_streak_\(gameId.uuidString)_\(dayKey)"
-        center.removePendingNotificationRequests(withIdentifiers: [identifier])
-        logger.info("🗑️ Cancelled today's EOD reminder for game \(gameId)")
-    }
     
     // MARK: - Achievement Notifications
     func scheduleAchievementNotification(for unlock: AchievementUnlock) async {
@@ -358,68 +308,97 @@ final class NotificationScheduler: ObservableObject {
     }
     
     // MARK: - Cancellation
-    func cancelStreakReminder(for gameId: UUID) async {
-        center.removePendingNotificationRequests(withIdentifiers: ["streak_\(gameId.uuidString)"])
-        logger.info("🗑️ Cancelled streak reminder for game \(gameId)")
-    }
     
     func cancelAllNotifications() async {
         center.removeAllPendingNotificationRequests()
         logger.info("🗑️ Cancelled all pending notifications")
     }
     
+    
+    
     // MARK: - Settings Management
-    func setQuietHours(enabled: Bool, start: Int, end: Int) {
-        userDefaults.set(enabled, forKey: SettingsKeys.quietHoursEnabled)
-        userDefaults.set(start, forKey: SettingsKeys.quietHoursStart)
-        userDefaults.set(end, forKey: SettingsKeys.quietHoursEnd)
-        logger.info("🔇 Set quiet hours: \(enabled ? "enabled" : "disabled") \(enabled ? "\(start):00 - \(end):00" : "")")
+    
+    /// Clean up all existing notifications before applying new settings
+    /// This prevents accumulation of old notifications when settings change
+    func cleanupAndRescheduleNotifications() async {
+        logger.info("🧹 Cleaning up all existing notifications before rescheduling...")
+        
+        // Get all pending requests to log what we're cleaning up
+        let pendingRequests = await center.pendingNotificationRequests()
+        logger.info("📋 Found \(pendingRequests.count) pending notifications to clean up")
+        
+        // Log details of what we're cleaning up for debugging
+        for request in pendingRequests {
+            logger.info("  🗑️ Removing: \(request.identifier) - \(request.content.title)")
+        }
+        
+        // Cancel all pending notifications
+        center.removeAllPendingNotificationRequests()
+        
+        logger.info("✅ Cleaned up all existing notifications")
     }
     
-    func setDigestEnabled(_ enabled: Bool) {
-        userDefaults.set(enabled, forKey: SettingsKeys.enableDigest)
-        logger.info("📧 Set digest enabled: \(enabled)")
+    /// Debug method to log current notification state
+    func logCurrentNotificationState() async {
+        let pendingRequests = await center.pendingNotificationRequests()
+        logger.info("📊 Current notification state: \(pendingRequests.count) pending notifications")
+        
+        for request in pendingRequests {
+            let triggerDescription: String
+            if let calendarTrigger = request.trigger as? UNCalendarNotificationTrigger {
+                triggerDescription = "Calendar: \(calendarTrigger.dateComponents)"
+            } else if let intervalTrigger = request.trigger as? UNTimeIntervalNotificationTrigger {
+                triggerDescription = "Interval: \(intervalTrigger.timeInterval)s"
+            } else {
+                triggerDescription = "Unknown trigger type"
+            }
+            
+            logger.info("  📋 \(request.identifier): \(request.content.title) - \(triggerDescription)")
+        }
     }
     
     // MARK: - Private Helpers
     private func setupDefaultSettings() {
-        if userDefaults.object(forKey: SettingsKeys.quietHoursEnabled) == nil {
-            userDefaults.set(false, forKey: SettingsKeys.quietHoursEnabled)
+        // No default settings needed for simplified system
+        // Settings are managed by AppState migration
+    }
+    
+    // MARK: - Test Methods
+    #if DEBUG
+    func scheduleTestDailyReminder(games: [Game]) async {
+        guard await checkPermissionStatus() == .authorized else { return }
+        
+        let content = UNMutableNotificationContent()
+        
+        if games.count == 1 {
+            content.title = "🧪 Test Streak Reminder"
+            content.body = "Don't lose your \(games[0].name) streak"
+        } else {
+            let names = games.map { $0.name }.joined(separator: ", ")
+            content.title = "🧪 Test Streak Reminders"
+            content.body = "Don't lose your streaks in \(names)"
         }
-        if userDefaults.object(forKey: SettingsKeys.quietHoursStart) == nil {
-            userDefaults.set(defaultQuietHoursStart, forKey: SettingsKeys.quietHoursStart)
-        }
-        if userDefaults.object(forKey: SettingsKeys.quietHoursEnd) == nil {
-            userDefaults.set(defaultQuietHoursEnd, forKey: SettingsKeys.quietHoursEnd)
-        }
-        if userDefaults.object(forKey: SettingsKeys.enableDigest) == nil {
-            userDefaults.set(false, forKey: SettingsKeys.enableDigest)
+        
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.streakReminder.identifier
+        content.userInfo = ["type": "daily_streak_reminder_test"]
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "test_daily_reminder_\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        
+        do {
+            try await center.add(request)
+            logger.info("✅ Scheduled test daily reminder for \(games.count) games")
+        } catch {
+            logger.error("❌ Failed to schedule test reminder: \(error.localizedDescription)")
         }
     }
     
+    #endif
     
-    func adjustedDeliveryDate(for date: Date) -> Date {
-        let quietHoursEnabled = userDefaults.bool(forKey: SettingsKeys.quietHoursEnabled)
-        
-        // If quiet hours are disabled, return the original date
-        guard quietHoursEnabled else { return date }
-        
-        let quietStart = userDefaults.integer(forKey: SettingsKeys.quietHoursStart)
-        let quietEnd = userDefaults.integer(forKey: SettingsKeys.quietHoursEnd)
-        
-        let hour = Calendar.current.component(.hour, from: date)
-        
-        // If time falls within quiet hours, move to end of quiet period
-        if hour >= quietStart || hour < quietEnd {
-            var adjustedDate = date
-            if hour >= quietStart {
-                // Move to next day at end of quiet period
-                adjustedDate = Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date
-            }
-            adjustedDate = Calendar.current.date(bySettingHour: quietEnd, minute: 0, second: 0, of: adjustedDate) ?? date
-            return adjustedDate
-        }
-        
-        return date
-    }
 }
+

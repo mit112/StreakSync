@@ -83,9 +83,9 @@ struct SortOptionsMenu: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: selectedSort.icon)
+                Image.safeSystemName(selectedSort.icon, fallback: "arrow.up.arrow.down")
                     .font(.caption)
-                Image(systemName: sortDirection.icon)
+                Image.safeSystemName(sortDirection.icon, fallback: "arrow.up")
                     .font(.caption2)
             }
             .foregroundStyle(.blue)
@@ -130,7 +130,7 @@ struct CompactSortOptionsMenu: View {
             HStack(spacing: 4) {
                 Text(selectedSort.shortName)
                     .font(.caption.weight(.medium))
-                Image(systemName: sortDirection.icon)
+                Image.safeSystemName(sortDirection.icon, fallback: "arrow.up")
                     .font(.caption2)
             }
             .foregroundStyle(.blue)

@@ -96,8 +96,7 @@ struct GameStreak: Identifiable, Codable, Hashable, Sendable {
     
     var isActive: Bool {
         guard let lastPlayed = lastPlayedDate else { return false }
-        let daysBetween = Calendar.current.dateComponents([.day], from: lastPlayed, to: Date()).day ?? 0
-        return daysBetween <= 1 && currentStreak > 0
+        return GameDateHelper.isGameResultActive(lastPlayed)
     }
     var successRate: Double {
         guard totalGamesPlayed > 0 else { return 0.0 }
@@ -124,15 +123,7 @@ struct GameStreak: Identifiable, Codable, Hashable, Sendable {
         guard let lastPlayed = lastPlayedDate else {
             return NSLocalizedString("game.never_played", comment: "Never played")
         }
-        
-        if Calendar.current.isDateInToday(lastPlayed) {
-            return NSLocalizedString("date.today", comment: "Today")
-        } else if Calendar.current.isDateInYesterday(lastPlayed) {
-            return NSLocalizedString("date.yesterday", comment: "Yesterday")
-        } else {
-            let days = Calendar.current.dateComponents([.day], from: lastPlayed, to: Date()).day ?? 0
-            return String(format: NSLocalizedString("date.days_ago", comment: "%d days ago"), days)
-        }
+        return GameDateHelper.getGamePlayedDescription(lastPlayed)
     }
     
     // MARK: - Factory Method

@@ -37,6 +37,12 @@ final class AppContainer: ObservableObject {
     
     let achievementCelebrationCoordinator: AchievementCelebrationCoordinator
 
+    // MARK: - Social Service
+    let socialService: SocialService
+    
+    // MARK: - Analytics Service
+    let analyticsService: AnalyticsService
+
     // MARK: - Notification Coordinator
     let notificationCoordinator: NotificationCoordinator
     
@@ -74,6 +80,11 @@ final class AppContainer: ObservableObject {
         // 5b. Game Management (NEW)
         self.gameCatalog = GameCatalog()
         
+        // Validate game catalog to catch SF Symbol issues early
+        #if DEBUG
+        Game.validateGameCatalog()
+        #endif
+        
         self.gameManagementState = GameManagementState()
         
         // 6. Notification handling
@@ -81,9 +92,20 @@ final class AppContainer: ObservableObject {
         // 7. Achievement celebrations
         self.achievementCelebrationCoordinator = AchievementCelebrationCoordinator()
 
+        // 8. Social service (Hybrid: CloudKit with fallback to local)
+        self.socialService = HybridSocialService()
+        // Attach to app state
+        self.appState.socialService = socialService
+        
+        // 9. Analytics service
+        self.analyticsService = AnalyticsService(appState: appState)
+
         
         // Wire up dependencies
         setupDependencies()
+        
+        // Start day change detection
+        DayChangeDetector.shared.startMonitoring()
         
         logger.info("✅ AppContainer initialized successfully")
     }
@@ -94,6 +116,9 @@ final class AppContainer: ObservableObject {
         notificationCoordinator.appState = appState
         notificationCoordinator.navigationCoordinator = navigationCoordinator
         notificationCoordinator.appGroupBridge = appGroupBridge
+        
+        // Wire analytics service to app state for cache invalidation
+        appState.analyticsService = analyticsService
         
         // Setup observers
         notificationCoordinator.setupObservers()
@@ -149,7 +174,7 @@ final class AppContainer: ObservableObject {
             try? await Task.sleep(nanoseconds: 5_000_000_000)
             await MainActor.run {
                 appGroupBridge.stopMonitoringForResults()
-                logger.info("⏱️ Stopped monitoring after 10 seconds")
+                logger.info("⚡ Stopped monitoring after 10 seconds")
             }
         }
     }
