@@ -11,7 +11,7 @@ final class GameDetailViewModel: ObservableObject {
     let gameId: UUID
     @Published private(set) var currentStreak: GameStreak
     @Published private(set) var recentResults: [GameResult] = []
-    @Published private(set) var gameAchievements: [Achievement] = []
+    @Published private(set) var gameAchievements: [TieredAchievement] = []
     @Published var showingShareError = false
     
     private weak var appState: AppState?
@@ -36,8 +36,8 @@ final class GameDetailViewModel: ObservableObject {
     }
     
     deinit {
-        // Clean up observers
-        notificationObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        // Note: notificationObservers cleanup happens automatically
+        // Cannot access mutable state in deinit under strict concurrency
     }
     
     func setup(with appState: AppState) {
@@ -75,15 +75,19 @@ final class GameDetailViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            // Skip expensive reload if navigating from notification
-            if let appState = self?.appState, appState.isNavigatingFromNotification {
-                return
-            }
-            
-            // Delay slightly to ensure data is loaded
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                Task { @MainActor in
-                    self?.loadGameData()
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                
+                // Skip expensive reload if navigating from notification
+                if appState.isNavigatingFromNotification {
+                    return
+                }
+                
+                // Delay slightly to ensure data is loaded
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    Task { @MainActor in
+                        self.loadGameData()
+                    }
                 }
             }
         }
@@ -135,10 +139,10 @@ final class GameDetailViewModel: ObservableObject {
             .filter { $0.gameId == gameId }
             .sorted { $0.date > $1.date }
         
-        // Load game-specific achievements
-        gameAchievements = appState.achievements
-            .filter { achievement in
-                achievement.gameSpecific == gameId || achievement.gameSpecific == nil
+        // Load game-specific tiered achievements if any are scoped by specificGameId
+        gameAchievements = appState.tieredAchievements
+            .filter { ta in
+                ta.requirements.contains(where: { $0.specificGameId == nil || $0.specificGameId == gameId })
             }
         
         logger.info("🎮 Loaded data for game: \(gameName)")

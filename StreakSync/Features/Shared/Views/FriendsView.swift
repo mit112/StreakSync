@@ -6,183 +6,6 @@
 import SwiftUI
 import UIKit
 
-@MainActor
-final class FriendsViewModel: ObservableObject {
-    @Published var myDisplayName: String = ""
-    @Published var myFriendCode: String = ""
-    @Published var friendCodeToAdd: String = ""
-    @Published var friends: [UserProfile] = []
-    @Published var leaderboard: [LeaderboardRow] = []
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String?
-    @Published var selectedDateUTC: Date = Date()
-    @Published var selectedGameId: UUID? = nil
-    @Published var isPresentingAddFriend: Bool = false
-    @Published var isPresentingDatePicker: Bool = false
-    @Published var currentGamePage: Int = 0
-    @Published var range: LeaderboardRange = .today
-    @Published var serviceStatus: ServiceStatus = .local
-    @Published var isRealTimeEnabled: Bool = false
-    
-    // Only show games that are actually displayed on the homepage
-    var availableGames: [Game] {
-        Game.popularGames // Use popular games instead of all available games
-    }
-    
-    private let socialService: SocialService
-    private let defaults = UserDefaults.standard
-    private let lastDateKey = "friends_last_selected_date"
-    private let lastPageKey = "friends_last_game_page"
-    private let lastRangeKey = "friends_last_range"
-    
-    // Real-time refresh timer
-    private var refreshTimer: Timer?
-    
-    init(socialService: SocialService) {
-        self.socialService = socialService
-        // Restore persisted UI state
-        if let saved = defaults.object(forKey: lastDateKey) as? Date { self.selectedDateUTC = saved }
-        if let page = defaults.object(forKey: lastPageKey) as? Int { self.currentGamePage = page }
-        if let raw = defaults.string(forKey: lastRangeKey), let r = LeaderboardRange(rawValue: raw) { self.range = r }
-        
-        // Check if this is a hybrid service and get status
-        if let hybridService = socialService as? HybridSocialService {
-            self.serviceStatus = hybridService.serviceStatus
-            self.isRealTimeEnabled = hybridService.isRealTimeEnabled
-        }
-    }
-    
-    func load() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            let me = try await socialService.ensureProfile(displayName: nil)
-            myDisplayName = me.displayName
-            myFriendCode = try await socialService.generateFriendCode()
-            friends = try await socialService.listFriends()
-            let (start, end) = dateRange()
-            leaderboard = try await socialService.fetchLeaderboard(startDateUTC: start, endDateUTC: end)
-            
-            // Setup real-time subscriptions if available
-            if let hybridService = socialService as? HybridSocialService {
-                await hybridService.setupRealTimeSubscriptions()
-                // Update status after setup
-                self.serviceStatus = hybridService.serviceStatus
-                self.isRealTimeEnabled = hybridService.isRealTimeEnabled
-                
-                // Start periodic refresh for real-time updates
-                if hybridService.isRealTimeEnabled {
-                    startPeriodicRefresh()
-                }
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-    
-    func refresh() async {
-        await load()
-    }
-    
-    func refreshLeaderboard() async {
-        do {
-            let (start, end) = dateRange()
-            leaderboard = try await socialService.fetchLeaderboard(startDateUTC: start, endDateUTC: end)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-    
-    func addFriend() async {
-        let code = friendCodeToAdd
-        guard !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            try await socialService.addFriend(using: code)
-            friendCodeToAdd = ""
-            friends = try await socialService.listFriends()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-    
-    // MARK: - Helpers
-    func dateRange() -> (Date, Date) {
-        let cal = Calendar(identifier: .gregorian)
-        let startDay = cal.startOfDay(for: selectedDateUTC)
-        switch range {
-        case .today:
-            return (startDay, startDay)
-        case .sevenDays:
-            let end = startDay
-            let start = cal.date(byAdding: .day, value: -6, to: end) ?? end
-            return (start, end)
-        }
-    }
-    
-    func persistUIState() {
-        defaults.set(selectedDateUTC, forKey: lastDateKey)
-        defaults.set(currentGamePage, forKey: lastPageKey)
-        defaults.set(range.rawValue, forKey: lastRangeKey)
-    }
-    
-    // MARK: - Real-time Updates
-    
-    private func startPeriodicRefresh() {
-        stopPeriodicRefresh() // Stop any existing timer
-        
-        // Refresh every 30 seconds for real-time updates
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                await self?.refreshLeaderboard()
-            }
-        }
-    }
-    
-    private func stopPeriodicRefresh() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
-    }
-    
-    deinit {
-        refreshTimer?.invalidate()
-    }
-    
-    // MARK: - Leaderboard projection for selected game
-    func rowsForSelectedGame() -> [(row: LeaderboardRow, points: Int)] {
-        var gameId: UUID? = selectedGameId
-        if gameId == nil {
-            gameId = Game.allAvailableGames.first?.id
-        }
-        guard let gid = gameId else { return leaderboard.map { ($0, $0.totalPoints) } }
-        return leaderboard.map { row in
-            let p = row.perGameBreakdown[gid] ?? 0
-            return (row, p)
-        }.sorted { a, b in
-            if a.points == b.points { return a.row.displayName < b.row.displayName }
-            return a.points > b.points
-        }
-    }
-    
-    func rowsForSelectedGameID(_ gid: UUID) -> [(row: LeaderboardRow, points: Int)] {
-        return leaderboard.map { row in
-            let p = row.perGameBreakdown[gid] ?? 0
-            return (row, p)
-        }.sorted { a, b in
-            if a.points == b.points { return a.row.displayName < b.row.displayName }
-            return a.points > b.points
-        }
-    }
-    
-    func attemptsString(for points: Int) -> String {
-        // Approximate attempts from points where higher points mean fewer attempts
-        // points = maxAttempts - attempts + 1 ⇒ attempts ≈ 7 - points (assuming 6 attempts)
-        let attempts = max(1, 7 - max(0, points))
-        return "\(attempts) guesses"
-    }
-}
-
 struct FriendsView: View {
     @StateObject private var viewModel: FriendsViewModel
     
@@ -202,9 +25,17 @@ struct FriendsView: View {
                             game: game,
                             rows: viewModel.rowsForSelectedGameID(game.id),
                             isLoading: viewModel.isLoading,
-                            dateLabel: formattedDate(viewModel.selectedDateUTC)
+                            dateLabel: formattedDate(viewModel.selectedDateUTC),
+                            rankDelta: viewModel.rankDeltas,
+                            onManageFriends: { viewModel.isPresentingManageFriends = true },
+                            metricText: { points in
+                                LeaderboardScoring.metricLabel(for: game, points: points)
+                            },
+                            myUserId: viewModel.myUserId
                         )
                         .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel(Text("\(game.displayName) leaderboard for \(formattedDate(viewModel.selectedDateUTC))"))
                     }
                     .tag(index)
                     .onAppear {
@@ -223,11 +54,51 @@ struct FriendsView: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .toolbar { addFriendToolbar }
         .refreshable { await viewModel.refresh() }
-        .sheet(isPresented: $viewModel.isPresentingAddFriend) { addFriendSheet }
+        .sheet(isPresented: Binding(get: { viewModel.isPresentingAddFriend }, set: { viewModel.isPresentingAddFriend = $0 })) { addFriendSheet }
+        .sheet(isPresented: Binding(get: { viewModel.isPresentingManageFriends }, set: { viewModel.isPresentingManageFriends = $0 })) {
+            FriendManagementView(socialService: viewModel.socialService)
+        }
+        .overlay(alignment: .top) {
+            if let message = viewModel.errorMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+                    Text(message).lineLimit(2)
+                    Spacer(minLength: 0)
+                    Button("Dismiss") { withAnimation(.easeOut) { viewModel.errorMessage = nil } }
+                }
+                .font(.caption)
+                .padding(10)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
         .task { await viewModel.load() }
         .onChange(of: viewModel.selectedDateUTC) { _, _ in withAnimation(.smooth) { viewModel.persistUIState() } }
         .onChange(of: viewModel.currentGamePage) { _, newValue in withAnimation(.smooth) { viewModel.persistUIState(); viewModel.selectedGameId = viewModel.availableGames[newValue].id } }
         .onChange(of: viewModel.range) { _, _ in withAnimation(.smooth) { Task { await viewModel.refresh() }; viewModel.persistUIState() } }
+        .safeAreaInset(edge: .bottom) {
+            if let summary = viewModel.myRankForSelectedGame() {
+                HStack(spacing: 12) {
+                    Text("You")
+                        .font(.headline)
+                    Text("#\(summary.rank)")
+                        .font(.headline.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.secondary.opacity(0.12), in: Capsule())
+                    Spacer()
+                    Text(LeaderboardScoring.metricLabel(for: summary.game, points: summary.points))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial)
+            }
+        }
     }
 }
 
@@ -235,11 +106,11 @@ struct FriendsView: View {
 private extension FriendsView {
     var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Friends")
-                        .font(.largeTitle).bold()
-                    HStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Friends").font(.largeTitle.bold())
+                    Spacer()
+                    HStack(spacing: 6) {
                         Image(systemName: viewModel.isRealTimeEnabled ? "icloud.fill" : "externaldrive.fill")
                             .font(.caption)
                             .foregroundStyle(viewModel.isRealTimeEnabled ? .blue : .secondary)
@@ -247,23 +118,56 @@ private extension FriendsView {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(.ultraThinMaterial, in: Capsule())
                 }
-                Spacer()
-                Button {
-                    viewModel.isPresentingDatePicker = true
-                } label: {
+                if viewModel.serviceStatus == .local {
                     HStack(spacing: 6) {
-                        Image(systemName: "chevron.left")
+                        Image(systemName: "wave.3.right").font(.caption)
+                        Text("Not syncing. Enable iCloud later to sync across devices.")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 12) {
+                    // Segmented range
+                    HStack(spacing: 0) {
+                        ForEach(LeaderboardRange.allCases, id: \.self) { r in
+                            Button(action: {
+                                HapticManager.shared.trigger(.toggleSwitch)
+                                withAnimation(.smooth) { viewModel.range = r }
+                            }) {
+                                Text(r == .today ? "Today" : "7 Days")
+                                    .font(.subheadline.weight(viewModel.range == r ? .semibold : .regular))
+                                    .padding(.horizontal, 12).padding(.vertical, 6)
+                                    .frame(maxWidth: .infinity)
+                                    .background(viewModel.range == r ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .clipShape(Capsule())
+
+                    // Date pager
+                    HStack(spacing: 6) {
+                        Button(action: { HapticManager.shared.trigger(.pickerChange); viewModel.incrementDay(-1) }) {
+                            Image(systemName: "chevron.left")
+                        }
+                        .disabled(!viewModel.canIncrementDay(-1))
                         Text(formattedDate(viewModel.selectedDateUTC))
                             .font(.headline)
-                        Image(systemName: "chevron.right")
+                            .contentTransition(.numericText())
+                            .onLongPressGesture { viewModel.isPresentingDatePicker = true }
+                        Button(action: { HapticManager.shared.trigger(.pickerChange); viewModel.incrementDay(1) }) {
+                            Image(systemName: "chevron.right")
+                        }
+                        .disabled(!viewModel.canIncrementDay(1))
                     }
                     .padding(.horizontal, 12).padding(.vertical, 6)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
-                .buttonStyle(.plain)
             }
-            rangeToggle
             // Centered current game title to mimic NYT styling
             HStack { Spacer(); Text(currentGameTitle).font(.largeTitle.bold()); Spacer() }
         }
@@ -276,6 +180,8 @@ private extension FriendsView {
                     .padding(.bottom)
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text("Friends leaderboard header"))
     }
 
     var currentGameTitle: String {
@@ -290,6 +196,8 @@ private extension FriendsView {
             toggleChip(title: "7 Days", isSelected: viewModel.range == .sevenDays) { viewModel.range = .sevenDays }
         }
         .padding(.horizontal, 0)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text("Leaderboard range"))
     }
     
     func toggleChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
@@ -303,6 +211,8 @@ private extension FriendsView {
                 .background(isSelected ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1), in: Capsule())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Text(title))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
     
     var pageDots: some View {
@@ -327,6 +237,7 @@ private extension FriendsView {
             } label: {
                 Image(systemName: "person.badge.plus")
             }
+            .accessibilityLabel(Text("Add friend"))
         }
     }
     
@@ -358,8 +269,6 @@ private extension FriendsView {
     }
 }
 
-// MARK: - Leaderboard Range
-enum LeaderboardRange: String { case today, sevenDays }
 
 // MARK: - Gradient Avatar
 struct GradientAvatar: View {
@@ -379,6 +288,7 @@ struct GradientAvatar: View {
                 .shadow(radius: 1)
         }
         .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
     
     private func palette(for key: String) -> [Color] {
@@ -430,47 +340,65 @@ private struct GameIconCarousel: View {
     private let iconWidth: CGFloat = 60
     private let spacing: CGFloat = 12
     private let fixedHeight: CGFloat = 50
+    @State private var scrollSelection: Int? = nil
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     var body: some View {
-        ScrollViewReader { proxy in
+        GeometryReader { geometry in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: spacing) {
                     ForEach(0..<totalCount, id: \.self) { index in
                         GameIconView(
                             game: availableGames[index],
-                            isActive: index == currentIndex
+                            isActive: index == (scrollSelection ?? currentIndex)
                         )
                         .frame(width: iconWidth, height: fixedHeight)
                         .id(index)
+                        .scrollTransition(.interactive, axis: .horizontal) { content, phase in
+                            content
+                                .scaleEffect(phase.isIdentity ? 1.1 : 0.95)
+                                .opacity(phase.isIdentity ? 1.0 : 0.7)
+                        }
                         .onTapGesture {
+                            HapticManager.shared.trigger(.pickerChange)
+                            if reduceMotion {
+                                scrollSelection = index
+                            } else {
+                                withAnimation(.easeInOut(duration: 0.25)) { scrollSelection = index }
+                            }
                             onGameSelected(index)
                         }
+                        .accessibilityLabel(Text("\(availableGames[index].displayName), \(index + 1) of \(max(1, totalCount))"))
+                        .accessibilityAddTraits(.isButton)
                     }
                 }
-                .padding(.horizontal, UIScreen.main.bounds.width / 2 - iconWidth / 2) // Center the first/last icons
                 .scrollTargetLayout()
             }
             .frame(height: fixedHeight)
+            .contentMargins(.horizontal, max(0, geometry.size.width / 2 - iconWidth / 2), for: .scrollContent)
             .scrollBounceBehavior(.basedOnSize)
             .scrollIndicators(.hidden)
             .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $scrollSelection)
+            .onAppear { scrollSelection = currentIndex }
             .onChange(of: currentIndex) { oldIndex, newIndex in
-                // Only scroll if the index actually changed and is valid
-                guard oldIndex != newIndex, 
-                      newIndex >= 0, 
-                      newIndex < totalCount,
-                      oldIndex >= 0 else { return }
-                
-                // Use a subtle animation with proper scroll target behavior
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    proxy.scrollTo(newIndex, anchor: .center)
+                guard newIndex != scrollSelection else { return }
+                if reduceMotion {
+                    scrollSelection = newIndex
+                } else {
+                    withAnimation(.easeInOut(duration: 0.25)) { scrollSelection = newIndex }
                 }
+            }
+            .onChange(of: scrollSelection) { oldSel, newSel in
+                guard let newSel, newSel != currentIndex else { return }
+                onGameSelected(newSel)
             }
         }
         .frame(height: fixedHeight)
         .clipped()
+        }
     }
-}
+
 
 // MARK: - Individual Game Icon
 private struct GameIconView: View {
@@ -509,6 +437,7 @@ private struct GameIconView: View {
             },
             perform: { }
         )
+        .accessibilityLabel(Text("\(game.displayName) \(isActive ? "selected" : "" )"))
     }
     
     private var gameIconName: String {
@@ -555,7 +484,7 @@ private extension View {
 
 // MARK: - Scroll Offset Preference Key
 struct ScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
     }

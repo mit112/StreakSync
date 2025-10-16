@@ -43,26 +43,20 @@ enum PaletteColor: String, CaseIterable {
 struct StreakSyncColors {
     
     // MARK: - Color Cache
-    private static var colorCache: [String: Color] = [:]
-    private static let cacheQueue = DispatchQueue(label: "com.streaksync.colors", attributes: .concurrent)
+    @MainActor private static var colorCache: [String: Color] = [:]
     
     // MARK: - Cached Color Access
+    @MainActor
     private static func cachedColor(for key: String, colorScheme: ColorScheme, provider: () -> Color) -> Color {
         let cacheKey = "\(key)_\(colorScheme == .dark ? "dark" : "light")"
-        
-        return cacheQueue.sync {
-            if let cached = colorCache[cacheKey] {
-                return cached
-            }
-            
-            let color = provider()
-            colorCache[cacheKey] = color
-            return color
-        }
+        if let cached = colorCache[cacheKey] { return cached }
+        let color = provider()
+        colorCache[cacheKey] = color
+        return color
     }
     
     // MARK: - Primary Colors
-    static func primary(for colorScheme: ColorScheme) -> Color {
+    @MainActor static func primary(for colorScheme: ColorScheme) -> Color {
         cachedColor(for: "primary", colorScheme: colorScheme) {
             colorScheme == .dark ?
                 PaletteColor.primary.darkVariant :
@@ -70,28 +64,28 @@ struct StreakSyncColors {
         }
     }
     
-    static func secondary(for colorScheme: ColorScheme) -> Color {
+    @MainActor static func secondary(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark ?
             PaletteColor.secondary.darkVariant :
             PaletteColor.secondary.color
     }
     
-    static func tertiary(for colorScheme: ColorScheme) -> Color {
+    @MainActor static func tertiary(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark ?
             PaletteColor.textSecondary.darkVariant :
             PaletteColor.textSecondary.color
     }
 
     // MARK: - Background Colors (Using iOS System Colors)
-    static func background(for colorScheme: ColorScheme) -> Color {
+    @MainActor static func background(for colorScheme: ColorScheme) -> Color {
         Color(.systemBackground)
     }
 
-    static func secondaryBackground(for colorScheme: ColorScheme) -> Color {
+    @MainActor static func secondaryBackground(for colorScheme: ColorScheme) -> Color {
         Color(.secondarySystemBackground)
     }
 
-    static func cardBackground(for colorScheme: ColorScheme) -> Color {
+    @MainActor static func cardBackground(for colorScheme: ColorScheme) -> Color {
         Color(.systemBackground)
     }
     

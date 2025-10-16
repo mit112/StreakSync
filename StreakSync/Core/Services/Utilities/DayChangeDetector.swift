@@ -10,7 +10,7 @@ import Combine
 import UIKit
 
 @MainActor
-class DayChangeDetector: ObservableObject {
+final class DayChangeDetector: ObservableObject {
     static let shared = DayChangeDetector()
     
     private var timer: Timer?
@@ -21,12 +21,6 @@ class DayChangeDetector: ObservableObject {
     
     private init() {
         setupDayChangeDetection()
-    }
-    
-    deinit {
-        Task { @MainActor in
-            stopDayChangeDetection()
-        }
     }
     
     // MARK: - Public Methods

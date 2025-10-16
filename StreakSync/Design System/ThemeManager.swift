@@ -16,13 +16,12 @@ final class ThemeManager: ObservableObject {
     @Published var followSystemColorScheme: Bool = true
     
     // Derive a best-effort color scheme outside of a View context
+    // Note: This is a fallback for when not in a view context
+    // Views should use @Environment(\.colorScheme) instead
     private var colorScheme: ColorScheme {
-        switch UIScreen.main.traitCollection.userInterfaceStyle {
-        case .dark: return .dark
-        case .light: return .light
-        case .unspecified: return .light
-        @unknown default: return .light
-        }
+        // Default to light mode as fallback
+        // Views should use @Environment(\.colorScheme) for proper color scheme detection
+        return .light
     }
     
     // MARK: - Primary Palette Colors

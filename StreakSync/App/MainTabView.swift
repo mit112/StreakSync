@@ -76,7 +76,7 @@ struct MainTabView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         .tint(StreakSyncColors.primary(for: colorScheme))
         .onChange(of: coordinator.selectedTab) { _, _ in
-            HapticManager.shared.trigger(.buttonTap)
+            Task { @MainActor in HapticManager.shared.trigger(.buttonTap) }
         }
     }
     
@@ -199,7 +199,7 @@ struct MainTabView: View {
         }
         .tint(StreakSyncColors.primary(for: colorScheme))
         .onChange(of: coordinator.selectedTab) { _, _ in
-            HapticManager.shared.trigger(.buttonTap)
+            Task { @MainActor in HapticManager.shared.trigger(.buttonTap) }
         }
     }
     

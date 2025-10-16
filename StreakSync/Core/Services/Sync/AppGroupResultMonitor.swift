@@ -25,21 +25,12 @@ final class AppGroupResultMonitor {
     
     // MARK: - Monitoring Control
     func startMonitoring(onNewResult: @escaping () async -> Void) {
+        // Event-driven via Darwin notifications and lifecycle; no polling needed
         guard !isMonitoring else { return }
-        
-        logger.info("🔄 Starting continuous monitoring for new results")
+        logger.info("🔄 Enabling event-driven monitoring (no polling)")
         isMonitoring = true
-        
         monitoringTask?.cancel()
-        monitoringTask = Task { @MainActor in
-            while !Task.isCancelled && isMonitoring {
-                if await checkForNewResult() {
-                    await onNewResult()
-                }
-                
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-            }
-        }
+        monitoringTask = nil
     }
     
     func stopMonitoring() {

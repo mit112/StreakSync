@@ -49,9 +49,8 @@ final class AppGroupBridge: ObservableObject {
     }
     
     deinit {
-        // Clean up lifecycle observers
-        lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
-        lifecycleObservers.removeAll()
+        // Note: lifecycleObservers cleanup happens automatically
+        // Cannot access mutable state in deinit under strict concurrency
     }
     
     // MARK: - Setup

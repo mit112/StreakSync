@@ -11,15 +11,15 @@ import OSLog
 import SwiftUI
 
 // MARK: - Notification Delegate
-final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
     static let shared = NotificationDelegate()
     
     // MARK: - Dependencies
-    weak var appState: AppState?
-    weak var navigationCoordinator: NavigationCoordinator?
+    @MainActor weak var appState: AppState?
+    @MainActor weak var navigationCoordinator: NavigationCoordinator?
     
     private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationDelegate")
-    
+
     override init() {
         super.init()
         UNUserNotificationCenter.current().delegate = self
@@ -28,107 +28,108 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     // MARK: - UNUserNotificationCenterDelegate
     
     /// Called when a notification is delivered while the app is in the foreground
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         logger.info("📱 Received notification while app is active: \(notification.request.identifier)")
         
-        // Show banner, alert, and play sound so notifications stay in notification center
-        completionHandler([.banner, .alert, .sound])
+        // Show banner, list, and play sound so notifications stay in notification center
+        completionHandler([.banner, .list, .sound])
     }
     
     /// Called when user interacts with a notification
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        logger.info("👆 User interacted with notification: \(response.actionIdentifier)")
-        
-        let userInfo = response.notification.request.content.userInfo
+        let actionIdentifier = response.actionIdentifier
         let categoryIdentifier = response.notification.request.content.categoryIdentifier
+        // Extract Sendable values before crossing isolation boundary
+        let gameIdString = response.notification.request.content.userInfo["gameId"] as? String
+        let achievementIdString = response.notification.request.content.userInfo["achievementId"] as? String
         
-        Task {
+        logger.info("👆 User interacted with notification: \(actionIdentifier)")
+        
+        Task { @MainActor in
             await handleNotificationResponse(
-                actionIdentifier: response.actionIdentifier,
+                actionIdentifier: actionIdentifier,
                 categoryIdentifier: categoryIdentifier,
-                userInfo: userInfo
+                gameIdString: gameIdString,
+                achievementIdString: achievementIdString
             )
-            
-            // Call completion handler on main thread
-            await MainActor.run {
-                completionHandler()
-            }
         }
+        
+        // Call completion handler immediately (doesn't need to wait for async work)
+        completionHandler()
     }
     
     // MARK: - Response Handling
     
-    private func handleNotificationResponse(
+    @MainActor private func handleNotificationResponse(
         actionIdentifier: String,
         categoryIdentifier: String,
-        userInfo: [AnyHashable: Any]
+        gameIdString: String?,
+        achievementIdString: String?
     ) async {
         switch actionIdentifier {
         case UNNotificationDefaultActionIdentifier:
             // User tapped the notification itself
-            await handleDefaultAction(categoryIdentifier: categoryIdentifier, userInfo: userInfo)
+            await handleDefaultAction(categoryIdentifier: categoryIdentifier, gameIdString: gameIdString, achievementIdString: achievementIdString)
             
         case NotificationAction.openGame.identifier:
-            await handleOpenGame(userInfo: userInfo)
+            await handleOpenGame(gameIdString: gameIdString)
             
         case NotificationAction.snooze1Day.identifier:
-            await handleSnooze(days: 1, userInfo: userInfo)
+            await handleSnooze(days: 1)
             
         case NotificationAction.snooze3Days.identifier:
-            await handleSnooze(days: 3, userInfo: userInfo)
+            await handleSnooze(days: 3)
             
         case NotificationAction.markPlayed.identifier:
-            await handleMarkPlayed(userInfo: userInfo)
+            await handleMarkPlayed(gameIdString: gameIdString)
             
         case NotificationAction.viewAchievement.identifier:
-            await handleViewAchievement(userInfo: userInfo)
+            await handleViewAchievement(achievementIdString: achievementIdString)
             
         default:
             logger.info("🤷 Unknown notification action: \(actionIdentifier)")
         }
     }
     
-    private func handleDefaultAction(categoryIdentifier: String, userInfo: [AnyHashable: Any]) async {
+    @MainActor private func handleDefaultAction(categoryIdentifier: String, gameIdString: String?, achievementIdString: String?) async {
         switch categoryIdentifier {
         case NotificationCategory.streakReminder.identifier:
-            await handleOpenGame(userInfo: userInfo)
+            await handleOpenGame(gameIdString: gameIdString)
             
         case NotificationCategory.achievementUnlocked.identifier:
-            await handleViewAchievement(userInfo: userInfo)
+            await handleViewAchievement(achievementIdString: achievementIdString)
             
         case NotificationCategory.resultImported.identifier:
-            await handleOpenGame(userInfo: userInfo)
+            await handleOpenGame(gameIdString: gameIdString)
             
         default:
             logger.info("🤷 Unknown notification category: \(categoryIdentifier)")
         }
     }
     
-    private func handleOpenGame(userInfo: [AnyHashable: Any]) async {
-        guard let gameIdString = userInfo["gameId"] as? String,
+    @MainActor private func handleOpenGame(gameIdString: String?) async {
+        guard let gameIdString = gameIdString,
               let gameId = UUID(uuidString: gameIdString) else {
-            logger.warning("⚠️ Missing or invalid gameId in notification userInfo")
+            logger.warning("⚠️ Missing or invalid gameId in notification")
             return
         }
         
         logger.info("🎮 Opening game: \(gameId)")
         
         // Set flag to indicate we're navigating from notification
-        await MainActor.run {
-            appState?.isNavigatingFromNotification = true
-            navigationCoordinator?.navigateToGame(gameId: gameId)
-        }
+        appState?.isNavigatingFromNotification = true
+        navigationCoordinator?.navigateToGame(gameId: gameId)
     }
     
-    private func handleSnooze(days: Int, userInfo: [AnyHashable: Any]) async {
+    @MainActor private func handleSnooze(days: Int) async {
         logger.info("😴 Snoozing reminder for \(days) days")
         
         // In the simplified system, we just cancel the daily reminder
@@ -139,8 +140,8 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         // if there are still games with streaks at risk
     }
     
-    private func handleMarkPlayed(userInfo: [AnyHashable: Any]) async {
-        guard let gameIdString = userInfo["gameId"] as? String,
+    @MainActor private func handleMarkPlayed(gameIdString: String?) async {
+        guard let gameIdString = gameIdString,
               let gameId = UUID(uuidString: gameIdString) else {
             logger.warning("⚠️ Missing or invalid gameId in mark played action")
             return
@@ -156,19 +157,17 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         // For now, just cancel the reminder and let the system reschedule if needed
     }
     
-    private func handleViewAchievement(userInfo: [AnyHashable: Any]) async {
-        guard let achievementIdString = userInfo["achievementId"] as? String,
+    @MainActor private func handleViewAchievement(achievementIdString: String?) async {
+        guard let achievementIdString = achievementIdString,
               let achievementId = UUID(uuidString: achievementIdString) else {
-            logger.warning("⚠️ Missing or invalid achievementId in notification userInfo")
+            logger.warning("⚠️ Missing or invalid achievementId in notification")
             return
         }
         
         logger.info("🏆 Opening achievement: \(achievementId)")
         
         // Navigate to achievements tab and highlight the specific achievement
-        await MainActor.run {
-            navigationCoordinator?.navigateToAchievements(highlightId: achievementId)
-        }
+        navigationCoordinator?.navigateToAchievements(highlightId: achievementId)
     }
 }
 

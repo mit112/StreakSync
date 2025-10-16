@@ -53,11 +53,34 @@ struct AnalyticsDashboardView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 // Game filter in toolbar (native iOS pattern)
-                gameFilterMenu
+                HStack {
+                    Button {
+                        exportCSV()
+                    } label: {
+                        Image.safeSystemName("square.and.arrow.up", fallback: "square.and.arrow.up")
+                    }
+                    gameFilterMenu
+                }
             }
         }
         .refreshable {
             await viewModel.refreshAnalytics()
+        }
+        // Respond to data changes
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameDataUpdated"))) { _ in
+            Task { @MainActor in
+                await viewModel.refreshAnalytics()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameResultAdded"))) { _ in
+            Task { @MainActor in
+                await viewModel.refreshAnalytics()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshGameData"))) { _ in
+            Task { @MainActor in
+                await viewModel.refreshAnalytics()
+            }
         }
         .onAppear {
             if !hasInitiallyAppeared {
@@ -75,6 +98,12 @@ struct AnalyticsDashboardView: View {
         // Overview stats
         if let overview = viewModel.overview {
             OverviewStatsSection(overview: overview, analyticsService: viewModel.analyticsService, timeRange: viewModel.selectedTimeRange, selectedGame: viewModel.selectedGame)
+        }
+        
+        // At-Risk Today (only when viewing All Games)
+        if viewModel.selectedGame == nil {
+            AtRiskTodaySection()
+            PlayWindowInsightSection()
         }
         
         // Streak trends chart
@@ -98,6 +127,9 @@ struct AnalyticsDashboardView: View {
                 gameAnalytics: viewModel.currentGameAnalytics,
                 selectedGameDisplayName: viewModel.selectedGameDisplayName
             )
+            if let ga = viewModel.currentGameAnalytics {
+                GameDeepDiveSection(gameAnalytics: ga)
+            }
         }
         
         // Personal bests
@@ -105,9 +137,22 @@ struct AnalyticsDashboardView: View {
             PersonalBestsSection(personalBests: viewModel.personalBests)
         }
         
+        // Achievements (hide when nothing unlocked)
+        if let aa = viewModel.achievementAnalytics, (aa.totalUnlocked > 0 || !aa.tierDistribution.isEmpty) {
+            AchievementsSummarySection(analytics: aa)
+            if !aa.nextActions.isEmpty {
+                NextActionsSection(actions: aa.nextActions)
+            }
+        }
+
         // Most active games
         if !viewModel.getMostActiveGames().isEmpty {
             MostActiveGamesSection(activeGames: viewModel.getMostActiveGames())
+        }
+        
+        // Weekly summaries (hide if empty)
+        if let data = viewModel.analyticsData, !data.weeklySummaries.isEmpty {
+            WeeklySummarySection(summaries: data.weeklySummaries)
         }
     }
     
@@ -159,6 +204,19 @@ struct AnalyticsDashboardView: View {
             Image.safeSystemName(viewModel.selectedGame?.iconSystemName ?? "gamecontroller.fill", fallback: "gamecontroller.fill")
                 .foregroundStyle(viewModel.selectedGame?.backgroundColor.color ?? .blue)
         }
+    }
+
+    // MARK: - CSV Export Helper
+    private func exportCSV() {
+        let csv = viewModel.exportCSV()
+        guard !csv.isEmpty else { return }
+        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("streaksync-analytics.csv")
+        try? csv.data(using: .utf8)?.write(to: tempURL)
+        let av = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.keyWindow?.rootViewController?
+            .present(av, animated: true)
     }
     
     // MARK: - Legacy Implementation
@@ -359,6 +417,503 @@ struct AnalyticsStatCardWithTooltip: View {
 }
 
 
+
+// MARK: - At-Risk Today Section (simple MVP)
+struct AtRiskTodaySection: View {
+    @Environment(AppState.self) private var appState
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var atRiskGames: [Game] {
+        appState.getGamesAtRisk()
+    }
+    
+    var body: some View {
+        if atRiskGames.isEmpty { return AnyView(EmptyView()) }
+        
+        let count = atRiskGames.count
+        let title = count == 1 ? "Don't lose your streak" : "Don't lose your streaks"
+        let names = atRiskGames.prefix(3).map { $0.displayName }.joined(separator: ", ")
+        let subtitle = count == 1 ? names : (count <= 3 ? names : "\(names), and \(count - 2) more")
+        
+        return AnyView(
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image.safeSystemName("flame.fill", fallback: "flame")
+                        .font(.title3)
+                        .foregroundStyle(.orange)
+                    Text(title)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    Spacer()
+                }
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                
+                // Quick actions
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(atRiskGames, id: \.id) { game in
+                            Button {
+                                BrowserLauncher.shared.launchGame(game)
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
+                                    Text("Play \(game.displayName)")
+                                }
+                                .font(.caption)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Capsule().fill(game.backgroundColor.color.opacity(0.15)))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+            }
+        )
+    }
+}
+
+// MARK: - Play Window Insight Section
+struct PlayWindowInsightSection: View {
+    @Environment(AppState.self) private var appState
+    @State private var applied = false
+    @State private var coveragePercent: Int = 0
+    @State private var windowStart: Int = 19
+    @State private var windowEnd: Int = 21
+    @State private var suggested: (hour: Int, minute: Int) = (19, 0)
+    @State private var smartEnabled: Bool = UserDefaults.standard.bool(forKey: "smartRemindersEnabled")
+    
+    private func computeSmartSuggestion() {
+        let calendar = Calendar.current
+        let now = Date()
+        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) ?? now
+        let recent = appState.recentResults.filter { $0.date >= thirtyDaysAgo && $0.completed }
+        guard !recent.isEmpty else {
+            self.suggested = (19, 0)
+            self.coveragePercent = 0
+            self.windowStart = 19
+            self.windowEnd = 21
+            return
+        }
+        var hourCounts = Array(repeating: 0, count: 24)
+        for r in recent {
+            let h = calendar.component(.hour, from: r.date)
+            hourCounts[h] += 1
+        }
+        let total = hourCounts.reduce(0, +)
+        // Slide a 2-hour window to find best coverage
+        var bestStart = 19
+        var bestCount = -1
+        for h in 0..<24 {
+            let c = hourCounts[h] + hourCounts[(h + 1) % 24]
+            if c > bestCount { bestCount = c; bestStart = h }
+        }
+        let start = bestStart
+        let end = (bestStart + 2) % 24
+        windowStart = start
+        windowEnd = end
+        coveragePercent = max(0, min(100, Int((Double(bestCount) / Double(max(1, total))) * 100.0 + 0.5)))
+        // Suggest 30 minutes before the start of best window, clamped to 06:00–22:00
+        var hour = (start - 1 + 24) % 24
+        var minute = 30
+        if hour < 6 { hour = 6; minute = 0 }
+        if hour > 22 { hour = 22; minute = 0 }
+        suggested = (hour, minute)
+    }
+    
+    var body: some View {
+        Group {
+            if applied || UserDefaults.standard.bool(forKey: "streakRemindersEnabled") {
+                // Minimized state with current pattern info
+                HStack(spacing: 8) {
+                    Image.safeSystemName("bell.fill", fallback: "bell.fill")
+                        .foregroundStyle(.purple)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(smartEnabled ? "Smart Reminder On" : "Reminder On")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        let currentHour = UserDefaults.standard.object(forKey: "streakReminderHour") as? Int ?? suggested.hour
+                        let currentMinute = UserDefaults.standard.object(forKey: "streakReminderMinute") as? Int ?? suggested.minute
+                        if smartEnabled {
+                            Text("Reminder set for \(String(format: "%02d:%02d", currentHour, currentMinute)) • Covers ~\(coveragePercent)% of your usual window (\(timeStr(windowStart))–\(timeStr(windowEnd)))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Reminder set for \(String(format: "%02d:%02d", currentHour, currentMinute))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Toggle(isOn: Binding(
+                        get: { smartEnabled },
+                        set: { newValue in
+                            smartEnabled = newValue
+                            UserDefaults.standard.set(newValue, forKey: "smartRemindersEnabled")
+                            if newValue {
+                                Task { await appState.applySmartReminderNow() }
+                            }
+                        }
+                    )) {
+                        Text("Smart")
+                    }
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                }
+                .padding()
+                .background {
+                    RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial)
+                }
+            } else {
+                // Suggestion state
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                        Image.safeSystemName("bell.badge.fill", fallback: "bell.fill")
+                            .foregroundStyle(.purple)
+                        Text("Smart Reminder Suggestion")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                    }
+                    Text("You usually play between \(timeStr(windowStart))–\(timeStr(windowEnd)) (\(coveragePercent)% of the last 30 days). Set a reminder a bit earlier?")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Enable Smart & Set \(timeStr(suggested.hour, suggested.minute))") {
+                        UserDefaults.standard.set(true, forKey: "streakRemindersEnabled")
+                        UserDefaults.standard.set(true, forKey: "smartRemindersEnabled")
+                        Task { await appState.applySmartReminderNow() }
+                        withAnimation(.easeInOut(duration: 0.25)) { applied = true }
+                        smartEnabled = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding()
+                .background {
+                    RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial)
+                }
+            }
+        }
+        .onAppear {
+            applied = UserDefaults.standard.bool(forKey: "streakRemindersEnabled")
+            computeSmartSuggestion()
+            smartEnabled = UserDefaults.standard.bool(forKey: "smartRemindersEnabled")
+        }
+    }
+
+    private func timeStr(_ hour: Int, _ minute: Int = 0) -> String {
+        let comps = DateComponents(calendar: Calendar.current, hour: hour, minute: minute)
+        let date = comps.date ?? Date()
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a"
+        return f.string(from: date)
+    }
+}
+
+// MARK: - Game Deep Dive
+struct GameDeepDiveSection: View {
+    let gameAnalytics: GameAnalytics
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Deep Dive")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            switch gameAnalytics.game.name.lowercased() {
+            case "wordle", "nerdle":
+                WordleDeepDive(results: gameAnalytics.recentResults)
+            case "pips":
+                PipsDeepDive(results: gameAnalytics.recentResults)
+            case "linkedinpinpoint":
+                PinpointDeepDive(results: gameAnalytics.recentResults)
+            case "strands":
+                StrandsDeepDive(results: gameAnalytics.recentResults)
+            default:
+                EmptyView()
+            }
+        }
+        .padding()
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+        }
+    }
+}
+
+// MARK: - Achievements Summary
+struct AchievementsSummarySection: View {
+    let analytics: AchievementAnalytics
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Achievements")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            HStack(spacing: 12) {
+                summaryPill(title: "Unlocked", value: "\(analytics.totalUnlocked)/\(analytics.totalAvailable)", color: .yellow)
+                summaryPill(title: "Completion", value: analytics.completionPercentage, color: .green)
+            }
+            
+            // Tier distribution chips
+            if !analytics.tierDistribution.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(AchievementTier.allCases, id: \.self) { tier in
+                        let count = analytics.tierDistribution[tier] ?? 0
+                        if count > 0 {
+                            HStack(spacing: 4) {
+                                Image.safeSystemName(tier.iconSystemName, fallback: "trophy.fill")
+                                Text("\(count)")
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(tier.color.opacity(0.15)))
+                            .foregroundStyle(tier.color)
+                        }
+                    }
+                }
+            }
+            
+            // Recent unlocks
+            if !analytics.recentUnlocks.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recent Unlocks")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    ForEach(analytics.recentUnlocks, id: \.id) { unlock in
+                        HStack(spacing: 8) {
+                            Image.safeSystemName(unlock.tier.iconSystemName, fallback: "trophy.fill")
+                                .foregroundStyle(unlock.tier.color)
+                            Text(unlock.achievement.displayName)
+                                .font(.caption)
+                            Spacer()
+                            Text(unlock.timestamp, style: .date)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+        }
+    }
+    
+    private func summaryPill(title: String, value: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value).font(.title3).fontWeight(.bold).foregroundStyle(color)
+            Text(title).font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(color.opacity(0.08)))
+    }
+}
+
+// MARK: - Next Actions Section
+struct NextActionsSection: View {
+    let actions: [String]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("What to do next")
+                .font(.headline)
+                .fontWeight(.semibold)
+            ForEach(actions.prefix(3), id: \.self) { action in
+                HStack(spacing: 8) {
+                    Image.safeSystemName("bolt.fill", fallback: "bolt.fill").foregroundStyle(.yellow)
+                    Text(action).font(.subheadline)
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+            }
+        }
+        .padding()
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+        }
+    }
+}
+
+private struct WordleDeepDive: View {
+    let results: [GameResult]
+    
+    private var guessDistribution: [Int: Int] {
+        var dist: [Int: Int] = [:]
+        for r in results {
+            if let s = r.score { dist[s, default: 0] += 1 }
+        }
+        return dist
+    }
+    private var failRate: Double {
+        let total = results.count
+        guard total > 0 else { return 0 }
+        let fails = results.filter { !$0.completed }.count
+        return Double(fails) / Double(total)
+    }
+    private var averageGuesses: Double {
+        let guesses = results.compactMap { $0.score }
+        guard !guesses.isEmpty else { return 0 }
+        return Double(guesses.reduce(0, +)) / Double(guesses.count)
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(format: "Fail rate: %.0f%%", failRate * 100)).font(.caption)
+            Text(String(format: "Average guesses: %.2f", averageGuesses)).font(.caption)
+            HStack(spacing: 6) {
+                ForEach((1...6), id: \.self) { g in
+                    let count = guessDistribution[g] ?? 0
+                    VStack {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(.green)
+                            .frame(width: 18, height: CGFloat(max(1, count)) * 6)
+                        Text("\(g)").font(.caption2)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct PipsDeepDive: View {
+    let results: [GameResult]
+    
+    private var easyTimes: [Int] { results.filter { $0.parsedData["difficulty"] == "Easy" }.compactMap { Int($0.parsedData["totalSeconds"] ?? "") } }
+    private var mediumTimes: [Int] { results.filter { $0.parsedData["difficulty"] == "Medium" }.compactMap { Int($0.parsedData["totalSeconds"] ?? "") } }
+    private var hardTimes: [Int] { results.filter { $0.parsedData["difficulty"] == "Hard" }.compactMap { Int($0.parsedData["totalSeconds"] ?? "") } }
+    
+    private func format(_ seconds: Int?) -> String {
+        guard let s = seconds else { return "—" }
+        return String(format: "%d:%02d", s / 60, s % 60)
+    }
+    private func avg(_ arr: [Int]) -> Int? { guard !arr.isEmpty else { return nil }; return arr.reduce(0, +) / arr.count }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Easy Best: \(format(easyTimes.min()))  Avg: \(format(avg(easyTimes)))").font(.caption)
+            }
+            HStack {
+                Text("Medium Best: \(format(mediumTimes.min()))  Avg: \(format(avg(mediumTimes)))").font(.caption)
+            }
+            HStack {
+                Text("Hard Best: \(format(hardTimes.min()))  Avg: \(format(avg(hardTimes)))").font(.caption)
+            }
+        }
+    }
+}
+
+private struct PinpointDeepDive: View {
+    let results: [GameResult]
+    private var guessDistribution: [Int: Int] {
+        var d: [Int: Int] = [:]
+        for r in results { if let s = r.score { d[s, default: 0] += 1 } }
+        return d
+    }
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach((1...5), id: \.self) { g in
+                let count = guessDistribution[g] ?? 0
+                VStack {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(.blue)
+                        .frame(width: 18, height: CGFloat(max(1, count)) * 6)
+                    Text("\(g)").font(.caption2)
+                }
+            }
+        }
+    }
+}
+
+private struct StrandsDeepDive: View {
+    let results: [GameResult]
+    private var hintsDistribution: [Int: Int] {
+        var d: [Int: Int] = [:]
+        for r in results { if let s = r.score { d[s, default: 0] += 1 } }
+        return d
+    }
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach((0...10), id: \.self) { h in
+                let count = hintsDistribution[h] ?? 0
+                VStack {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(.purple)
+                        .frame(width: 12, height: CGFloat(max(1, count)) * 6)
+                    Text("\(h)").font(.caption2)
+                }
+            }
+        }
+    }
+}
+// MARK: - Weekly Summary Section
+struct WeeklySummarySection: View {
+    let summaries: [WeeklySummary]
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Weekly Recap")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            LazyVStack(spacing: 8) {
+                ForEach(summaries.prefix(4), id: \.weekStart) { summary in
+                    WeeklySummaryRow(summary: summary)
+                }
+            }
+        }
+        .padding()
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        }
+    }
+}
+
+private struct WeeklySummaryRow: View {
+    let summary: WeeklySummary
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(summary.weekDisplayName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text(String(format: "%.0f%% completion", summary.completionRate * 100))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            HStack(spacing: 12) {
+                Label("\(summary.totalGamesPlayed)", systemImage: "gamecontroller.fill")
+                    .font(.caption)
+                Label("\(summary.longestStreak)", systemImage: "flame.fill")
+                    .font(.caption)
+            }
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .background {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.secondary.opacity(0.05))
+        }
+    }
+}
 
 // MARK: - Preview
 #Preview {

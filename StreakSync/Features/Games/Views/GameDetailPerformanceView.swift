@@ -205,7 +205,8 @@ private struct ModernChart: View {
     }
     
     var body: some View {
-        Chart(dailyResults.indices, id: \.self) { index in
+        GeometryReader { geometry in
+            Chart(dailyResults.indices, id: \.self) { index in
             let daily = dailyResults[index]
             let dayString = dayFormatter.string(from: daily.date)
             
@@ -255,12 +256,14 @@ private struct ModernChart: View {
         .frame(height: 120)
         .animation(.smooth(duration: 0.6), value: animateChart)
         .onTapGesture { location in
-            handleTap(at: location)
+            handleTap(at: location, geometry: geometry)
         }
+        }
+        .frame(height: 140) // Constrain GeometryReader to prevent background bleed/overlap
     }
     
-    private func handleTap(at location: CGPoint) {
-        let width = UIScreen.main.bounds.width - 64 // Account for padding
+    private func handleTap(at location: CGPoint, geometry: GeometryProxy) {
+        let width = geometry.size.width - 64 // Account for padding
         let barWidth = width / 7 // Always 7 days
         let index = Int(location.x / barWidth)
         

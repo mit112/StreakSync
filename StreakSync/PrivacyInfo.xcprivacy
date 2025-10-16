@@ -1,0 +1,18 @@
+{
+  "privacy": {
+    "tracking": false,
+    "data": [],
+    "reasons": [
+      {
+        "api": "UserNotifications",
+        "reason": "Schedule user-configurable streak reminders and achievement alerts."
+      },
+      {
+        "api": "AppGroups",
+        "reason": "Share user-authorized game results between the app and its share extension."
+      }
+    ]
+  }
+}
+
+

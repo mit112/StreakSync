@@ -8,7 +8,7 @@
 import Foundation
 
 @MainActor
-final class MockSocialService: SocialService {
+final class MockSocialService: SocialService, @unchecked Sendable {
     private let defaults: UserDefaults
     private let userKey = "social_mock_user_profile"
     private let friendsKey = "social_mock_friends"
@@ -101,12 +101,10 @@ final class MockSocialService: SocialService {
         let end = endDateUTC.utcYYYYMMDD
         let filtered = all.filter { $0.dateInt >= start && $0.dateInt <= end }
         var perUser: [String: (name: String, total: Int, perGame: [UUID: Int])] = [:]
-        func points(for s: DailyGameScore) -> Int {
-            guard s.completed, let sc = s.score else { return 0 }
-            return max(0, s.maxAttempts - sc + 1)
-        }
         for s in filtered {
-            let p = points(for: s)
+            // Map gameId to Game if available for accurate scoring
+            let game = Game.allAvailableGames.first(where: { $0.id == s.gameId })
+            let p = LeaderboardScoring.points(for: s, game: game)
             var entry = perUser[s.userId] ?? (name: s.userId == my?.id ? (my?.displayName ?? "Me") : "Friend", total: 0, perGame: [:])
             entry.total += p
             entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + p

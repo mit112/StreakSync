@@ -355,7 +355,7 @@ struct GameResultParser {
         let rankString = String(text[rankRange]).trimmingCharacters(in: .whitespacesAndNewlines)
         
         let score = Int(scoreString) ?? 0
-        let wordsFound = Int(wordsString) ?? 0
+        let _ = Int(wordsString) ?? 0 // wordsFound - not used in current implementation
         
         // Determine completion based on rank (Genius and above are considered "completed")
         let completed = rankString.lowercased().contains("genius") || 

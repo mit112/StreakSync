@@ -13,7 +13,7 @@ extension AppState {
     
     // MARK: - Tiered Achievement Storage
     
-    private static let tieredAchievementsKey = "tieredAchievements"
+    internal static let tieredAchievementsKey = "tieredAchievements"
     
 
     
@@ -39,28 +39,10 @@ extension AppState {
         }
     }
     
-    // MARK: - Modified checkAchievements to support both systems
-    
+    // MARK: - Tiered-only checkAchievements
     func checkAchievements(for result: GameResult) {
-        // Check old achievements (existing code)
-        checkLegacyAchievements(for: result)
-        
-        // Check new tiered achievements
+        // Check tiered achievements only
         checkTieredAchievements(for: result)
-    }
-    
-    // Move existing achievement checking to this method
-    private func checkLegacyAchievements(for result: GameResult) {
-        var newlyUnlocked: [Achievement] = []
-        
-        newlyUnlocked.append(contentsOf: checkFirstGameAchievements())
-        newlyUnlocked.append(contentsOf: checkStreakAchievements(for: result))
-        newlyUnlocked.append(contentsOf: checkTotalGamesAchievements())
-        newlyUnlocked.append(contentsOf: checkMultipleGamesAchievements())
-        
-        for achievement in newlyUnlocked {
-            unlockAchievement(achievement)
-        }
     }
     
     // New tiered achievement checking
@@ -93,7 +75,7 @@ extension AppState {
         // Post notification for UI with delay to prevent race conditions
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(
-                name: Notification.Name("TieredAchievementUnlocked"),
+                name: Notification.Name(AppConstants.Notification.tieredAchievementUnlocked),
                 object: unlock
             )
         }
@@ -127,51 +109,7 @@ extension AppState {
         }
     }
     
-    // MARK: - Helper Methods for Legacy Achievement Checking
-    
-    private func checkFirstGameAchievements() -> [Achievement] {
-        guard self.recentResults.count == 1 else { return [] }
-        
-        return self.achievements.filter { achievement in
-            if case .firstGame = achievement.requirement {
-                return !achievement.isUnlocked
-            }
-            return false
-        }
-    }
-    
-    private func checkStreakAchievements(for result: GameResult) -> [Achievement] {
-        guard let gameStreak = self.streaks.first(where: { $0.gameId == result.gameId }) else { return [] }
-        
-        return self.achievements.filter { achievement in
-            if case .streakLength(let days) = achievement.requirement {
-                return !achievement.isUnlocked && gameStreak.currentStreak >= days
-            }
-            return false
-        }
-    }
-    
-    private func checkTotalGamesAchievements() -> [Achievement] {
-        return self.achievements.filter { achievement in
-            if case .totalGames(let count) = achievement.requirement {
-                return !achievement.isUnlocked && self.recentResults.count >= count
-            }
-            return false
-        }
-    }
-    
-    private func checkMultipleGamesAchievements() -> [Achievement] {
-        let today = Calendar.current.startOfDay(for: Date())
-        let todayResults = self.recentResults.filter { Calendar.current.isDate($0.date, inSameDayAs: today) }
-        let uniqueGamesToday = Set(todayResults.map(\.gameId)).count
-        
-        return self.achievements.filter { achievement in
-            if case .multipleGames(let count) = achievement.requirement {
-                return !achievement.isUnlocked && uniqueGamesToday >= count
-            }
-            return false
-        }
-    }
+    // (Legacy achievement helpers removed)
 }
 
 // MARK: - Update loadPersistedData

@@ -8,7 +8,7 @@
 import Foundation
 
 @MainActor
-final class HybridSocialService: SocialService {
+final class HybridSocialService: SocialService, @unchecked Sendable {
     private let cloudKitService: CloudKitSocialService
     private let mockService: MockSocialService
     private var isCloudKitAvailable: Bool = false
@@ -26,9 +26,8 @@ final class HybridSocialService: SocialService {
     // MARK: - CloudKit Availability Check
     
     private func checkCloudKitAvailability() async {
-        // In development mode without CloudKit entitlements, always use local storage
         isCloudKitAvailable = false
-        print("⚠️ CloudKit not available in development mode - using local storage")
+        print("⚠️ CloudKit disabled (no entitlements) - using local storage")
     }
     
     // MARK: - SocialService Protocol
@@ -173,3 +172,22 @@ enum ServiceStatus {
         }
     }
 }
+
+#if canImport(CloudKit)
+import CloudKit
+enum CloudKitAvailability {
+    static func accountStatus() async throws -> CloudKitStatus {
+        let container = CKContainer.default()
+        let status = try await container.accountStatus()
+        switch status {
+        case .available: return .available
+        case .noAccount: return .noAccount
+        case .restricted: return .restricted
+        case .couldNotDetermine: return .unknown
+        case .temporarilyUnavailable:
+            return .unknown
+        @unknown default: return .unknown
+        }
+    }
+}
+#endif

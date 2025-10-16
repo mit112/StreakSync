@@ -10,6 +10,22 @@ import UIKit
 import OSLog
 import SwiftUI
 
+// MARK: - Scoring Model
+enum ScoringModel: String, Codable, Sendable {
+    case lowerAttempts            // e.g., Wordle/Nerdle: fewer attempts is better
+    case lowerTimeSeconds         // e.g., Mini, Pips, LinkedIn Zip/Tango/Queens/Crossclimb: lower time is better
+    case lowerGuesses             // e.g., Pinpoint: fewer guesses is better
+    case lowerHints               // e.g., Strands: fewer hints is better
+    case higherIsBetter           // e.g., Spelling Bee score or categories solved
+    
+    var isLowerBetter: Bool {
+        switch self {
+        case .higherIsBetter: return false
+        default: return true
+        }
+    }
+}
+
 // MARK: - Game Model (Production Quality)
 struct Game: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
@@ -22,6 +38,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
     let backgroundColor: CodableColor
     let isPopular: Bool
     let isCustom: Bool
+    let scoringModel: ScoringModel
     
     // MARK: - Safe Initializer
     init(
@@ -34,7 +51,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: String,
         backgroundColor: CodableColor,
         isPopular: Bool,
-        isCustom: Bool
+        isCustom: Bool,
+        scoringModel: ScoringModel = .lowerAttempts
     ) {
         self.id = id
         self.name = name
@@ -46,6 +64,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         self.backgroundColor = backgroundColor
         self.isPopular = isPopular
         self.isCustom = isCustom
+        self.scoringModel = scoringModel
     }
     
     // MARK: - Computed Properties
@@ -138,7 +157,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "square.grid.3x3.fill",
         backgroundColor: CodableColor(UIColor(red: 0.345, green: 0.8, blue: 0.008, alpha: 1.0)), // #58CC02
         isPopular: true,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerAttempts
     )
     
     static let quordle = Game(
@@ -151,7 +171,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "square.grid.2x2.fill",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
         isPopular: true,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerAttempts
     )
     
     static let nerdle = Game(
@@ -164,7 +185,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "function",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
         isPopular: true,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerAttempts
     )
     
     static let pips = Game(
@@ -177,7 +199,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "square.grid.2x2.fill",
         backgroundColor: CodableColor(.systemPurple),
         isPopular: true,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerTimeSeconds
     )
     
     static let connections = Game(
@@ -190,7 +213,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "link",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)), // #007AFF
         isPopular: true,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .higherIsBetter
     )
     
     static let spellingBee = Game(
@@ -203,7 +227,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "textformat.abc",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0)), // #FFCC00
         isPopular: true,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .higherIsBetter
     )
     
     static let miniCrossword = Game(
@@ -216,7 +241,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "grid",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.6, blue: 0.0, alpha: 1.0)), // #009900
         isPopular: true,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerTimeSeconds
     )
     
     static let strands = Game(
@@ -229,7 +255,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "lightbulb.fill",
         backgroundColor: CodableColor(UIColor(red: 0.8, green: 0.4, blue: 0.0, alpha: 1.0)), // Orange #CC6600
         isPopular: true,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerHints
     )
     
     // MARK: - LinkedIn Games
@@ -243,7 +270,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "crown.fill",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)), // LinkedIn Blue #007AFF
         isPopular: false,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerTimeSeconds
     )
     
     static let linkedinTango = Game(
@@ -256,7 +284,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "sun.max.fill",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0)), // Sun/Moon colors #FFCC00
         isPopular: false,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerTimeSeconds
     )
     
     static let linkedinCrossclimb = Game(
@@ -269,7 +298,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "arrow.up.arrow.down",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.6, blue: 0.0, alpha: 1.0)), // Green #009900
         isPopular: false,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerTimeSeconds
     )
     
     static let linkedinPinpoint = Game(
@@ -282,7 +312,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "target",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.4, blue: 0.0, alpha: 1.0)), // Orange #FF6600
         isPopular: false,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerGuesses
     )
     
     static let linkedinZip = Game(
@@ -295,7 +326,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "line.3.horizontal",
         backgroundColor: CodableColor(UIColor(red: 0.6, green: 0.0, blue: 1.0, alpha: 1.0)), // Purple #9900FF
         isPopular: false,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerTimeSeconds
     )
     
     static let linkedinMiniSudoku = Game(
@@ -308,7 +340,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "square.grid.3x3.topleft.filled",
         backgroundColor: CodableColor(UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)), // Gray #808080
         isPopular: false,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerTimeSeconds
     )
     
     // MARK: - Wordle Variants
@@ -322,7 +355,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: "8.circle.fill",
         backgroundColor: CodableColor(UIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1.0)), // Blue #3366CC
         isPopular: true,
-        isCustom: false
+        isCustom: false,
+        scoringModel: .lowerAttempts
     )
     
     // Word Games (duplicates removed - using definitions above)

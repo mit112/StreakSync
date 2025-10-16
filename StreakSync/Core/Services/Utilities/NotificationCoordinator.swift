@@ -18,6 +18,8 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - Properties
     private var observers: [NSObjectProtocol] = []
     private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationCoordinator")
+    // Injected ingestion closure to serialize result handling
+    var resultIngestion: ((GameResult) async -> Void)?
     
     // MARK: - Published State
     @Published var refreshID = UUID()
@@ -46,9 +48,9 @@ final class NotificationCoordinator: ObservableObject {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                Task { @MainActor in
-                    self?.handleGameResultNotification(notification)
-                }
+                // Extract object before using it to avoid Sendable issues
+                guard let result = notification.object as? GameResult else { return }
+                self?.handleGameResult(result)
             }
         )
 
@@ -60,9 +62,10 @@ final class NotificationCoordinator: ObservableObject {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                Task { @MainActor in
-                    self?.handleGameDeepLink(notification)
-                }
+                // Extract object before using it to avoid Sendable issues
+                guard let payload = notification.object as? [String: Any],
+                      let gameId = payload[AppConstants.DeepLinkKeys.gameId] as? UUID else { return }
+                self?.handleGameDeepLinkWithId(gameId)
             }
 
         )
@@ -74,9 +77,10 @@ final class NotificationCoordinator: ObservableObject {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                Task { @MainActor in
-                    self?.handleAchievementDeepLink(notification)
-                }
+                // Extract object before using it to avoid Sendable issues
+                guard let payload = notification.object as? [String: Any],
+                      let achievementId = payload[AppConstants.DeepLinkKeys.achievementId] as? UUID else { return }
+                self?.handleAchievementDeepLinkWithId(achievementId)
             }
 
         )
@@ -100,7 +104,7 @@ final class NotificationCoordinator: ObservableObject {
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     self?.handleAppWillResignActive()
                 }
             }
@@ -122,11 +126,11 @@ final class NotificationCoordinator: ObservableObject {
         // Listen for refresh triggers
         self.observers.append(
             NotificationCenter.default.addObserver(
-                forName: NSNotification.Name("GameDataUpdated"),
+                forName: NSNotification.Name(AppConstants.Notification.gameDataUpdated),
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     self?.triggerUIRefresh()
                 }
             }
@@ -149,6 +153,22 @@ final class NotificationCoordinator: ObservableObject {
     
     // MARK: - Notification Handlers
     
+    private func handleGameResult(_ result: GameResult) {
+        logger.info("✅ Handling game result: \(result.gameName) - \(result.displayScore)")
+        
+        if let ingest = resultIngestion {
+            Task { await ingest(result) }
+        } else {
+            appState?.addGameResult(result)
+        }
+        
+        // Trigger UI refresh
+        triggerUIRefresh()
+        
+        // Haptic feedback
+        HapticManager.shared.trigger(.streakUpdate)
+    }
+    
     private func handleGameResultNotification(_ notification: Notification) {
         guard let result = notification.object as? GameResult else {
             logger.error("❌ Invalid game result in notification")
@@ -157,7 +177,11 @@ final class NotificationCoordinator: ObservableObject {
         
         logger.info("✅ Handling game result: \(result.gameName) - \(result.displayScore)")
         
-        appState?.addGameResult(result)
+        if let ingest = resultIngestion {
+            Task { await ingest(result) }
+        } else {
+            appState?.addGameResult(result)
+        }
         
         // Trigger UI refresh
         triggerUIRefresh()
@@ -187,6 +211,15 @@ final class NotificationCoordinator: ObservableObject {
         logger.error("❌ Game not found for deep link payload: \(payload)")
     }
     
+    private func handleGameDeepLinkWithId(_ gameId: UUID) {
+        if let game = appState?.games.first(where: { $0.id == gameId }) {
+            logger.info("🔗 Handling game deep link by id: \(gameId)")
+            navigationCoordinator?.navigateTo(.gameDetail(game))
+        } else {
+            logger.error("❌ Game not found for id: \(gameId)")
+        }
+    }
+    
     private func handleAchievementDeepLink(_ notification: Notification) {
         guard let payload = notification.object as? [String: Any],
               let achievementId = payload[AppConstants.DeepLinkKeys.achievementId] as? UUID else {
@@ -199,9 +232,21 @@ final class NotificationCoordinator: ObservableObject {
         // Navigate to achievements
         navigationCoordinator?.navigateTo(.achievements)
         
-        // Present achievement detail if found
-        if let achievement = appState?.unlockedAchievements.first(where: { $0.id == achievementId }) {
-            navigationCoordinator?.presentSheet(.achievementDetail(achievement))
+        // Present tiered achievement detail if found
+        if let tiered = appState?.tieredAchievements.first(where: { $0.id == achievementId }) {
+            navigationCoordinator?.presentSheet(.tieredAchievementDetail(tiered))
+        }
+    }
+    
+    private func handleAchievementDeepLinkWithId(_ achievementId: UUID) {
+        logger.info("🔗 Handling achievement deep link: \(achievementId)")
+        
+        // Navigate to achievements
+        navigationCoordinator?.navigateTo(.achievements)
+        
+        // Present tiered achievement detail if found
+        if let tiered = appState?.tieredAchievements.first(where: { $0.id == achievementId }) {
+            navigationCoordinator?.presentSheet(.tieredAchievementDetail(tiered))
         }
     }
     
@@ -248,7 +293,7 @@ final class NotificationCoordinator: ObservableObject {
         
         // Post additional notifications for specific UI updates
         NotificationCenter.default.post(
-            name: NSNotification.Name("GameResultAdded"),
+            name: NSNotification.Name(AppConstants.Notification.gameResultReceived),
             object: nil
         )
     }

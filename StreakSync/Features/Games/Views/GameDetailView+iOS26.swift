@@ -18,7 +18,8 @@ extension GameDetailView {
                 // Standard header - no hero stuff needed
                 GameDetailHeader(
                     game: game,
-                    streak: viewModel.currentStreak
+                    streak: viewModel.currentStreak,
+                    isScrolling: isScrolling
                 )
                 .staggeredAppearance(index: 0, totalCount: 4)
                 
@@ -59,6 +60,9 @@ extension GameDetailView {
         .navigationBarTitleDisplayMode(.large)
         // SIMPLE: Just use automatic transition
         .navigationTransition(.automatic)
+        .modifier(ScrollPhaseWatcher { _, newPhase in
+            isScrolling = newPhase != .idle
+        })
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 shareButton

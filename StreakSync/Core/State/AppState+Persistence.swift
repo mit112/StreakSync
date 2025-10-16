@@ -12,10 +12,7 @@ import OSLog
 extension AppState {
     
     // MARK: - Dependencies
-    private var syncCoordinator: AppGroupSyncCoordinator {
-        // Create on demand - lightweight object
-        AppGroupSyncCoordinator()
-    }
+    // Removed stored/computed coordinator to avoid sending non-Sendable self across actors.
     
     // In your existing AppState implementation, update the loadPersistedData method:
 
@@ -30,6 +27,7 @@ extension AppState {
         
         // Use parallel loading for better performance
         await loadAllData()
+        await migrateLegacyAchievementsIfNeeded()
         
         // Fix existing Connections results with updated completion logic
         await fixExistingConnectionsResults()
@@ -62,7 +60,7 @@ extension AppState {
     private func loadAllData() async {
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.loadGameResults() }
-            group.addTask { await self.loadAchievements() }
+            // Legacy achievements no longer loaded; tiered only
             group.addTask { await self.loadStreaks() }
             group.addTask { await self.loadTieredAchievements() }
         }
@@ -87,21 +85,7 @@ extension AppState {
         }
     }
     
-    private func loadAchievements() async {
-        logger.info("Loading achievements...")
-        
-        if let persisted = persistenceService.load(
-            [Achievement].self,
-            forKey: UserDefaultsPersistenceService.Keys.achievements
-        ) {
-            let merged = mergeAchievements(persisted: persisted, defaults: createDefaultAchievements())
-            setAchievements(merged)
-        } else {
-            let defaults = createDefaultAchievements()
-            setAchievements(defaults)
-            await saveAchievements()
-        }
-    }
+    // Legacy achievements loader removed (tiered achievements only)
     
     private func loadStreaks() async {
         logger.info("Loading streaks...")
@@ -122,6 +106,60 @@ extension AppState {
         }
     }
 
+    // MARK: - Migration: Legacy -> Tiered
+    private func migrateLegacyAchievementsIfNeeded() async {
+        // If we already have tiered achievements saved, skip
+        if persistenceService.load([TieredAchievement].self, forKey: Self.tieredAchievementsKey) != nil {
+            return
+        }
+        // If there are legacy achievements saved, attempt a best-effort migration
+        if let legacy = persistenceService.load([Achievement].self, forKey: UserDefaultsPersistenceService.Keys.achievements), !legacy.isEmpty {
+            logger.info("🧭 Migrating legacy achievements -> tiered achievements")
+            var migrated = AchievementFactory.createDefaultAchievements()
+            // Seed progress based on legacy unlocks
+            for a in legacy where a.isUnlocked {
+                switch a.requirement {
+                case .streakLength(let days):
+                    if let idx = migrated.firstIndex(where: { $0.category == .streakMaster }) {
+                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, days))
+                    }
+                case .totalGames(let count):
+                    if let idx = migrated.firstIndex(where: { $0.category == .gameCollector }) {
+                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, count))
+                    }
+                case .firstGame:
+                    if let idx = migrated.firstIndex(where: { $0.category == .gameCollector }) {
+                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, 1))
+                    }
+                case .multipleGames(let distinct):
+                    if let idx = migrated.firstIndex(where: { $0.category == .varietyPlayer }) {
+                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, distinct))
+                    }
+                case .perfectWeek:
+                    if let idx = migrated.firstIndex(where: { $0.category == .dailyDevotee }) {
+                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, 7))
+                    }
+                case .perfectMonth:
+                    if let idx = migrated.firstIndex(where: { $0.category == .dailyDevotee }) {
+                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, 30))
+                    }
+                case .consecutiveDays(let days):
+                    if let idx = migrated.firstIndex(where: { $0.category == .dailyDevotee }) {
+                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, days))
+                    }
+                case .specificScore:
+                    // No direct mapping; ignore
+                    break
+                }
+            }
+            _tieredAchievements = migrated
+            await saveTieredAchievements()
+            // Clear legacy to avoid re-migration
+            persistenceService.remove(forKey: UserDefaultsPersistenceService.Keys.achievements)
+            logger.info("✅ Legacy achievements migrated: \(migrated.count) tiered items")
+        }
+    }
+
     // MARK: - Streak Normalization
     /// Resets streaks that are no longer active (missed a full day)
     /// FIXED: Only reset streaks if they were actually broken by missing a day,
@@ -130,7 +168,6 @@ extension AppState {
     private func normalizeStreaksForMissedDays(referenceDate: Date = Date()) async {
         var updated: [GameStreak] = []
         var didChange = false
-        let calendar = Calendar.current
         
         for streak in streaks {
             guard streak.currentStreak > 0, let lastPlayed = streak.lastPlayedDate else {
@@ -213,7 +250,9 @@ extension AppState {
     // MARK: - Share Extension Sync
     private func syncFromShareExtension() async {
         do {
-            let pendingResults = try await syncCoordinator.loadPendingResults()
+            // Create the coordinator locally to avoid capturing self into a stored property
+            let coordinator = AppGroupSyncCoordinator()
+            let pendingResults = try await coordinator.loadPendingResults()
             
             for result in pendingResults {
                 // addGameResult already handles everything
@@ -269,16 +308,7 @@ extension AppState {
         }
     }
     
-    func saveAchievements() async {
-        do {
-            try persistenceService.save(
-                self.achievements,
-                forKey: UserDefaultsPersistenceService.Keys.achievements
-            )
-        } catch {
-            handleSaveError(error, dataType: "achievements")
-        }
-    }
+    // Legacy achievements saver removed
     
     func saveStreaks() async {
         do {
@@ -315,22 +345,14 @@ extension AppState {
         return result
     }
     
-    private func mergeAchievements(persisted: [Achievement], defaults: [Achievement]) -> [Achievement] {
-        var result = defaults
-        
-        for persistedAchievement in persisted {
-            if let index = result.firstIndex(where: { $0.id == persistedAchievement.id }) {
-                result[index] = persistedAchievement
-            }
-        }
-        
-        return result
-    }
+    // Legacy achievements merge removed
     
     // MARK: - Data Management
     func clearAllData() async {
         setRecentResults([])
-        setAchievements(createDefaultAchievements())
+        // Clear tiered achievements to defaults and save
+        _tieredAchievements = AchievementFactory.createDefaultAchievements()
+        await saveTieredAchievements()
         setStreaks(games.map { GameStreak.empty(for: $0) })
         gameResultsCache.removeAll()
         

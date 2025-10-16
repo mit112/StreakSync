@@ -10,18 +10,7 @@ import SwiftUI
 import OSLog
 
 extension AppState {
-    /// Import achievements (merge with existing)
-    @MainActor
-    func importAchievements(_ newAchievements: [Achievement]) async {
-        for achievement in newAchievements {
-            if !achievements.contains(where: { $0.id == achievement.id }) {
-                // Add the achievement if it's unlocked
-                if achievement.isUnlocked {
-                    achievements.append(achievement)
-                }
-            }
-        }
-    }
+    // Legacy achievement import removed in tiered-only system
     
     /// Rebuild streaks from imported game results
     @MainActor

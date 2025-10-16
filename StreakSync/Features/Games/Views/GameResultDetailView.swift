@@ -18,18 +18,11 @@ struct GameResultDetailView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @State private var showingDeleteConfirmation = false
     
-    @State private var hasAppeared = false
     @State private var scoreRevealed = false
     @State private var showShareSheet = false
     @State private var copiedToClipboard = false
     @State private var selectedShareFormat: ShareFormat = .full
-    @State private var isHoveringShare = false
-    @State private var isHoveringCopy = false
-    
-    // Animation states
-    @State private var emojiScale: CGFloat = 0.1
     @State private var detailsOpacity: Double = 0
-    @State private var buttonsScale: CGFloat = 0.8
     
     private var game: Game? {
         appState.games.first { $0.id == result.gameId }
@@ -61,7 +54,7 @@ struct GameResultDetailView: View {
     }
     
     var body: some View {
-        NavigationStack {
+        NavigationView {
             ZStack(alignment: .topLeading) {
                 if #available(iOS 26.0, *) {
                     iOS26DetailView
@@ -69,19 +62,23 @@ struct GameResultDetailView: View {
                     legacyDetailView
                 }
             }
-            .navigationTitle("Game Result")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .destructive) {
                         showingDeleteConfirmation = true
                     } label: {
                         Image(systemName: "trash")
-                            .foregroundStyle(.red)
                     }
                 }
             }
         }
+        .navigationViewStyle(.stack)
         .confirmationDialog("Delete this result?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete Result", role: .destructive) {
                 deleteResult()
@@ -98,59 +95,18 @@ struct GameResultDetailView: View {
     @available(iOS 26.0, *)
     private var iOS26DetailView: some View {
         ScrollView {
-            VStack(spacing: 32) {
-                // Hero Score Section with Animation
+            VStack(spacing: 24) {
                 iOS26ScoreHeroSection
-                    .scrollTransition { content, phase in
-                        content
-                            .scaleEffect(
-                                x: phase.isIdentity ? 1 : 0.85,
-                                y: phase.isIdentity ? 1 : 0.85
-                            )
-                            .opacity(phase.isIdentity ? 1 : 0.3)
-                    }
-                
-                // Game Details Grid
                 iOS26DetailsGrid
-                    .scrollTransition { content, phase in
-                        content
-                            .opacity(phase.isIdentity ? 1 : 0.7)
-                            .blur(radius: phase.isIdentity ? 0 : 2)
-                    }
-                
-                // Share Preview Section
                 iOS26SharePreview
-                    .scrollTransition { content, phase in
-                        content
-                            .offset(y: phase.isIdentity ? 0 : 20)
-                            .opacity(phase.isIdentity ? 1 : 0.5)
-                    }
-                
-                // Action Buttons
                 iOS26ActionButtons
-                    .scrollTransition { content, phase in
-                        content
-                            .scaleEffect(phase.isIdentity ? 1 : 0.95)
-                    }
             }
             .padding()
             .padding(.bottom, 20)
         }
         .scrollBounceBehavior(.automatic)
         .scrollIndicators(.hidden)
-        .background {
-            iOS26BackgroundGradient
-        }
-        .navigationTitle(result.gameName.capitalized)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-                .fontWeight(.medium)
-            }
-        }
+        .background(iOS26BackgroundGradient)
         .onAppear {
             startAnimationSequence()
         }
@@ -163,102 +119,38 @@ struct GameResultDetailView: View {
     // MARK: - iOS 26 Score Hero Section
     @available(iOS 26.0, *)
     private var iOS26ScoreHeroSection: some View {
-        VStack(spacing: 20) {
-            // Animated emoji with particles
-            ZStack {
-                // Background glow
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                gameColor.opacity(0.3),
-                                gameColor.opacity(0.1),
-                                Color.clear
-                            ],
-                            center: .center,
-                            startRadius: 20,
-                            endRadius: 100
-                        )
-                    )
-                    .frame(width: 200, height: 200)
-                    .blur(radius: 20)
-                    .opacity(scoreRevealed ? 1 : 0)
-                    .animation(.easeOut(duration: 1).delay(0.3), value: scoreRevealed)
-                
-                // Main emoji
-                Text(result.scoreEmoji)
-                    .font(.system(size: 100))
-                    .scaleEffect(emojiScale)
-                    .rotationEffect(.degrees(scoreRevealed ? 0 : -180))
-                    .animation(
-                        .spring(response: 0.5, dampingFraction: 0.6)
-                        .delay(0.2),
-                        value: scoreRevealed
-                    )
-                    .symbolEffect(
-                        .bounce.up,
-                        options: .repeating.speed(0.3),
-                        value: scoreRevealed
-                    )
-                
-                // Success particles (if completed)
-                if result.completed {
-                    ForEach(0..<8, id: \.self) { index in
-                        Image.compatibleSystemName("sparkle")
-                            .font(.system(size: 20))
-                            .foregroundStyle(gameColor)
-                            .offset(
-                                x: scoreRevealed ? cos(Double(index) * .pi / 4) * 80 : 0,
-                                y: scoreRevealed ? sin(Double(index) * .pi / 4) * 80 : 0
-                            )
-                            .opacity(scoreRevealed ? 0 : 1)
-                            .scaleEffect(scoreRevealed ? 0.1 : 1)
-                            .animation(
-                                .spring(response: 0.8, dampingFraction: 0.5)
-                                .delay(0.5 + Double(index) * 0.05),
-                                value: scoreRevealed
-                            )
-                    }
-                }
-            }
-            .frame(height: 150)
+        VStack(spacing: 16) {
+            Text(result.scoreEmoji)
+                .font(.system(size: 88))
+                .scaleEffect(scoreRevealed ? 1 : 0.85)
+                .opacity(scoreRevealed ? 1 : 0)
+                .animation(.spring(response: 0.5, dampingFraction: 0.7), value: scoreRevealed)
             
-            // Game name and score
-            VStack(spacing: 12) {
-                HStack(spacing: 8) {
-                    Image.safeSystemName(safeIconName, fallback: "gamecontroller")
-                        .font(.title2)
-                        .foregroundStyle(gameColor)
-                        .symbolEffect(.pulse, value: scoreRevealed)
-                    
-                    Text(result.gameName.capitalized)
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(.primary)
-                }
-                .opacity(detailsOpacity)
+            Text(result.gameName.capitalized)
+                .font(.title2.weight(.semibold))
+                .opacity(scoreRevealed ? 1 : 0)
+                .animation(.easeOut(duration: 0.3).delay(0.1), value: scoreRevealed)
+            
+            HStack(spacing: 12) {
+                ScoreBadge(
+                    score: result.displayScore,
+                    color: gameColor,
+                    revealed: scoreRevealed
+                )
                 
-                // Animated score reveal
-                HStack(spacing: 16) {
-                    // Score badge
-                    ScoreBadge(
-                        score: result.displayScore,
-                        color: gameColor,
-                        revealed: scoreRevealed
-                    )
-                    
-                    // Completion status
-                    if result.completed {
-                        Label("Completed", systemImage: "checkmark.circle.fill")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.green)
-                            .symbolEffect(.appear, isActive: scoreRevealed)
-                    } else {
-                        Label("Not Completed", systemImage: "xmark.circle")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.orange)
-                    }
+                if result.completed {
+                    Label("Completed", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.green)
+                        .opacity(scoreRevealed ? 1 : 0)
+                        .animation(.easeOut(duration: 0.3).delay(0.15), value: scoreRevealed)
+                } else {
+                    Label("Not Completed", systemImage: "xmark.circle")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.orange)
+                        .opacity(scoreRevealed ? 1 : 0)
+                        .animation(.easeOut(duration: 0.3).delay(0.15), value: scoreRevealed)
                 }
-                .opacity(detailsOpacity)
             }
         }
         .padding(.top, 20)
@@ -267,257 +159,127 @@ struct GameResultDetailView: View {
     // MARK: - iOS 26 Details Grid
     @available(iOS 26.0, *)
     private var iOS26DetailsGrid: some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ],
-            spacing: 16
-        ) {
-            DetailCard(
+        VStack(spacing: 16) {
+            DetailRowCompact(
                 icon: "calendar",
                 label: "Date",
-                value: result.date.formatted(date: .abbreviated, time: .omitted),
-                color: .blue
+                value: result.date.formatted(date: .abbreviated, time: .omitted)
             )
-            .opacity(detailsOpacity)
-            .animation(.easeOut(duration: 0.3).delay(0.4), value: detailsOpacity)
             
             if let puzzleNumber = result.parsedData["puzzleNumber"] {
-                DetailCard(
+                DetailRowCompact(
                     icon: "number.square",
                     label: "Puzzle",
-                    value: "#\(puzzleNumber)",
-                    color: .purple
+                    value: "#\(puzzleNumber)"
                 )
-                .opacity(detailsOpacity)
-                .animation(.easeOut(duration: 0.3).delay(0.5), value: detailsOpacity)
             }
             
-        // Only show Time/Attempts card for non-time-based games (time is already shown in header)
-        if !(result.gameName.lowercased() == "linkedinzip" || result.gameName.lowercased() == "linkedintango" || result.gameName.lowercased() == "linkedinqueens" || result.gameName.lowercased() == "linkedincrossclimb") {
-            DetailCard(
-                icon: result.gameName.lowercased() == "linkedinpinpoint" ? "target" : (result.gameName.lowercased() == "strands" ? "lightbulb" : "target"),
-                label: result.gameName.lowercased() == "linkedinpinpoint" ? "Guesses" : (result.gameName.lowercased() == "strands" ? "Hints" : "Attempts"),
-                value: result.displayScore,
-                color: .orange
-            )
-            .opacity(detailsOpacity)
-            .animation(.easeOut(duration: 0.3).delay(0.6), value: detailsOpacity)
-        }
+            if !(result.gameName.lowercased() == "linkedinzip" || result.gameName.lowercased() == "linkedintango" || result.gameName.lowercased() == "linkedinqueens" || result.gameName.lowercased() == "linkedincrossclimb") {
+                DetailRowCompact(
+                    icon: result.gameName.lowercased() == "linkedinpinpoint" ? "target" : (result.gameName.lowercased() == "strands" ? "lightbulb" : "target"),
+                    label: result.gameName.lowercased() == "linkedinpinpoint" ? "Guesses" : (result.gameName.lowercased() == "strands" ? "Hints" : "Attempts"),
+                    value: result.displayScore
+                )
+            }
             
-            // Show backtracks for Zip (always show, including 0)
             if result.gameName.lowercased() == "linkedinzip",
                let backtrackCount = result.parsedData["backtrackCount"] {
-                DetailCard(
+                DetailRowCompact(
                     icon: "arrow.uturn.backward",
                     label: "Backtracks",
-                    value: backtrackCount,
-                    color: .red
+                    value: backtrackCount
                 )
-                .opacity(detailsOpacity)
-                .animation(.easeOut(duration: 0.3).delay(0.7), value: detailsOpacity)
             }
             
-            // Show time for other games (not Zip since it's already shown above)
             if result.gameName.lowercased() != "linkedinzip",
                let time = result.parsedData["time"] {
-                DetailCard(
+                DetailRowCompact(
                     icon: "clock",
                     label: "Time",
-                    value: time,
-                    color: .green
+                    value: time
                 )
-                .opacity(detailsOpacity)
-                .animation(.easeOut(duration: 0.3).delay(0.7), value: detailsOpacity)
             }
         }
+        .opacity(detailsOpacity)
+        .animation(.easeOut(duration: 0.25), value: detailsOpacity)
     }
     
     // MARK: - iOS 26 Share Preview
     @available(iOS 26.0, *)
     private var iOS26SharePreview: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Format selector
-            HStack {
-                Text("Share Format")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                
-                Spacer()
-                
-                Picker("Format", selection: $selectedShareFormat) {
-                    ForEach(ShareFormat.allCases, id: \.self) { format in
-                        Label(format.rawValue, systemImage: format.icon)
-                            .tag(format)
-                    }
-                }
-                .pickerStyle(.menu)
-                .tint(gameColor)
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Share Options")
+                .font(.headline)
+                .foregroundStyle(.primary)
             
-            // Preview card
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Preview")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    
-                    Spacer()
-                    
-                    Button {
-                        copyToClipboard()
-                    } label: {
-                        Image(systemName: copiedToClipboard ? "checkmark.circle.fill" : "doc.on.doc")
-                            .font(.caption)
-                            .foregroundStyle(copiedToClipboard ? .green : gameColor)
-                            .symbolEffect(.bounce, value: copiedToClipboard)
-                    }
-                    .buttonStyle(.plain)
+            Picker("Share Format", selection: $selectedShareFormat) {
+                ForEach(ShareFormat.allCases, id: \.self) { format in
+                    Text(format.rawValue).tag(format)
                 }
-                
-                Text(formatShareText())
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.primary.opacity(0.8))
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(.thinMaterial)
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .strokeBorder(gameColor.opacity(0.2), lineWidth: 1)
-                            }
-                    }
             }
-            .padding()
-            .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial)
+            .pickerStyle(.segmented)
+            
+            Text(formatShareText())
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.secondarySystemBackground))
+                )
+            
+            Button {
+                copyToClipboard()
+            } label: {
+                Label(copiedToClipboard ? "Copied" : "Copy to Clipboard", systemImage: copiedToClipboard ? "checkmark.circle" : "doc.on.doc")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.bordered)
         }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.secondarySystemBackground))
+        )
         .opacity(detailsOpacity)
-        .animation(.easeOut(duration: 0.3).delay(0.8), value: detailsOpacity)
+        .animation(.easeOut(duration: 0.3), value: detailsOpacity)
     }
     
     // MARK: - iOS 26 Action Buttons
     @available(iOS 26.0, *)
     private var iOS26ActionButtons: some View {
-        HStack(spacing: 16) {
-            // Copy button
+        VStack(spacing: 12) {
             Button {
                 copyToClipboard()
             } label: {
-                Label(
-                    copiedToClipboard ? "Copied!" : "Copy",
-                    systemImage: copiedToClipboard ? "checkmark" : "doc.on.doc"
-                )
-                .font(.body.weight(.medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(.regularMaterial)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(
-                                    copiedToClipboard ? Color.green : gameColor.opacity(0.3),
-                                    lineWidth: 1
-                                )
-                        }
-                }
-                .scaleEffect(isHoveringCopy ? 1.05 : 1)
+                Label(copiedToClipboard ? "Copied" : "Copy to Clipboard", systemImage: copiedToClipboard ? "checkmark" : "doc.on.doc")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
             }
-            .buttonStyle(.plain)
-            .onHover { hovering in
-                withAnimation(.smooth(duration: 0.2)) {
-                    isHoveringCopy = hovering
-                }
-            }
-            .hoverEffect(.highlight)
-            .scaleEffect(buttonsScale)
-            .animation(.spring(response: 0.4, dampingFraction: 0.6).delay(0.9), value: buttonsScale)
+            .buttonStyle(.bordered)
+            .tint(gameColor)
             
-            // Share button
             Button {
                 showShareSheet = true
                 HapticManager.shared.trigger(.buttonTap)
             } label: {
                 Label("Share", systemImage: "square.and.arrow.up")
                     .font(.body.weight(.medium))
-                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [gameColor, gameColor.opacity(0.8)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .shadow(
-                                color: gameColor.opacity(0.3),
-                                radius: isHoveringShare ? 12 : 6,
-                                x: 0,
-                                y: isHoveringShare ? 6 : 3
-                            )
-                    }
-                    .scaleEffect(isHoveringShare ? 1.05 : 1)
+                    .padding(.vertical, 12)
             }
-            .buttonStyle(.plain)
-            .onHover { hovering in
-                withAnimation(.smooth(duration: 0.2)) {
-                    isHoveringShare = hovering
-                }
-            }
-            .hoverEffect(.lift)
-            .scaleEffect(buttonsScale)
-            .animation(.spring(response: 0.4, dampingFraction: 0.6).delay(1.0), value: buttonsScale)
+            .buttonStyle(.borderedProminent)
+            .tint(gameColor)
         }
     }
     
     // MARK: - iOS 26 Background
     @available(iOS 26.0, *)
     private var iOS26BackgroundGradient: some View {
-        ZStack {
-            // Base background
-            Rectangle()
-                .fill(.background)
-            
-            // Gradient overlay
-            LinearGradient(
-                colors: [
-                    gameColor.opacity(0.05),
-                    Color.clear,
-                    gameColor.opacity(0.02)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            
-            // Mesh gradient for depth (iOS 26 only)
-            if result.completed {
-                MeshGradient(
-                    width: 3,
-                    height: 3,
-                    points: [
-                        [0, 0], [0.5, 0], [1, 0],
-                        [0, 0.5], [0.5, 0.5], [1, 0.5],
-                        [0, 1], [0.5, 1], [1, 1]
-                    ],
-                    colors: [
-                        gameColor.opacity(0.1), Color.clear, gameColor.opacity(0.05),
-                        Color.clear, gameColor.opacity(0.08), Color.clear,
-                        gameColor.opacity(0.05), Color.clear, gameColor.opacity(0.1)
-                    ]
-                )
-                .blur(radius: 30)
-                .opacity(0.5)
-            }
-        }
-        .ignoresSafeArea()
+        Color(.systemBackground).ignoresSafeArea()
     }
     
     // MARK: - Legacy Implementation
@@ -540,33 +302,44 @@ struct GameResultDetailView: View {
                 }
                 .padding(.top, 20)
                 
-                // Details section
-                VStack(spacing: 0) {
-                    DetailRow(label: "Date", value: result.date.formatted(date: .abbreviated, time: .omitted))
-                    Divider()
-                    DetailRow(label: "Status", value: result.completed ? "Completed" : "Not Completed")
+                VStack(spacing: 16) {
+                    DetailRowCompact(
+                        icon: "calendar",
+                        label: "Date",
+                        value: result.date.formatted(date: .abbreviated, time: .omitted)
+                    )
                     
-        // Only show Time/Attempts row for non-time-based games (time is already shown in header)
-        // Skip for time-based games and Octordle (which only shows score)
-        if !(result.gameName.lowercased() == "linkedinzip" || result.gameName.lowercased() == "linkedintango" || result.gameName.lowercased() == "linkedinqueens" || result.gameName.lowercased() == "linkedincrossclimb" || result.gameName.lowercased() == "octordle") {
-            Divider()
-            DetailRow(label: result.gameName.lowercased() == "linkedinpinpoint" ? "Guesses" : (result.gameName.lowercased() == "strands" ? "Hints" : "Attempts"), value: result.displayScore)
-        }
+                    DetailRowCompact(
+                        icon: "info.circle",
+                        label: "Status",
+                        value: result.completed ? "Completed" : "Not Completed"
+                    )
+                    
+                    if !(result.gameName.lowercased() == "linkedinzip" || result.gameName.lowercased() == "linkedintango" || result.gameName.lowercased() == "linkedinqueens" || result.gameName.lowercased() == "linkedincrossclimb" || result.gameName.lowercased() == "octordle") {
+                        DetailRowCompact(
+                            icon: result.gameName.lowercased() == "linkedinpinpoint" ? "target" : (result.gameName.lowercased() == "strands" ? "lightbulb" : "target"),
+                            label: result.gameName.lowercased() == "linkedinpinpoint" ? "Guesses" : (result.gameName.lowercased() == "strands" ? "Hints" : "Attempts"),
+                            value: result.displayScore
+                        )
+                    }
                     
                     if let puzzleNumber = result.parsedData["puzzleNumber"] {
-                        Divider()
-                        DetailRow(label: "Puzzle", value: "#\(puzzleNumber)")
+                        DetailRowCompact(
+                            icon: "number.square",
+                            label: "Puzzle",
+                            value: "#\(puzzleNumber)"
+                        )
                     }
                     
-                    // Show backtracks for Zip (always show, including 0)
                     if result.gameName.lowercased() == "linkedinzip",
                        let backtrackCount = result.parsedData["backtrackCount"] {
-                        Divider()
-                        DetailRow(label: "Backtracks", value: backtrackCount)
+                        DetailRowCompact(
+                            icon: "arrow.uturn.backward",
+                            label: "Backtracks",
+                            value: backtrackCount
+                        )
                     }
                 }
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
                 
                 // Quordle-specific breakdown
                 if result.gameName.lowercased() == "quordle" {
@@ -590,43 +363,18 @@ struct GameResultDetailView: View {
     
     // MARK: - Helper Methods
     private func startAnimationSequence() {
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
-            hasAppeared = true
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                emojiScale = 1.0
-                scoreRevealed = true
-            }
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            withAnimation(.easeOut(duration: 0.4)) {
-                detailsOpacity = 1
-            }
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                buttonsScale = 1.0
-            }
+        withAnimation(.easeOut(duration: 0.25)) {
+            scoreRevealed = true
+            detailsOpacity = 1
         }
     }
     
     private func copyToClipboard() {
         UIPasteboard.general.string = formatShareText()
-        
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            copiedToClipboard = true
-        }
-        
+        copiedToClipboard = true
         HapticManager.shared.trigger(.achievement)
-        
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation {
-                copiedToClipboard = false
-            }
+            copiedToClipboard = false
         }
     }
     
@@ -700,6 +448,37 @@ struct ScoreBadge: View {
         .scaleEffect(revealed ? 1 : 0.8)
         .opacity(revealed ? 1 : 0)
         .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.2), value: revealed)
+    }
+}
+
+// MARK: - Compact Detail Row
+struct DetailRowCompact: View {
+    let icon: String
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image.safeSystemName(icon, fallback: "info.circle")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.body.weight(.medium))
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.secondarySystemBackground))
+        )
     }
 }
 
@@ -813,9 +592,7 @@ struct QuordleDetailBreakdown: View {
             // Summary stats
             VStack(spacing: 8) {
                 if let completedStr = result.parsedData["completedPuzzles"],
-                   let failedStr = result.parsedData["failedPuzzles"],
-                   let completed = Int(completedStr),
-                   let failed = Int(failedStr) {
+                   let completed = Int(completedStr) {
                     
                     HStack {
                         Text("Success Rate")

@@ -17,8 +17,8 @@ struct GameDateHelper {
         let calendar = Calendar.current
         let now = Date()
         
-        // Get the start of today (midnight)
-        let startOfToday = calendar.startOfDay(for: now)
+        // Get the start of today (midnight) - not used in current implementation
+        let _ = calendar.startOfDay(for: now)
         
         // A game result is "today" if it was imported today
         // This is the correct logic because:

@@ -23,25 +23,27 @@ final class AchievementCelebrationCoordinator: ObservableObject {
     
     // MARK: - Queue Management Properties
     private var processedAchievements: Set<String> = []
+    private let processedKey = "processedTieredAchievementsCache"
+    private let processedExpiryHours: Double = 24
     private var isProcessingQueue = false
     
     // MARK: - Initialization
     init() {
         logger.info("🏗️ Initializing AchievementCelebrationCoordinator")
+        loadProcessedCache()
         setupObserver()
         logger.info("✅ AchievementCelebrationCoordinator ready")
     }
     
     deinit {
-        if let observer = notificationObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+        // Note: notificationObserver cleanup happens automatically
+        // Cannot access mutable state in deinit under strict concurrency
     }
     
     // MARK: - Setup
     private func setupObserver() {
         notificationObserver = NotificationCenter.default.addObserver(
-            forName: Notification.Name("TieredAchievementUnlocked"),
+            forName: Notification.Name(AppConstants.Notification.tieredAchievementUnlocked),
             object: nil,
             queue: .main
         ) { [weak self] notification in
@@ -73,12 +75,33 @@ final class AchievementCelebrationCoordinator: ObservableObject {
         
         // Mark as processed to prevent duplicates
         processedAchievements.insert(achievementId)
+        persistProcessedCache()
         celebrationQueue.append(unlock)
         
         // If not currently showing, start showing celebrations
         if !isShowingCelebration && !isProcessingQueue {
             processCelebrationQueue()
         }
+    }
+    
+    // MARK: - Persistence for dedup cache
+    private func loadProcessedCache() {
+        let defaults = UserDefaults.standard
+        if let data = defaults.array(forKey: processedKey) as? [String] {
+            processedAchievements = Set(data)
+        }
+        // Clear cache if older than expiry
+        if let last = defaults.object(forKey: processedKey+"_ts") as? Date, Date().timeIntervalSince(last) > processedExpiryHours*3600 {
+            processedAchievements.removeAll()
+            defaults.removeObject(forKey: processedKey)
+            defaults.removeObject(forKey: processedKey+"_ts")
+        }
+    }
+    
+    private func persistProcessedCache() {
+        let defaults = UserDefaults.standard
+        defaults.set(Array(processedAchievements), forKey: processedKey)
+        defaults.set(Date(), forKey: processedKey+"_ts")
     }
     
     private func processCelebrationQueue() {

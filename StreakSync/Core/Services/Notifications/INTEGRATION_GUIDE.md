@@ -163,3 +163,22 @@ Button("Check Current State") {
 5. Check current notification state
 
 The simplified system is designed to be helpful without being pushy, giving users complete control while providing genuine value through smart, daily reminders.
+
+## Enabling Smart Reminders
+
+Prerequisites
+- Notification permission flow integrated and daily reminder working.
+
+Steps
+1. Provide a Smart toggle in your UI (dashboard or settings) bound to `smartRemindersEnabled`.
+2. On enable, call:
+   ```swift
+   Task { await appState.applySmartReminderNow() }
+   ```
+3. Ensure a day-change observer is active (already wired in `AppState`) so `updateSmartRemindersIfNeeded()` runs daily and recomputes every ~2 days.
+
+QA Checklist
+- No-history fallback → 7 PM until sufficient data exists.
+- Smart OFF preserves manual time; no auto-changes.
+- Smart ON recomputes after 2 days of new play pattern changes.
+- Times are local and respect DST.

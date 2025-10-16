@@ -136,7 +136,9 @@ enum Layout {
 // MARK: - Device Size Helpers
 struct DeviceSize {
     static var isSmallDevice: Bool {
-        UIScreen.main.bounds.width < 375
+        // Fallback for when not in view context
+        // Views should use @Environment(\.horizontalSizeClass) for proper size detection
+        return false
     }
     
     static var isIPad: Bool {

@@ -46,17 +46,15 @@ struct GameDetailRecentResults: View {
                 if groupedResults.isEmpty {
                     EmptyResultsCard(gameName: game.displayName)
                 } else {
-                    VStack(spacing: 12) {
-                        ForEach(Array(groupedResults.prefix(5).enumerated()), id: \.element.id) { index, groupedResult in
+                    LazyVStack(spacing: 12) {
+                        ForEach(Array(groupedResults.prefix(5).enumerated()), id: \.element.id) { _, groupedResult in
                             GroupedGameResultRow(groupedResult: groupedResult, onDelete: {
                                 deleteGroupedResult(groupedResult)
                             })
-                            .staggeredAppearance(
-                                index: index,
-                                totalCount: min(groupedResults.count, 5)
-                            )
+                            .transition(.opacity)
                         }
                     }
+                    .animation(.easeOut(duration: 0.2), value: groupedResults.count)
                     .padding(.horizontal, 16)
                 }
             } else {
@@ -64,23 +62,16 @@ struct GameDetailRecentResults: View {
                 if results.isEmpty {
                     EmptyResultsCard(gameName: game.displayName)
                 } else {
-                    List {
-                        ForEach(Array(results.prefix(5).enumerated()), id: \.element.id) { index, result in
+                    LazyVStack(spacing: 12) {
+                        ForEach(Array(results.prefix(5).enumerated()), id: \.element.id) { _, result in
                             GameResultRow(result: result, onDelete: {
                                 deleteResult(result)
                             })
-                            .staggeredAppearance(
-                                index: index,
-                                totalCount: min(results.count, 5)
-                            )
-                            .listRowInsets(EdgeInsets(top: Spacing.sm / 2, leading: 0, bottom: Spacing.sm / 2, trailing: 0))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
+                            .transition(.opacity)
                         }
                     }
-                    .listStyle(.plain)
-                    .scrollDisabled(true)
-                    .frame(height: CGFloat(min(results.count, 5)) * 90) // Approximate row height
+                    .animation(.easeOut(duration: 0.2), value: results.count)
+                    .padding(.horizontal, 16)
                 }
             }
         }

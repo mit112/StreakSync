@@ -10,6 +10,7 @@ import UserNotifications
 import OSLog
 
 // MARK: - Notification Settings View Model
+@MainActor
 final class NotificationSettingsViewModel: ObservableObject {
     @Published var notificationsEnabled = false
     @Published var remindersEnabled = true
@@ -52,7 +53,6 @@ final class NotificationSettingsViewModel: ObservableObject {
         logger.info("💾 Saved notification settings")
     }
     
-    @MainActor
     func checkPermissionStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         notificationsEnabled = settings.authorizationStatus == .authorized
@@ -62,7 +62,6 @@ final class NotificationSettingsViewModel: ObservableObject {
         }
     }
     
-    @MainActor
     func requestPermission() async {
         let granted = await NotificationPermissionFlowViewModel().requestPermission()
         if granted {
@@ -73,7 +72,6 @@ final class NotificationSettingsViewModel: ObservableObject {
     }
     
     #if DEBUG
-    @MainActor
     func testNotification() async {
         // Send immediate test notification
         let gamesAtRisk = appState?.games.filter { game in

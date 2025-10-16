@@ -87,31 +87,23 @@ final class AnalyticsViewModel: ObservableObject {
             self.errorMessage = nil
         }
         
-        do {
-            let data = await analyticsService.getAnalyticsData(for: timeRange, game: game)
+        let data = await analyticsService.getAnalyticsData(for: timeRange, game: game)
+        
+        await MainActor.run {
+            self.analyticsData = data
+            self.selectedTimeRange = timeRange
+            self.isLoading = false
             
-            await MainActor.run {
-                self.analyticsData = data
-                self.selectedTimeRange = timeRange
-                self.isLoading = false
-                
-                // Don't auto-select games - let the user choose between "All Games" and specific games
-            }
-            // Persist scope
-            await MainActor.run {
-                self.scope.timeRange = timeRange
-                self.scope.gameId = self.selectedGame?.id
-                self.scope.save()
-            }
-            
-            logger.info("✅ Analytics loaded successfully for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
-        } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-            logger.error("❌ Failed to load analytics: \(error.localizedDescription)")
+            // Don't auto-select games - let the user choose between "All Games" and specific games
         }
+        // Persist scope
+        await MainActor.run {
+            self.scope.timeRange = timeRange
+            self.scope.gameId = self.selectedGame?.id
+            self.scope.save()
+        }
+        
+        logger.info("✅ Analytics loaded successfully for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
     }
     
     /// Refresh analytics data
@@ -279,6 +271,21 @@ final class AnalyticsViewModel: ObservableObject {
         } else {
             return "No data for \(selectedGame?.displayName ?? "this game") in the selected time range"
         }
+    }
+
+    // MARK: - Export
+    func exportCSV() -> String {
+        guard let data = analyticsData else { return "" }
+        var rows: [String] = []
+        rows.append("date,game,score,maxAttempts,completed")
+        for ga in data.gameAnalytics {
+            for r in ga.recentResults {
+                let dateStr = ISO8601DateFormatter().string(from: r.date)
+                let scoreStr = r.score.map { String($0) } ?? ""
+                rows.append("\(dateStr),\(ga.game.displayName),\(scoreStr),\(r.maxAttempts),\(r.completed)")
+            }
+        }
+        return rows.joined(separator: "\n")
     }
 }
 

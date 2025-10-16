@@ -971,7 +971,6 @@ struct iOS26SelectedDateGroupedDetail: View {
     
     private var completionIcon: String {
         let completedCount = groupedResult.results.filter(\.completed).count
-        let totalCount = groupedResult.results.count
         
         switch completedCount {
         case 3:

@@ -176,6 +176,18 @@ struct DataManagementView: View {
     
     var body: some View {
         List {
+            // Cloud Sync Section
+            Section("Cloud Sync") {
+                Toggle(isOn: Binding(
+                    get: { AppConstants.Flags.cloudSyncEnabled },
+                    set: { AppConstants.Flags.cloudSyncEnabled = $0 }
+                )) {
+                    Label("iCloud Sync (Private)", systemImage: "icloud")
+                }
+                Text("Sync tiered achievements privately via iCloud across your devices. Requires iCloud account; safe to leave off.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             // Export Section
             Section {
                 Button {
@@ -233,9 +245,10 @@ struct DataManagementView: View {
                 }
                 
                 HStack {
-                    Label("Achievements", systemImage: "trophy")
+                    Label("Tiered Achievements", systemImage: "trophy")
                     Spacer()
-                    Text("\(appState.unlockedAchievements.count)")
+                    let unlockedTieredCount = appState.tieredAchievements.filter { $0.isUnlocked }.count
+                    Text("\(unlockedTieredCount)")
                         .foregroundStyle(.secondary)
                 }
             } header: {
@@ -277,7 +290,7 @@ struct DataManagementView: View {
                 }
             }
         } message: {
-            Text("This will permanently delete all your streaks, achievements, and game data. This action cannot be undone.")
+                    Text("This will permanently delete all your streaks, achievements, and game data. This action cannot be undone.")
         }
         .alert("Error", isPresented: $showError) {
             Button("OK") { }
@@ -303,12 +316,12 @@ struct DataManagementView: View {
                 encoder.dateEncodingStrategy = .iso8601
                 
                 // Gather all data - FIXED property names
-                let exportData = ExportData(
+                    let exportData = ExportData(
                     version: 1,
                     exportDate: Date(),
                     appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
                     gameResults: appState.recentResults,  // Fixed: recentResults
-                    achievements: appState.achievements,
+                    achievements: [],
                     streaks: appState.streaks,
                     favoriteGameIds: Array(container.gameCatalog.favoriteGameIDs),  // Fixed: use container
                     customGames: [] // For future use
@@ -457,8 +470,7 @@ struct DataManagementView: View {
         }
         
         // Import achievements
-        await appState.importAchievements(data.achievements)
-        importCount += data.achievements.filter { $0.isUnlocked }.count
+                // Legacy achievements import removed (tiered-only system)
         
         // Update favorite games
         for gameId in data.favoriteGameIds {

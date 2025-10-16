@@ -15,6 +15,15 @@
 import Foundation
 
 enum AppConstants {
+    // MARK: - Flags
+    enum Flags {
+        // CloudKit sync is off by default; enable when developer account is available
+        static var cloudSyncEnabled: Bool {
+            get { UserDefaults.standard.bool(forKey: "cloudSyncEnabled") }
+            set { UserDefaults.standard.set(newValue, forKey: "cloudSyncEnabled") }
+        }
+    }
+
     // MARK: - Storage Limits
     enum Storage {
         static let maxResults = 100
@@ -38,6 +47,8 @@ enum AppConstants {
         static let gameDataUpdated = "GameDataUpdated"
         static let refreshGameData = "RefreshGameData"
         static let darwinNotificationName = "com.streaksync.app.newResult"
+        static let tieredAchievementUnlocked = "TieredAchievementUnlocked"
+        // Typed Notification.Name accessors are defined below (see extension)
     }
 
     // MARK: - Deep Link Keys
@@ -58,6 +69,16 @@ enum AppConstants {
     enum URLScheme {
         static let scheme = "streaksync"
         static let shareActivity = "com.streaksync.share"
+    }
+    
+    // MARK: - CloudKit
+    enum CloudKitKeys {
+        static let recordTypeUserAchievements = "UserAchievements"
+        static let fieldVersion = "version"
+        static let fieldPayload = "payload"
+        static let fieldLastUpdated = "lastUpdated"
+        static let fieldSummary = "summary"
+        static let recordID = "user_achievements"
     }
 }
 

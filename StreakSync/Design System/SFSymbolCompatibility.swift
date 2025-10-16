@@ -83,7 +83,6 @@ struct SFSymbolCompatibility {
 extension Image {
     /// Creates an SF Symbol image with automatic compatibility fallback
     static func compatibleSystemName(_ name: String, fallback: String? = nil) -> Image {
-        let finalFallback = fallback ?? SFSymbolCompatibility.symbolMappings[name] ?? "questionmark.circle"
         let safeName = SFSymbolCompatibility.getSymbol(name)
         
         #if DEBUG
@@ -107,7 +106,6 @@ extension Image {
 extension UIImage {
     /// Creates a UIImage with SF Symbol and automatic compatibility fallback
     static func compatibleSystemName(_ name: String, fallback: String? = nil) -> UIImage? {
-        let finalFallback = fallback ?? SFSymbolCompatibility.symbolMappings[name] ?? "questionmark.circle"
         let safeName = SFSymbolCompatibility.getSymbol(name)
         
         #if DEBUG

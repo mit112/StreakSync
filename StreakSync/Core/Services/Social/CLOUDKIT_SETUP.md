@@ -49,7 +49,7 @@ Your StreakSync app now has **real-time leaderboard synchronization** just like 
 
 ### When You're Ready to Publish
 1. Get paid Apple Developer account ($99/year)
-2. Replace `CloudKitSocialService.swift` with the full CloudKit implementation
+2. Enable CloudKit capability and ensure entitlements are added
 3. Add CloudKit entitlements back to `StreakSync.entitlements`:
    ```xml
    <key>com.apple.developer.icloud-container-identifiers</key>
@@ -61,7 +61,8 @@ Your StreakSync app now has **real-time leaderboard synchronization** just like 
        <string>CloudKit</string>
    </array>
    ```
-4. Deploy to App Store
+2. Enable CloudKit capability in the app target and share extension if needed (this may occur automatically when adding the capability)
+4. Build and run on a device logged into iCloud
 5. Real-time sync automatically works for all users
 
 ## 🔍 Technical Details
@@ -82,6 +83,17 @@ Your StreakSync app now has **real-time leaderboard synchronization** just like 
 - **Push notifications**: CloudKit sends updates when data changes
 - **Periodic refresh**: 30-second timer for additional updates
 - **Subscription management**: Automatic setup and cleanup
+
+### Development Mode Note
+- In development without entitlements, the app never calls CloudKit APIs (forced local mode). Once entitlements are present, you can flip to CK by enabling capability—no code churn required.
+
+## ✅ Practical Steps to Enable
+
+1. Purchase Apple Developer Program and assign a team to the project.
+2. In Xcode targets (App + Extension), add Capability: iCloud → CloudKit.
+3. Ensure `iCloud.com.mitsheth.StreakSync` container exists or create it.
+4. Archive and run on a device signed into iCloud; first run will create schema.
+5. Verify account status and subscriptions in `HybridSocialService` logs.
 
 ## 🎯 Benefits
 

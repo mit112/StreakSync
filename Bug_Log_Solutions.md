@@ -3048,3 +3048,50 @@ private func migrateNotificationSettings() {
 - **Design Philosophy**: Establish clear principles (e.g., "one thoughtful reminder > multiple alerts")
 
 ---
+
+## Enhancement #043: Friends Carousel Felt Sticky and Didn’t Center Properly
+**Date:** January 2025  
+**Severity:** UX  
+**Component:** FriendsView.swift (GameIconCarousel)
+
+### Problem
+- Carousel relied on ScrollViewReader + `scrollTo`, padding-based centering, and manual updates.
+- First/last items didn’t center reliably; snapping felt unnatural; selection drifted.
+
+### Solution
+- Replaced with native SwiftUI selection-based scrolling:
+  - `.scrollPosition(id:)` bound to the current index
+  - `.scrollTargetLayout()` and `.scrollTargetBehavior(.viewAligned)` for snap alignment
+  - `.contentMargins(.horizontal, …, for: .scrollContent)` to center first/last icons
+- Single source of truth: selection mirrors `currentIndex`; taps update selection and TabView.
+- Haptics on change; animated transitions respect Reduce Motion.
+
+### Result
+- Natural, predictable snapping and centering.
+- Cleaner code without padding hacks, less chance of drift.
+
+### Prevention
+- Prefer native `scrollPosition`/`viewAligned` APIs for carousel-like UIs.
+- Use a single selection source of truth connecting UI and page state.
+
+---
+
+## Enhancement #044: Friends Empty/Error/Offline States Needed Clearer Cues
+**Date:** January 2025  
+**Severity:** UX  
+**Component:** FriendsView.swift, GameLeaderboardPage.swift
+
+### Problem
+- Empty state gave little guidance; errors lacked a clear inline presentation; local-only mode wasn’t obvious.
+
+### Solution
+- Empty leaderboard shows Invite Friends CTA to open friend management.
+- Inline top error banner with dismiss button.
+- Subtle local-only ribbon under the header to inform about sync behavior.
+
+### Result
+- Clear guidance and feedback, fewer dead-ends.
+
+### Prevention
+- Always include helpful CTAs for empty/error states; communicate data mode early.
+

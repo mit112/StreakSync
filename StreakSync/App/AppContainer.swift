@@ -42,9 +42,11 @@ final class AppContainer: ObservableObject {
     
     // MARK: - Analytics Service
     let analyticsService: AnalyticsService
+    let achievementSyncService: AchievementSyncService
 
     // MARK: - Notification Coordinator
     let notificationCoordinator: NotificationCoordinator
+    private let ingestionActor = GameResultIngestionActor()
     
     // MARK: - Logger
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AppContainer")
@@ -99,6 +101,8 @@ final class AppContainer: ObservableObject {
         
         // 9. Analytics service
         self.analyticsService = AnalyticsService(appState: appState)
+        // 10. CloudKit achievements sync (feature-flagged)
+        self.achievementSyncService = AchievementSyncService(appState: appState)
 
         
         // Wire up dependencies
@@ -106,6 +110,11 @@ final class AppContainer: ObservableObject {
         
         // Start day change detection
         DayChangeDetector.shared.startMonitoring()
+        
+        // Kick off cloud sync if enabled
+        Task { @MainActor in
+            await self.achievementSyncService.syncIfEnabled()
+        }
         
         logger.info("✅ AppContainer initialized successfully")
     }
@@ -116,6 +125,10 @@ final class AppContainer: ObservableObject {
         notificationCoordinator.appState = appState
         notificationCoordinator.navigationCoordinator = navigationCoordinator
         notificationCoordinator.appGroupBridge = appGroupBridge
+        notificationCoordinator.resultIngestion = { [weak self] result in
+            guard let self else { return }
+            await self.ingestionActor.ingest(result, into: self.appState)
+        }
         
         // Wire analytics service to app state for cache invalidation
         appState.analyticsService = analyticsService

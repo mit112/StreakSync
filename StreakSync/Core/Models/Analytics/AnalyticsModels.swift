@@ -178,13 +178,15 @@ struct AchievementAnalytics: Sendable {
     let categoryProgress: [AchievementCategory: Double]
     let tierDistribution: [AchievementTier: Int]
     let unlockRate: Double
+    let nextActions: [String]
     
     init(
         totalUnlocked: Int = 0,
         totalAvailable: Int = 0,
         recentUnlocks: [AchievementUnlock] = [],
         categoryProgress: [AchievementCategory: Double] = [:],
-        tierDistribution: [AchievementTier: Int] = [:]
+        tierDistribution: [AchievementTier: Int] = [:],
+        nextActions: [String] = []
     ) {
         self.totalUnlocked = totalUnlocked
         self.totalAvailable = totalAvailable
@@ -192,6 +194,7 @@ struct AchievementAnalytics: Sendable {
         self.categoryProgress = categoryProgress
         self.tierDistribution = tierDistribution
         self.unlockRate = totalAvailable > 0 ? Double(totalUnlocked) / Double(totalAvailable) : 0.0
+        self.nextActions = nextActions
     }
     
     var completionPercentage: String {

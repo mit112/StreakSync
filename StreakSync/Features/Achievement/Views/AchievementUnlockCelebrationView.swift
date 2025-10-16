@@ -524,17 +524,17 @@ private struct EnhancedParticleSystem: View {
                     .opacity(particle.opacity)
                     .rotationEffect(Angle(degrees: particle.rotation))
             }
-        }
-        .onAppear {
-            createParticles()
-            animateParticles()
+            .onAppear {
+                createParticles(geometry: geometry)
+                animateParticles(geometry: geometry)
+            }
         }
         .accessibilityHidden(true) // Decorative animation
     }
     
-    private func createParticles() {
-        let centerX = UIScreen.main.bounds.width / 2
-        let centerY = UIScreen.main.bounds.height / 2
+    private func createParticles(geometry: GeometryProxy) {
+        let centerX = geometry.size.width / 2
+        let centerY = geometry.size.height / 2
         
         // Reduce particle count for older devices
         let particleCount = ProcessInfo.processInfo.processorCount > 4 ? 30 : 15
@@ -558,7 +558,7 @@ private struct EnhancedParticleSystem: View {
         }
     }
     
-    private func animateParticles() {
+    private func animateParticles(geometry: GeometryProxy) {
         withAnimation(.easeOut(duration: 2.0)) {
             for index in particles.indices {
                 particles[index].position.x += particles[index].velocity.dx
@@ -637,17 +637,17 @@ private struct ConfettiExplosion: View {
                     .position(piece.position)
                     .opacity(piece.opacity)
             }
-        }
-        .onChange(of: counter) { _, _ in
-            if !reduceMotion {
-                createConfetti()
-                animateConfetti()
+            .onChange(of: counter) { _, _ in
+                if !reduceMotion {
+                    createConfetti(geometry: geometry)
+                    animateConfetti(geometry: geometry)
+                }
             }
         }
         .accessibilityHidden(true) // Decorative animation
     }
     
-    private func createConfetti() {
+    private func createConfetti(geometry: GeometryProxy) {
         confettiPieces.removeAll()
         
         // Reduce confetti count for performance
@@ -661,8 +661,8 @@ private struct ConfettiExplosion: View {
             .orange
         ]
         
-        let centerX = UIScreen.main.bounds.width / 2
-        let topY = UIScreen.main.bounds.height * 0.3
+        let centerX = geometry.size.width / 2
+        let topY = geometry.size.height * 0.3
         
         for _ in 0..<confettiCount {
             let angle = Double.random(in: -(.pi/3)...(.pi/3)) - .pi/2
@@ -684,7 +684,7 @@ private struct ConfettiExplosion: View {
         }
     }
     
-    private func animateConfetti() {
+    private func animateConfetti(geometry: GeometryProxy) {
         // Initial burst
         withAnimation(.easeOut(duration: 0.5)) {
             for index in confettiPieces.indices {
@@ -696,7 +696,7 @@ private struct ConfettiExplosion: View {
         // Gravity fall
         withAnimation(.easeIn(duration: 2.5).delay(0.5)) {
             for index in confettiPieces.indices {
-                confettiPieces[index].position.y = UIScreen.main.bounds.height + 50
+                confettiPieces[index].position.y = geometry.size.height + 50
                 confettiPieces[index].rotation += Double.random(in: -720...720)
                 confettiPieces[index].opacity = 0.8
             }

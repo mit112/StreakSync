@@ -22,6 +22,7 @@ struct GameDetailView: View {
     @State internal var isRefreshing = false
     @State internal var isLoadingGame = false
     @State internal var isNavigatingFromNotification = false
+    @State internal var isScrolling = false
     
     // REMOVED: Local namespace - now using environment
     // @Namespace private var heroNamespace  ❌ DELETED
@@ -47,7 +48,8 @@ struct GameDetailView: View {
                 // Header with animated stats
                 GameDetailHeader(
                     game: game,
-                    streak: viewModel.currentStreak
+                    streak: viewModel.currentStreak,
+                    isScrolling: isScrolling
                 )
                 .staggeredAppearance(index: 0, totalCount: 4)
                 
@@ -83,6 +85,9 @@ struct GameDetailView: View {
         .refreshable {
             await refreshData()
         }
+        .modifier(ScrollPhaseWatcher { _, newPhase in
+            isScrolling = newPhase != .idle
+        })
         .navigationTitle(game.displayName)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -187,17 +192,4 @@ struct GameDetailView: View {
     }
 }
 
-#if swift(>=6.0)
-@available(iOS 26.0, *)
-#Preview("iOS 26") {
-    @Namespace var previewNamespace
-    
-    NavigationStack {
-        GameDetailView(game: Game.wordle)
-            .environment(AppState())
-            .environmentObject(NavigationCoordinator())
-            .environmentObject(ThemeManager.shared)
-            .environment(\.heroNamespace, previewNamespace)
-    }
-}
-#endif
+// Remove heroNamespace preview dependency to avoid missing EnvironmentValue errors under Swift 6

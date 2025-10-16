@@ -53,7 +53,7 @@ struct PressableModifier: ViewModifier {
                         isPressed = pressing
                     }
                     if pressing && hapticEnabled {
-                        HapticManager.shared.trigger(hapticType)
+                        Task { @MainActor in HapticManager.shared.trigger(hapticType) }
                     }
                 },
                 perform: {}
@@ -99,7 +99,7 @@ struct ShakeModifier: ViewModifier {
             )
             .onReceive(NotificationCenter.default.publisher(for: .shake)) { _ in
                 shakesRemaining = shakes
-                HapticManager.shared.trigger(.error)
+                Task { @MainActor in HapticManager.shared.trigger(.error) }
                 DispatchQueue.main.asyncAfter(deadline: .now() + Double(shakes) * 0.1) {
                     shakesRemaining = 0
                 }
@@ -178,38 +178,40 @@ struct SwipeableCardModifier: ViewModifier {
     }
     
     func body(content: Content) -> some View {
-        content
-            .offset(x: dragOffset.width + finalOffset.width)
-            .animation(SpringPreset.snappy, value: dragOffset)
-            .gesture(
-                DragGesture()
-                    .updating($dragOffset) { value, state, _ in
-                        state = value.translation
-                    }
-                    .onEnded { value in
-                        let threshold: CGFloat = 100
-                        
-                        if value.translation.width > threshold {
-                            HapticManager.shared.trigger(.cardSwipe)
-                            onSwipe?(.right)
-                            withAnimation(SpringPreset.bouncy) {
-                                finalOffset.width = UIScreen.main.bounds.width
-                            }
-                        } else if value.translation.width < -threshold {
-                            HapticManager.shared.trigger(.cardSwipe)
-                            onSwipe?(.left)
-                            withAnimation(SpringPreset.bouncy) {
-                                finalOffset.width = -UIScreen.main.bounds.width
-                            }
-                        } else {
-                            // Snap back
-                            HapticManager.shared.trigger(.cardSnap)
-                            withAnimation(SpringPreset.snappy) {
-                                finalOffset = .zero
+        GeometryReader { geometry in
+            content
+                .offset(x: dragOffset.width + finalOffset.width)
+                .animation(SpringPreset.snappy, value: dragOffset)
+                .gesture(
+                    DragGesture()
+                        .updating($dragOffset) { value, state, _ in
+                            state = value.translation
+                        }
+                        .onEnded { value in
+                            let threshold: CGFloat = 100
+                            
+                            if value.translation.width > threshold {
+                                Task { @MainActor in HapticManager.shared.trigger(.cardSwipe) }
+                                onSwipe?(.right)
+                                withAnimation(SpringPreset.bouncy) {
+                                    finalOffset.width = geometry.size.width
+                                }
+                            } else if value.translation.width < -threshold {
+                                Task { @MainActor in HapticManager.shared.trigger(.cardSwipe) }
+                                onSwipe?(.left)
+                                withAnimation(SpringPreset.bouncy) {
+                                    finalOffset.width = -geometry.size.width
+                                }
+                            } else {
+                                // Snap back
+                                Task { @MainActor in HapticManager.shared.trigger(.cardSnap) }
+                                withAnimation(SpringPreset.snappy) {
+                                    finalOffset = .zero
+                                }
                             }
                         }
-                    }
-            )
+                )
+        }
     }
 }
 
@@ -221,7 +223,7 @@ struct PullToRefreshModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .refreshable {
-                HapticManager.shared.trigger(.pullToRefresh)
+                Task { @MainActor in HapticManager.shared.trigger(.pullToRefresh) }
                 await onRefresh()
             }
     }
@@ -241,5 +243,25 @@ extension View {
     /// Adds pull to refresh with haptic feedback
     func pullToRefreshWithHaptic(isRefreshing: Binding<Bool>, onRefresh: @escaping () async -> Void) -> some View {
         modifier(PullToRefreshModifier(isRefreshing: isRefreshing, onRefresh: onRefresh))
+    }
+}
+
+// MARK: - Scroll Phase Watcher (compat wrapper)
+/// Wraps `.onScrollPhaseChange` with a two-argument closure while compiling on iOS versions where the API may not be available at callsite.
+struct ScrollPhaseWatcher: ViewModifier {
+    let onChange: (ScrollPhase, ScrollPhase) -> Void
+    
+    func body(content: Content) -> some View {
+        #if swift(>=6.0)
+        if #available(iOS 17.0, *) {
+            content.onScrollPhaseChange { oldPhase, newPhase in
+                onChange(oldPhase, newPhase)
+            }
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
     }
 }

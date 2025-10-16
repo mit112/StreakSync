@@ -38,9 +38,15 @@ class ShareViewController: UIViewController {
         }
         
         if itemProvider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-            itemProvider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] (item, error) in
+            itemProvider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] (rawItem, error) in
+                // Avoid passing non-Sendable captured item; make a local copy as String?
+                let text: String? = {
+                    if let s = rawItem as? String { return s }
+                    if let data = rawItem as? Data, let s = String(data: data, encoding: .utf8) { return s }
+                    return nil
+                }()
                 DispatchQueue.main.async {
-                    if let text = item as? String {
+                    if let text = text {
                         self?.processText(text)
                     } else {
                         self?.showResult("Couldn't process text")
@@ -325,7 +331,7 @@ class ShareViewController: UIViewController {
             "gameId": "550e8400-e29b-41d4-a716-446655440001", // Quordle game ID
             "gameName": "quordle",
             "date": ISO8601DateFormatter().string(from: Date()),
-            "score": averageScore,
+            "score": averageScore as Any,
             "maxAttempts": 9,
             "completed": completed,
             "sharedText": text,
@@ -393,7 +399,7 @@ class ShareViewController: UIViewController {
             "gameId": "550e8400-e29b-41d4-a716-446655440000", // Wordle game ID
             "gameName": "wordle",
             "date": ISO8601DateFormatter().string(from: Date()),
-            "score": score,
+            "score": score as Any,
             "maxAttempts": 6,
             "completed": completed,
             "sharedText": text,
@@ -432,7 +438,7 @@ class ShareViewController: UIViewController {
             "gameId": "550e8400-e29b-41d4-a716-446655440002", // Nerdle game ID
             "gameName": "nerdle",
             "date": ISO8601DateFormatter().string(from: Date()),
-            "score": score,
+            "score": score as Any,
             "maxAttempts": 6,
             "completed": completed,
             "sharedText": text,

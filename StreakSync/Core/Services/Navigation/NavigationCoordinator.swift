@@ -130,7 +130,7 @@ final class NavigationCoordinator: ObservableObject {
     enum SheetDestination: Identifiable {
         case addCustomGame
         case gameResult(GameResult)
-        case achievementDetail(Achievement)
+        // Legacy achievement detail removed in favor of tiered only
         case tieredAchievementDetail(TieredAchievement)
         
         var id: String {
@@ -139,8 +139,6 @@ final class NavigationCoordinator: ObservableObject {
                 return "addCustomGame"
             case .gameResult(let result):
                 return "gameResult-\(result.id)"
-            case .achievementDetail(let achievement):
-                return "achievement-\(achievement.id)"
             case .tieredAchievementDetail(let achievement):
                 return "tieredAchievement-\(achievement.id)"
             }
@@ -149,54 +147,36 @@ final class NavigationCoordinator: ObservableObject {
     
     // MARK: - Navigation Actions
     
-    /// Navigate to a destination in the current tab
-    // In NavigationCoordinator.swift, update the navigateTo function:
-
-    /// Navigate to a destination in the current tab
+    /// Navigate to a destination in the current tab (no redundant main-thread hop under @MainActor)
     func navigateTo(_ destination: Destination) {
-        // Ensure we're on the main thread
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            switch self.selectedTab {
-            case .home:
-                // Check if we're not already navigating to the same destination
-                if !self.homePath.isEmpty {
-                    // Get the last element safely
-                    let pathString = String(describing: self.homePath)
-                    if pathString.contains(String(describing: destination)) {
-                        return // Already navigating to this destination
-                    }
-                }
-                self.homePath.append(destination)
-                
-            case .awards:
-                if !self.awardsPath.isEmpty {
-                    let pathString = String(describing: self.awardsPath)
-                    if pathString.contains(String(describing: destination)) {
-                        return
-                    }
-                }
-                self.awardsPath.append(destination)
-                
-            case .friends:
-                if !self.friendsPath.isEmpty {
-                    let pathString = String(describing: self.friendsPath)
-                    if pathString.contains(String(describing: destination)) {
-                        return
-                    }
-                }
-                self.friendsPath.append(destination)
-                
-            case .settings:
-                if !self.settingsPath.isEmpty {
-                    let pathString = String(describing: self.settingsPath)
-                    if pathString.contains(String(describing: destination)) {
-                        return
-                    }
-                }
-                self.settingsPath.append(destination)
+        switch selectedTab {
+        case .home:
+            if !homePath.isEmpty {
+                let pathString = String(describing: homePath)
+                if pathString.contains(String(describing: destination)) { return }
             }
+            homePath.append(destination)
+            
+        case .awards:
+            if !awardsPath.isEmpty {
+                let pathString = String(describing: awardsPath)
+                if pathString.contains(String(describing: destination)) { return }
+            }
+            awardsPath.append(destination)
+            
+        case .friends:
+            if !friendsPath.isEmpty {
+                let pathString = String(describing: friendsPath)
+                if pathString.contains(String(describing: destination)) { return }
+            }
+            friendsPath.append(destination)
+            
+        case .settings:
+            if !settingsPath.isEmpty {
+                let pathString = String(describing: settingsPath)
+                if pathString.contains(String(describing: destination)) { return }
+            }
+            settingsPath.append(destination)
         }
     }
     

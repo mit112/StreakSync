@@ -114,7 +114,7 @@ public final class HapticManager {
     
     // MARK: - Haptic Types
     
-    public enum HapticType {
+    public enum HapticType: Sendable {
         case buttonTap
         case toggleSwitch
         case cardSwipe
@@ -130,10 +130,10 @@ public final class HapticManager {
 }
 
 // MARK: - Custom Haptic Patterns
-public struct HapticPattern {
+public struct HapticPattern: Sendable {
     let events: [HapticEvent]
     
-    public struct HapticEvent {
+    public struct HapticEvent: Sendable {
         let time: TimeInterval
         let intensity: Float
         let sharpness: Float

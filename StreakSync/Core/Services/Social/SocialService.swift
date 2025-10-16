@@ -36,7 +36,7 @@ struct LeaderboardRow: Identifiable, Codable, Hashable {
 }
 
 // MARK: - Social Service Protocol
-protocol SocialService {
+protocol SocialService: Sendable {
     // Profile
     func ensureProfile(displayName: String?) async throws -> UserProfile
     func myProfile() async throws -> UserProfile

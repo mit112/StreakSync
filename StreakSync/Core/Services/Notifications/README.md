@@ -75,18 +75,29 @@ The notification system is built on the principle that users should receive help
 - **Enable Streak Reminders**: Master toggle for all streak reminders
 - **Reminder Time**: Single time picker for daily reminder (default: 7 PM)
 
+### Smart Reminders (Learning Mode)
+- **Smart Toggle**: When ON, the system learns from the last 30 days of completed plays and adjusts the reminder time.
+- **How it picks a time**: Builds a 24-hour histogram, finds the best 2-hour window, and sets a reminder 30 minutes before that window (clamped 06:00–22:00).
+- **Recompute cadence**: At most once every 2 days (triggered on day change).
+- **Smart OFF**: The user’s manual time is preserved and never auto-adjusted.
+
+Persistence Keys
+- `smartRemindersEnabled` (Bool)
+- `smartRemindersLastComputed` (Date)
+- `smartReminderWindowStartHour` / `smartReminderWindowEndHour` (Int)
+- `smartReminderCoveragePercent` (Int)
+- `streakRemindersEnabled` (Bool)
+- `streakReminderHour` / `streakReminderMinute` (Int)
+
 ### How It Works
 1. **Daily Check**: App checks all games with active streaks
 2. **Risk Assessment**: Identifies games not played today
 3. **Single Notification**: Sends one notification listing all at-risk games
 4. **Smart Content**: Adapts message based on number of games at risk
+5. **Smart Reminders (optional)**: If Smart is enabled, time is recomputed every ~2 days and rescheduled.
 
 ### Smart Default Time
-The system analyzes the user's play patterns from the last 30 days to set an intelligent default reminder time:
-- Finds the most common hour when the user plays games
-- Sets the reminder for 2 hours before that time
-- Gives users a helpful heads-up before they usually play
-- Falls back to 7 PM if no play history is available
+If no history is available, default reminder time is 7 PM. With Smart enabled, the engine computes a smarter time as described above and keeps it up-to-date.
 
 ### Privacy & Data Handling
 - **Local Processing**: All notification logic runs on the user's device
@@ -178,9 +189,18 @@ await NotificationScheduler.shared.scheduleDailyStreakReminder(
 await NotificationScheduler.shared.cancelAllStreakReminders()
 ```
 
+### Smart Reminder Snippets
+```swift
+// Enable Smart and apply immediately
+Task { await appState.applySmartReminderNow() }
+
+// Periodic recompute if needed (day change)
+Task { await appState.updateSmartRemindersIfNeeded() }
+```
+
 ## Future Enhancements
 
-- **Smart learning**: Adapt reminder times based on actual play patterns
+- (Implemented) Smart learning: see Smart Reminders section above
 - **Streak prediction**: Warn users before streaks are at risk
 - **Achievement progress**: Notify when close to unlocking achievements
 - **Weekly summaries**: Digest of weekly progress and achievements

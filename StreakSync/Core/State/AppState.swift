@@ -27,6 +27,7 @@ final class AppState {
     // MARK: - Core Data (Persisted)
     var games: [Game] = []
     var streaks: [GameStreak] = []
+    // Legacy achievements removed in favor of tiered achievements
     var achievements: [Achievement] = []
     var recentResults: [GameResult] = []
     
@@ -91,7 +92,7 @@ final class AppState {
             newStreaks.append(GameStreak.empty(for: game))
         }
         self.streaks = newStreaks
-        self.achievements = createDefaultAchievements()
+        // Legacy achievements initialization removed
         
         logger.debug("Initial data setup complete")
     }
@@ -119,14 +120,15 @@ final class AppState {
             forName: .dayDidChange,
             object: nil,
             queue: .main
-        ) { [weak self] notification in
-            self?.handleDayChange(notification)
+        ) { [weak self] _ in
+            // Already on main queue and self is @MainActor, no need for Task wrapper
+            self?.handleDayChange()
         }
         
         logger.debug("Day change listener setup complete")
     }
     
-    private func handleDayChange(_ notification: Notification) {
+    private func handleDayChange() {
         logger.info("📅 Day changed - refreshing UI data")
         
         // Invalidate caches that depend on dates
@@ -138,6 +140,9 @@ final class AppState {
             
             // Check for new achievements that might be unlocked
             await checkAllAchievements()
+            
+            // Update smart reminders periodically (every 2 days)
+            await updateSmartRemindersIfNeeded()
             
             logger.info("✅ UI refreshed for new day")
         }
@@ -190,15 +195,7 @@ final class AppState {
         return results
     }
     
-    var unlockedAchievements: [Achievement] {
-        var unlocked: [Achievement] = []
-        for achievement in achievements {
-            if achievement.isUnlocked {
-                unlocked.append(achievement)
-            }
-        }
-        return unlocked
-    }
+    // Legacy unlockedAchievements removed
     
     // MARK: - Cache Management
     internal func invalidateCache() {
@@ -374,7 +371,7 @@ final class AppState {
         // Update streak SYNCHRONOUSLY
         updateStreak(for: result)
         
-        // Check for new achievements
+        // Check for new achievements (tiered-only)
         checkAchievements(for: result)
         
         // Limit results to prevent memory issues
@@ -390,10 +387,10 @@ final class AppState {
         // CRITICAL: Post notifications SYNCHRONOUSLY to prevent race conditions
         logger.info("📢 Posting notifications for new result: \(result.gameName) - \(result.displayScore)")
         
-        // Post general update notification
+        // Post general update notification (no object to avoid Sendable issues)
         NotificationCenter.default.post(
             name: NSNotification.Name("GameResultAdded"),
-            object: result
+            object: nil
         )
         
         // Post game-specific update
@@ -402,11 +399,11 @@ final class AppState {
             object: nil
         )
         
-        // Post refresh notification for the specific game
-        if let game = self.games.first(where: { $0.id == result.gameId }) {
+        // Post refresh notification for the specific game (no object to avoid Sendable issues)
+        if self.games.first(where: { $0.id == result.gameId }) != nil {
             NotificationCenter.default.post(
                 name: Notification.Name("RefreshGameData"),
-                object: game
+                object: nil
             )
         }
         
@@ -416,8 +413,8 @@ final class AppState {
         Task {
             await saveGameResults()
             await saveStreaks()  // Save the updated streaks
-            await saveAchievements()
-            logger.info("✅ SAVED ALL: Game result, streaks, and achievements for \(result.gameName)")
+            await saveTieredAchievements()
+            logger.info("✅ SAVED ALL: Game result, streaks, and tiered achievements for \(result.gameName)")
         }
         
         logger.info("Added game result for \(result.gameName)")
@@ -543,7 +540,7 @@ final class AppState {
     func checkAllAchievements() async {
         logger.info("🔍 Checking all achievements for day change")
         
-        // Check achievements for each recent result
+        // Check achievements for each recent result (tiered-only)
         for result in recentResults {
             checkAchievements(for: result)
         }
@@ -551,28 +548,7 @@ final class AppState {
         logger.info("✅ Completed checking all achievements")
     }
 
-    func unlockAchievement(_ achievement: Achievement) {
-        guard let index = achievements.firstIndex(where: { $0.id == achievement.id }),
-              !achievements[index].isUnlocked else { return }
-        
-        let unlockedAchievement = Achievement(
-            id: achievement.id,
-            title: achievement.title,
-            description: achievement.description,
-            iconSystemName: achievement.iconSystemName,
-            requirement: achievement.requirement,
-            unlockedDate: Date(),
-            gameSpecific: achievement.gameSpecific
-        )
-        
-        achievements[index] = unlockedAchievement
-        
-        Task {
-            await saveAchievements()
-        }
-        
-        logger.info("Achievement unlocked: \(achievement.title)")
-    }
+    // Legacy unlockAchievement removed (tiered achievements use notifications)
     
     // MARK: - Streak Risk Detection
     func checkAndScheduleStreakReminders() async {
@@ -606,7 +582,7 @@ final class AppState {
         }
     }
     
-    private func getGamesAtRisk() -> [Game] {
+    func getGamesAtRisk() -> [Game] {
         let calendar = Calendar.current
         let now = Date()
         
@@ -694,6 +670,63 @@ final class AppState {
         logger.info("📊 Smart default time: Most common play hour: \(mostCommonHour), Setting reminder for: \(reminderHour):00")
         
         return (hour: reminderHour, minute: 0)
+    }
+
+    // MARK: - Smart Reminder Engine
+    /// Computes a smart reminder suggestion based on the last N days of play and returns a best reminder time
+    func computeSmartReminderSuggestion(lastDays: Int = 30) -> (hour: Int, minute: Int, windowStart: Int, windowEnd: Int, coverage: Int) {
+        let calendar = Calendar.current
+        let now = Date()
+        let start = calendar.date(byAdding: .day, value: -lastDays, to: now) ?? now
+        let recent = self.recentResults.filter { $0.date >= start && $0.completed }
+        guard !recent.isEmpty else { return (19, 0, 19, 21, 0) }
+        var hourCounts = Array(repeating: 0, count: 24)
+        for result in recent {
+            let h = calendar.component(.hour, from: result.date)
+            hourCounts[h] += 1
+        }
+        let total = hourCounts.reduce(0, +)
+        var bestStart = 19
+        var bestCount = -1
+        for h in 0..<24 {
+            let c = hourCounts[h] + hourCounts[(h + 1) % 24]
+            if c > bestCount { bestCount = c; bestStart = h }
+        }
+        let windowStart = bestStart
+        let windowEnd = (bestStart + 2) % 24
+        let coverage = max(0, min(100, Int((Double(bestCount) / Double(max(1, total))) * 100.0 + 0.5)))
+        var hour = (windowStart - 1 + 24) % 24
+        var minute = 30
+        if hour < 6 { hour = 6; minute = 0 }
+        if hour > 22 { hour = 22; minute = 0 }
+        return (hour, minute, windowStart, windowEnd, coverage)
+    }
+    
+    /// Updates smart reminders if enabled and last computation was over 2 days ago
+    func updateSmartRemindersIfNeeded() async {
+        let defaults = UserDefaults.standard
+        let smartOn = defaults.bool(forKey: "smartRemindersEnabled")
+        guard smartOn else { return }
+        let last = defaults.object(forKey: "smartRemindersLastComputed") as? Date
+        let twoDays: TimeInterval = 60 * 60 * 24 * 2
+        if let last, Date().timeIntervalSince(last) < twoDays { return }
+        await applySmartReminderNow()
+    }
+    
+    /// Computes and applies smart reminder immediately (and schedules notifications)
+    func applySmartReminderNow() async {
+        let suggestion = computeSmartReminderSuggestion()
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: "streakRemindersEnabled")
+        defaults.set(true, forKey: "smartRemindersEnabled")
+        defaults.set(Date(), forKey: "smartRemindersLastComputed")
+        defaults.set(suggestion.hour, forKey: "streakReminderHour")
+        defaults.set(suggestion.minute, forKey: "streakReminderMinute")
+        defaults.set(suggestion.windowStart, forKey: "smartReminderWindowStartHour")
+        defaults.set(suggestion.windowEnd, forKey: "smartReminderWindowEndHour")
+        defaults.set(suggestion.coverage, forKey: "smartReminderCoveragePercent")
+        await checkAndScheduleStreakReminders()
+        logger.info("🔔 Applied smart reminder: \(suggestion.hour):\(String(format: "%02d", suggestion.minute)) window \(suggestion.windowStart)-\(suggestion.windowEnd) coverage \(suggestion.coverage)%")
     }
     
     // MARK: - State Management

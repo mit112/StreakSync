@@ -14,7 +14,7 @@ struct GroupedGameResultRow: View {
     @State private var isExpanded = false
     
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 8) {
             // Main row
             Button {
                 HapticManager.shared.trigger(.toggleSwitch)
@@ -69,7 +69,10 @@ struct GroupedGameResultRow: View {
                         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isExpanded)
                 }
                 .padding()
-                .glassCard()
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(.secondarySystemBackground))
+                )
             }
             .buttonStyle(.plain)
             
@@ -82,7 +85,10 @@ struct GroupedGameResultRow: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(.ultraThinMaterial.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(.tertiarySystemBackground))
+                )
                 .onAppear {
                     print("🔍 GroupedGameResultRow: Expanded with \(groupedResult.results.count) results")
                     for (index, result) in groupedResult.results.enumerated() {
@@ -138,10 +144,9 @@ struct DifficultyResultRow: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(.ultraThinMaterial.opacity(0.8), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(.quaternary, lineWidth: 0.5)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
             )
         }
         .buttonStyle(.plain)

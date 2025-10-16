@@ -1,6 +1,7 @@
 import Foundation
 import OSLog
 
+@MainActor
 final class SharedDataManager {
     static let shared = SharedDataManager()
     private let logger = Logger(subsystem: "com.streaksync.app", category: "SharedDataManager")

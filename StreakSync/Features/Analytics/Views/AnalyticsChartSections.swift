@@ -271,6 +271,12 @@ struct GamePerformanceChartView: View {
             )
             .foregroundStyle(result.completed ? .green : .red)
             .cornerRadius(4)
+            .annotation(position: .overlay, alignment: .top) {
+                // For failed results, show an "X" overlay for quick recognition
+                if !result.completed {
+                    Text("X").font(.caption2).foregroundStyle(.secondary)
+                }
+            }
         }
         .chartYScale(domain: 0...chartMaxValue)
         .chartXAxis {
@@ -283,8 +289,21 @@ struct GamePerformanceChartView: View {
         .chartYAxis {
             AxisMarks(position: .trailing) { value in
                 AxisGridLine()
-                AxisValueLabel()
-                    .font(.caption2)
+                AxisValueLabel(centered: true) {
+                    // Format Y-axis for time-based games (when values are large like seconds)
+                    if let doubleValue = value.as(Double.self) {
+                        let intVal = Int(doubleValue)
+                        if intVal >= 60 && intVal % 30 == 0 {
+                            let minutes = intVal / 60
+                            let seconds = intVal % 60
+                            Text(String(format: "%d:%02d", minutes, seconds))
+                                .font(.caption2)
+                        } else {
+                            Text("\(intVal)")
+                                .font(.caption2)
+                        }
+                    }
+                }
             }
         }
         .frame(height: 100)

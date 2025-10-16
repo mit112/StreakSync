@@ -10,6 +10,7 @@ import SwiftUI
 struct GameDetailHeader: View {
     let game: Game
     let streak: GameStreak
+    let isScrolling: Bool
     
     @State private var isAnimating = false
     
@@ -18,7 +19,7 @@ struct GameDetailHeader: View {
             // Animated game icon
             AnimatedGameIcon(
                 game: game,
-                isActive: streak.isActive
+                isActive: streak.isActive && !isScrolling
             )
             
             // Game info
@@ -28,7 +29,7 @@ struct GameDetailHeader: View {
             )
             
             // Animated stats pills
-            StatsRow(streak: streak)
+            StatsRow(streak: streak, isScrolling: isScrolling)
         }
         .padding(Spacing.xl)
         .glassCard()
@@ -47,10 +48,7 @@ private struct AnimatedGameIcon: View {
                 .fill(game.backgroundColor.color.opacity(0.15))
                 .frame(width: 100, height: 100)
                 .scaleEffect(isAnimating && isActive ? 1.1 : 1.0)
-                .animation(
-                    Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true),
-                    value: isAnimating
-                )
+                .animation(isActive ? Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true) : .default, value: isAnimating)
             
             Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
                 .font(.system(size: 44))
@@ -96,6 +94,7 @@ private struct GameInfoSection: View {
 // MARK: - Stats Row
 private struct StatsRow: View {
     let streak: GameStreak
+    let isScrolling: Bool
     
     var body: some View {
         HStack(spacing: Spacing.md) {
@@ -103,7 +102,7 @@ private struct StatsRow: View {
                 value: "\(streak.currentStreak)",
                 label: "Current",
                 color: streak.currentStreak > 0 ? .green : .orange,
-                isActive: streak.isActive
+                isActive: streak.isActive && !isScrolling
             )
             
             AnimatedStatPill(
@@ -136,7 +135,8 @@ private struct StatsRow: View {
             totalGamesCompleted: 85,
             lastPlayedDate: Date(),
             streakStartDate: Date()
-        )
+        ),
+        isScrolling: false
     )
     .padding()
 }

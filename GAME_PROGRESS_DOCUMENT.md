@@ -175,6 +175,16 @@ This document tracks the implementation progress of games in StreakSync, organiz
 - **Implementation Priority**: MEDIUM (Phase 3)
 
 ##### ✅ Octordle (8 words)
+### Friends & Leaderboard UX Improvements (January 2025)
+
+- Header redesign: status chip, segmented range, date pager.
+- Carousel rework: native snapping with `.scrollPosition`, centered edges via `contentMargins`, haptics.
+- Leaderboard: game-aware metrics, rank delta chips, pressed state, VO labels.
+- Sticky “You” bar: rank + metric for selected game.
+- States: empty CTA to invite friends, inline error banner, local-only ribbon.
+- Accessibility & motion: honors Reduce Motion; subtle scroll transitions.
+- Performance: debounced refresh helper; lazy stacks; fewer overlays.
+
 - **Status**: ✅ IMPLEMENTED
 - **Parser**: ✅ Complete
 - **Result Format**: 
