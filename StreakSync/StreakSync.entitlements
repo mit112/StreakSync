@@ -1,5 +1,83 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ * STREAKSYNC ENTITLEMENTS - APP SECURITY AND CAPABILITIES CONFIGURATION
+ * 
+ * WHAT THIS FILE DOES:
+ * This file defines the security entitlements and capabilities that the StreakSync app
+ * is allowed to use. It's like a "permission slip" that tells iOS what special features
+ * the app can access. Think of it as the "security configuration" that enables the
+ * app to use App Groups for sharing data between the main app and the Share Extension.
+ * 
+ * WHY IT EXISTS:
+ * iOS requires apps to explicitly declare what special capabilities they need for
+ * security and privacy reasons. This file tells iOS that StreakSync needs to use
+ * App Groups to share data between the main app and the Share Extension, which is
+ * essential for the core functionality of adding game results from other apps.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This enables the core Share Extension functionality
+ * - Defines App Group access for inter-app communication
+ * - Enables data sharing between main app and Share Extension
+ * - Required for the Share Extension to save game results
+ * - Essential for the app's core feature of importing game results
+ * - Ensures proper security boundaries and data isolation
+ * 
+ * WHAT IT REFERENCES:
+ * - App Groups: iOS feature for sharing data between app and extensions
+ * - group.com.mitsheth.StreakSync: The specific App Group identifier
+ * - Share Extension: Uses this App Group to share data with main app
+ * 
+ * WHAT REFERENCES IT:
+ * - iOS System: Uses this to grant the app the specified capabilities
+ * - App Store: Reviews this during app submission process
+ * - Share Extension: Must have matching entitlements to access the same App Group
+ * - AppGroupBridge: Uses the App Group to communicate between app and extension
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. SECURITY IMPROVEMENTS:
+ *    - The current configuration is secure and appropriate
+ *    - Consider adding CloudKit entitlements when implementing cloud features
+ *    - Add push notification entitlements if needed for future features
+ *    - Review entitlements regularly for security best practices
+ * 
+ * 2. CAPABILITY EXPANSION:
+ *    - The current capabilities are minimal and focused
+ *    - Consider adding CloudKit entitlements for social features
+ *    - Add background processing entitlements if needed
+ *    - Add network entitlements for future cloud features
+ * 
+ * 3. DOCUMENTATION IMPROVEMENTS:
+ *    - Add detailed documentation for each entitlement
+ *    - Document the purpose and usage of each capability
+ *    - Add examples of how entitlements are used
+ *    - Create entitlement usage guidelines
+ * 
+ * 4. TESTING IMPROVEMENTS:
+ *    - Add tests to verify entitlements work correctly
+ *    - Test App Group access in different scenarios
+ *    - Test Share Extension communication
+ *    - Test entitlement validation
+ * 
+ * 5. MONITORING AND OBSERVABILITY:
+ *    - Add logging for entitlement-related operations
+ *    - Monitor App Group access and usage
+ *    - Track Share Extension communication success
+ *    - Monitor entitlement compliance
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - Entitlements: Special permissions that apps need to access certain iOS features
+ * - App Groups: A way for apps and extensions to share data securely
+ * - Security: Protecting user data and app functionality
+ * - Privacy: Ensuring user data is handled appropriately
+ * - Share Extensions: iOS feature that allows apps to receive content from other apps
+ * - Inter-app communication: How different parts of an app talk to each other
+ * - iOS security model: How iOS protects user data and app functionality
+ * - App Store review: Process where Apple reviews app capabilities and security
+ * - Configuration files: Files that define how an app is set up and configured
+ * - Capabilities: Special features that apps can request access to
+ -->
 <plist version="1.0">
 <dict>
 	<key>com.apple.security.application-groups</key>

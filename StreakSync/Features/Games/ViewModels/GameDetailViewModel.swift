@@ -3,6 +3,110 @@
 //  Game detail business logic with auto-refresh support
 //
 
+/*
+ * GAMEDETAILVIEWMODEL - GAME DETAIL BUSINESS LOGIC AND DATA MANAGEMENT
+ * 
+ * WHAT THIS FILE DOES:
+ * This file provides the business logic and data management for individual game detail views.
+ * It's like a "game detail controller" that manages the data, state, and interactions
+ * for showing detailed information about a specific game. Think of it as the "game detail
+ * brain" that processes game data, manages real-time updates, and provides computed
+ * properties for the game detail UI to display.
+ * 
+ * WHY IT EXISTS:
+ * Game detail views need to handle complex logic like loading game data, managing
+ * real-time updates, computing statistics, and coordinating with the app state.
+ * Instead of putting all this logic directly in the view, this ViewModel separates
+ * the business logic from the UI, making the code more organized, testable, and maintainable.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This provides the core logic for individual game detail experiences
+ * - Manages game-specific data loading and updates
+ * - Handles real-time updates when new results are added
+ * - Computes game statistics and achievement progress
+ * - Coordinates with AppState for data access
+ * - Provides reactive updates to the game detail UI
+ * - Manages game-specific state and interactions
+ * 
+ * WHAT IT REFERENCES:
+ * - AppState: For accessing game data and streaks
+ * - SwiftUI: For @Published properties and reactive updates
+ * - OSLog: For logging and debugging
+ * - NotificationCenter: For real-time updates
+ * - Game: For game data and information
+ * - GameStreak: For streak data and calculations
+ * - GameResult: For game result data
+ * - TieredAchievement: For achievement data
+ * 
+ * WHAT REFERENCES IT:
+ * - Game detail views: Use this for business logic and data management
+ * - Navigation system: Creates this ViewModel for game detail navigation
+ * - AppContainer: Provides AppState dependency
+ * - Various game detail components: Use this for data and interactions
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. STATE MANAGEMENT IMPROVEMENTS:
+ *    - The current state management is good but could be more sophisticated
+ *    - Consider adding more game detail-specific state properties
+ *    - Add support for game detail customization and preferences
+ *    - Implement smart game detail recommendations
+ * 
+ * 2. REAL-TIME UPDATES IMPROVEMENTS:
+ *    - The current real-time updates are good but could be more efficient
+ *    - Consider adding more sophisticated update mechanisms
+ *    - Add support for selective updates based on relevance
+ *    - Implement smart update batching and optimization
+ * 
+ * 3. PERFORMANCE OPTIMIZATIONS:
+ *    - The current implementation could be optimized
+ *    - Consider implementing efficient data loading and caching
+ *    - Add support for data preloading and background updates
+ *    - Implement smart data management
+ * 
+ * 4. USER EXPERIENCE IMPROVEMENTS:
+ *    - The current game detail could be more user-friendly
+ *    - Add support for game detail customization and preferences
+ *    - Implement smart game detail recommendations
+ *    - Add support for game detail tutorials and guidance
+ * 
+ * 5. TESTING IMPROVEMENTS:
+ *    - Add comprehensive unit tests for game detail logic
+ *    - Test different game detail scenarios and edge cases
+ *    - Add UI tests for game detail interactions
+ *    - Test real-time update functionality
+ * 
+ * 6. DOCUMENTATION IMPROVEMENTS:
+ *    - Add detailed documentation for game detail features
+ *    - Document the different game detail options and usage patterns
+ *    - Add examples of how to use different game detail features
+ *    - Create game detail usage guidelines
+ * 
+ * 7. EXTENSIBILITY IMPROVEMENTS:
+ *    - Make it easier to add new game detail features
+ *    - Add support for custom game detail configurations
+ *    - Implement game detail plugins
+ *    - Add support for third-party game detail integrations
+ * 
+ * 8. MONITORING AND OBSERVABILITY:
+ *    - Add detailed logging for game detail interactions
+ *    - Implement metrics for game detail usage and effectiveness
+ *    - Add support for game detail debugging
+ *    - Monitor game detail performance and reliability
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - ViewModels: Separate business logic from UI components
+ * - MVVM pattern: Model-View-ViewModel architecture for clean separation
+ * - Reactive programming: Using @Published properties for automatic UI updates
+ * - Real-time updates: Keeping data synchronized across the app
+ * - User experience: Making sure game details are informative and engaging
+ * - Performance: Making sure data loading and updates are efficient
+ * - Testing: Ensuring game detail logic works correctly
+ * - Code organization: Keeping related functionality together
+ * - Dependency injection: Providing dependencies through initialization
+ * - State management: Managing data and user interactions
+ */
+
 import SwiftUI
 import OSLog
 

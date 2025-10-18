@@ -1,5 +1,85 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ * STREAKSYNCSHAREEXTENSION ENTITLEMENTS - SHARE EXTENSION SECURITY CONFIGURATION
+ * 
+ * WHAT THIS FILE DOES:
+ * This file defines the security entitlements for the StreakSync Share Extension,
+ * enabling it to share data with the main app through App Groups. It's like a
+ * "permission slip" specifically for the Share Extension that allows it to access
+ * the same shared storage as the main app. Think of it as the "extension security
+ * configuration" that enables the Share Extension to save game results that the
+ * main app can then access and process.
+ * 
+ * WHY IT EXISTS:
+ * Share Extensions run in a separate process from the main app and need explicit
+ * permissions to access shared resources. This file tells iOS that the Share
+ * Extension is allowed to use the same App Group as the main app, which is
+ * essential for the core functionality of importing game results from other apps.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This enables the Share Extension to communicate with the main app
+ * - Defines App Group access for the Share Extension
+ * - Enables the Share Extension to save game results to shared storage
+ * - Required for the core feature of importing game results from other apps
+ * - Essential for the Share Extension to function properly
+ * - Ensures proper security boundaries between app and extension
+ * 
+ * WHAT IT REFERENCES:
+ * - App Groups: iOS feature for sharing data between app and extensions
+ * - group.com.mitsheth.StreakSync: The specific App Group identifier (must match main app)
+ * - Share Extension: Uses this App Group to share data with main app
+ * 
+ * WHAT REFERENCES IT:
+ * - iOS System: Uses this to grant the Share Extension the specified capabilities
+ * - App Store: Reviews this during app submission process
+ * - Main App: Must have matching entitlements to access the same App Group
+ * - ShareViewController: Uses the App Group to save game results
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. SECURITY IMPROVEMENTS:
+ *    - The current configuration is secure and appropriate
+ *    - Consider adding additional entitlements if Share Extension features expand
+ *    - Review entitlements regularly for security best practices
+ *    - Ensure entitlements match between main app and extension
+ * 
+ * 2. CAPABILITY EXPANSION:
+ *    - The current capabilities are minimal and focused
+ *    - Consider adding network entitlements if Share Extension needs internet access
+ *    - Add background processing entitlements if needed
+ *    - Add additional App Group entitlements if needed
+ * 
+ * 3. DOCUMENTATION IMPROVEMENTS:
+ *    - Add detailed documentation for each entitlement
+ *    - Document the purpose and usage of each capability
+ *    - Add examples of how entitlements are used
+ *    - Create entitlement usage guidelines
+ * 
+ * 4. TESTING IMPROVEMENTS:
+ *    - Add tests to verify entitlements work correctly
+ *    - Test App Group access in Share Extension scenarios
+ *    - Test communication between main app and extension
+ *    - Test entitlement validation
+ * 
+ * 5. MONITORING AND OBSERVABILITY:
+ *    - Add logging for entitlement-related operations
+ *    - Monitor App Group access and usage
+ *    - Track Share Extension communication success
+ *    - Monitor entitlement compliance
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - Share Extensions: iOS feature that allows apps to receive content from other apps
+ * - Entitlements: Special permissions that apps need to access certain iOS features
+ * - App Groups: A way for apps and extensions to share data securely
+ * - Security: Protecting user data and app functionality
+ * - Privacy: Ensuring user data is handled appropriately
+ * - Inter-app communication: How different parts of an app talk to each other
+ * - iOS security model: How iOS protects user data and app functionality
+ * - App Store review: Process where Apple reviews app capabilities and security
+ * - Configuration files: Files that define how an app is set up and configured
+ * - Capabilities: Special features that apps can request access to
+ -->
 <plist version="1.0">
 <dict>
 	<key>com.apple.security.application-groups</key>

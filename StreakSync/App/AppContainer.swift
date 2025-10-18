@@ -12,6 +12,89 @@
 //  Centralized dependency injection container
 //
 
+/*
+ * APPCONTAINER - DEPENDENCY INJECTION SYSTEM
+ * 
+ * WHAT THIS FILE DOES:
+ * This is the "brain" of the app's architecture. It creates and manages all the services that the app needs,
+ * like a factory that builds all the parts and connects them together. Think of it as the conductor of an
+ * orchestra - it doesn't play the music itself, but it makes sure all the musicians (services) are in place
+ * and working together.
+ * 
+ * WHY IT EXISTS:
+ * Without this file, every part of the app would need to create its own services, leading to chaos and
+ * duplicated code. This centralizes all service creation and makes the app much more organized and testable.
+ * It's a design pattern called "Dependency Injection" that makes code more modular and easier to maintain.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This is the foundation that makes the entire app architecture possible
+ * - Manages the lifecycle of all app services (when they're created, how long they live)
+ * - Ensures services are created in the right order (some services depend on others)
+ * - Provides a single place to configure how services work together
+ * - Makes testing easier by allowing mock services to be injected
+ * 
+ * WHAT IT REFERENCES:
+ * - AppState: The main data store for the entire app
+ * - NavigationCoordinator: Manages app navigation and routing
+ * - PersistenceService: Handles saving/loading data
+ * - SocialService: Manages friend features and leaderboards
+ * - AnalyticsService: Tracks user behavior and app performance
+ * - NotificationCoordinator: Handles push notifications
+ * - All other core services and utilities
+ * 
+ * WHAT REFERENCES IT:
+ * - StreakSyncApp.swift: Creates the AppContainer when the app starts
+ * - All SwiftUI views: Access services through the container
+ * - Test files: Use mock containers for testing
+ * - Preview files: Use preview containers for SwiftUI previews
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. SERVICE REGISTRATION IMPROVEMENTS:
+ *    - Currently services are created manually in init() - could use a registration system
+ *    - Consider using a protocol-based approach for easier testing
+ *    - Add service lifecycle management (start/stop services when needed)
+ * 
+ * 2. DEPENDENCY RESOLUTION:
+ *    - The current approach manually wires dependencies - could be automated
+ *    - Consider using a dependency injection framework for larger apps
+ *    - Add circular dependency detection to prevent infinite loops
+ * 
+ * 3. CONFIGURATION MANAGEMENT:
+ *    - Hard-coded service creation could be moved to configuration files
+ *    - Add environment-specific configurations (dev, staging, production)
+ *    - Consider feature flags for enabling/disabling services
+ * 
+ * 4. ERROR HANDLING:
+ *    - Add error handling for service initialization failures
+ *    - Implement fallback services when primary services fail
+ *    - Add health checks for critical services
+ * 
+ * 5. PERFORMANCE OPTIMIZATIONS:
+ *    - Some services could be lazy-loaded (created only when needed)
+ *    - Add service pooling for expensive-to-create services
+ *    - Implement service caching for frequently accessed services
+ * 
+ * 6. TESTING ENHANCEMENTS:
+ *    - The MockPersistenceService is good, but could add more mock services
+ *    - Add integration tests that use the full container
+ *    - Create test utilities for common testing scenarios
+ * 
+ * 7. DOCUMENTATION IMPROVEMENTS:
+ *    - Add documentation for each service and its purpose
+ *    - Create dependency diagrams showing how services relate
+ *    - Add examples of how to add new services
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - @MainActor ensures all operations happen on the main thread (required for UI)
+ * - ObservableObject makes this class work with SwiftUI's reactive system
+ * - The init() method is where all the "magic" happens - services are created and connected
+ * - setupDependencies() is where services are "wired together" so they can communicate
+ * - The factory methods (makeDashboardViewModel, etc.) create view models when needed
+ * - MockPersistenceService shows how to create fake services for testing
+ * - Dependency injection is a pattern that makes code more testable and flexible
+ */
+
 import SwiftUI
 import OSLog
 

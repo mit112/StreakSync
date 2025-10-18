@@ -3,6 +3,108 @@
 //  StreakSync
 //
 
+/*
+ * FRIENDSVIEW - SOCIAL COMPETITION AND LEADERBOARD DISPLAY
+ * 
+ * WHAT THIS FILE DOES:
+ * This file creates the main social features screen that displays leaderboards, friend
+ * rankings, and competitive elements. It's like a "social dashboard" that shows how
+ * users are performing compared to their friends across different games. Think of it
+ * as the "competition center" that makes the app more engaging by allowing users to
+ * see their rankings, track their progress, and compete with friends.
+ * 
+ * WHY IT EXISTS:
+ * Social features and competition make apps more engaging and encourage users to keep
+ * playing. This view provides a comprehensive way to see how users are doing compared
+ * to their friends, track their rankings over time, and manage their social connections.
+ * It transforms the app from a personal tracking tool into a social, competitive experience.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This provides the social and competitive features that drive engagement
+ * - Displays comprehensive leaderboards for all games
+ * - Shows friend rankings and competitive progress
+ * - Provides social interaction and friend management
+ * - Tracks ranking changes and progress over time
+ * - Integrates with the social service for real-time updates
+ * - Makes the app more engaging and social
+ * 
+ * WHAT IT REFERENCES:
+ * - FriendsViewModel: Manages the data and business logic for this view
+ * - SocialService: For accessing friend data and leaderboards
+ * - GameLeaderboardPage: Individual game leaderboard displays
+ * - FriendManagementView: For managing friends and social connections
+ * - LeaderboardScoring: For calculating and displaying scores
+ * - SwiftUI: For UI components, navigation, and interactions
+ * 
+ * WHAT REFERENCES IT:
+ * - MainTabView: This is the main content of the Friends tab
+ * - NavigationCoordinator: Can navigate to this view
+ * - Social features: All social interactions go through this view
+ * - AppContainer: Provides the data and services this view needs
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. VIEW SIZE REDUCTION:
+ *    - This file is large (400+ lines) - should be split into smaller components
+ *    - Consider separating into: FriendsHeader, LeaderboardContent, FriendManagement
+ *    - Move complex logic to separate view models or helper functions
+ *    - Create reusable components for common patterns
+ * 
+ * 2. STATE MANAGEMENT IMPROVEMENTS:
+ *    - The current state management is complex - could be simplified
+ *    - Consider using a state machine for complex loading states
+ *    - Add support for optimistic updates for better user experience
+ *    - Implement proper state validation and error handling
+ * 
+ * 3. PERFORMANCE OPTIMIZATIONS:
+ *    - The current implementation could be optimized
+ *    - Consider implementing lazy loading for large leaderboards
+ *    - Add view recycling for better memory management
+ *    - Implement efficient data fetching and caching
+ * 
+ * 4. USER EXPERIENCE IMPROVEMENTS:
+ *    - The current interface could be more intuitive
+ *    - Add support for different leaderboard views and layouts
+ *    - Implement smart sorting and filtering options
+ *    - Add support for leaderboard customization and preferences
+ * 
+ * 5. ACCESSIBILITY IMPROVEMENTS:
+ *    - The current accessibility support could be enhanced
+ *    - Add better VoiceOver navigation
+ *    - Implement accessibility shortcuts
+ *    - Add support for different accessibility needs
+ * 
+ * 6. TESTING IMPROVEMENTS:
+ *    - Add comprehensive unit tests for leaderboard logic
+ *    - Test different social scenarios and data
+ *    - Add UI tests for social interactions
+ *    - Test accessibility features
+ * 
+ * 7. DOCUMENTATION IMPROVEMENTS:
+ *    - Add detailed documentation for social features
+ *    - Document the leaderboard system and scoring
+ *    - Add examples of how to use different features
+ *    - Create social feature flow diagrams
+ * 
+ * 8. EXTENSIBILITY IMPROVEMENTS:
+ *    - Make it easier to add new social features
+ *    - Add support for different leaderboard types
+ *    - Implement social feature plugins
+ *    - Add support for third-party social integrations
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - Social features: Features that allow users to interact with each other
+ * - Leaderboards: Rankings that show how users compare to each other
+ * - View models: Bridge between UI and business logic
+ * - State management: Keeping track of what the UI should show
+ * - Tab views: User interfaces that display multiple pages
+ * - Social services: Backend services that handle social features
+ * - Real-time updates: Information that updates automatically
+ * - User experience: Making sure the app is easy and pleasant to use
+ * - Accessibility: Making sure the app is usable for everyone
+ * - Performance: Making sure the app runs smoothly with lots of data
+ */
+
 import SwiftUI
 import UIKit
 

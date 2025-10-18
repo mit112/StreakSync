@@ -5,6 +5,111 @@
 //  Enhanced accessibility features and dynamic type support
 //
 
+/*
+ * ACCESSIBILITYENHANCEMENTS - COMPREHENSIVE ACCESSIBILITY AND INCLUSIVE DESIGN
+ * 
+ * WHAT THIS FILE DOES:
+ * This file provides comprehensive accessibility enhancements that make the app
+ * usable and enjoyable for users with different abilities and needs. It's like
+ * an "accessibility toolkit" that ensures the app works well with screen readers,
+ * supports different text sizes, and provides clear navigation for all users.
+ * Think of it as the "inclusive design system" that makes the app accessible
+ * to everyone, regardless of their abilities or how they interact with their device.
+ * 
+ * WHY IT EXISTS:
+ * Accessibility is not just a legal requirement - it's essential for creating
+ * an inclusive app that works for everyone. This file provides the tools and
+ * enhancements needed to make the app accessible to users with visual, motor,
+ * or cognitive disabilities. It ensures the app is usable with assistive
+ * technologies and provides a great experience for all users.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This ensures the app is accessible to all users
+ * - Provides comprehensive accessibility support for different needs
+ * - Supports dynamic type for users who need larger text
+ * - Enhances VoiceOver navigation and descriptions
+ * - Provides clear accessibility labels and hints
+ * - Makes the app usable with assistive technologies
+ * - Ensures compliance with accessibility guidelines
+ * 
+ * WHAT IT REFERENCES:
+ * - SwiftUI: For UI components and accessibility features
+ * - DynamicTypeSize: For supporting different text sizes
+ * - AccessibilityFocusState: For managing focus in VoiceOver
+ * - Game: For providing game-specific accessibility information
+ * - GameStreak: For providing streak-specific accessibility information
+ * - ViewModifier: For creating reusable accessibility enhancements
+ * 
+ * WHAT REFERENCES IT:
+ * - All UI components: Use these enhancements for accessibility
+ * - Game cards: Use these for accessible game information
+ * - Buttons: Use these for accessible button interactions
+ * - Forms: Use these for accessible form navigation
+ * - Various feature views: Use these for consistent accessibility
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. ACCESSIBILITY ENHANCEMENTS:
+ *    - The current accessibility support is good but could be more comprehensive
+ *    - Consider adding more accessibility features and enhancements
+ *    - Add support for more assistive technologies
+ *    - Implement smart accessibility recommendations
+ * 
+ * 2. USER EXPERIENCE IMPROVEMENTS:
+ *    - The current accessibility could be more user-friendly
+ *    - Add support for accessibility customization and preferences
+ *    - Implement smart accessibility recommendations
+ *    - Add support for accessibility tutorials and guidance
+ * 
+ * 3. TESTING IMPROVEMENTS:
+ *    - Add comprehensive accessibility testing
+ *    - Test with real assistive technologies
+ *    - Add automated accessibility testing
+ *    - Test with users who have different abilities
+ * 
+ * 4. DOCUMENTATION IMPROVEMENTS:
+ *    - Add detailed documentation for accessibility features
+ *    - Document the different accessibility enhancements and usage patterns
+ *    - Add examples of how to use different accessibility features
+ *    - Create accessibility usage guidelines
+ * 
+ * 5. COMPLIANCE IMPROVEMENTS:
+ *    - Ensure compliance with WCAG guidelines
+ *    - Add support for different accessibility standards
+ *    - Implement accessibility auditing
+ *    - Add accessibility monitoring and reporting
+ * 
+ * 6. PERFORMANCE OPTIMIZATIONS:
+ *    - The current implementation could be optimized
+ *    - Consider implementing efficient accessibility rendering
+ *    - Add support for accessibility caching and reuse
+ *    - Implement smart accessibility management
+ * 
+ * 7. EXTENSIBILITY IMPROVEMENTS:
+ *    - Make it easier to add new accessibility features
+ *    - Add support for custom accessibility configurations
+ *    - Implement accessibility plugins
+ *    - Add support for third-party accessibility integrations
+ * 
+ * 8. MONITORING AND OBSERVABILITY:
+ *    - Add detailed logging for accessibility usage
+ *    - Implement metrics for accessibility effectiveness
+ *    - Add support for accessibility debugging
+ *    - Monitor accessibility performance and reliability
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - Accessibility: Making sure the app works for users with different abilities
+ * - Inclusive design: Designing for all users, regardless of their abilities
+ * - VoiceOver: Apple's screen reader for users with visual impairments
+ * - Dynamic type: Supporting different text sizes for better readability
+ * - Assistive technologies: Tools that help users with disabilities use devices
+ * - Accessibility labels: Descriptions that help screen readers understand content
+ * - Accessibility hints: Additional information about how to interact with elements
+ * - Focus management: Ensuring users can navigate the app effectively
+ * - User experience: Making sure the app is usable and enjoyable for everyone
+ * - Design systems: Standardized approaches to creating consistent experiences
+ */
+
 import SwiftUI
 
 // MARK: - Dynamic Type Support

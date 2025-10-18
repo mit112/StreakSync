@@ -6,6 +6,110 @@
 //  REFACTORED: Extracted components for better organization
 //
 
+/*
+ * ADDCUSTOMGAMEVIEW - USER-DEFINED GAME CREATION SYSTEM
+ * 
+ * WHAT THIS FILE DOES:
+ * This file creates a comprehensive form that allows users to add their own custom games
+ * to the app. It's like a "game creation wizard" that guides users through the process
+ * of defining a new game, including its name, URL, category, icon, color, and result
+ * parsing pattern. Think of it as the "game designer" that lets users extend the app
+ * with their own games and customize how results are parsed and displayed.
+ * 
+ * WHY IT EXISTS:
+ * Not all games are built into the app, and users might want to track games that aren't
+ * officially supported. This view provides a user-friendly way to add custom games
+ * with proper validation, pattern matching, and integration with the app's existing
+ * systems. It ensures that custom games work seamlessly with the rest of the app's
+ * features like streaks, achievements, and analytics.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This enables users to extend the app with their own games
+ * - Provides a comprehensive form for game creation and configuration
+ * - Includes validation and error handling for user input
+ * - Supports custom icons, colors, and result parsing patterns
+ * - Handles different iOS versions with appropriate features
+ * - Integrates with the app's existing game management system
+ * - Ensures custom games work with all app features
+ * 
+ * WHAT IT REFERENCES:
+ * - GameCatalog: For managing the list of available games
+ * - AppState: For adding new games to the app's data
+ * - GameCategory: Categories for organizing games
+ * - IconPickerView: For selecting custom game icons
+ * - ColorPickerView: For selecting custom game colors
+ * - PatternHelperView: For creating result parsing patterns
+ * - SwiftUI Form: For creating a clean, native iOS form interface
+ * 
+ * WHAT REFERENCES IT:
+ * - Settings: Can navigate to this view for game management
+ * - Game management views: Can navigate to this view
+ * - NavigationCoordinator: Manages navigation to this view
+ * - AppContainer: Provides the data and services this view needs
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. FORM ORGANIZATION:
+ *    - The current form is large - could be better organized
+ *    - Consider separating into multiple steps or sections
+ *    - Add support for form templates and presets
+ *    - Implement smart form validation and suggestions
+ * 
+ * 2. VALIDATION IMPROVEMENTS:
+ *    - The current validation is basic - could be more sophisticated
+ *    - Add real-time validation as users type
+ *    - Implement smart error correction and suggestions
+ *    - Add support for different validation rules per game type
+ * 
+ * 3. USER EXPERIENCE IMPROVEMENTS:
+ *    - The current form could be more intuitive
+ *    - Add support for form auto-save and recovery
+ *    - Implement smart defaults based on game category
+ *    - Add support for form preview and testing
+ * 
+ * 4. ACCESSIBILITY IMPROVEMENTS:
+ *    - The current accessibility support could be enhanced
+ *    - Add better VoiceOver navigation
+ *    - Implement accessibility shortcuts
+ *    - Add support for different accessibility needs
+ * 
+ * 5. TESTING IMPROVEMENTS:
+ *    - Add comprehensive unit tests for form logic
+ *    - Test different validation scenarios and edge cases
+ *    - Add UI tests for form interactions
+ *    - Test accessibility features
+ * 
+ * 6. DOCUMENTATION IMPROVEMENTS:
+ *    - Add detailed documentation for form features
+ *    - Document the validation rules and patterns
+ *    - Add examples of how to create different game types
+ *    - Create form flow diagrams
+ * 
+ * 7. EXTENSIBILITY IMPROVEMENTS:
+ *    - Make it easier to add new game types
+ *    - Add support for custom validation rules
+ *    - Implement game creation plugins
+ *    - Add support for third-party game integrations
+ * 
+ * 8. ERROR HANDLING:
+ *    - The current error handling is basic - could be more robust
+ *    - Add support for different error types and recovery
+ *    - Implement user-friendly error messages
+ *    - Add support for error reporting and feedback
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - Forms: User interfaces for collecting and submitting data
+ * - Validation: Checking that user input is correct and complete
+ * - Custom games: Games that users can add to the app themselves
+ * - Pattern matching: Using rules to parse and understand text
+ * - User experience: Making sure the app is easy and pleasant to use
+ * - Accessibility: Making sure the app is usable for everyone
+ * - iOS version compatibility: Making sure the app works on different iOS versions
+ * - Error handling: What to do when something goes wrong
+ * - State management: Keeping track of what the user has entered
+ * - Data binding: Connecting UI elements to data that can change
+ */
+
 import SwiftUI
 
 // MARK: - Add Custom Game View

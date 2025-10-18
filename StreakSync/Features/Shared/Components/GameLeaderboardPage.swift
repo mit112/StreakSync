@@ -3,6 +3,110 @@
 //  StreakSync
 //
 
+/*
+ * GAMELEADERBOARDPAGE - COMPETITIVE GAME RANKING AND SOCIAL DISPLAY
+ * 
+ * WHAT THIS FILE DOES:
+ * This file provides a comprehensive leaderboard interface that displays competitive
+ * rankings for specific games, showing user positions, scores, and rank changes.
+ * It's like a "competitive scoreboard" that creates social engagement and friendly
+ * competition among friends. Think of it as the "game ranking system" that makes
+ * gaming more social and engaging by showing how users compare to their friends
+ * and tracking their progress over time.
+ * 
+ * WHY IT EXISTS:
+ * Social competition is a key driver of user engagement in gaming apps. This component
+ * provides a clear, engaging way to display competitive rankings, making users more
+ * likely to continue playing and improving their scores. It creates a sense of
+ * community and friendly competition that encourages regular app usage and
+ * achievement pursuit.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This drives user engagement through social competition
+ * - Creates an engaging competitive interface for game rankings
+ * - Shows user positions, scores, and rank changes over time
+ * - Provides visual feedback for rank improvements and declines
+ * - Supports friend management and social features
+ * - Makes gaming more social and community-driven
+ * - Encourages continued app usage and achievement pursuit
+ * 
+ * WHAT IT REFERENCES:
+ * - Game: Core game data model
+ * - LeaderboardRow: Individual leaderboard entry data
+ * - GradientAvatar: For displaying user avatars
+ * - SwiftUI: For UI components and layout
+ * - LazyVStack: For efficient list rendering
+ * - Accessibility: For inclusive design
+ * 
+ * WHAT REFERENCES IT:
+ * - Friends views: Use this to display competitive rankings
+ * - Game detail views: Use this to show game-specific leaderboards
+ * - Social features: Use this for competitive elements
+ * - Achievement views: Use this to show competitive achievements
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. LEADERBOARD IMPROVEMENTS:
+ *    - The current leaderboard is good but could be more sophisticated
+ *    - Consider adding more ranking metrics and variations
+ *    - Add support for different leaderboard types and time periods
+ *    - Implement smart leaderboard recommendations
+ * 
+ * 2. SOCIAL FEATURES IMPROVEMENTS:
+ *    - The current social features could be enhanced
+ *    - Add support for more social interactions and features
+ *    - Implement smart social recommendations
+ *    - Add support for social tutorials and guidance
+ * 
+ * 3. ACCESSIBILITY IMPROVEMENTS:
+ *    - The current accessibility support could be enhanced
+ *    - Add better VoiceOver navigation and descriptions
+ *    - Implement accessibility shortcuts
+ *    - Add support for different accessibility needs
+ * 
+ * 4. VISUAL DESIGN IMPROVEMENTS:
+ *    - The current visual design could be enhanced
+ *    - Add support for more sophisticated visual elements
+ *    - Implement smart visual adaptation for different contexts
+ *    - Add support for dynamic visual elements
+ * 
+ * 5. PERFORMANCE OPTIMIZATIONS:
+ *    - The current implementation could be optimized
+ *    - Consider implementing efficient leaderboard rendering
+ *    - Add support for leaderboard caching and reuse
+ *    - Implement smart leaderboard management
+ * 
+ * 6. USER EXPERIENCE IMPROVEMENTS:
+ *    - The current leaderboard could be more user-friendly
+ *    - Add support for leaderboard customization and preferences
+ *    - Implement smart leaderboard recommendations
+ *    - Add support for leaderboard tutorials and guidance
+ * 
+ * 7. TESTING IMPROVEMENTS:
+ *    - Add comprehensive unit tests for leaderboard logic
+ *    - Test different leaderboard scenarios and configurations
+ *    - Add UI tests for leaderboard interactions
+ *    - Test accessibility features
+ * 
+ * 8. DOCUMENTATION IMPROVEMENTS:
+ *    - Add detailed documentation for leaderboard features
+ *    - Document the different leaderboard types and usage patterns
+ *    - Add examples of how to use different leaderboards
+ *    - Create leaderboard usage guidelines
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - Leaderboards: Competitive ranking systems that show user positions
+ * - Social features: Features that encourage user interaction and competition
+ * - User engagement: Keeping users interested and active in the app
+ * - Competitive elements: Features that create friendly competition
+ * - Visual feedback: Providing users with information about their performance
+ * - Accessibility: Making sure leaderboards work for all users
+ * - User experience: Making sure competitive features are engaging and fair
+ * - Performance: Making sure leaderboards render efficiently
+ * - Component libraries: Collections of reusable UI components
+ * - Design systems: Standardized approaches to creating consistent experiences
+ */
+
 import SwiftUI
 
 struct GameLeaderboardPage: View {

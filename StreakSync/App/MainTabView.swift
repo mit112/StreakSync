@@ -6,6 +6,92 @@
 //  FIXED: Updated to use new StreakSyncColors system
 //
 
+/*
+ * MAINTABVIEW - TAB-BASED NAVIGATION SYSTEM
+ * 
+ * WHAT THIS FILE DOES:
+ * This file creates the main tab bar navigation that users see at the bottom of the app. It's like the
+ * "main menu" of the app, with four tabs: Home, Awards, Friends, and Settings. Each tab has its own
+ * navigation stack, so users can navigate deep into each section without losing their place.
+ * 
+ * WHY IT EXISTS:
+ * Tab-based navigation is a standard iOS pattern that users expect. It provides quick access to the
+ * main sections of the app and keeps the navigation simple and intuitive. This file implements both
+ * the standard iOS tab view and enhanced iOS 26+ features for a better user experience.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This is the primary navigation system that users interact with
+ * - Provides access to all major app features through four main tabs
+ * - Manages separate navigation stacks for each tab (users don't lose their place when switching tabs)
+ * - Implements lazy loading to improve performance (tabs only load when selected)
+ * - Handles iOS version differences (iOS 26+ gets enhanced features)
+ * 
+ * WHAT IT REFERENCES:
+ * - NavigationCoordinator: Manages which tab is selected and navigation state
+ * - AppContainer: Provides access to all app services and data
+ * - Various view files: ImprovedDashboardView, TieredAchievementsGridView, FriendsView, SettingsView
+ * - StreakSyncColors: Provides the app's visual theme
+ * - HapticManager: Provides tactile feedback when switching tabs
+ * 
+ * WHAT REFERENCES IT:
+ * - ContentView.swift: This is the main view shown in the root container
+ * - No other views directly reference this (it's a top-level navigation component)
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. CODE DUPLICATION REDUCTION:
+ *    - The iOS 26 and standard tab views have a lot of duplicated code
+ *    - Consider extracting common tab configuration into a shared function
+ *    - Create a protocol-based approach for tab configuration
+ *    - Use composition to reduce the amount of repeated code
+ * 
+ * 2. LAZY LOADING OPTIMIZATION:
+ *    - The current lazy loading implementation is basic - could be more sophisticated
+ *    - Consider preloading adjacent tabs for smoother transitions
+ *    - Add memory management for tabs that haven't been visited in a while
+ *    - Implement tab state persistence across app launches
+ * 
+ * 3. NAVIGATION ENHANCEMENTS:
+ *    - The destinationView function is getting large - could be split into smaller functions
+ *    - Consider using a router pattern for more complex navigation
+ *    - Add navigation breadcrumbs for better user orientation
+ *    - Implement deep linking support for specific tab states
+ * 
+ * 4. ACCESSIBILITY IMPROVEMENTS:
+ *    - Add accessibility labels for tab switching
+ *    - Implement VoiceOver navigation improvements
+ *    - Add support for accessibility shortcuts
+ *    - Consider adding haptic feedback customization options
+ * 
+ * 5. PERFORMANCE OPTIMIZATIONS:
+ *    - The current implementation creates all tab views upfront - could be truly lazy
+ *    - Add view recycling for better memory management
+ *    - Implement tab preloading strategies
+ *    - Add performance monitoring for tab switching
+ * 
+ * 6. TESTING IMPROVEMENTS:
+ *    - Add unit tests for tab switching logic
+ *    - Test lazy loading behavior
+ *    - Add UI tests for tab navigation
+ *    - Test iOS version compatibility
+ * 
+ * 7. CONFIGURATION MANAGEMENT:
+ *    - Tab configuration is hard-coded - could be made configurable
+ *    - Add support for dynamic tab ordering
+ *    - Consider adding tab badges for notifications
+ *    - Implement tab customization options
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - TabView is a SwiftUI component that creates tab-based navigation
+ * - NavigationStack provides navigation within each tab
+ * - Lazy loading means content is only created when needed (improves performance)
+ * - @available(iOS 26.0, *) allows different code for different iOS versions
+ * - .tabItem defines what each tab looks like (icon and label)
+ * - .tag() associates each tab with a value for selection tracking
+ * - @ViewBuilder allows building different views conditionally
+ * - The LazyAwardsTabContent, etc. are helper views that prevent unnecessary rendering
+ */
+
 import SwiftUI
 
 struct MainTabView: View {

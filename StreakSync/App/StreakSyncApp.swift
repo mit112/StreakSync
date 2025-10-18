@@ -3,6 +3,78 @@
 //  Main app entry point with dependency injection
 //
 
+/*
+ * STREAKSYNC APP ENTRY POINT - MAIN APPLICATION BOOTSTRAP
+ * 
+ * WHAT THIS FILE DOES:
+ * This is the main entry point of the StreakSync iOS app. It's the first file that runs when the app launches.
+ * It sets up the entire application by creating an AppContainer (dependency injection system) and managing
+ * the app's initialization process.
+ * 
+ * WHY IT EXISTS:
+ * Every iOS app needs a main entry point. This file serves as the "front door" of the application,
+ * responsible for bootstrapping all the core services and setting up the app's architecture before
+ * the user sees any content.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This is the foundation of the entire app - without it, nothing else works
+ * - Manages app lifecycle and initialization state
+ * - Sets up dependency injection (AppContainer) that all other parts of the app depend on
+ * - Handles deep links and URL schemes
+ * - Manages error states and recovery
+ * 
+ * WHAT IT REFERENCES:
+ * - AppContainer: The dependency injection system that manages all app services
+ * - ContentView: The main UI that users see after initialization
+ * - NotificationDelegate: Handles push notifications
+ * - InitializationView/InitializationErrorView: Loading and error screens
+ * 
+ * WHAT REFERENCES IT:
+ * - Nothing directly references this file (it's the entry point)
+ * - The iOS system calls this when the app launches
+ * - Xcode uses this as the main target entry point
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. ERROR HANDLING IMPROVEMENTS:
+ *    - The current error handling is basic (just shows a string)
+ *    - Consider creating an AppError enum with specific error types
+ *    - Add more detailed error logging for debugging
+ *    - Implement different recovery strategies for different error types
+ * 
+ * 2. INITIALIZATION OPTIMIZATION:
+ *    - The initialization is currently sequential - could be parallelized
+ *    - Consider showing progress indicators for different initialization steps
+ *    - Add timeout handling for initialization that takes too long
+ * 
+ * 3. DEPENDENCY INJECTION ENHANCEMENT:
+ *    - The current setup injects many dependencies manually
+ *    - Consider using a more sophisticated DI framework for larger apps
+ *    - Could implement lazy loading of services that aren't immediately needed
+ * 
+ * 4. TESTING IMPROVEMENTS:
+ *    - Add unit tests for initialization logic
+ *    - Mock the AppContainer for testing different initialization scenarios
+ *    - Test error recovery paths
+ * 
+ * 5. ACCESSIBILITY ENHANCEMENTS:
+ *    - The loading views have basic accessibility but could be more descriptive
+ *    - Add VoiceOver announcements for initialization progress
+ *    - Consider different accessibility needs during loading states
+ * 
+ * 6. PERFORMANCE CONSIDERATIONS:
+ *    - Consider preloading critical data in the background
+ *    - Implement app state restoration for faster subsequent launches
+ *    - Add memory pressure monitoring during initialization
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - @main tells Swift this is the app's entry point
+ * - @StateObject creates and manages the AppContainer's lifecycle
+ * - The Group with conditional views is a common SwiftUI pattern for different app states
+ * - .task is a SwiftUI modifier that runs async code when the view appears
+ * - Dependency injection (AppContainer) is a design pattern that makes code more testable and modular
+ */
+
 import SwiftUI
 import OSLog
 import UserNotifications

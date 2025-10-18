@@ -5,6 +5,105 @@
 //  Enhanced to handle tab-based navigation with separate NavigationStacks
 //
 
+/*
+ * NAVIGATIONCOORDINATOR - APP NAVIGATION TRAFFIC CONTROLLER
+ * 
+ * WHAT THIS FILE DOES:
+ * This file is like a "traffic controller" for the app's navigation. It manages which tab is selected,
+ * which screens are shown, and how users move between different parts of the app. Think of it as the
+ * "GPS system" that knows where the user is and where they can go next. It keeps track of separate
+ * navigation paths for each tab, so users don't lose their place when switching between tabs.
+ * 
+ * WHY IT EXISTS:
+ * SwiftUI's navigation system can be complex, especially with tab-based apps. This file centralizes
+ * all navigation logic in one place, making it easier to manage and debug. It also provides a clean
+ * interface for other parts of the app to navigate programmatically (like when a notification
+ * should take the user to a specific screen).
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This manages all navigation throughout the entire app
+ * - Provides type-safe navigation with the Destination enum
+ * - Maintains separate navigation stacks for each tab
+ * - Handles sheet presentations and modal dialogs
+ * - Supports deep linking and programmatic navigation
+ * - Coordinates with the main tab view for seamless user experience
+ * 
+ * WHAT IT REFERENCES:
+ * - SwiftUI: For NavigationPath and navigation components
+ * - MainTab: Enum defining the four main tabs
+ * - Destination: Enum defining all possible navigation destinations
+ * - SheetDestination: Enum for modal presentations
+ * - All data models: Game, GameStreak, TieredAchievement, etc.
+ * 
+ * WHAT REFERENCES IT:
+ * - MainTabView: Uses this to manage tab selection and navigation
+ * - All UI views: Use this to navigate to other screens
+ * - AppContainer: Creates and manages the NavigationCoordinator
+ * - Notification handlers: Use this for programmatic navigation
+ * - Deep link handlers: Use this to navigate from URLs
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. NAVIGATION STATE MANAGEMENT:
+ *    - The current approach uses separate paths for each tab - could be more sophisticated
+ *    - Consider implementing navigation state persistence across app launches
+ *    - Add navigation history tracking for better back button behavior
+ *    - Implement navigation breadcrumbs for complex flows
+ * 
+ * 2. TYPE SAFETY IMPROVEMENTS:
+ *    - The Destination enum is getting large - could be split into smaller enums
+ *    - Consider using associated values more effectively
+ *    - Add validation for navigation parameters
+ *    - Implement navigation guards for restricted screens
+ * 
+ * 3. PERFORMANCE OPTIMIZATIONS:
+ *    - The current implementation recreates navigation paths - could be optimized
+ *    - Consider lazy loading of navigation destinations
+ *    - Add navigation result caching
+ *    - Implement navigation preloading for better performance
+ * 
+ * 4. USER EXPERIENCE IMPROVEMENTS:
+ *    - Add navigation animations and transitions
+ *    - Implement navigation gestures and shortcuts
+ *    - Add support for navigation undo/redo
+ *    - Consider adding navigation hints and guidance
+ * 
+ * 5. TESTING IMPROVEMENTS:
+ *    - Add unit tests for all navigation methods
+ *    - Test navigation state transitions
+ *    - Add UI tests for navigation flows
+ *    - Test deep linking and programmatic navigation
+ * 
+ * 6. ACCESSIBILITY IMPROVEMENTS:
+ *    - Add accessibility labels for navigation actions
+ *    - Implement VoiceOver navigation improvements
+ *    - Add support for accessibility shortcuts
+ *    - Consider different accessibility needs for navigation
+ * 
+ * 7. DOCUMENTATION IMPROVEMENTS:
+ *    - Add detailed documentation for each navigation method
+ *    - Document the navigation flow and relationships
+ *    - Add examples of how to use each navigation method
+ *    - Create navigation flow diagrams
+ * 
+ * 8. ERROR HANDLING:
+ *    - Add error handling for navigation failures
+ *    - Implement fallback navigation strategies
+ *    - Add logging for navigation debugging
+ *    - Handle edge cases in navigation state
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - @Published: Makes properties observable by SwiftUI
+ * - @MainActor: Ensures all operations happen on the main thread
+ * - NavigationPath: SwiftUI's way of managing navigation stacks
+ * - ObservableObject: Makes this class work with SwiftUI's reactive system
+ * - Enums with associated values: Allow passing data with navigation destinations
+ * - Hashable: Required for using values in SwiftUI navigation
+ * - Tab-based navigation: Common iOS pattern with separate navigation stacks
+ * - Programmatic navigation: Code that can navigate without user interaction
+ * - Deep linking: URLs that can navigate to specific screens in the app
+ */
+
 import SwiftUI
 import Observation
 

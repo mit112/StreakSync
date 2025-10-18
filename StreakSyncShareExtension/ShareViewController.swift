@@ -3,6 +3,105 @@
 //  StreakSyncShareExtension
 //
 
+/*
+ * SHAREVIEWCONTROLLER - SHARE EXTENSION ENTRY POINT
+ * 
+ * WHAT THIS FILE DOES:
+ * This file is the "bridge" between other apps and StreakSync. When users share game results from
+ * other apps (like Wordle, Quordle, etc.), this file receives that shared text, figures out what
+ * game it's from, parses the result, and saves it to the main StreakSync app. It's like having a
+ * smart assistant that can read game results from anywhere and add them to your streak tracking.
+ * 
+ * WHY IT EXISTS:
+ * iOS Share Extensions allow apps to receive content from other apps. This file makes StreakSync
+ * appear in the share menu of other apps, so users can easily add their game results without
+ * having to manually enter them. It's a huge convenience feature that makes the app much more
+ * user-friendly.
+ * 
+ * IMPORTANCE TO APPLICATION:
+ * - CRITICAL: This is how users easily add game results from other apps
+ * - Supports 13+ different games with unique sharing formats
+ * - Uses the same parsing logic as the main app for consistency
+ * - Saves results to App Groups so the main app can access them
+ * - Provides immediate feedback to users about success/failure
+ * - Handles complex game formats like emoji-based scores
+ * 
+ * WHAT IT REFERENCES:
+ * - GameResultParser: Uses the same parsing logic as the main app
+ * - App Groups: Saves results to shared storage between extension and main app
+ * - UIKit: For the simple UI that shows processing status
+ * - UniformTypeIdentifiers: For handling different types of shared content
+ * 
+ * WHAT REFERENCES IT:
+ * - iOS System: Calls this when users share content to StreakSync
+ * - Other Apps: When users share game results, iOS routes them here
+ * - Main App: Reads the saved results from App Groups storage
+ * 
+ * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
+ * 
+ * 1. UI IMPROVEMENTS:
+ *    - The current UI is very basic - could be more informative
+ *    - Add progress indicators for different processing steps
+ *    - Show which game was detected and parsed
+ *    - Add success animations and better error messages
+ *    - Consider adding a preview of the parsed result
+ * 
+ * 2. ERROR HANDLING ENHANCEMENTS:
+ *    - The current error handling is basic - could be more helpful
+ *    - Add specific error messages for different failure types
+ *    - Provide suggestions for fixing common issues
+ *    - Add retry mechanisms for failed operations
+ *    - Log errors for debugging purposes
+ * 
+ * 3. PERFORMANCE OPTIMIZATIONS:
+ *    - The current implementation processes everything on the main thread
+ *    - Move parsing to a background queue for better responsiveness
+ *    - Add timeout handling for long-running operations
+ *    - Implement result caching to avoid re-parsing
+ * 
+ * 4. USER EXPERIENCE IMPROVEMENTS:
+ *    - Add haptic feedback for success/failure
+ *    - Show estimated processing time
+ *    - Add support for batch processing multiple results
+ *    - Implement smart suggestions for similar games
+ * 
+ * 5. TESTING IMPROVEMENTS:
+ *    - Add unit tests for all parsing functions
+ *    - Test error handling and edge cases
+ *    - Add integration tests with real game results
+ *    - Test App Groups communication
+ * 
+ * 6. DOCUMENTATION IMPROVEMENTS:
+ *    - Add detailed documentation for each parser
+ *    - Document the expected input formats
+ *    - Add examples of valid and invalid inputs
+ *    - Create troubleshooting guides
+ * 
+ * 7. EXTENSIBILITY IMPROVEMENTS:
+ *    - Make it easier to add new game parsers
+ *    - Add support for custom game formats
+ *    - Implement parser versioning for format changes
+ *    - Add support for different content types
+ * 
+ * 8. SECURITY IMPROVEMENTS:
+ *    - Add input validation and sanitization
+ *    - Implement rate limiting for processing
+ *    - Add logging for security monitoring
+ *    - Validate App Groups access
+ * 
+ * LEARNING NOTES FOR BEGINNERS:
+ * - Share Extensions: Allow apps to receive content from other apps
+ * - App Groups: Shared storage between the main app and extensions
+ * - UIKit: The older UI framework (vs SwiftUI) - used here for simplicity
+ * - NSExtensionItem: Represents the content being shared
+ * - ItemProvider: Handles loading the actual shared content
+ * - DispatchQueue.main.async: Ensures UI updates happen on the main thread
+ * - Weak self: Prevents memory leaks in closures
+ * - Parsing: Converting text into structured data that the app can understand
+ * - Error handling: What to do when something goes wrong
+ * - User feedback: Letting users know if their action succeeded or failed
+ */
+
 import UIKit
 import UniformTypeIdentifiers
 import Foundation
