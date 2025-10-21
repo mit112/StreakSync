@@ -118,6 +118,7 @@ struct GameLeaderboardPage: View {
     let onManageFriends: () -> Void
     let metricText: (Int) -> String
     let myUserId: String?
+    let onRefresh: (() async -> Void)?
     @State private var pressedIndex: Int? = nil
     
     var body: some View {
@@ -125,6 +126,9 @@ struct GameLeaderboardPage: View {
             contentView
         }
         .scrollBounceBehavior(.basedOnSize)
+        .refreshable {
+            await onRefresh?()
+        }
     }
     
     private var contentView: some View {

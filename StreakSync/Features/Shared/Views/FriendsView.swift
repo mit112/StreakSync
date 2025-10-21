@@ -133,7 +133,8 @@ struct FriendsView: View {
                             metricText: { points in
                                 LeaderboardScoring.metricLabel(for: game, points: points)
                             },
-                            myUserId: viewModel.myUserId
+                            myUserId: viewModel.myUserId,
+                            onRefresh: { await viewModel.refresh() }
                         )
                         .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                         .accessibilityElement(children: .contain)
@@ -155,7 +156,6 @@ struct FriendsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .toolbar { addFriendToolbar }
-        .refreshable { await viewModel.refresh() }
         .sheet(isPresented: Binding(get: { viewModel.isPresentingAddFriend }, set: { viewModel.isPresentingAddFriend = $0 })) { addFriendSheet }
         .sheet(isPresented: Binding(get: { viewModel.isPresentingManageFriends }, set: { viewModel.isPresentingManageFriends = $0 })) {
             FriendManagementView(socialService: viewModel.socialService)
