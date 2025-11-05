@@ -357,6 +357,17 @@ struct AchievementUnlockCelebrationView: View {
     // MARK: - Animation Sequence
     private func startCelebrationSequence() {
         Task {
+            // If app is inactive, wait until active before proceeding to avoid
+            // immediately auto-dismissing due to lifecycle changes.
+            if UIApplication.shared.applicationState != .active {
+                // Poll briefly for up to 5 seconds for active state
+                var waited: UInt64 = 0
+                while UIApplication.shared.applicationState != .active && waited < 5_000_000_000 {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    waited += 200_000_000
+                }
+            }
+
             // Start dimming
             withAnimation(.easeOut(duration: 0.3)) {
                 phase = .dimming
@@ -421,10 +432,15 @@ struct AchievementUnlockCelebrationView: View {
                 announceCompletion()
             }
             
-            // Auto-dismiss after delay (increased for VoiceOver)
-            let dismissDelay = voiceOverEnabled ? 8_000_000_000 : 5_000_000_000
-            try? await Task.sleep(nanoseconds: UInt64(dismissDelay))
-            dismissCelebration()
+            // Optional auto-dismiss (disabled by default). Controlled by UserDefaults key.
+            let autoDismissEnabled = UserDefaults.standard.bool(forKey: "achievementAutoDismissEnabled")
+            if autoDismissEnabled {
+                let dismissDelay = voiceOverEnabled ? 8_000_000_000 : 5_000_000_000
+                try? await Task.sleep(nanoseconds: UInt64(dismissDelay))
+                if UIApplication.shared.applicationState == .active {
+                    dismissCelebration()
+                }
+            }
         }
     }
     

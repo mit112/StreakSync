@@ -130,6 +130,8 @@ struct ImprovedDashboardView: View {
     @State private var selectedSort: GameSortOption = .lastPlayed
     @State private var sortDirection: SortDirection = .descending
     @State private var hasSeenGuidance = UserDefaults.standard.bool(forKey: "hasSeenEmptyStateGuidance")
+    // Force-recompute token to break potential SwiftUI memoization on data updates
+    @State private var refreshToken = UUID()
     
     // iOS 26: New scroll position tracking
     @State private var scrollPosition = ScrollPosition()
@@ -267,6 +269,7 @@ struct ImprovedDashboardView: View {
                             searchText: searchText,
                             hasInitiallyAppeared: hasInitiallyAppeared
                         )
+                        .id(refreshToken)
                     }
                     .padding(.horizontal)
                     
@@ -331,27 +334,23 @@ struct ImprovedDashboardView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameDataUpdated"))) { _ in
-                // Force UI refresh when game data is updated
                 Task { @MainActor in
-                    // Trigger a UI update by invalidating any cached data
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        refreshToken = UUID()
                     }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameResultAdded"))) { _ in
-                // Force UI refresh when a new game result is added
                 Task { @MainActor in
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        refreshToken = UUID()
                     }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshGameData"))) { _ in
-                // Force UI refresh when game data needs to be refreshed
                 Task { @MainActor in
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        refreshToken = UUID()
                     }
                 }
             }
@@ -401,6 +400,7 @@ struct ImprovedDashboardView: View {
                             searchText: searchText,
                             hasInitiallyAppeared: hasInitiallyAppeared
                         )
+                        .id(refreshToken)
                         .modifier(iOS26ContentTransitionModifier())
                     }
                     .padding(.horizontal)
@@ -476,27 +476,23 @@ struct ImprovedDashboardView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameDataUpdated"))) { _ in
-                // Force UI refresh when game data is updated
                 Task { @MainActor in
-                    // Trigger a UI update by invalidating any cached data
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        refreshToken = UUID()
                     }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameResultAdded"))) { _ in
-                // Force UI refresh when a new game result is added
                 Task { @MainActor in
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        refreshToken = UUID()
                     }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshGameData"))) { _ in
-                // Force UI refresh when game data needs to be refreshed
                 Task { @MainActor in
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        // This will cause the view to recompute filteredGames and filteredStreaks
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        refreshToken = UUID()
                     }
                 }
             }
@@ -537,7 +533,7 @@ struct ImprovedDashboardView: View {
             case .lastPlayed:
                 let date1 = appState.streaks.first(where: { $0.gameId == game1.id })?.lastPlayedDate ?? .distantPast
                 let date2 = appState.streaks.first(where: { $0.gameId == game2.id })?.lastPlayedDate ?? .distantPast
-                return date1 > date2
+                return sortDirection == .descending ? (date1 > date2) : (date1 < date2)
             case .name:
                 return game1.displayName < game2.displayName
             case .streakLength:

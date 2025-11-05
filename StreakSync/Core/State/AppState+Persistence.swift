@@ -165,7 +165,7 @@ extension AppState {
     /// FIXED: Only reset streaks if they were actually broken by missing a day,
     /// not just because time has passed since the last play
     @MainActor
-    private func normalizeStreaksForMissedDays(referenceDate: Date = Date()) async {
+    func normalizeStreaksForMissedDays(referenceDate: Date = Date()) async {
         var updated: [GameStreak] = []
         var didChange = false
         

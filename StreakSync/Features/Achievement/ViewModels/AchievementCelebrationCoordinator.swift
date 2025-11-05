@@ -165,18 +165,18 @@ final class AchievementCelebrationCoordinator: ObservableObject {
     private func queueCelebration(_ unlock: AchievementUnlock) {
         // Create unique identifier for this achievement unlock
         let achievementId = "\(unlock.achievement.id)-\(unlock.tier.rawValue)"
-        
+
         // Prevent duplicate celebrations
         if processedAchievements.contains(achievementId) {
             logger.info("🚫 Skipping duplicate celebration: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
             return
         }
-        
+
         logger.info("🎊 Queueing celebration for \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
-        
-        // Mark as processed to prevent duplicates
-        processedAchievements.insert(achievementId)
-        persistProcessedCache()
+
+        // NOTE: Do NOT mark as processed here. We only mark as processed once the
+        // celebration actually begins showing to avoid losing celebrations when
+        // the app backgrounds between queueing and presentation.
         celebrationQueue.append(unlock)
         
         // If not currently showing, start showing celebrations
@@ -225,6 +225,11 @@ final class AchievementCelebrationCoordinator: ObservableObject {
         let nextUnlock = celebrationQueue.removeFirst()
         logger.info("🎉 Showing celebration for \(nextUnlock.achievement.displayName) - \(nextUnlock.tier.displayName)")
         
+        // Mark as processed now that we're actually showing it
+        let achievementId = "\(nextUnlock.achievement.id)-\(nextUnlock.tier.rawValue)"
+        processedAchievements.insert(achievementId)
+        persistProcessedCache()
+
         currentCelebration = nextUnlock
         isShowingCelebration = true
     }

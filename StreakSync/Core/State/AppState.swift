@@ -563,6 +563,8 @@ final class AppState {
         // Rebuild streaks from remaining results
         Task { @MainActor in
             await rebuildStreaksFromResults()
+            // Normalize after rebuild to ensure any now-missed days break streaks
+            await normalizeStreaksForMissedDays()
             // Recompute tiered achievements from remaining results
             recalculateAllTieredAchievementProgress()
             

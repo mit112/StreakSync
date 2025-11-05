@@ -732,12 +732,59 @@ struct GameResultParser {
     
     // MARK: - LinkedIn Pinpoint Parser
     private func parseLinkedInPinpoint(_ text: String, gameId: UUID) throws -> GameResult {
-        // Pattern for Pinpoint results with guesses and match percentages
-        // Format 1: "Pinpoint #522\n1️⃣  | 15% match\n2️⃣  | 1% match\n3️⃣  | 86% match\n4️⃣  | 75% match\n5️⃣  | 97% match\nlnkd.in/pinpoint."
-        // Format 2: "Pinpoint #522 | 5 guesses\n1️⃣  | 1% match\n2️⃣  | 5% match\n3️⃣  | 82% match\n4️⃣  | 28% match\n5️⃣  | 100% match 📌\nlnkd.in/pinpoint."
-        let pattern = #"Pinpoint\s+#(\d+)(?:\s*\|\s*(\d+)\s+guesses)?[\s\S]*?(?:(\d+)\s+guesses)?"#
+        // Updated patterns to handle multiple Pinpoint share formats:
+        // Format 1 (Original): "Pinpoint #522 | 5 guesses\n1️⃣  | 1% match\n2️⃣  | 5% match\n3️⃣  | 82% match\n4️⃣  | 28% match\n5️⃣  | 100% match 📌\nlnkd.in/pinpoint."
+        // Format 2 (New): "Pinpoint #542\n🤔 📌 ⬜ ⬜ ⬜ (2/5)\n🏅 I'm in the Top 25% of my connections today!\nlnkd.in/pinpoint."
+        // Format 3 (New): "Pinpoint #542\n🤔 📌 ⬜ ⬜ ⬜ (2/5)\n🏅 I'm in the Top 10% of all players today!\nlnkd.in/pinpoint."
         
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+        // First try the new emoji-based format
+        let emojiPattern = #"Pinpoint\s+#(\d+)[\s\S]*?🤔\s+📌\s+([⬜⬛🟩🟨🟧🟦🟪🟫⚫⚪]+)\s*\((\d+)/(\d+)\)"#
+        
+        if let emojiRegex = try? NSRegularExpression(pattern: emojiPattern, options: .caseInsensitive),
+           let emojiMatch = emojiRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) {
+            
+            // Extract puzzle number
+            guard emojiMatch.range(at: 1).location != NSNotFound,
+                  let puzzleRange = Range(emojiMatch.range(at: 1), in: text) else {
+                throw ParsingError.invalidFormat
+            }
+            let puzzleNumber = String(text[puzzleRange])
+            
+            // Extract guess count from (X/Y) format
+            guard emojiMatch.range(at: 3).location != NSNotFound,
+                  let guessRange = Range(emojiMatch.range(at: 3), in: text),
+                  let maxRange = Range(emojiMatch.range(at: 4), in: text) else {
+                throw ParsingError.invalidFormat
+            }
+            
+            let guessCount = Int(String(text[guessRange])) ?? 0
+            let maxAttempts = Int(String(text[maxRange])) ?? 5
+            
+            // Check for completion - look for 📌 emoji in the pattern
+            let isCompleted = text.contains("📌")
+            
+            return GameResult(
+                gameId: gameId,
+                gameName: "linkedinpinpoint",
+                date: Date(),
+                score: guessCount,
+                maxAttempts: maxAttempts,
+                completed: isCompleted,
+                sharedText: text,
+                parsedData: [
+                    "puzzleNumber": puzzleNumber,
+                    "guessCount": "\(guessCount)",
+                    "gameType": "word_association",
+                    "displayScore": "\(guessCount) guesses",
+                    "shareFormat": "emoji_based"
+                ]
+            )
+        }
+        
+        // Fallback to original format parsing
+        let originalPattern = #"Pinpoint\s+#(\d+)(?:\s*\|\s*(\d+)\s+guesses)?[\s\S]*?(?:(\d+)\s+guesses)?"#
+        
+        guard let regex = try? NSRegularExpression(pattern: originalPattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) else {
             throw ParsingError.invalidFormat
         }
@@ -786,7 +833,8 @@ struct GameResultParser {
                 "puzzleNumber": puzzleNumber,
                 "guessCount": "\(guessCount)",
                 "gameType": "word_association",
-                "displayScore": guessCount > 0 ? "\(guessCount) guesses" : "Completed"
+                "displayScore": guessCount > 0 ? "\(guessCount) guesses" : "Completed",
+                "shareFormat": "original"
             ]
         )
     }
