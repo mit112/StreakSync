@@ -193,6 +193,8 @@ final class AnalyticsService: ObservableObject {
         
         async let personalBestsTask: [PersonalBest] = Task.detached(priority: .utility) {
             AnalyticsComputer.computePersonalBests(
+                timeRange: timeRange,
+                game: game,
                 games: snapshotGames,
                 streaks: snapshotStreaks,
                 results: snapshotResults
@@ -253,9 +255,15 @@ final class AnalyticsService: ObservableObject {
         return AnalyticsComputer.computeAchievementAnalytics(achievements: [], tieredAchievements: tiered)
     }
     
-    /// Get personal bests
-    func getPersonalBests() async -> [PersonalBest] {
-        return AnalyticsComputer.computePersonalBests(games: appState.games, streaks: appState.streaks, results: appState.recentResults)
+    /// Get personal bests (scoped). Defaults to 7 days across all games.
+    func getPersonalBests(for timeRange: AnalyticsTimeRange = .week, game: Game? = nil) async -> [PersonalBest] {
+        return AnalyticsComputer.computePersonalBests(
+            timeRange: timeRange,
+            game: game,
+            games: appState.games,
+            streaks: appState.streaks,
+            results: appState.recentResults
+        )
     }
     
     /// Clear analytics cache
@@ -280,10 +288,11 @@ private struct AnalyticsComputer {
         let relevantStreaks = game != nil ? streaks.filter { $0.gameId == game!.id } : streaks
         let activeStreaks = relevantStreaks.filter { $0.isActive }
         let totalActiveStreaks = activeStreaks.count
-        let longestCurrentStreak = relevantStreaks.map { $0.maxStreak }.max() ?? 0
+        // Longest streak should respect the selected time range
+        let (startDate, endDate) = timeRange.dateRange
+        let longestCurrentStreak = longestStreakInRange(startDate: startDate, endDate: endDate, gameId: game?.id, results: results)
         
         // Time range results (optionally filtered by game)
-        let (startDate, endDate) = timeRange.dateRange
         var timeRangeResults = results.filter { $0.date >= startDate && $0.date <= endDate }
         if let game = game { timeRangeResults = timeRangeResults.filter { $0.gameId == game.id } }
         
@@ -314,6 +323,31 @@ private struct AnalyticsComputer {
             recentActivity: recentActivity
         )
     }
+
+    /// Longest consecutive-day streak inside [startDate, endDate] for an optional game filter
+    static func longestStreakInRange(startDate: Date, endDate: Date, gameId: UUID?, results: [GameResult]) -> Int {
+        let calendar = Calendar.current
+        // Filter results within range and by game
+        var filtered = results.filter { $0.date >= startDate && $0.date <= endDate }
+        if let gameId = gameId { filtered = filtered.filter { $0.gameId == gameId } }
+        // Use unique played days (any result counts as activity)
+        let uniqueDays = Set(filtered.map { calendar.startOfDay(for: $0.date) })
+        guard !uniqueDays.isEmpty else { return 0 }
+        let sortedDays = uniqueDays.sorted()
+        var longest = 1
+        var current = 1
+        for i in 1..<sortedDays.count {
+            let prev = sortedDays[i - 1]
+            if let dayAfterPrev = calendar.date(byAdding: .day, value: 1, to: prev),
+               calendar.isDate(sortedDays[i], inSameDayAs: dayAfterPrev) {
+                current += 1
+                if current > longest { longest = current }
+            } else {
+                current = 1
+            }
+        }
+        return longest
+    }
     
     static func computeStreakTrends(timeRange: AnalyticsTimeRange, game: Game? = nil, results: [GameResult]) -> [StreakTrendPoint] {
         let (startDate, endDate) = timeRange.dateRange
@@ -324,20 +358,21 @@ private struct AnalyticsComputer {
         
         var currentDate = startDate
         while currentDate <= endDate {
-            let dayResults = relevantResults.filter { calendar.isDate($0.date, inSameDayAs: currentDate) }
-            // Simple active streak definition: played in last 2 days
+            let startOfDay = calendar.startOfDay(for: currentDate)
+            let dayResults = relevantResults.filter { calendar.isDate($0.date, inSameDayAs: startOfDay) }
+            // Use window [yesterday start .. end of current day] so 'today' includes today's plays
+            let windowStart = calendar.date(byAdding: .day, value: -1, to: startOfDay) ?? startOfDay
+            let endOfDay = calendar.date(byAdding: .second, value: -1, to: calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? startOfDay) ?? currentDate
             let uniqueGamesPlayedInWindow = Set(relevantResults.filter { r in
-                guard r.date <= currentDate else { return false }
-                if let daysDiff = calendar.dateComponents([.day], from: r.date, to: currentDate).day { return daysDiff >= 0 && daysDiff <= 1 }
-                return false
+                return r.date >= windowStart && r.date <= endOfDay
             }.map { $0.gameId })
             let totalActiveStreaks = uniqueGamesPlayedInWindow.count
             
             var longestStreakLength = 0
             for gid in uniqueGamesPlayedInWindow {
-                let gameResults = relevantResults.filter { $0.gameId == gid && $0.date <= currentDate }.sorted { $0.date > $1.date }
+                let gameResults = relevantResults.filter { $0.gameId == gid && $0.date <= endOfDay }.sorted { $0.date > $1.date }
                 var currentStreakLength = 0
-                var checkDate = currentDate
+                var checkDate = startOfDay
                 for _ in 0..<30 {
                     if gameResults.contains(where: { calendar.isDate($0.date, inSameDayAs: checkDate) }) {
                         currentStreakLength += 1
@@ -429,28 +464,46 @@ private struct AnalyticsComputer {
         return analytics
     }
     
-    static func computePersonalBests(games: [Game], streaks: [GameStreak], results: [GameResult]) -> [PersonalBest] {
+    static func computePersonalBests(timeRange: AnalyticsTimeRange, game: Game?, games: [Game], streaks: [GameStreak], results: [GameResult]) -> [PersonalBest] {
         var personalBests: [PersonalBest] = []
-        let topStreaks = streaks.sorted { $0.maxStreak > $1.maxStreak }.prefix(2)
-        for streak in topStreaks where streak.maxStreak > 0 {
-            if let game = games.first(where: { $0.id == streak.gameId }) {
-                personalBests.append(PersonalBest(type: .longestStreak, value: streak.maxStreak, game: game, date: streak.streakStartDate ?? Date(), description: "\(streak.maxStreak) day streak in \(game.displayName)"))
+        // Filter results by time range and optional game
+        let (startDate, endDate) = timeRange.dateRange
+        var filteredResults = results.filter { $0.date >= startDate && $0.date <= endDate }
+        if let game = game { filteredResults = filteredResults.filter { $0.gameId == game.id } }
+        // Candidate games within this range
+        let candidateGameIds: [UUID]
+        if let game = game {
+            candidateGameIds = [game.id]
+        } else {
+            candidateGameIds = Array(Set(filteredResults.map { $0.gameId }))
+        }
+        // Longest streaks (per game) within range
+        var longestEntries: [(game: Game, value: Int)] = []
+        for gid in candidateGameIds {
+            guard let g = games.first(where: { $0.id == gid }) else { continue }
+            let value = longestStreakInRange(startDate: startDate, endDate: endDate, gameId: gid, results: filteredResults)
+            if value > 0 {
+                longestEntries.append((game: g, value: value))
             }
         }
-        // Best score per game (lower better)
-        let grouped = Dictionary(grouping: results.filter { $0.completed }.compactMap { ($0.gameId, $0) }) { $0.0 }
+        for entry in longestEntries.sorted(by: { $0.value > $1.value }).prefix(2) {
+            personalBests.append(PersonalBest(type: .longestStreak, value: entry.value, game: entry.game, date: endDate, description: "\(entry.value) day streak in \(entry.game.displayName)"))
+        }
+        // Best score per game (completed only) within range
+        let completed = filteredResults.filter { $0.completed }
+        let grouped = Dictionary(grouping: completed.compactMap { ($0.gameId, $0) }) { $0.0 }
         var bests: [(UUID, Int, GameResult)] = []
         for (gid, tuples) in grouped {
-            let rs = tuples.map { $0.1 }
+            let rs = tuples.map { $0.1 }.filter { $0.score != nil }
             if let best = rs.min(by: { ($0.score ?? Int.max) < ($1.score ?? Int.max) }), let s = best.score { bests.append((gid, s, best)) }
         }
         for (gid, score, result) in bests.sorted(by: { $0.1 < $1.1 }).prefix(2) {
-            if let game = games.first(where: { $0.id == gid }) {
-                personalBests.append(PersonalBest(type: .bestScore, value: score, game: game, date: result.date, description: "\(result.displayScore) in \(game.displayName)"))
+            if let g = games.first(where: { $0.id == gid }) {
+                personalBests.append(PersonalBest(type: .bestScore, value: score, game: g, date: result.date, description: "\(result.displayScore) in \(g.displayName)"))
             }
         }
-        // Most games in a day (meaningful if > 1)
-        let byDay = Dictionary(grouping: results) { Calendar.current.startOfDay(for: $0.date) }
+        // Most games in a day within range (meaningful if > 1)
+        let byDay = Dictionary(grouping: filteredResults) { Calendar.current.startOfDay(for: $0.date) }
         if let most = byDay.max(by: { $0.value.count < $1.value.count }), most.value.count > 1 {
             personalBests.append(PersonalBest(type: .mostGamesInDay, value: most.value.count, game: nil, date: most.key, description: "\(most.value.count) games played in one day"))
         }
@@ -473,8 +526,8 @@ private struct AnalyticsComputer {
             let totalCompleted = weekResults.filter { $0.completed }.count
             // Average streak length (approx): average of current streaks at end of week
             let avgStreak = streaks.isEmpty ? 0.0 : Double(streaks.map { $0.currentStreak }.reduce(0, +)) / Double(streaks.count)
-            // Longest streak all-time
-            let longest = streaks.map { $0.maxStreak }.max() ?? 0
+            // Longest streak within this week window (across all games)
+            let longest = longestStreakInRange(startDate: weekStart, endDate: weekEnd, gameId: nil, results: weekResults)
             let mostPlayedGameId = Dictionary(grouping: weekResults, by: { $0.gameId }).mapValues { $0.count }.max(by: { $0.value < $1.value })?.key
             let mostPlayedGame = mostPlayedGameId.flatMap { gid in games.first { $0.id == gid } }
             let completionRate = totalPlayed > 0 ? Double(totalCompleted) / Double(totalPlayed) : 0.0

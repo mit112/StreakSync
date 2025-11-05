@@ -225,8 +225,11 @@ final class AppState {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            // Already on main queue and self is @MainActor, no need for Task wrapper
-            self?.handleDayChange()
+            // NotificationCenter observer closures are not automatically @MainActor isolated
+            // even when using .main queue, so we need to wrap the call
+            Task { @MainActor [weak self] in
+                self?.handleDayChange()
+            }
         }
         
         logger.debug("Day change listener setup complete")

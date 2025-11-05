@@ -260,7 +260,20 @@ private struct TierRequirementRow: View {
     let isExpanded: Bool
     
     private var isUnlocked: Bool {
-        progress.tierUnlockDates[requirement.tier] != nil
+        // This tier is unlocked if:
+        // 1. This tier has an unlock date, OR
+        // 2. A higher tier is unlocked (current tier is higher than this requirement)
+        if progress.tierUnlockDates[requirement.tier] != nil {
+            return true
+        }
+        
+        // Check if a higher tier is unlocked
+        if let currentTier = progress.currentTier,
+           currentTier.rawValue > requirement.tier.rawValue {
+            return true
+        }
+        
+        return false
     }
     
     private var progressToThisTier: Double {
@@ -283,10 +296,17 @@ private struct TierRequirementRow: View {
                     Text(requirement.tier.displayName)
                         .font(.subheadline.weight(.medium))
                     
-                    if isUnlocked, let unlockDate = progress.tierUnlockDates[requirement.tier] {
-                        Text("Unlocked \(unlockDate.formatted(date: .abbreviated, time: .omitted))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    if isUnlocked {
+                        if let unlockDate = progress.tierUnlockDates[requirement.tier] {
+                            Text("Unlocked \(unlockDate.formatted(date: .abbreviated, time: .omitted))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            // Higher tier unlocked, but this tier doesn't have a specific date
+                            Text("Completed")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     } else {
                         Text("Requires \(requirement.threshold)")
                             .font(.caption)

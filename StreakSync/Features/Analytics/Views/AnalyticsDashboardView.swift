@@ -301,11 +301,13 @@ struct OverviewStatsSection: View {
                     showingTooltip: $showingCompletionRateTooltip
                 )
                 
-                AnalyticsStatCard(
+                AnalyticsStatCardWithTooltip(
                     title: "Longest Streak",
                     value: "\(overview.longestCurrentStreak)",
                     icon: "flame.fill",
-                    color: .orange
+                    color: .orange,
+                    tooltip: "Within selected period",
+                    showingTooltip: .constant(false)
                 )
                 
                 AnalyticsStatCardWithTooltip(

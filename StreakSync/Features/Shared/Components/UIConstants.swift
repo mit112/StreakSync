@@ -245,7 +245,12 @@ struct DeviceSize {
     }
     
     static var isIPad: Bool {
-        UIDevice.current.userInterfaceIdiom == .pad
+        // UIDevice.current is MainActor-isolated. Since userInterfaceIdiom is a
+        // constant value per device, we can safely assume we're on MainActor
+        // for this read-only property access.
+        return MainActor.assumeIsolated {
+            UIDevice.current.userInterfaceIdiom == .pad
+        }
     }
 }
 

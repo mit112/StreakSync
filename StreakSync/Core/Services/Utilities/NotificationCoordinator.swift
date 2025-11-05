@@ -156,7 +156,9 @@ final class NotificationCoordinator: ObservableObject {
             ) { [weak self] notification in
                 // Extract object before using it to avoid Sendable issues
                 guard let result = notification.object as? GameResult else { return }
-                self?.handleGameResult(result)
+                Task { @MainActor [weak self] in
+                    self?.handleGameResult(result)
+                }
             }
         )
 
@@ -171,7 +173,9 @@ final class NotificationCoordinator: ObservableObject {
                 // Extract object before using it to avoid Sendable issues
                 guard let payload = notification.object as? [String: Any],
                       let gameId = payload[AppConstants.DeepLinkKeys.gameId] as? UUID else { return }
-                self?.handleGameDeepLinkWithId(gameId)
+                Task { @MainActor [weak self] in
+                    self?.handleGameDeepLinkWithId(gameId)
+                }
             }
 
         )
@@ -186,7 +190,9 @@ final class NotificationCoordinator: ObservableObject {
                 // Extract object before using it to avoid Sendable issues
                 guard let payload = notification.object as? [String: Any],
                       let achievementId = payload[AppConstants.DeepLinkKeys.achievementId] as? UUID else { return }
-                self?.handleAchievementDeepLinkWithId(achievementId)
+                Task { @MainActor [weak self] in
+                    self?.handleAchievementDeepLinkWithId(achievementId)
+                }
             }
 
         )

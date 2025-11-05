@@ -3095,3 +3095,100 @@ private func migrateNotificationSettings() {
 ### Prevention
 - Always include helpful CTAs for empty/error states; communicate data mode early.
 
+---
+
+## Bug #045: Swift Concurrency Warnings in NotificationCoordinator
+**Date:** January 2025  
+**Severity:** Medium  
+**Component:** Compiler - NotificationCoordinator.swift
+
+### Bug Description
+Three compiler warnings were occurring when calling main actor-isolated instance methods from NotificationCenter observer closures, even though the observers were configured to use the main queue.
+
+### Error Messages
+```
+Call to main actor-isolated instance method 'handleGameResult' in a synchronous nonisolated context
+Call to main actor-isolated instance method 'handleGameDeepLinkWithId' in a synchronous nonisolated context
+Call to main actor-isolated instance method 'handleAchievementDeepLinkWithId' in a synchronous nonisolated context
+```
+
+### Root Cause
+NotificationCenter observer closures are not automatically @MainActor isolated, even when using `.main` queue. The methods `handleGameResult`, `handleGameDeepLinkWithId`, and `handleAchievementDeepLinkWithId` are all @MainActor isolated (because the class is @MainActor), so calling them directly from the observer closures causes concurrency warnings.
+
+### Solution
+**Wrapped all three method calls in Task { @MainActor [weak self] in } blocks:**
+
+```swift
+// Before: Direct call causing warning
+) { [weak self] notification in
+    guard let result = notification.object as? GameResult else { return }
+    self?.handleGameResult(result)  // ❌ Warning
+}
+
+// After: Properly isolated call
+) { [weak self] notification in
+    guard let result = notification.object as? GameResult else { return }
+    Task { @MainActor [weak self] in
+        self?.handleGameResult(result)  // ✅ Fixed
+    }
+}
+```
+
+**Applied the same pattern to all three warnings:**
+- Line 159: `handleGameResult` call
+- Line 174: `handleGameDeepLinkWithId` call
+- Line 189: `handleAchievementDeepLinkWithId` call
+
+This matches the pattern already used elsewhere in the same file (lines 201, 213, 226, 239) for other notification observers.
+
+**Also found and fixed in AppState.swift:**
+- Line 229: `handleDayChange()` call in `setupDayChangeListener()` - had misleading comment claiming Task wrapper wasn't needed, but it was required
+
+**Also found and fixed in UIConstants.swift:**
+- Line 248: `UIDevice.current.userInterfaceIdiom` access in `DeviceSize.isIPad` static property - used `MainActor.assumeIsolated` since this is a read-only constant value and is only accessed from SwiftUI views (which are always on MainActor)
+
+### Prevention
+- **Always wrap main actor-isolated method calls in Task { @MainActor [weak self] in }** when called from NotificationCenter observer closures
+- **Even when using `.main` queue**, observer closures are not automatically @MainActor isolated
+- **Use consistent patterns** across the codebase for notification handling
+- **Reference Bug #020** for similar concurrency issues in deinit methods
+- **For static properties accessing MainActor-isolated APIs** (like `UIDevice.current`), use `MainActor.assumeIsolated` if the property is only accessed from MainActor contexts (like SwiftUI views)
+
+---
+
+## Bug #046: Implicit Coercion Warning in ShareViewController Connections Parser
+**Date:** January 2025  
+**Severity:** Low  
+**Component:** Compiler - ShareViewController.swift
+
+### Bug Description
+A compiler warning was occurring when creating a dictionary with an optional `Int?` value for the `score` key. The ternary operator was evaluating to `Int?` which was being implicitly coerced to `Any` in the dictionary.
+
+### Error Messages
+```
+Expression implicitly coerced from 'Int?' to 'Any'
+```
+
+### Root Cause
+The dictionary literal was using a ternary operator that returns `Int?` (either `Int` or `nil`), and Swift was warning about the implicit coercion to `Any` type required by the dictionary.
+
+### Solution
+**Explicitly cast the optional value to `Any`:**
+
+```swift
+// Before: Implicit coercion warning
+"score": gameStats.solvedCategories > 0 ? gameStats.solvedCategories : nil, // ❌ Warning
+
+// After: Explicit cast to Any
+"score": (gameStats.solvedCategories > 0 ? gameStats.solvedCategories : nil) as Any, // ✅ Fixed
+```
+
+This preserves the intended behavior (nil for 0 categories) while explicitly handling the type coercion.
+
+### Prevention
+- **Explicitly cast optional values to `Any`** when adding them to dictionary literals that require `Any` type
+- **Use `as Any`** to silence implicit coercion warnings when the coercion is intentional
+- **Consider using default values** instead of `nil` if the nil case isn't needed downstream
+
+---
+

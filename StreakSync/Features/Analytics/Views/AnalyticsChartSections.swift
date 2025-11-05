@@ -69,14 +69,8 @@ struct StreakTrendsChartSection: View {
     
     private func getStreakTrendSummary() -> String {
         guard !trends.isEmpty else { return "No data available" }
-        
-        let latest = trends.last!
-        let previous = trends.count > 1 ? trends[trends.count - 2] : latest
-        
-        let trend = latest.totalActiveStreaks - previous.totalActiveStreaks
-        let trendText = trend > 0 ? "+\(trend)" : trend < 0 ? "\(trend)" : "No change"
-        
-        return "\(latest.totalActiveStreaks) active streaks (\(trendText))"
+        let peak = trends.map { $0.totalActiveStreaks }.max() ?? 0
+        return "Peak: \(peak) active"
     }
 }
 
@@ -366,6 +360,9 @@ struct PersonalBestsSection: View {
             Text("Personal Bests")
                 .font(.headline)
                 .fontWeight(.semibold)
+            Text("Within selected period")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
             
             if meaningfulPersonalBests.isEmpty {
                 EmptyPersonalBestsView()

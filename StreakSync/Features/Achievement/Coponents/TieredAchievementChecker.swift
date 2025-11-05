@@ -398,43 +398,51 @@ final class TieredAchievementChecker {
     ) -> [AchievementUnlock] {
         var unlocks: [AchievementUnlock] = []
         
-        // Check if this is a comeback (starting a new streak after a break)
-        guard let gameStreak = streaks.first(where: { $0.gameId == result.gameId }),
-              gameStreak.currentStreak == 1 else { return unlocks }
+        // Calculate cumulative number of comeback runs across all games.
+        // A "comeback run" is a new contiguous streak segment that begins
+        // after a gap (> 1 day) between play days for a given game.
+        let calendar = Calendar.current
         
-        // Check if there was a previous streak
-        let gameResults = allResults
-            .filter { $0.gameId == result.gameId }
-            .sorted { $0.date < $1.date }
+        // Group by game and deduplicate multiple results on the same day
+        let resultsByGame: [UUID: [Date]] = {
+            var dict: [UUID: [Date]] = [:]
+            for r in allResults {
+                let day = calendar.startOfDay(for: r.date)
+                if dict[r.gameId] == nil {
+                    dict[r.gameId] = [day]
+                } else {
+                    // Append only if this day isn't already recorded
+                    if dict[r.gameId]!.last != day && !(dict[r.gameId]!.contains(day)) {
+                        dict[r.gameId]!.append(day)
+                    }
+                }
+            }
+            return dict
+        }()
         
-        // Look for a gap in play dates
-        var hadPreviousStreak = false
-        for i in 1..<gameResults.count {
-            let daysBetween = Calendar.current.dateComponents(
-                [.day],
-                from: gameResults[i-1].date,
-                to: gameResults[i].date
-            ).day ?? 0
-            
-            if daysBetween > 1 {
-                hadPreviousStreak = true
-                break
+        var totalComebacks = 0
+        for (_, daysUnsorted) in resultsByGame {
+            let days = daysUnsorted.sorted()
+            if days.count <= 1 { continue }
+            for i in 1..<days.count {
+                let delta = calendar.dateComponents([.day], from: days[i-1], to: days[i]).day ?? 0
+                if delta > 1 { totalComebacks += 1 }
             }
         }
         
-        if hadPreviousStreak {
-            if let index = achievements.firstIndex(where: { $0.category == .comebackChampion }) {
-                let oldTier = achievements[index].progress.currentTier
-                achievements[index].updateProgress(value: gameStreak.currentStreak)
-                
-                if let newTier = achievements[index].progress.currentTier,
-                   oldTier != newTier {
-                    unlocks.append(AchievementUnlock(
-                        achievement: achievements[index],
-                        tier: newTier,
-                        timestamp: Date()
-                    ))
-                }
+        if let index = achievements.firstIndex(where: { $0.category == .comebackChampion }) {
+            let oldTier = achievements[index].progress.currentTier
+            // Make progress monotonic in case of partial histories; never decrease
+            let newValue = max(achievements[index].progress.currentValue, totalComebacks)
+            achievements[index].updateProgress(value: newValue)
+            
+            if let newTier = achievements[index].progress.currentTier,
+               oldTier != newTier {
+                unlocks.append(AchievementUnlock(
+                    achievement: achievements[index],
+                    tier: newTier,
+                    timestamp: Date()
+                ))
             }
         }
         

@@ -587,7 +587,7 @@ class ShareViewController: UIViewController {
             "gameId": "550e8400-e29b-41d4-a716-446655440003", // Connections game ID
             "gameName": "connections",
             "date": ISO8601DateFormatter().string(from: Date()),
-            "score": gameStats.solvedCategories > 0 ? gameStats.solvedCategories : nil, // Use nil for 0 categories
+            "score": (gameStats.solvedCategories > 0 ? gameStats.solvedCategories : nil) as Any, // Use nil for 0 categories
             "maxAttempts": 4, // 4 categories total
             "completed": gameStats.completed,
             "sharedText": text,
