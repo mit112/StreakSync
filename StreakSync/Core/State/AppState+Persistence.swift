@@ -17,6 +17,18 @@ extension AppState {
     // In your existing AppState implementation, update the loadPersistedData method:
 
     func loadPersistedData() async {
+        // Debounce/guard: avoid overlapping or rapid back-to-back loads
+        if isLoading {
+            logger.debug("⏭️ Skipping loadPersistedData - already loading")
+            return
+        }
+        if let last = lastDataLoad, Date().timeIntervalSince(last) < 1.0 {
+            logger.debug("⏭️ Skipping loadPersistedData - called too soon")
+            return
+        }
+        self.loadCountSinceLaunch += 1
+        logger.debug("📈 loadPersistedData invoked (count since launch: \(self.loadCountSinceLaunch))")
+        
         setLoading(true)
         defer { setLoading(false) }
         
@@ -40,17 +52,12 @@ extension AppState {
             _tieredAchievements = AchievementFactory.createDefaultAchievements()
         }
         recalculateAllTieredAchievementProgress()
-        await saveTieredAchievements()
         
         // Mark data as loaded
         isDataLoaded = true
         lastDataLoad = Date()
         
-        // Sync from share extension
-        await syncFromShareExtension()
-        
-        // Setup listener
-        setupShareExtensionListener()
+        // Share Extension ingestion is handled by AppGroupBridge (event-driven); no direct sync here
         
         logger.info("✅ Data loading complete with tiered achievements")
     }
@@ -62,7 +69,6 @@ extension AppState {
             group.addTask { await self.loadGameResults() }
             // Legacy achievements no longer loaded; tiered only
             group.addTask { await self.loadStreaks() }
-            group.addTask { await self.loadTieredAchievements() }
         }
     }
 

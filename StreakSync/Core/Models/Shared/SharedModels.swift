@@ -1474,6 +1474,11 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
             return quordleScoreEmoji
         }
         
+        // Special handling for LinkedIn Pinpoint (completed vs not completed)
+        if gameName.lowercased() == "linkedinpinpoint" {
+            return pinpointScoreEmoji
+        }
+        
         // Special handling for Pips difficulty-based emojis
         if gameName.lowercased() == "pips" {
             return pipsScoreEmoji
@@ -1486,6 +1491,19 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
         
         // Standard emoji
         guard let score = score else { return "❌" }
+        switch score {
+        case 1: return "🥇"
+        case 2: return "🥈"
+        case 3: return "🥉"
+        default: return "✅"
+        }
+    }
+    
+    private var pinpointScoreEmoji: String {
+        // For Pinpoint, explicitly show failure if not completed (e.g., 5/5 without pin)
+        guard completed else { return "❌" }
+        // Use typical attempt medals for low guess counts, checkmark otherwise
+        guard let score = score else { return "✅" }
         switch score {
         case 1: return "🥇"
         case 2: return "🥈"

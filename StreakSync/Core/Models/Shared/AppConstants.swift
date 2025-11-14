@@ -17,9 +17,16 @@ import Foundation
 enum AppConstants {
     // MARK: - Flags
     enum Flags {
-        // CloudKit sync is off by default; enable when developer account is available
+        // CloudKit sync defaults to ON for all users (gracefully no-ops if iCloud unavailable)
         static var cloudSyncEnabled: Bool {
-            get { UserDefaults.standard.bool(forKey: "cloudSyncEnabled") }
+            get {
+                let defaults = UserDefaults.standard
+                if defaults.object(forKey: "cloudSyncEnabled") == nil {
+                    // Default ON when not explicitly set
+                    return true
+                }
+                return defaults.bool(forKey: "cloudSyncEnabled")
+            }
             set { UserDefaults.standard.set(newValue, forKey: "cloudSyncEnabled") }
         }
     }

@@ -109,16 +109,24 @@
 import Foundation
 
 actor GameResultIngestionActor {
-    func ingest(_ result: GameResult, into appState: AppState) async {
-        await MainActor.run {
-            appState.addGameResult(result)
+    /// Ingests a single result and returns true if it was actually added (not duplicate/invalid).
+    func ingest(_ result: GameResult, into appState: AppState) async -> Bool {
+        let added: Bool = await MainActor.run {
+            appState.addGameResultReturningAdded(result)
         }
+        return added
     }
     
-    func ingest(_ results: [GameResult], into appState: AppState) async {
+    /// Ingests multiple results; returns the number actually added.
+    @discardableResult
+    func ingest(_ results: [GameResult], into appState: AppState) async -> Int {
+        var addedCount = 0
         for result in results {
-            await ingest(result, into: appState)
+            if await ingest(result, into: appState) {
+                addedCount += 1
+            }
         }
+        return addedCount
     }
 }
 

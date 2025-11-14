@@ -129,6 +129,62 @@ final class AchievementCheckerTests: XCTestCase {
         let _ = checker.checkAllAchievements(for: r0, allResults: [r1, r0], streaks: [], games: app.games, currentAchievements: &current)
         XCTAssertNotNil(current.first!.progress.currentTier)
     }
+    
+    func testVarietyPlayerCountsAllTimeUniqueAcrossDays() throws {
+        let app = AppState()
+        var ach = AchievementFactory.createVarietyPlayerAchievement()
+        var tiered = [ach]
+        let checker = TieredAchievementChecker()
+        let cal = Calendar.current
+        let now = Date()
+        let g1 = app.games[0]; let g2 = app.games[1]; let g3 = app.games[2]
+        let r1 = GameResult(id: UUID(), gameId: g1.id, gameName: g1.name, score: 1, maxAttempts: 6, completed: true, date: cal.date(byAdding: .day, value: -2, to: now)!, sharedText: "r1", parsedData: [:])
+        let r2 = GameResult(id: UUID(), gameId: g2.id, gameName: g2.name, score: 1, maxAttempts: 6, completed: true, date: cal.date(byAdding: .day, value: -1, to: now)!, sharedText: "r2", parsedData: [:])
+        let r3 = GameResult(id: UUID(), gameId: g3.id, gameName: g3.name, score: 1, maxAttempts: 6, completed: true, date: now, sharedText: "r3", parsedData: [:])
+        var current = tiered
+        let _ = checker.checkAllAchievements(for: r3, allResults: [r1, r2, r3], streaks: [], games: app.games, currentAchievements: &current)
+        XCTAssertEqual(current[0].progress.currentValue, 3)
+    }
+    
+    func testVarietyPlayerMonotonicDoesNotDecrease() throws {
+        let app = AppState()
+        var ach = AchievementFactory.createVarietyPlayerAchievement()
+        var tiered = [ach]
+        let checker = TieredAchievementChecker()
+        let cal = Calendar.current
+        let now = Date()
+        let g1 = app.games[0]; let g2 = app.games[1]; let g3 = app.games[2]
+        let r1 = GameResult(id: UUID(), gameId: g1.id, gameName: g1.name, score: 1, maxAttempts: 6, completed: true, date: cal.date(byAdding: .day, value: -2, to: now)!, sharedText: "r1", parsedData: [:])
+        let r2 = GameResult(id: UUID(), gameId: g2.id, gameName: g2.name, score: 1, maxAttempts: 6, completed: true, date: cal.date(byAdding: .day, value: -1, to: now)!, sharedText: "r2", parsedData: [:])
+        var current = tiered
+        // First compute with three unique games
+        let r3 = GameResult(id: UUID(), gameId: g3.id, gameName: g3.name, score: 1, maxAttempts: 6, completed: true, date: now, sharedText: "r3", parsedData: [:])
+        let _ = checker.checkAllAchievements(for: r3, allResults: [r1, r2, r3], streaks: [], games: app.games, currentAchievements: &current)
+        XCTAssertEqual(current[0].progress.currentValue, 3)
+        // Next day only one game (should not decrease progress)
+        let nextDay = cal.date(byAdding: .day, value: 1, to: now)!
+        let r4 = GameResult(id: UUID(), gameId: g1.id, gameName: g1.name, score: 1, maxAttempts: 6, completed: true, date: nextDay, sharedText: "r4", parsedData: [:])
+        let _ = checker.checkAllAchievements(for: r4, allResults: [r1, r2, r3, r4], streaks: [], games: app.games, currentAchievements: &current)
+        XCTAssertEqual(current[0].progress.currentValue, 3)
+    }
+    
+    func testVarietyPlayerUsesUnionWithCachedSetOnRecalc() throws {
+        let app = AppState()
+        // Prepare results for 2 unique games
+        let g1 = app.games[0]; let g2 = app.games[1]; let gExtra = app.games[3]
+        let now = Date()
+        let r1 = GameResult(id: UUID(), gameId: g1.id, gameName: g1.name, score: 1, maxAttempts: 6, completed: true, date: now, sharedText: "r1", parsedData: [:])
+        let r2 = GameResult(id: UUID(), gameId: g2.id, gameName: g2.name, score: 1, maxAttempts: 6, completed: true, date: now, sharedText: "r2", parsedData: [:])
+        app.recentResults = [r1, r2]
+        // Simulate cached unique set containing an extra historical game
+        app._uniqueGamesEver = [g1.id, g2.id, gExtra.id]
+        // Recompute achievements
+        app.recalculateAllTieredAchievementProgress()
+        // Find variety player and ensure union count (3) is applied
+        let varAch = app.tieredAchievements.first { $0.category == .varietyPlayer }
+        XCTAssertNotNil(varAch)
+        XCTAssertEqual(varAch?.progress.currentValue, 3)
+    }
 }
 
 

@@ -122,6 +122,7 @@ final class AppContainer: ObservableObject {
 
     // MARK: - Social Service
     let socialService: SocialService
+    let leaderboardSyncService: LeaderboardSyncService
     
     // MARK: - Analytics Service
     let analyticsService: AnalyticsService
@@ -177,8 +178,10 @@ final class AppContainer: ObservableObject {
         // 7. Achievement celebrations
         self.achievementCelebrationCoordinator = AchievementCelebrationCoordinator()
 
-        // 8. Social service (Hybrid: CloudKit with fallback to local)
-        self.socialService = HybridSocialService()
+        // 8. Leaderboard sharing/sync (CKShare-based groups)
+        self.leaderboardSyncService = LeaderboardSyncService()
+        // 8b. Social service (Hybrid: CloudKit with fallback to local)
+        self.socialService = HybridSocialService(leaderboardSyncService: leaderboardSyncService)
         // Attach to app state
         self.appState.socialService = socialService
         
@@ -209,8 +212,8 @@ final class AppContainer: ObservableObject {
         notificationCoordinator.navigationCoordinator = navigationCoordinator
         notificationCoordinator.appGroupBridge = appGroupBridge
         notificationCoordinator.resultIngestion = { [weak self] result in
-            guard let self else { return }
-            await self.ingestionActor.ingest(result, into: self.appState)
+            guard let self else { return false }
+            return await self.ingestionActor.ingest(result, into: self.appState)
         }
         
         // Wire analytics service to app state for cache invalidation

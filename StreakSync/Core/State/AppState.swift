@@ -123,6 +123,8 @@ final class AppState {
     // Add this as a new property alongside existing achievements
     @ObservationIgnored
     internal var _tieredAchievements: [TieredAchievement]?
+    @ObservationIgnored
+    internal var _uniqueGamesEver: Set<UUID>?
     // Add to AppState:
     func getStreak(for game: Game) -> GameStreak? {
         streaks.first { $0.gameId == game.id }
@@ -171,6 +173,12 @@ final class AppState {
     private var _totalActiveStreaks: Int?
     private var _longestCurrentStreak: Int?
     private var _todaysResults: [GameResult]?
+    
+    // MARK: - Lightweight Metrics (since launch)
+    internal var loadCountSinceLaunch: Int = 0
+    internal var tieredAchievementSavesSinceLaunch: Int = 0
+    internal var lastReminderScheduleAt: Date?
+    internal var lastAtRiskGamesSignature: String?
     
     // MARK: - Duplicate Prevention Cache
     internal var gameResultsCache: [UUID: Set<String>] = [:] // gameId -> Set of puzzle numbers
@@ -247,9 +255,8 @@ final class AppState {
             
             // Check for new achievements that might be unlocked
             await checkAllAchievements()
-            
-            // Update smart reminders periodically (every 2 days)
-            await updateSmartRemindersIfNeeded()
+            // Reschedule daily reminders so today's content reflects current at-risk games
+            await checkAndScheduleStreakReminders()
             
             logger.info("✅ UI refreshed for new day")
         }
@@ -452,6 +459,15 @@ final class AppState {
         // Add result
         self.recentResults.insert(result, at: 0)
         
+        // Update unique games ever cache (monotonic)
+        do {
+            var set = self.uniqueGamesEver
+            let inserted = set.insert(result.gameId).inserted
+            if inserted {
+                self.uniqueGamesEver = set
+            }
+        }
+        
         // Update cache
         let puzzleNumber = result.parsedData["puzzleNumber"] ?? ""
         let cleanPuzzleNumber = puzzleNumber
@@ -481,12 +497,8 @@ final class AppState {
         // Check for new achievements (tiered-only)
         checkAchievements(for: result)
         
-        // Limit results to prevent memory issues
-        if self.recentResults.count > 100 {
-            self.recentResults = Array(self.recentResults.prefix(100))
-            // Rebuild cache after trimming
-            buildResultsCache()
-        }
+        // Removed hard cap to avoid unintended data loss between updates
+        // If needed in the future, implement archival instead of trimming
         
         // Invalidate UI cache
         invalidateCache()
@@ -520,7 +532,6 @@ final class AppState {
         Task {
             await saveGameResults()
             await saveStreaks()  // Save the updated streaks
-            await saveTieredAchievements()
             logger.info("✅ SAVED ALL: Game result, streaks, and tiered achievements for \(result.gameName)")
         }
         
@@ -551,6 +562,130 @@ final class AppState {
             )
             try? await social.publishDailyScores(dateUTC: result.date, scores: [score])
         }
+    }
+    
+    /// Adds a game result and returns whether it was actually added (false if invalid/duplicate).
+    /// Mirrors `addGameResult(_:)` but returns a Bool so callers can gate side-effects like haptics.
+    func addGameResultReturningAdded(_ result: GameResult) -> Bool {
+        guard result.isValid else {
+            logger.warning("Attempted to add invalid game result")
+            return false
+        }
+        
+        // Enhanced duplicate check
+        guard !isDuplicateResult(result) else {
+            logger.info("Skipping duplicate result: \(result.gameName) - \(result.displayScore)")
+            return false
+        }
+        
+        // Add result
+        self.recentResults.insert(result, at: 0)
+        
+        // Update unique games ever cache (monotonic)
+        do {
+            var set = self.uniqueGamesEver
+            let inserted = set.insert(result.gameId).inserted
+            if inserted {
+                self.uniqueGamesEver = set
+            }
+        }
+        
+        // Update cache
+        let puzzleNumber = result.parsedData["puzzleNumber"] ?? ""
+        let cleanPuzzleNumber = puzzleNumber
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if !cleanPuzzleNumber.isEmpty && cleanPuzzleNumber != "unknown" {
+            if self.gameResultsCache[result.gameId] == nil {
+                self.gameResultsCache[result.gameId] = Set<String>()
+            }
+            
+            // Special handling for Pips - store puzzle number + difficulty combination
+            if result.gameName.lowercased() == "pips" {
+                let difficulty = result.parsedData["difficulty"] ?? ""
+                let puzzleDifficultyKey = "\(cleanPuzzleNumber)-\(difficulty)"
+                self.gameResultsCache[result.gameId]?.insert(puzzleDifficultyKey)
+            } else {
+                // Standard puzzle number for other games
+                self.gameResultsCache[result.gameId]?.insert(cleanPuzzleNumber)
+            }
+        }
+        
+        // Update streak SYNCHRONOUSLY
+        updateStreak(for: result)
+        
+        // Check for new achievements (tiered-only)
+        checkAchievements(for: result)
+        
+        // Removed hard cap to avoid unintended data loss between updates
+        // If needed in the future, implement archival instead of trimming
+        
+        // Invalidate UI cache
+        invalidateCache()
+        
+        // CRITICAL: Post notifications SYNCHRONOUSLY to prevent race conditions
+        logger.info("📢 Posting notifications for new result: \(result.gameName) - \(result.displayScore)")
+        
+        // Post general update notification (no object to avoid Sendable issues)
+        NotificationCenter.default.post(
+            name: NSNotification.Name("GameResultAdded"),
+            object: nil
+        )
+        
+        // Post game-specific update
+        NotificationCenter.default.post(
+            name: NSNotification.Name("GameDataUpdated"),
+            object: nil
+        )
+        
+        // Post refresh notification for the specific game (no object to avoid Sendable issues)
+        if self.games.first(where: { $0.id == result.gameId }) != nil {
+            NotificationCenter.default.post(
+                name: Notification.Name("RefreshGameData"),
+                object: nil
+            )
+        }
+        
+        logger.info("✅ All notifications posted successfully")
+        
+        // CRITICAL: Save all data including updated streaks
+        Task {
+            await saveGameResults()
+            await saveStreaks()  // Save the updated streaks
+            logger.info("✅ SAVED ALL: Game result, streaks, and tiered achievements for \(result.gameName)")
+        }
+        
+        logger.info("Added game result for \(result.gameName)")
+        
+        // Check for streak risk and schedule reminders
+        Task {
+            await checkAndScheduleStreakReminders()
+        }
+        
+        // Publish to social service (best-effort, non-blocking)
+        Task { [weak self] in
+            guard let self else { return }
+            guard let social = self.socialService else { return }
+            // Build one DailyGameScore for this result
+            let userId = "local_user" // MockSocialService will map to real on publish
+            let dateInt = result.date.utcYYYYMMDD
+            let compositeId = "\(userId)|\(dateInt)|\(result.gameId.uuidString)"
+            let score = DailyGameScore(
+                id: compositeId,
+                userId: userId,
+                dateInt: dateInt,
+                gameId: result.gameId,
+                gameName: result.gameName,
+                score: result.score,
+                maxAttempts: result.maxAttempts,
+                completed: result.completed
+            )
+            try? await social.publishDailyScores(dateUTC: result.date, scores: [score])
+        }
+        
+        return true
     }
     
     // MARK: - Deletion & Recompute APIs
@@ -676,11 +811,22 @@ final class AppState {
         // Find all games at risk (active streaks, not played today)
         let gamesAtRisk = getGamesAtRisk()
         
+        // Debounce/coalesce: if the set of at-risk games hasn't changed and we scheduled recently, skip
+        let signature = gamesAtRisk.map(\.id.uuidString).sorted().joined(separator: "|")
+        let now = Date()
+        if let lastSig = lastAtRiskGamesSignature,
+           lastSig == signature,
+           let lastAt = lastReminderScheduleAt,
+           now.timeIntervalSince(lastAt) < 300 { // 5 minutes
+            logger.debug("⏭️ Skipping reminder reschedule (unchanged within debounce window)")
+            return
+        }
+        
         logger.info("🔍 Found \(gamesAtRisk.count) games at risk: \(gamesAtRisk.map { $0.name }.joined(separator: ", "))")
         
         if gamesAtRisk.isEmpty {
             await NotificationScheduler.shared.cancelDailyStreakReminder()
-            logger.info("✅ No games at risk - cancelled daily reminder")
+            logger.debug("✅ No games at risk - cancelled daily reminder")
         } else {
             await NotificationScheduler.shared.scheduleDailyStreakReminder(
                 games: gamesAtRisk,
@@ -689,6 +835,9 @@ final class AppState {
             )
             logger.info("✅ Scheduled daily reminder at \(preferredHour):\(String(format: "%02d", preferredMinute)) for \(gamesAtRisk.count) games")
         }
+        
+        lastAtRiskGamesSignature = signature
+        lastReminderScheduleAt = now
     }
     
     func getGamesAtRisk() -> [Game] {
@@ -802,7 +951,7 @@ final class AppState {
             if c > bestCount { bestCount = c; bestStart = h }
         }
         let windowStart = bestStart
-        let windowEnd = (bestStart + 2) % 24
+        let windowEnd = (bestStart + 1) % 24
         let coverage = max(0, min(100, Int((Double(bestCount) / Double(max(1, total))) * 100.0 + 0.5)))
         var hour = (windowStart - 1 + 24) % 24
         var minute = 30

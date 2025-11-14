@@ -78,6 +78,7 @@
 import SwiftUI
 import OSLog
 import UserNotifications
+import UIKit
 
 // MARK: - Main App
 @main
@@ -85,6 +86,7 @@ struct StreakSyncApp: App {
     @StateObject private var container = AppContainer()
     @State private var isInitialized = false
     @State private var initializationError: String?
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     
     private let logger = Logger(subsystem: "com.streaksync.app", category: "StreakSyncApp")
     
@@ -105,6 +107,8 @@ struct StreakSyncApp: App {
                             // Initialize notification delegate
                             NotificationDelegate.shared.appState = container.appState
                             NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
+                            // Bridge container into AppDelegate for remote push handling
+                            appDelegate.container = container
                         }
                 } else if let error = initializationError {
                     InitializationErrorView(error: error) {
@@ -123,6 +127,16 @@ struct StreakSyncApp: App {
     // MARK: - App Initialization
     private func initializeApp() async {
         logger.info("🚀 Starting app initialization")
+        
+        // Initialize notification delegate dependencies early
+        NotificationDelegate.shared.appState = container.appState
+        NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
+        
+        // Register categories on launch if already authorized
+        let authStatus = await NotificationScheduler.shared.checkPermissionStatus()
+        if authStatus == .authorized {
+            await NotificationScheduler.shared.registerCategories()
+        }
         
         // Load app data
         await container.appState.loadPersistedData()

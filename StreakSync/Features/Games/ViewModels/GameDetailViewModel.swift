@@ -148,18 +148,7 @@ final class GameDetailViewModel: ObservableObject {
         self.appState = appState
         loadGameData()
         
-        // Listen for game result additions
-        let resultObserver = NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("GameResultAdded"),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.loadGameData()
-            }
-        }
-
-        notificationObservers.append(resultObserver)
+        // Removed: Listen for GameResultAdded to avoid duplicate reloads; rely on GameDataUpdated/RefreshGameData
         
         // Listen for data updates
         let dataObserver = NotificationCenter.default.addObserver(
@@ -173,29 +162,7 @@ final class GameDetailViewModel: ObservableObject {
         }
         notificationObservers.append(dataObserver)
         
-        // Also listen for app becoming active
-        let activeObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.didBecomeActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                
-                // Skip expensive reload if navigating from notification
-                if appState.isNavigatingFromNotification {
-                    return
-                }
-                
-                // Delay slightly to ensure data is loaded
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    Task { @MainActor in
-                        self.loadGameData()
-                    }
-                }
-            }
-        }
-        notificationObservers.append(activeObserver)
+        // Removed didBecomeActive-based reload; rely on data update notifications to avoid duplicate work
         
         // CRITICAL: Also observe RefreshGameData
         let refreshObserver = NotificationCenter.default.addObserver(

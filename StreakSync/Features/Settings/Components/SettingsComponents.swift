@@ -173,6 +173,8 @@ struct DataManagementView: View {
     @State private var isImporting = false
     @State private var showImportSuccess = false
     @State private var importedItemsCount = 0
+    @State private var showTestAlert = false
+    @State private var testMessage = ""
     
     var body: some View {
         List {
@@ -180,13 +182,67 @@ struct DataManagementView: View {
             Section("Cloud Sync") {
                 Toggle(isOn: Binding(
                     get: { AppConstants.Flags.cloudSyncEnabled },
-                    set: { AppConstants.Flags.cloudSyncEnabled = $0 }
+                    set: {
+                        AppConstants.Flags.cloudSyncEnabled = $0
+                        if $0 {
+                            Task { @MainActor in
+                                await container.achievementSyncService.syncIfEnabled()
+                            }
+                        }
+                    }
                 )) {
                     Label("iCloud Sync (Private)", systemImage: "icloud")
                 }
                 Text("Sync tiered achievements privately via iCloud across your devices. Requires iCloud account; safe to leave off.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                
+                // Status
+                if let svc = container.achievementSyncService as AchievementSyncService? {
+                    let statusText: String = {
+                        switch svc.status {
+                        case .idle:
+                            return "Status: Idle"
+                        case .syncing:
+                            return "Status: Syncing…"
+                        case .success(let date):
+                            let formatter = RelativeDateTimeFormatter()
+                            formatter.unitsStyle = .short
+                            let rel = formatter.localizedString(for: date, relativeTo: Date())
+                            return "Last synced: \(rel)"
+                        case .error(let message):
+                            return "Sync paused: \(message)"
+                        }
+                    }()
+                    Text(statusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        Button {
+                            Task { @MainActor in
+                                await container.achievementSyncService.syncIfEnabled()
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.clockwise")
+                                Text("Sync Now")
+                            }
+                        }
+                        #if DEBUG
+                        Button {
+                            Task { @MainActor in
+                                testMessage = await container.achievementSyncService.runConnectivityTest()
+                                showTestAlert = true
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "checkmark.icloud")
+                                Text("Test Connection")
+                            }
+                        }
+                        #endif
+                    }
+                }
             }
             // Export Section
             Section {
@@ -301,6 +357,11 @@ struct DataManagementView: View {
             Button("OK") { }
         } message: {
             Text("Successfully imported \(importedItemsCount) items.")
+        }
+        .alert("CloudKit Connection", isPresented: $showTestAlert) {
+            Button("OK") { }
+        } message: {
+            Text(testMessage)
         }
     }
     

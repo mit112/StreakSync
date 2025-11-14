@@ -4,14 +4,14 @@
 
 ### 1. Initialize the Notification System
 
-In your main app file (`StreakSyncApp.swift`), the notification delegate is already initialized:
+In your main app file (`StreakSyncApp.swift`), the notification delegate is initialized and categories are registered at launch if permission is authorized:
 
 ```swift
-.onAppear {
-    // Initialize notification delegate
-    NotificationDelegate.shared.appState = container.appState
-    NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
-}
+// In initializeApp():
+NotificationDelegate.shared.appState = container.appState
+NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
+let status = await NotificationScheduler.shared.checkPermissionStatus()
+if status == .authorized { await NotificationScheduler.shared.registerCategories() }
 ```
 
 ### 2. Add Notification Settings to Your Settings View
@@ -74,7 +74,7 @@ func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
 
 ### NotificationScheduler
 - **Single Daily Reminder**: Maximum one notification per day
-- **Smart Content**: Adapts message based on number of games at risk
+- **Dynamic Content**: Adapts message based on number of games at risk
 - **Automatic Scheduling**: Works with user's preferred time
 - **Legacy Cleanup**: Cancels old per-game notifications
 
@@ -90,7 +90,8 @@ func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
 1. **App Check**: System checks all games with active streaks
 2. **Risk Assessment**: Identifies games not played today
 3. **Single Notification**: Sends one notification listing all at-risk games
-4. **Smart Content**: Adapts message based on number of games at risk
+4. **Dynamic Content**: Adapts message based on number of games at risk
+5. **Day Change Reschedule**: On day change, the repeating reminder is rescheduled so content matches today’s at-risk games
 
 ### Notification Content Examples
 - **1 Game**: "Don't lose your Wordle streak"
@@ -102,7 +103,10 @@ func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
 2. **User Enables**: Simple permission flow with clear benefits
 3. **Settings**: Just 2 settings - enable toggle and time picker
 4. **Daily Reminders**: One notification per day maximum
-5. **Actions**: Play Now, Remind Tomorrow, Mark as Played
+5. **Actions**:
+   - Play Now: deep-links into the game
+   - Remind Tomorrow: cancels the repeating daily reminder and schedules a one-off reminder for the next day at the selected time
+   - Mark as Played: triggers immediate re-evaluation and rescheduling (cancels if no games are at risk)
 
 ## Migration from Old System
 
@@ -164,21 +168,5 @@ Button("Check Current State") {
 
 The simplified system is designed to be helpful without being pushy, giving users complete control while providing genuine value through smart, daily reminders.
 
-## Enabling Smart Reminders
-
-Prerequisites
-- Notification permission flow integrated and daily reminder working.
-
-Steps
-1. Provide a Smart toggle in your UI (dashboard or settings) bound to `smartRemindersEnabled`.
-2. On enable, call:
-   ```swift
-   Task { await appState.applySmartReminderNow() }
-   ```
-3. Ensure a day-change observer is active (already wired in `AppState`) so `updateSmartRemindersIfNeeded()` runs daily and recomputes every ~2 days.
-
-QA Checklist
-- No-history fallback → 7 PM until sufficient data exists.
-- Smart OFF preserves manual time; no auto-changes.
-- Smart ON recomputes after 2 days of new play pattern changes.
-- Times are local and respect DST.
+## Notes
+- Smart Reminders are currently disabled. The app uses a single user-selected time and reschedules at day change to keep content accurate.

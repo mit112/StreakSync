@@ -107,6 +107,7 @@
  */
 
 import SwiftUI
+import UIKit
 import OSLog
 
 // MARK: - Achievement Celebration Coordinator
@@ -127,6 +128,7 @@ final class AchievementCelebrationCoordinator: ObservableObject {
     private let processedKey = "processedTieredAchievementsCache"
     private let processedExpiryHours: Double = 24
     private var isProcessingQueue = false
+    private var resumeObserver: NSObjectProtocol?
     
     // MARK: - Initialization
     init() {
@@ -223,6 +225,34 @@ final class AchievementCelebrationCoordinator: ObservableObject {
         }
         
         let nextUnlock = celebrationQueue.removeFirst()
+        
+        // Gate celebrations to foreground only
+        if UIApplication.shared.applicationState != .active {
+            logger.info("🔇 Suppressing celebrations while app not active; will resume on activation")
+            // Put it back at the front of the queue
+            celebrationQueue.insert(nextUnlock, at: 0)
+            isProcessingQueue = false
+            
+            // Register one-time observer to resume when app becomes active
+            if resumeObserver == nil {
+                resumeObserver = NotificationCenter.default.addObserver(
+                    forName: UIApplication.didBecomeActiveNotification,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor in
+                        guard let self = self else { return }
+                        if let token = self.resumeObserver {
+                            NotificationCenter.default.removeObserver(token)
+                            self.resumeObserver = nil
+                        }
+                        self.processCelebrationQueue()
+                    }
+                }
+            }
+            return
+        }
+        
         logger.info("🎉 Showing celebration for \(nextUnlock.achievement.displayName) - \(nextUnlock.tier.displayName)")
         
         // Mark as processed now that we're actually showing it

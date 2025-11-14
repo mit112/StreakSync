@@ -132,12 +132,21 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
     @MainActor private func handleSnooze(days: Int) async {
         logger.info("😴 Snoozing reminder for \(days) days")
         
-        // In the simplified system, we just cancel the daily reminder
-        // The next check will reschedule it if there are still games at risk
+        // Cancel the repeating daily reminder and schedule a one-off for +days
         await NotificationScheduler.shared.cancelDailyStreakReminder()
         
-        // The reminder will be automatically rescheduled at the next app check
-        // if there are still games with streaks at risk
+        // Compute user's preferred time
+        let hour = UserDefaults.standard.object(forKey: "streakReminderHour") as? Int ?? 19
+        let minute = UserDefaults.standard.object(forKey: "streakReminderMinute") as? Int ?? 0
+        
+        // Build content from today's at-risk games if available
+        let gamesAtRisk = appState?.getGamesAtRisk() ?? []
+        await NotificationScheduler.shared.scheduleOneOffSnoozeReminder(
+            games: gamesAtRisk,
+            daysFromNow: days,
+            hour: hour,
+            minute: minute
+        )
     }
     
     @MainActor private func handleMarkPlayed(gameIdString: String?) async {
@@ -149,12 +158,8 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
         
         logger.info("✅ Marking game as played: \(gameId)")
         
-        // In the simplified system, we just cancel the daily reminder
-        // The next check will reschedule it if there are still other games at risk
-        await NotificationScheduler.shared.cancelDailyStreakReminder()
-        
-        // Could potentially add a placeholder result here if needed
-        // For now, just cancel the reminder and let the system reschedule if needed
+        // Re-evaluate schedules immediately (will cancel or reschedule as needed)
+        await appState?.checkAndScheduleStreakReminders()
     }
     
     @MainActor private func handleViewAchievement(achievementIdString: String?) async {

@@ -14,7 +14,9 @@ struct CloudKitConfiguration {
     
     /// The CloudKit container identifier
     /// This should match your app's bundle identifier
-    static let containerIdentifier = "iCloud.com.mitsheth.StreakSync"
+    /// NOTE: Changed to new container due to Apple server-side association bug
+    /// Original container "iCloud.com.mitsheth.StreakSync" had permission issues
+    static let containerIdentifier = "iCloud.com.mitsheth.StreakSync2"
     
     /// The default container instance (available when CloudKit is enabled)
     // static var container: CKContainer {
@@ -25,23 +27,22 @@ struct CloudKitConfiguration {
     
     /// CloudKit record types used in the app
     struct RecordTypes {
-        static let userProfile = "UserProfile"
+        // Note: UserProfile and FriendConnection are not currently used.
+        // Social features use CKShare-based leaderboards instead (see LeaderboardSyncService).
+        // These are kept for potential future direct friend connections.
+        // static let userProfile = "UserProfile"
+        // static let friendConnection = "FriendConnection"
+        
+        /// DailyScore records used in CKShare-based leaderboard groups
         static let dailyScore = "DailyScore"
-        static let friendConnection = "FriendConnection"
     }
     
     // MARK: - Field Names
     
-    /// Field names for UserProfile records
-    struct UserProfileFields {
-        static let id = "id"
-        static let displayName = "displayName"
-        static let friendCode = "friendCode"
-        static let createdAt = "createdAt"
-        static let updatedAt = "updatedAt"
-    }
+    // Note: UserProfile and FriendConnection field names are not currently used.
+    // Social features use CKShare-based leaderboards instead (see LeaderboardSyncService).
     
-    /// Field names for DailyScore records
+    /// Field names for DailyScore records (used in CKShare-based leaderboard groups)
     struct DailyScoreFields {
         static let id = "id"
         static let userId = "userId"
@@ -51,12 +52,6 @@ struct CloudKitConfiguration {
         static let maxAttempts = "maxAttempts"
         static let completed = "completed"
         static let publishedAt = "publishedAt"
-    }
-    
-    /// Field names for FriendConnection records
-    struct FriendConnectionFields {
-        static let friendCode = "friendCode"
-        static let addedAt = "addedAt"
     }
     
     // MARK: - Development Setup
@@ -96,10 +91,11 @@ struct CloudKitConfiguration {
     4. Select your development team
     5. CloudKit will automatically create the container
     
-    Record Types to Create:
-    - UserProfile (Private Database)
-    - DailyScore (Private Database)  
-    - FriendConnection (Private Database)
+    Record Types Used:
+    - DailyScore (Shared Database, via CKShare zones)
+    
+    Note: UserProfile and FriendConnection are not used.
+    Social features use CKShare-based leaderboards instead.
     
     The app will automatically create the schema when first run.
     No manual setup required for development!

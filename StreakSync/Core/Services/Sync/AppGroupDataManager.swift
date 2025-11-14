@@ -137,6 +137,35 @@ final class AppGroupDataManager {
         logger.info("Cleared game result queue")
     }
     
+    // MARK: - Legacy Queue (Array) Support
+    /// Loads legacy queued results saved as a single array under `AppConstants.AppGroup.queuedResultsKey`
+    /// Returns nil if not present or decoding fails.
+    func loadLegacyQueuedResultsArray() -> [GameResult]? {
+        guard let userDefaults = userDefaults else { return nil }
+        guard let data = userDefaults.data(forKey: AppConstants.AppGroup.queuedResultsKey) else {
+            return nil
+        }
+        
+        do {
+            let results = try decoder.decode([GameResult].self, from: data)
+            if !results.isEmpty {
+                logger.info("Loaded \(results.count) legacy queued results (array)")
+            }
+            return results
+        } catch {
+            logger.error("Failed to decode legacy queued results array: \(error)")
+            return nil
+        }
+    }
+    
+    /// Clears the legacy queued results array saved under `AppConstants.AppGroup.queuedResultsKey`
+    func clearLegacyQueuedResultsArray() {
+        guard let userDefaults = userDefaults else { return }
+        userDefaults.removeObject(forKey: AppConstants.AppGroup.queuedResultsKey)
+        userDefaults.synchronize()
+        logger.info("Cleared legacy queued results array")
+    }
+    
     func clearAll() {
         guard let userDefaults = userDefaults else { return }
         

@@ -14,6 +14,7 @@ extension AppState {
     // MARK: - Tiered Achievement Storage
     
     internal static let tieredAchievementsKey = "tieredAchievements"
+    internal static let uniqueGamesEverKey = "uniqueGamesEver"
     
 
     
@@ -58,6 +59,14 @@ extension AppState {
             currentAchievements: &currentAchievements
         )
         
+        // Enforce all-time unique union for Variety Player to avoid regressions on partial histories
+        if let idx = currentAchievements.firstIndex(where: { $0.category == .varietyPlayer }) {
+            let fromHistory = Set(recentResults.map(\.gameId))
+            let unionCount = fromHistory.union(uniqueGamesEver).count
+            let monotonicValue = max(currentAchievements[idx].progress.currentValue, unionCount)
+            currentAchievements[idx].updateProgress(value: monotonicValue)
+        }
+        
         // Update achievements if changed
         if currentAchievements != tieredAchievements {
             tieredAchievements = currentAchievements
@@ -91,9 +100,37 @@ extension AppState {
         
         do {
             try persistenceService.save(achievements, forKey: Self.tieredAchievementsKey)
+            self.tieredAchievementSavesSinceLaunch += 1
+            logger.debug("📈 Tiered achievements saved (count since launch: \(self.tieredAchievementSavesSinceLaunch))")
             logger.info("✅ Saved \(achievements.count) tiered achievements")
         } catch {
             logger.error("❌ Failed to save tiered achievements: \(error)")
+        }
+    }
+    
+    // MARK: - Unique Games Ever Persistence
+    var uniqueGamesEver: Set<UUID> {
+        get {
+            if _uniqueGamesEver == nil {
+                _uniqueGamesEver = persistenceService.load(Set<UUID>.self, forKey: Self.uniqueGamesEverKey) ?? []
+            }
+            return _uniqueGamesEver ?? []
+        }
+        set {
+            _uniqueGamesEver = newValue
+            Task {
+                await saveUniqueGamesEver()
+            }
+        }
+    }
+    
+    func saveUniqueGamesEver() async {
+        let setToSave = _uniqueGamesEver ?? []
+        do {
+            try persistenceService.save(setToSave, forKey: Self.uniqueGamesEverKey)
+            logger.info("✅ Saved unique games ever set with \(setToSave.count) entries")
+        } catch {
+            logger.error("❌ Failed to save unique games set: \(error)")
         }
     }
     
@@ -130,6 +167,13 @@ extension AppState {
                     games: games,
                     currentAchievements: &current
                 )
+            }
+            // Enforce union with cached unique games to avoid regressions on partial histories
+            if let idx = current.firstIndex(where: { $0.category == .varietyPlayer }) {
+                let fromHistory = Set(recentResults.map(\.gameId))
+                let unionCount = fromHistory.union(uniqueGamesEver).count
+                let monotonicValue = max(current[idx].progress.currentValue, unionCount)
+                current[idx].updateProgress(value: monotonicValue)
             }
             // Persist if changed
             if current != tieredAchievements {

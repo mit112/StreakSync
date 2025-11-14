@@ -119,7 +119,7 @@ enum AchievementCategory: String, CaseIterable, Codable, Sendable {
         case .gameCollector: return "Play games across all categories"
         case .perfectionist: return "Complete games successfully without failing"
         case .dailyDevotee: return "Play at least one game every day"
-        case .varietyPlayer: return "Play multiple different games in a single day"
+        case .varietyPlayer: return "Play many different games over time"
         case .speedDemon: return "Win games with minimal attempts"
         case .earlyBird: return "Play games in the early morning"
         case .nightOwl: return "Play games late at night"
@@ -371,14 +371,32 @@ struct AchievementFactory {
     
     // MARK: - Variety Player Achievement
     static func createVarietyPlayerAchievement() -> TieredAchievement {
-        TieredAchievement(
+        // Dynamic, sensible tiers based on catalog size (all-time unique games)
+        let total = max(1, Game.allAvailableGames.count)
+        
+        // Candidate thresholds scaled for progression
+        let candidates: [(AchievementTier, Int)] = [
+            (.bronze, min(3, total)),
+            (.silver, min(5, total)),
+            (.gold,   min(8, total)),
+            (.diamond,min(12, total)),
+            (.master, min(15, total)),
+            (.legendary, total) // All available games
+        ]
+        
+        // Keep strictly increasing thresholds (avoid duplicates for small catalogs)
+        var requirements: [TierRequirement] = []
+        var lastThreshold = 0
+        for (tier, threshold) in candidates {
+            guard threshold > lastThreshold else { continue }
+            requirements.append(TierRequirement(tier: tier, threshold: threshold))
+            lastThreshold = threshold
+            if threshold >= total { break } // stop once we've covered full catalog
+        }
+        
+        return TieredAchievement(
             category: .varietyPlayer,
-            requirements: [
-                TierRequirement(tier: .bronze, threshold: 2),
-                TierRequirement(tier: .silver, threshold: 3),
-                TierRequirement(tier: .gold, threshold: 4),
-                TierRequirement(tier: .diamond, threshold: 5) // All available games
-            ]
+            requirements: requirements
         )
     }
     

@@ -737,8 +737,10 @@ struct GameResultParser {
         // Format 2 (New): "Pinpoint #542\n🤔 📌 ⬜ ⬜ ⬜ (2/5)\n🏅 I'm in the Top 25% of my connections today!\nlnkd.in/pinpoint."
         // Format 3 (New): "Pinpoint #542\n🤔 📌 ⬜ ⬜ ⬜ (2/5)\n🏅 I'm in the Top 10% of all players today!\nlnkd.in/pinpoint."
         
-        // First try the new emoji-based format
-        let emojiPattern = #"Pinpoint\s+#(\d+)[\s\S]*?🤔\s+📌\s+([⬜⬛🟩🟨🟧🟦🟪🟫⚫⚪]+)\s*\((\d+)/(\d+)\)"#
+        // First try the new emoji-based format (flexible):
+        // Accept any emoji sequence before the parenthesized score, e.g.:
+        // "🤔 🤔 🤔 🤔 📌 (5/5)" or "🤔 📌 ⬜ ⬜ ⬜ (2/5)"
+        let emojiPattern = #"Pinpoint\s+#(\d+)[\s\S]*?(?:[🤔📌⬜⬛🟩🟨🟧🟦🟪🟫⚫⚪\s]+)?\((\d+)/(\d+)\)"#
         
         if let emojiRegex = try? NSRegularExpression(pattern: emojiPattern, options: .caseInsensitive),
            let emojiMatch = emojiRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) {
@@ -751,9 +753,9 @@ struct GameResultParser {
             let puzzleNumber = String(text[puzzleRange])
             
             // Extract guess count from (X/Y) format
-            guard emojiMatch.range(at: 3).location != NSNotFound,
-                  let guessRange = Range(emojiMatch.range(at: 3), in: text),
-                  let maxRange = Range(emojiMatch.range(at: 4), in: text) else {
+            guard emojiMatch.range(at: 2).location != NSNotFound,
+                  let guessRange = Range(emojiMatch.range(at: 2), in: text),
+                  let maxRange = Range(emojiMatch.range(at: 3), in: text) else {
                 throw ParsingError.invalidFormat
             }
             

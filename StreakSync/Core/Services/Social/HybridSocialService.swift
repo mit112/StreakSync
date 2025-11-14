@@ -34,7 +34,7 @@
  * - Provides graceful degradation when cloud services are unavailable
  * 
  * WHAT IT REFERENCES:
- * - CloudKitSocialService: Real cloud-based social features
+ * - LeaderboardSyncService: CKShare-based leaderboard sync (when CloudKit available)
  * - MockSocialService: Local simulation of social features
  * - SocialService: The protocol that defines social functionality
  * - UserProfile: User information and friend data
@@ -111,16 +111,22 @@
  */
 
 import Foundation
+#if canImport(CloudKit)
+import CloudKit
+#endif
 
 @MainActor
 final class HybridSocialService: SocialService, @unchecked Sendable {
-    private let cloudKitService: CloudKitSocialService
     private let mockService: MockSocialService
     private var isCloudKitAvailable: Bool = false
+    private let leaderboardSyncService: LeaderboardSyncService
+    #if canImport(CloudKit)
+    private var cachedUserRecordName: String?
+    #endif
     
-    init() {
-        self.cloudKitService = CloudKitSocialService()
+    init(leaderboardSyncService: LeaderboardSyncService) {
         self.mockService = MockSocialService()
+        self.leaderboardSyncService = leaderboardSyncService
         
         // Check CloudKit availability
         Task {
@@ -131,85 +137,95 @@ final class HybridSocialService: SocialService, @unchecked Sendable {
     // MARK: - CloudKit Availability Check
     
     private func checkCloudKitAvailability() async {
+        #if canImport(CloudKit)
+        do {
+            let container = CKContainer(identifier: CloudKitConfiguration.containerIdentifier)
+            let status = try await container.accountStatus()
+            isCloudKitAvailable = (status == .available)
+        } catch {
+            isCloudKitAvailable = false
+        }
+        #else
         isCloudKitAvailable = false
-        print("⚠️ CloudKit disabled (no entitlements) - using local storage")
+        #endif
     }
+    
+    #if canImport(CloudKit)
+    private func currentUserRecordName() async -> String? {
+        if let cachedUserRecordName { return cachedUserRecordName }
+        do {
+            let container = CKContainer(identifier: CloudKitConfiguration.containerIdentifier)
+            let id = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<CKRecord.ID, Error>) in
+                container.fetchUserRecordID { recordID, error in
+                    if let error = error { cont.resume(throwing: error); return }
+                    guard let recordID else { cont.resume(throwing: NSError(domain: "CK", code: -1)); return }
+                    cont.resume(returning: recordID)
+                }
+            }
+            cachedUserRecordName = id.recordName
+            return id.recordName
+        } catch {
+            return nil
+        }
+    }
+    #endif
     
     // MARK: - SocialService Protocol
     
     func ensureProfile(displayName: String?) async throws -> UserProfile {
-        if isCloudKitAvailable {
-            do {
-                return try await cloudKitService.ensureProfile(displayName: displayName)
-            } catch {
-                print("CloudKit profile creation failed, falling back to local: \(error)")
-                return try await mockService.ensureProfile(displayName: displayName)
-            }
-        } else {
-            return try await mockService.ensureProfile(displayName: displayName)
-        }
+        // Note: CloudKit-based profiles not implemented; using CKShare for leaderboards instead
+        return try await mockService.ensureProfile(displayName: displayName)
     }
     
     func myProfile() async throws -> UserProfile {
-        if isCloudKitAvailable {
-            do {
-                return try await cloudKitService.myProfile()
-            } catch {
-                print("CloudKit profile fetch failed, falling back to local: \(error)")
-                return try await mockService.myProfile()
-            }
-        } else {
-            return try await mockService.myProfile()
-        }
+        // Note: CloudKit-based profiles not implemented; using CKShare for leaderboards instead
+        return try await mockService.myProfile()
     }
     
     func generateFriendCode() async throws -> String {
-        if isCloudKitAvailable {
-            do {
-                return try await cloudKitService.generateFriendCode()
-            } catch {
-                print("CloudKit friend code generation failed, falling back to local: \(error)")
-                return try await mockService.generateFriendCode()
-            }
-        } else {
-            return try await mockService.generateFriendCode()
-        }
+        // Note: Friend codes not implemented; using CKShare invites for leaderboards instead
+        return try await mockService.generateFriendCode()
     }
     
     func addFriend(using code: String) async throws {
-        if isCloudKitAvailable {
-            do {
-                try await cloudKitService.addFriend(using: code)
-            } catch {
-                print("CloudKit add friend failed, falling back to local: \(error)")
-                try await mockService.addFriend(using: code)
-            }
-        } else {
-            try await mockService.addFriend(using: code)
-        }
+        // Note: Direct friend connections not implemented; using CKShare invites for leaderboards instead
+        try await mockService.addFriend(using: code)
     }
     
     func listFriends() async throws -> [UserProfile] {
-        if isCloudKitAvailable {
-            do {
-                return try await cloudKitService.listFriends()
-            } catch {
-                print("CloudKit list friends failed, falling back to local: \(error)")
-                return try await mockService.listFriends()
-            }
-        } else {
-            return try await mockService.listFriends()
-        }
+        // Note: Direct friend lists not implemented; friends are discovered via CKShare participants
+        return try await mockService.listFriends()
     }
     
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws {
         if isCloudKitAvailable {
-            do {
-                try await cloudKitService.publishDailyScores(dateUTC: dateUTC, scores: scores)
-                // Also save locally as backup
+            // If a shared group is selected, publish into that group's zone
+            if let groupId = LeaderboardGroupStore.selectedGroupId {
+                #if canImport(CloudKit)
+                // Ensure userId matches CloudKit identity when possible
+                let ckUserId = await currentUserRecordName()
+                let normalized: [DailyGameScore] = scores.map { s in
+                    DailyGameScore(
+                        id: "\(ckUserId ?? s.userId)|\(s.dateInt)|\(s.gameId.uuidString)",
+                        userId: ckUserId ?? s.userId,
+                        dateInt: s.dateInt,
+                        gameId: s.gameId,
+                        gameName: s.gameName,
+                        score: s.score,
+                        maxAttempts: s.maxAttempts,
+                        completed: s.completed
+                    )
+                }
+                for s in normalized {
+                    try await leaderboardSyncService.publishDailyScore(groupId: groupId, score: s)
+                }
+                // Also store locally for offline viewing
+                try await mockService.publishDailyScores(dateUTC: dateUTC, scores: normalized)
+                #else
                 try await mockService.publishDailyScores(dateUTC: dateUTC, scores: scores)
-            } catch {
-                print("CloudKit publish scores failed, using local only: \(error)")
+                #endif
+            } else {
+                // No group selected yet; keep local only
                 try await mockService.publishDailyScores(dateUTC: dateUTC, scores: scores)
             }
         } else {
@@ -219,10 +235,45 @@ final class HybridSocialService: SocialService, @unchecked Sendable {
     
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
         if isCloudKitAvailable {
-            do {
-                return try await cloudKitService.fetchLeaderboard(startDateUTC: startDateUTC, endDateUTC: endDateUTC)
-            } catch {
-                print("CloudKit leaderboard fetch failed, falling back to local: \(error)")
+            if let groupId = LeaderboardGroupStore.selectedGroupId {
+                #if canImport(CloudKit)
+                // Fetch records and aggregate into rows
+                let dbScoresRecords = try await leaderboardSyncService.fetchScores(groupId: groupId, dateInt: nil)
+                let nameMap = await leaderboardSyncService.participantDisplayNames(for: groupId)
+                let scores: [DailyGameScore] = dbScoresRecords.compactMap { rec in
+                    guard let gameIdStr = rec["gameId"] as? String,
+                          let gameId = UUID(uuidString: gameIdStr) else { return nil }
+                    let gameName = (rec["gameName"] as? String) ?? ""
+                    let userId = (rec["userId"] as? String) ?? "unknown"
+                    let dateInt = (rec["dateInt"] as? NSNumber)?.intValue ?? 0
+                    let score = (rec["score"] as? NSNumber)?.intValue
+                    let maxAttempts = (rec["maxAttempts"] as? NSNumber)?.intValue ?? 6
+                    let completed = (rec["completed"] as? NSNumber)?.boolValue ?? false
+                    let id = "\(userId)|\(dateInt)|\(gameId.uuidString)"
+                    return DailyGameScore(id: id, userId: userId, dateInt: dateInt, gameId: gameId, gameName: gameName, score: score, maxAttempts: maxAttempts, completed: completed)
+                }
+                // Aggregate per user
+                var perUser: [String: (name: String, total: Int, perGame: [UUID: Int])] = [:]
+                for s in scores where s.dateInt >= startDateUTC.utcYYYYMMDD && s.dateInt <= endDateUTC.utcYYYYMMDD {
+                    let game = Game.allAvailableGames.first(where: { $0.id == s.gameId })
+                    let pts = LeaderboardScoring.points(for: s, game: game)
+                    let display = nameMap[s.userId] ?? s.userId
+                    var entry = perUser[s.userId] ?? (name: display, total: 0, perGame: [:])
+                    // Keep the name up to date if we resolve it later
+                    if entry.name == s.userId, let resolved = nameMap[s.userId] { entry.name = resolved }
+                    entry.total += pts
+                    entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + pts
+                    perUser[s.userId] = entry
+                }
+                let rows = perUser.map { (userId, agg) in
+                    LeaderboardRow(id: userId, userId: userId, displayName: agg.name, totalPoints: agg.total, perGameBreakdown: agg.perGame)
+                }.sorted { $0.totalPoints > $1.totalPoints }
+                return rows
+                #else
+                return try await mockService.fetchLeaderboard(startDateUTC: startDateUTC, endDateUTC: endDateUTC)
+                #endif
+            } else {
+                // No group selected; show local-only
                 return try await mockService.fetchLeaderboard(startDateUTC: startDateUTC, endDateUTC: endDateUTC)
             }
         } else {
@@ -237,9 +288,8 @@ final class HybridSocialService: SocialService, @unchecked Sendable {
     }
     
     func setupRealTimeSubscriptions() async {
-        if isCloudKitAvailable {
-            await cloudKitService.setupRealTimeSubscriptions()
-        }
+        // Real-time subscriptions are handled by LeaderboardSyncService zone subscriptions
+        // No additional setup needed here
     }
     
     // MARK: - Service Status

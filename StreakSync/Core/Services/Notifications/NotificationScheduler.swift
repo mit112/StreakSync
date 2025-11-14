@@ -283,6 +283,67 @@ final class NotificationScheduler: ObservableObject {
         }
     }
     
+    // MARK: - One-off Snooze Reminder
+    func scheduleOneOffSnoozeReminder(games: [Game], daysFromNow: Int, hour: Int, minute: Int) async {
+        guard await checkPermissionStatus() == .authorized else {
+            logger.warning("⚠️ Cannot schedule snooze: notifications not authorized")
+            return
+        }
+        
+        let content = UNMutableNotificationContent()
+        
+        // Create notification content similar to daily reminder
+        if games.count == 1 {
+            let game = games[0]
+            content.title = "Streak Reminder"
+            content.body = "Don't lose your \(game.name) streak"
+            content.userInfo = [
+                "gameId": game.id.uuidString,
+                "type": "daily_streak_reminder"
+            ]
+        } else if games.count <= 3 && games.count > 0 {
+            let gameNames = games.map { $0.name }.joined(separator: ", ")
+            content.title = "Streak Reminders"
+            content.body = "Don't lose your streaks in \(gameNames)"
+            content.userInfo = ["type": "daily_streak_reminder"]
+        } else if games.count > 3 {
+            let firstTwo = games.prefix(2).map { $0.name }.joined(separator: ", ")
+            let remaining = games.count - 2
+            content.title = "Streak Reminders"
+            content.body = "Don't lose your streaks in \(firstTwo), and \(remaining) other game\(remaining > 1 ? "s" : "")"
+            content.userInfo = ["type": "daily_streak_reminder"]
+        } else {
+            content.title = "Streak Reminder"
+            content.body = "No streaks at risk today."
+            content.userInfo = ["type": "daily_streak_reminder"]
+        }
+        
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.streakReminder.identifier
+        
+        // Compute the specific date (daysFromNow) at user's preferred hour/minute
+        let calendar = Calendar.current
+        let now = Date()
+        guard let targetDay = calendar.date(byAdding: .day, value: daysFromNow, to: now) else { return }
+        var components = calendar.dateComponents([.year, .month, .day], from: targetDay)
+        components.hour = hour
+        components.minute = minute
+        
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "one_off_snooze_\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        
+        do {
+            try await center.add(request)
+            logger.info("✅ Scheduled one-off snooze reminder for +\(daysFromNow)d at \(hour):\(String(format: "%02d", minute)) (\(games.count) games)")
+        } catch {
+            logger.error("❌ Failed to schedule one-off snooze reminder: \(error.localizedDescription)")
+        }
+    }
+    
     func cancelDailyStreakReminder() async {
         center.removePendingNotificationRequests(withIdentifiers: ["daily_streak_reminder"])
         logger.info("🗑️ Cancelled daily streak reminder")
@@ -424,21 +485,21 @@ final class NotificationScheduler: ObservableObject {
     /// Clean up all existing notifications before applying new settings
     /// This prevents accumulation of old notifications when settings change
     func cleanupAndRescheduleNotifications() async {
-        logger.info("🧹 Cleaning up all existing notifications before rescheduling...")
+        logger.info("🧹 Cleaning up streak reminders before rescheduling...")
         
-        // Get all pending requests to log what we're cleaning up
         let pendingRequests = await center.pendingNotificationRequests()
-        logger.info("📋 Found \(pendingRequests.count) pending notifications to clean up")
-        
-        // Log details of what we're cleaning up for debugging
-        for request in pendingRequests {
-            logger.info("  🗑️ Removing: \(request.identifier) - \(request.content.title)")
+        let idsToRemove = pendingRequests.compactMap { request in
+            if request.identifier == "daily_streak_reminder" { return request.identifier }
+            if request.identifier.hasPrefix("one_off_snooze_") { return request.identifier }
+            return nil
         }
         
-        // Cancel all pending notifications
-        center.removeAllPendingNotificationRequests()
-        
-        logger.info("✅ Cleaned up all existing notifications")
+        if !idsToRemove.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: idsToRemove)
+            logger.info("✅ Removed \(idsToRemove.count) streak reminder notifications before rescheduling")
+        } else {
+            logger.info("ℹ️ No streak-related notifications to clean up")
+        }
     }
     
     /// Debug method to log current notification state

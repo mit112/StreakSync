@@ -110,6 +110,7 @@ import UIKit
 
 struct FriendsView: View {
     @StateObject private var viewModel: FriendsViewModel
+    @AppStorage("selectedLeaderboardGroupId") private var selectedGroupIdString: String?
     
     init(socialService: SocialService) {
         _viewModel = StateObject(wrappedValue: FriendsViewModel(socialService: socialService))
@@ -212,17 +213,43 @@ private extension FriendsView {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Friends").font(.largeTitle.bold())
                     Spacer()
-                    HStack(spacing: 6) {
-                        Image(systemName: viewModel.isRealTimeEnabled ? "icloud.fill" : "externaldrive.fill")
-                            .font(.caption)
-                            .foregroundStyle(viewModel.isRealTimeEnabled ? .blue : .secondary)
-                        Text(viewModel.serviceStatus.displayName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: viewModel.isRealTimeEnabled ? "icloud.fill" : "externaldrive.fill")
+                                .font(.caption)
+                                .foregroundStyle(viewModel.isRealTimeEnabled ? .blue : .secondary)
+                            Text(viewModel.serviceStatus.displayName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        
+                        HStack(spacing: 6) {
+                            Image(systemName: (selectedGroupIdString?.isEmpty == false) ? "person.3.fill" : "person.3")
+                                .font(.caption)
+                                .foregroundStyle((selectedGroupIdString?.isEmpty == false) ? .green : .secondary)
+                            Text((selectedGroupIdString?.isEmpty == false) ? "Sharing" : "Not sharing")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        
+                        Button {
+                            viewModel.isPresentingManageFriends = true
+                        } label: {
+                            Image(systemName: "paperplane.fill")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .accessibilityLabel(Text("Invite friends"))
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(.ultraThinMaterial, in: Capsule())
                 }
                 if viewModel.serviceStatus == .local {
                     HStack(spacing: 6) {

@@ -9,13 +9,14 @@ Layers
 - Navigation: `Core/Services/Navigation` provides tabbed stacks and routing helpers.
 - Design System: `Design System/*` defines colors, haptics, animations.
 
-Key flows
+ Key flows
 - Share → App: Share Extension saves to App Group → `AppGroupBridge` detects → `NotificationCoordinator` → `AppState.addGameResult` → UI refresh.
 - Deep links: `AppGroupURLSchemeHandler` parses scheme and posts typed payloads → `NotificationCoordinator` navigates.
-- App lifecycle: `StreakSyncApp.initializeApp()` loads state once; `AppContainer` forwards lifecycle to services.
+- App lifecycle: `StreakSyncApp.initializeApp()` loads state once; `AppContainer` forwards lifecycle to services and is the single owner of foreground refreshes (no duplicate reloads from other components).
 
-Decisions
+ Decisions
 - Duplicate achievement helpers removed from `AppState+GameLogic`; single source lives in `AppState+TieredAchievements`.
+- NotificationCoordinator focuses on internal app notifications (share results, deep links) and does not trigger full data reloads; `AppGroupBridge` posts `gameResultReceived` and `AppContainer` coordinates refresh when appropriate.
 - URL payload keys centralized under `AppConstants.DeepLinkKeys`.
 - Notification names exposed as typed `Notification.Name` static constants.
 - Avoid `UserDefaults.synchronize()` for performance; rely on the system.

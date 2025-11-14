@@ -215,7 +215,7 @@ struct TieredAchievementDetailView: View {
             ]
         case .varietyPlayer:
             return [
-                "Play multiple different games in a single day",
+                "Play different games over time",
                 "Try games from different categories",
                 "The more variety, the faster you progress"
             ]

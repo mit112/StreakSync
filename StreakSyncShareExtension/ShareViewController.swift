@@ -886,7 +886,49 @@ class ShareViewController: UIViewController {
     private func parseLinkedInPinpoint(_ text: String) -> [String: Any]? {
         print("🔍 SHARE EXTENSION: Parsing LinkedIn Pinpoint text: '\(text)'")
         
-        // Pattern for Pinpoint results with guesses and match percentages
+        // First try the flexible emoji-based format with parenthesized score, e.g.:
+        // "Pinpoint #559\n🤔 🤔 🤔 🤔 📌 (5/5)\n..."
+        let emojiPattern = #"Pinpoint\s+#(\d+)[\s\S]*?(?:[🤔📌⬜⬛🟩🟨🟧🟦🟪🟫⚫⚪\s]+)?\((\d+)/(\d+)\)"#
+        if let emojiRegex = try? NSRegularExpression(pattern: emojiPattern, options: .caseInsensitive),
+           let emojiMatch = emojiRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) {
+            
+            guard emojiMatch.range(at: 1).location != NSNotFound,
+                  let puzzleRange = Range(emojiMatch.range(at: 1), in: text),
+                  emojiMatch.range(at: 2).location != NSNotFound,
+                  let guessRange = Range(emojiMatch.range(at: 2), in: text),
+                  emojiMatch.range(at: 3).location != NSNotFound,
+                  let maxRange = Range(emojiMatch.range(at: 3), in: text) else {
+                print("🔍 SHARE EXTENSION: Emoji-based Pinpoint match but failed to extract fields")
+                return nil
+            }
+            
+            let puzzleNumber = String(text[puzzleRange])
+            let guessCount = Int(String(text[guessRange])) ?? 0
+            let maxAttempts = Int(String(text[maxRange])) ?? 5
+            let isCompleted = text.contains("📌")
+            
+            print("🔍 SHARE EXTENSION: Extracted (emoji) - Puzzle: \(puzzleNumber), Guesses: \(guessCount), Max: \(maxAttempts), Completed: \(isCompleted)")
+            
+            return [
+                "id": UUID().uuidString,
+                "gameId": "550e8400-e29b-41d4-a716-446655440103", // LinkedIn Pinpoint game ID
+                "gameName": "linkedinpinpoint",
+                "date": ISO8601DateFormatter().string(from: Date()),
+                "score": guessCount,
+                "maxAttempts": maxAttempts,
+                "completed": isCompleted,
+                "sharedText": text,
+                "parsedData": [
+                    "puzzleNumber": puzzleNumber,
+                    "guessCount": "\(guessCount)",
+                    "gameType": "word_association",
+                    "displayScore": "\(guessCount) guesses",
+                    "source": "shareExtension"
+                ]
+            ]
+        }
+        
+        // Fallback: Pattern for Pinpoint results with guesses and match percentages
         // Format 1: "Pinpoint #522\n1️⃣  | 15% match\n2️⃣  | 1% match\n3️⃣  | 86% match\n4️⃣  | 75% match\n5️⃣  | 97% match\nlnkd.in/pinpoint."
         // Format 2: "Pinpoint #522 | 5 guesses\n1️⃣  | 1% match\n2️⃣  | 5% match\n3️⃣  | 82% match\n4️⃣  | 28% match\n5️⃣  | 100% match 📌\nlnkd.in/pinpoint."
         let pattern = #"Pinpoint\s+#(\d+)(?:\s*\|\s*(\d+)\s+guesses)?[\s\S]*?(?:(\d+)\s+guesses)?"#
@@ -1210,24 +1252,41 @@ class ShareViewController: UIViewController {
             let data = try JSONSerialization.data(withJSONObject: result, options: [])
             let userDefaults = UserDefaults(suiteName: "group.com.mitsheth.StreakSync")
             
-            // Save as latest result (main app expects this key)
+            // 1) Always save/overwrite the latest result (backward compatibility + quick pickup)
             userDefaults?.set(data, forKey: "latestGameResult")
             
-            // Also add to queued results array (main app expects this key)
-            var queuedResults: [[String: Any]] = []
-            if let existingData = userDefaults?.data(forKey: "gameResults"),
-               let existingResults = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
-                queuedResults = existingResults
+            // 2) Key-based queue: store each result under a unique key and append key to a keys list
+            let resultId = (result["id"] as? String) ?? UUID().uuidString
+            let resultKey = "gameResult_\(resultId)"
+            
+            // Store the individual result payload
+            userDefaults?.set(data, forKey: resultKey)
+            
+            // Maintain the ordered list of result keys
+            var resultKeys: [String] = []
+            if let keysData = userDefaults?.data(forKey: "gameResultKeys"),
+               let existingKeys = try? JSONSerialization.jsonObject(with: keysData) as? [String] {
+                resultKeys = existingKeys
             }
+            resultKeys.append(resultKey)
+            let keysDataOut = try JSONSerialization.data(withJSONObject: resultKeys, options: [])
+            userDefaults?.set(keysDataOut, forKey: "gameResultKeys")
             
-            queuedResults.append(result)
-            let queuedData = try JSONSerialization.data(withJSONObject: queuedResults, options: [])
-            userDefaults?.set(queuedData, forKey: "gameResults")
-            
+            // 3) Timestamp for diagnostics
             userDefaults?.set(Date(), forKey: "lastShareExtensionSave")
             userDefaults?.synchronize()
             
-            print("🔍 SHARE EXTENSION: Result saved successfully to latestGameResult and gameResults (queue size: \(queuedResults.count))")
+            // 4) Notify the main app process (if resident) via Darwin notification
+            let darwinName = "com.streaksync.app.newResult" as CFString
+            CFNotificationCenterPostNotification(
+                CFNotificationCenterGetDarwinNotifyCenter(),
+                CFNotificationName(darwinName),
+                nil,
+                nil,
+                true
+            )
+            
+            print("🔍 SHARE EXTENSION: Result saved (latestGameResult + key '\(resultKey)'; queue size: \(resultKeys.count))")
         } catch {
             print("🔍 SHARE EXTENSION: Failed to save result: \(error)")
         }

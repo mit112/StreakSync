@@ -161,22 +161,10 @@ final class MockSocialService: SocialService, @unchecked Sendable {
     }
     
     func listFriends() async throws -> [UserProfile] {
-        // Local mock: represent friends as placeholder profiles.
-        var codes = load([String].self, forKey: friendsKey) ?? []
-        if codes.isEmpty {
-            // Seed demo friends so the UI is meaningful without setup
-            codes = ["ash", "zoe", "dad", "gran"]
-            try save(codes, forKey: friendsKey)
-        }
+        let codes = load([String].self, forKey: friendsKey) ?? []
+        if codes.isEmpty { return [] }
         return codes.map { code in
-            let name: String
-            switch code.lowercased() {
-            case "ash": name = "AshCav"
-            case "zoe": name = "zoethebest"
-            case "dad": name = "Dad"
-            case "gran": name = "Gran"
-            default: name = "Friend \(code)"
-            }
+            let name = code
             return UserProfile(id: "friend_" + code, displayName: name, friendCode: code, createdAt: Date(), updatedAt: Date())
         }
     }
@@ -213,24 +201,10 @@ final class MockSocialService: SocialService, @unchecked Sendable {
             entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + p
             perUser[s.userId] = entry
         }
-        var rows = perUser.map { (userId, agg) in
+        let rows = perUser.map { (userId, agg) in
             LeaderboardRow(id: userId, userId: userId, displayName: agg.name, totalPoints: agg.total, perGameBreakdown: agg.perGame)
         }.sorted { $0.totalPoints > $1.totalPoints }
 
-        // If still empty (no scores entered), synthesize lightweight demo rows so UI looks correct
-        if rows.isEmpty {
-            let friends = try await listFriends()
-            let dateSeed = start
-            func seeded(_ base: Int) -> Int { max(0, (base + dateSeed) % 7) }
-            var demo: [LeaderboardRow] = []
-            if let me = my {
-                demo.append(LeaderboardRow(id: me.id, userId: me.id, displayName: me.displayName, totalPoints: seeded(3), perGameBreakdown: demoBreakdown(seed: 3)))
-            }
-            for (i, f) in friends.enumerated() {
-                demo.append(LeaderboardRow(id: f.id, userId: f.id, displayName: f.displayName, totalPoints: seeded(i + 1), perGameBreakdown: demoBreakdown(seed: i + 1)))
-            }
-            rows = demo.sorted { $0.totalPoints > $1.totalPoints }
-        }
         return rows
     }
 

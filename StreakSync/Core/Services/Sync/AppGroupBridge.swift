@@ -238,9 +238,14 @@ final class AppGroupBridge: ObservableObject {
                 // Post notification with the result object
                 NotificationCenter.default.post(
                     name: .gameResultReceived,
-                    object: result
+                    object: result,
+                    userInfo: ["quiet": true]
                 )
             }
+            
+            // Clear single-result key to prevent duplicate handling via fallback path
+            dataManager.removeData(forKey: AppConstants.AppGroup.latestResultKey)
+            logger.info("🧹 Cleared latest result after queue processing to prevent duplicates")
             
             return
         }
@@ -261,6 +266,10 @@ final class AppGroupBridge: ObservableObject {
                     name: .gameResultReceived,
                     object: result
                 )
+                
+                // Clear the single-result key so we don't re-ingest on subsequent lifecycle events
+                clearLatestResult()
+                logger.debug("🧹 Cleared single-result App Group key after posting")
             }
         }
     }

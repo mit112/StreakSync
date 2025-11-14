@@ -189,4 +189,44 @@ final class GameResultParserTests: XCTestCase {
         XCTAssertEqual(result.parsedData["guessCount"], "1")
         XCTAssertEqual(result.parsedData["shareFormat"], "emoji_based")
     }
+    
+    func testParseLinkedInPinpoint_EmojiFormat_ThinkingFacesThenPin() throws {
+        // Reported case: multiple thinking faces followed by a pin and (5/5)
+        let shareText = """
+        Pinpoint #559
+        
+        🤔 🤔 🤔 🤔 📌 (5/5)
+        
+        🏅 I’m on a 2-day win streak!
+        
+        lnkd.in/pinpoint.
+        """
+        
+        let result = try parser.parse(shareText, for: testGame)
+        
+        XCTAssertEqual(result.gameName, "linkedinpinpoint")
+        XCTAssertEqual(result.score, 5)
+        XCTAssertEqual(result.maxAttempts, 5)
+        XCTAssertTrue(result.completed)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "559")
+        XCTAssertEqual(result.parsedData["guessCount"], "5")
+        XCTAssertEqual(result.parsedData["shareFormat"], "emoji_based")
+    }
+    
+    func testPinpointScoreEmoji_NotCompletedShowsCross() {
+        // When Pinpoint is not completed (e.g., 5/5 without 📌), show red cross emoji
+        let result = GameResult(
+            gameId: testGame.id,
+            gameName: "linkedinpinpoint",
+            date: Date(),
+            score: 5,
+            maxAttempts: 5,
+            completed: false,
+            sharedText: "Pinpoint #554 | 5 guesses\n1️⃣ | 81% match\n2️⃣ | 92% match\n3️⃣ | 2% match\n4️⃣ | 5% match\n5️⃣ | 6% match\nlnkd.in/pinpoint.",
+            parsedData: ["puzzleNumber": "554", "guessCount": "5"]
+        )
+        
+        XCTAssertEqual(result.displayScore, "5 guesses")
+        XCTAssertEqual(result.scoreEmoji, "❌")
+    }
 }

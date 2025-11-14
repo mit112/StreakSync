@@ -112,6 +112,7 @@
  */
 
 import SwiftUI
+import UIKit
 import OSLog
 
 @MainActor
@@ -124,8 +125,11 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - Properties
     private var observers: [NSObjectProtocol] = []
     private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationCoordinator")
-    // Injected ingestion closure to serialize result handling
-    var resultIngestion: ((GameResult) async -> Void)?
+    // Injected ingestion closure to serialize result handling (returns whether added)
+    var resultIngestion: ((GameResult) async -> Bool)?
+    // Debounce UI refresh spam
+    private var lastUIRefreshAt: Date?
+    private let uiRefreshDebounceInterval: TimeInterval = 0.3
     
     // MARK: - Published State
     @Published var refreshID = UUID()
@@ -266,19 +270,42 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - Notification Handlers
     
     private func handleGameResult(_ result: GameResult) {
+        handleGameResult(result, quiet: false)
+    }
+    
+    private func handleGameResult(_ result: GameResult, quiet: Bool) {
         logger.info("✅ Handling game result: \(result.gameName) - \(result.displayScore)")
         
-        if let ingest = resultIngestion {
-            Task { await ingest(result) }
-        } else {
-            appState?.addGameResult(result)
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            
+            // Ingest and capture whether it actually added
+            let added: Bool
+            if let ingest = self.resultIngestion {
+                added = await ingest(result)
+            } else {
+                added = self.appState?.addGameResultReturningAdded(result) ?? false
+            }
+            
+            // Trigger UI refresh
+            self.triggerUIRefresh()
+            
+            // Gate haptics: only when app is active and the result was added
+            let isActive = UIApplication.shared.applicationState == .active
+            if isActive && added && !quiet {
+                HapticManager.shared.trigger(.streakUpdate)
+            } else {
+                if !isActive {
+                    self.logger.info("🔇 Haptics suppressed: app not active")
+                }
+                if !added {
+                    self.logger.info("🔇 Haptics suppressed: duplicate/invalid result")
+                }
+                if quiet {
+                    self.logger.info("🔇 Haptics suppressed: quiet batch processing")
+                }
+            }
         }
-        
-        // Trigger UI refresh
-        triggerUIRefresh()
-        
-        // Haptic feedback
-        HapticManager.shared.trigger(.streakUpdate)
     }
     
     private func handleGameResultNotification(_ notification: Notification) {
@@ -289,17 +316,31 @@ final class NotificationCoordinator: ObservableObject {
         
         logger.info("✅ Handling game result: \(result.gameName) - \(result.displayScore)")
         
-        if let ingest = resultIngestion {
-            Task { await ingest(result) }
-        } else {
-            appState?.addGameResult(result)
+        let quiet = (notification.userInfo?["quiet"] as? Bool) ?? false
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            let added: Bool
+            if let ingest = self.resultIngestion {
+                added = await ingest(result)
+            } else {
+                added = self.appState?.addGameResultReturningAdded(result) ?? false
+            }
+            self.triggerUIRefresh()
+            let isActive = UIApplication.shared.applicationState == .active
+            if isActive && added && !quiet {
+                HapticManager.shared.trigger(.streakUpdate)
+            } else {
+                if !isActive {
+                    self.logger.info("🔇 Haptics suppressed: app not active")
+                }
+                if !added {
+                    self.logger.info("🔇 Haptics suppressed: duplicate/invalid result")
+                }
+                if quiet {
+                    self.logger.info("🔇 Haptics suppressed: quiet batch processing")
+                }
+            }
         }
-        
-        // Trigger UI refresh
-        triggerUIRefresh()
-        
-        // Haptic feedback
-        HapticManager.shared.trigger(.streakUpdate)
     }
     
     private func handleGameDeepLink(_ notification: Notification) {
@@ -373,33 +414,30 @@ final class NotificationCoordinator: ObservableObject {
             return
         }
         
-        // Check for new results from share extension
-        if appGroupBridge?.hasNewResults ?? false {
-            await handleShareExtensionResult()
-        }
+        // No-op: AppGroupBridge owns lifecycle share checks to avoid duplicates
     }
     
     private func handleAppWillResignActive() {
-        logger.info("📱 App will resign active")
-        appGroupBridge?.stopMonitoringForResults()
+        // Downgrade to debug to avoid duplicate lifecycle noise; AppContainer handles monitoring stop.
+        logger.debug("📱 App will resign active (NotificationCoordinator)")
     }
     
     private func handleShareExtensionResult() async {
-        logger.info("📤 Received Share Extension notification")
-        
-        // Let AppState handle the sync
-        await appState?.loadPersistedData()
-        
-        // Clear the bridge
-        appGroupBridge?.clearLatestResult()
-        
-        // Trigger UI refresh
-        triggerUIRefresh()
+        // No-op: AppGroupBridge's Darwin observer triggers the check; avoid duplicate processing here.
+        logger.info("📤 Received Share Extension notification (handled by bridge)")
     }
     
     // MARK: - UI Updates
     
     func triggerUIRefresh() {
+        // Debounce to avoid rapid repeated refreshes from batch operations
+        let now = Date()
+        if let last = lastUIRefreshAt, now.timeIntervalSince(last) < uiRefreshDebounceInterval {
+            logger.debug("⏭️ Skipping UI refresh (debounced)")
+            return
+        }
+        lastUIRefreshAt = now
+        
         logger.info("🔄 Triggering UI refresh")
         refreshID = UUID()
         

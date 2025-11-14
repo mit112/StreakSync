@@ -145,9 +145,9 @@ struct GameResultDetailView: View {
                         .opacity(scoreRevealed ? 1 : 0)
                         .animation(.easeOut(duration: 0.3).delay(0.15), value: scoreRevealed)
                 } else {
-                    Label("Not Completed", systemImage: "xmark.circle")
+                    Label("Not Completed", systemImage: "xmark.circle.fill")
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.red)
                         .opacity(scoreRevealed ? 1 : 0)
                         .animation(.easeOut(duration: 0.3).delay(0.15), value: scoreRevealed)
                 }

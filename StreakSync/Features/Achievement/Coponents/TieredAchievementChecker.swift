@@ -275,14 +275,14 @@ final class TieredAchievementChecker {
     ) -> [AchievementUnlock] {
         var unlocks: [AchievementUnlock] = []
         
-        // Check games played today
-        let today = Calendar.current.startOfDay(for: Date())
-        let todaysResults = allResults.filter { Calendar.current.isDate($0.date, inSameDayAs: today) }
-        let uniqueGamesToday = Set(todaysResults.map(\.gameId)).count
+        // Count unique games played across all time (all recorded results)
+        let uniqueGamesEver = Set(allResults.map(\.gameId)).count
         
         if let index = achievements.firstIndex(where: { $0.category == .varietyPlayer }) {
             let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: uniqueGamesToday)
+            // Make progress monotonic; never decrease even if history is partial
+            let newValue = max(achievements[index].progress.currentValue, uniqueGamesEver)
+            achievements[index].updateProgress(value: newValue)
             
             if let newTier = achievements[index].progress.currentTier,
                oldTier != newTier {
@@ -291,7 +291,7 @@ final class TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-                logger.info("🏆 Unlocked Variety Player \(newTier.displayName) - \(uniqueGamesToday) different games today")
+                logger.info("🏆 Unlocked Variety Player \(newTier.displayName) - \(newValue) different games overall")
             }
         }
         

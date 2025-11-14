@@ -68,6 +68,11 @@ The notification system is built on the principle that users should receive help
 - **Trigger**: When game results are imported via share extension
 - **Content**: Confirmation of successful import
 - **Actions**: View imported results
+ 
+### Internal Flow Notes
+- Share ingestion is event-driven: `AppGroupBridge` detects new results and posts `gameResultReceived`.
+- `NotificationCoordinator` ingests the specific result and triggers a UI refresh; it does not perform a full app data reload.
+- Foreground refresh orchestration is centralized in `AppContainer` to prevent duplicate loads.
 
 ## Settings and Customization
 
@@ -75,17 +80,10 @@ The notification system is built on the principle that users should receive help
 - **Enable Streak Reminders**: Master toggle for all streak reminders
 - **Reminder Time**: Single time picker for daily reminder (default: 7 PM)
 
-### Smart Reminders (Learning Mode)
-- **Smart Toggle**: When ON, the system learns from the last 30 days of completed plays and adjusts the reminder time.
-- **How it picks a time**: Builds a 24-hour histogram, finds the best 2-hour window, and sets a reminder 30 minutes before that window (clamped 06:00–22:00).
-- **Recompute cadence**: At most once every 2 days (triggered on day change).
-- **Smart OFF**: The user’s manual time is preserved and never auto-adjusted.
+### Smart Reminders
+- Smart Reminders are currently disabled. The app uses a single, user-selected daily reminder time.
 
 Persistence Keys
-- `smartRemindersEnabled` (Bool)
-- `smartRemindersLastComputed` (Date)
-- `smartReminderWindowStartHour` / `smartReminderWindowEndHour` (Int)
-- `smartReminderCoveragePercent` (Int)
 - `streakRemindersEnabled` (Bool)
 - `streakReminderHour` / `streakReminderMinute` (Int)
 
@@ -93,11 +91,11 @@ Persistence Keys
 1. **Daily Check**: App checks all games with active streaks
 2. **Risk Assessment**: Identifies games not played today
 3. **Single Notification**: Sends one notification listing all at-risk games
-4. **Smart Content**: Adapts message based on number of games at risk
-5. **Smart Reminders (optional)**: If Smart is enabled, time is recomputed every ~2 days and rescheduled.
+4. **Dynamic Content**: Adapts message based on number of games at risk
+5. **Day Change Reschedule**: At day change, the repeating reminder is rescheduled so the content reflects today’s at-risk games.
 
-### Smart Default Time
-If no history is available, default reminder time is 7 PM. With Smart enabled, the engine computes a smarter time as described above and keeps it up-to-date.
+### Default Time
+If no history is available, default reminder time is 7 PM.
 
 ### Privacy & Data Handling
 - **Local Processing**: All notification logic runs on the user's device
@@ -114,8 +112,8 @@ If no history is available, default reminder time is 7 PM. With Smart enabled, t
 
 ### Action Buttons
 - **Play Now**: Opens the specific game
-- **Remind Tomorrow**: Schedules reminder for next day
-- **Mark as Played**: Marks game as completed for today
+- **Remind Tomorrow**: Cancels the repeating reminder and schedules a one-off reminder for the next day at the selected time
+- **Mark as Played**: Re-evaluates “games at risk” and updates the daily reminder accordingly
 - **View Achievement**: Opens achievement details
 
 ### Deep Linking
@@ -189,18 +187,11 @@ await NotificationScheduler.shared.scheduleDailyStreakReminder(
 await NotificationScheduler.shared.cancelAllStreakReminders()
 ```
 
-### Smart Reminder Snippets
-```swift
-// Enable Smart and apply immediately
-Task { await appState.applySmartReminderNow() }
-
-// Periodic recompute if needed (day change)
-Task { await appState.updateSmartRemindersIfNeeded() }
-```
+### Categories at Launch
+Categories are registered on app launch if notification permission is already authorized, ensuring action buttons always work.
 
 ## Future Enhancements
 
-- (Implemented) Smart learning: see Smart Reminders section above
 - **Streak prediction**: Warn users before streaks are at risk
 - **Achievement progress**: Notify when close to unlocking achievements
 - **Weekly summaries**: Digest of weekly progress and achievements
