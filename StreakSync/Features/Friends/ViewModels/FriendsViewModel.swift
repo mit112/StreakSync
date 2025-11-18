@@ -22,7 +22,7 @@
  * 
  * IMPORTANCE TO APPLICATION:
  * - CRITICAL: This enables the social and competitive features that drive engagement
- * - Manages friend relationships and friend codes
+ * - Manages friend relationships
  * - Handles leaderboard data and ranking systems
  * - Provides real-time updates for competitive elements
  * - Supports both local and cloud-based social features
@@ -31,7 +31,7 @@
  * 
  * WHAT IT REFERENCES:
  * - SocialService: The core service for social features
- * - HybridSocialService: Handles both local and cloud social features
+ * - CloudKitSocialService: Handles both local and cloud social features
  * - UserProfile: Friend information and profiles
  * - LeaderboardRow: Leaderboard data and rankings
  * - Game: Available games for leaderboards
@@ -39,7 +39,7 @@
  * 
  * WHAT REFERENCES IT:
  * - FriendsView: The main social features screen
- * - FriendManagementView: For managing friends and friend codes
+ * - FriendManagementView: For managing friends
  * - Leaderboard components: Display leaderboard data
  * - AppContainer: Creates and manages the FriendsViewModel
  * 
@@ -82,7 +82,7 @@
  *    - Create social feature flow diagrams
  * 
  * 7. SECURITY IMPROVEMENTS:
- *    - Add validation for friend codes and user input
+ *    - Add validation for user input
  *    - Implement rate limiting for social operations
  *    - Add audit logging for social interactions
  *    - Consider adding privacy controls for social features
@@ -97,7 +97,7 @@
  * - Social features: Features that allow users to interact with each other
  * - Leaderboards: Rankings that show how users compare to each other
  * - Real-time updates: Information that updates automatically without user action
- * - Friend codes: Unique identifiers that allow users to add each other as friends
+ * - Friend discovery: Automatic discovery of friends via contacts
  * - State management: Keeping track of what the UI should show
  * - Async/await: Handling operations that take time to complete
  * - Error handling: What to do when something goes wrong
@@ -110,16 +110,14 @@ import Foundation
 
 @MainActor
 final class FriendsViewModel: ObservableObject {
+    private let flags = BetaFeatureFlags.shared
     @Published var myDisplayName: String = ""
-    @Published var myFriendCode: String = ""
-    @Published var friendCodeToAdd: String = ""
     @Published var friends: [UserProfile] = []
     @Published var leaderboard: [LeaderboardRow] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var selectedDateUTC: Date = Date()
     @Published var selectedGameId: UUID? = nil
-    @Published var isPresentingAddFriend: Bool = false
     @Published var isPresentingManageFriends: Bool = false
     @Published var isPresentingDatePicker: Bool = false
     @Published var currentGamePage: Int = 0
@@ -130,11 +128,16 @@ final class FriendsViewModel: ObservableObject {
     
     // Rank deltas keyed by userId when comparing today vs yesterday
     @Published var rankDeltas: [String: Int] = [:]
+    @Published var circles: [SocialCircle] = []
+    @Published var selectedCircleId: UUID? = LeaderboardGroupStore.selectedGroupId
+    @Published var recentReactions: [Reaction] = []
     
     // Only show games that are actually displayed on the homepage
     var availableGames: [Game] { Game.popularGames }
     
     let socialService: SocialService
+    private let circleManager: CircleManaging?
+    private let activityFeedService: ActivityFeedService
     private let defaults = UserDefaults.standard
     private let lastDateKey = "friends_last_selected_date"
     private let lastPageKey = "friends_last_game_page"
@@ -144,16 +147,29 @@ final class FriendsViewModel: ObservableObject {
     private var refreshTimer: Timer?
     private var refreshDebounceTask: Task<Void, Never>?
     
-    init(socialService: SocialService) {
+    init(socialService: SocialService, activityFeedService: ActivityFeedService = .shared) {
         self.socialService = socialService
+        self.circleManager = socialService as? CircleManaging
+        self.activityFeedService = activityFeedService
         // Restore persisted UI state
         if let saved = defaults.object(forKey: lastDateKey) as? Date { self.selectedDateUTC = saved }
         if let page = defaults.object(forKey: lastPageKey) as? Int { self.currentGamePage = page }
         if let raw = defaults.string(forKey: lastRangeKey), let r = LeaderboardRange(rawValue: raw) { self.range = r }
         // Check status
-        if let hybridService = socialService as? HybridSocialService {
-            self.serviceStatus = hybridService.serviceStatus
-            self.isRealTimeEnabled = hybridService.isRealTimeEnabled
+        if let cloudService = socialService as? CloudKitSocialService {
+            self.serviceStatus = cloudService.serviceStatus
+            self.isRealTimeEnabled = cloudService.isRealTimeEnabled
+        }
+        if flags.multipleCircles {
+            self.selectedCircleId = circleManager?.activeCircleId ?? LeaderboardGroupStore.selectedGroupId
+        } else {
+            self.selectedCircleId = nil
+            self.circles = []
+        }
+        if flags.reactions {
+            self.recentReactions = activityFeedService.reactions
+        } else {
+            self.recentReactions = []
         }
     }
     
@@ -164,16 +180,17 @@ final class FriendsViewModel: ObservableObject {
             let me = try await socialService.ensureProfile(displayName: nil)
             myDisplayName = me.displayName
             myUserId = me.id
-            myFriendCode = try await socialService.generateFriendCode()
             friends = try await socialService.listFriends()
             let (start, end) = dateRange()
             leaderboard = try await socialService.fetchLeaderboard(startDateUTC: start, endDateUTC: end)
-            if range == .today { await computeRankDeltasForToday() }
-            if let hybridService = socialService as? HybridSocialService {
-                await hybridService.setupRealTimeSubscriptions()
-                self.serviceStatus = hybridService.serviceStatus
-                self.isRealTimeEnabled = hybridService.isRealTimeEnabled
-                if hybridService.isRealTimeEnabled { startPeriodicRefresh() }
+            if range == .today && flags.rankDeltas { await computeRankDeltasForToday() }
+            if flags.multipleCircles { await refreshCircles() }
+            if flags.reactions { recentReactions = activityFeedService.reactions }
+            if let cloudService = socialService as? CloudKitSocialService {
+                await cloudService.setupRealTimeSubscriptions()
+                self.serviceStatus = cloudService.serviceStatus
+                self.isRealTimeEnabled = cloudService.isRealTimeEnabled
+                if cloudService.isRealTimeEnabled { startPeriodicRefresh() }
             }
         } catch { errorMessage = error.localizedDescription }
     }
@@ -194,23 +211,53 @@ final class FriendsViewModel: ObservableObject {
         do {
             let (start, end) = dateRange()
             leaderboard = try await socialService.fetchLeaderboard(startDateUTC: start, endDateUTC: end)
-            if range == .today { await computeRankDeltasForToday() }
+            if range == .today && flags.rankDeltas { await computeRankDeltasForToday() }
+            if flags.multipleCircles { await refreshCircles() }
         } catch { errorMessage = error.localizedDescription }
     }
     
-    func addFriend() async {
-        let code = friendCodeToAdd
-        guard !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            try await socialService.addFriend(using: code)
-            friendCodeToAdd = ""
-            friends = try await socialService.listFriends()
-        } catch { errorMessage = error.localizedDescription }
+    func selectCircle(_ circle: SocialCircle?) async {
+        guard flags.multipleCircles else { return }
+        guard let circleManager else { return }
+        await circleManager.selectCircle(id: circle?.id)
+        selectedCircleId = circle?.id
+        await refresh()
+    }
+    
+    func selectAllFriends() async {
+        guard flags.multipleCircles else { return }
+        guard let circleManager else { return }
+        await circleManager.selectCircle(id: nil)
+        selectedCircleId = nil
+        await refresh()
+    }
+    
+    func recordReaction(for row: LeaderboardRow, game: Game, type: ReactionType) {
+        guard flags.reactions else { return }
+        let reaction = Reaction(
+            id: UUID(),
+            targetUserId: row.userId,
+            targetGameId: game.id,
+            senderName: myDisplayName.isEmpty ? "You" : myDisplayName,
+            date: Date(),
+            type: type
+        )
+        activityFeedService.record(reaction)
+        recentReactions = activityFeedService.reactions
     }
     
     // MARK: - Helpers
+    private func refreshCircles() async {
+        guard flags.multipleCircles else { return }
+        guard let circleManager else { return }
+        do {
+            let latest = try await circleManager.listCircles()
+            self.circles = latest
+            self.selectedCircleId = circleManager.activeCircleId
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
     func dateRange() -> (Date, Date) {
         let cal = Calendar(identifier: .gregorian)
         let startDay = cal.startOfDay(for: selectedDateUTC)
@@ -256,10 +303,6 @@ final class FriendsViewModel: ObservableObject {
         }
     }
     private func stopPeriodicRefresh() { refreshTimer?.invalidate(); refreshTimer = nil }
-    deinit {
-        // Note: refreshTimer cleanup happens via stopPeriodicRefresh()
-        // Cannot access mutable state in deinit under strict concurrency
-    }
     
     // MARK: - Leaderboard projection for selected game
     func rowsForSelectedGameID(_ gid: UUID) -> [(row: LeaderboardRow, points: Int)] {
@@ -299,6 +342,27 @@ final class FriendsViewModel: ObservableObject {
         } catch {
             // best-effort
         }
+    }
+
+    // MARK: - UI helpers
+    var shouldShowCircleSelector: Bool {
+        flags.multipleCircles && circles.count > 1
+    }
+
+    var shouldShowReactions: Bool {
+        flags.reactions
+    }
+
+    var shouldShowActivityFeed: Bool {
+        flags.activityFeed
+    }
+
+    var shouldShowRankDeltas: Bool {
+        flags.rankDeltas
+    }
+
+    var isMinimalBeta: Bool {
+        flags.isMinimalBeta
     }
 }
 

@@ -110,10 +110,33 @@ import UIKit
 
 struct FriendsView: View {
     @StateObject private var viewModel: FriendsViewModel
+    @EnvironmentObject private var betaFlags: BetaFeatureFlags
+    @AppStorage("beta_welcome_shown") private var betaWelcomeShown = false
     @AppStorage("selectedLeaderboardGroupId") private var selectedGroupIdString: String?
+    @State private var isPresentingFriendDiscovery: Bool = false
+    @State private var isPresentingCircles: Bool = false
+    @State private var isPresentingActivityFeed: Bool = false
+    @State private var isPresentingInviteFriends: Bool = false
+    @State private var isPresentingBetaWelcome = false
+    @State private var selectedFriendsSection: FriendsSection = .leaderboard
     
     init(socialService: SocialService) {
         _viewModel = StateObject(wrappedValue: FriendsViewModel(socialService: socialService))
+    }
+    
+    enum FriendsSection: String, CaseIterable, Identifiable {
+        case leaderboard
+        case friends
+        case circles
+        
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .leaderboard: return "Leaderboard"
+            case .friends: return "Friends"
+            case .circles: return "Circles"
+            }
+        }
     }
     
     var body: some View {
@@ -121,45 +144,91 @@ struct FriendsView: View {
             header
                 .padding(.horizontal, 16)
                 .padding(.bottom, 12)
-            TabView(selection: $viewModel.currentGamePage) {
-                ForEach(Array(viewModel.availableGames.enumerated()), id: \.offset) { index, game in
-                    GeometryReader { proxy in
-                        GameLeaderboardPage(
-                            game: game,
-                            rows: viewModel.rowsForSelectedGameID(game.id),
-                            isLoading: viewModel.isLoading,
-                            dateLabel: formattedDate(viewModel.selectedDateUTC),
-                            rankDelta: viewModel.rankDeltas,
-                            onManageFriends: { viewModel.isPresentingManageFriends = true },
-                            metricText: { points in
-                                LeaderboardScoring.metricLabel(for: game, points: points)
-                            },
-                            myUserId: viewModel.myUserId,
-                            onRefresh: { await viewModel.refresh() }
-                        )
-                        .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
-                        .accessibilityElement(children: .contain)
-                        .accessibilityLabel(Text("\(game.displayName) leaderboard for \(formattedDate(viewModel.selectedDateUTC))"))
+            if viewModel.shouldShowActivityFeed && !viewModel.recentReactions.isEmpty {
+                activityFeedSnippet
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+            }
+            if SocialFeatureFlags.newSocialExperienceEnabled {
+                if viewModel.isMinimalBeta {
+                    leaderboardStack
+                } else {
+                    Picker("Section", selection: $selectedFriendsSection) {
+                        ForEach(FriendsSection.allCases) { section in
+                            Text(section.title).tag(section)
+                        }
                     }
-                    .tag(index)
-                    .onAppear {
-                        viewModel.selectedGameId = game.id
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+                    switch selectedFriendsSection {
+                    case .leaderboard:
+                        leaderboardStack
+                    case .friends:
+                        friendListSection
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 20)
+                    case .circles:
+                        CirclesView(socialService: viewModel.socialService, showsCloseButton: false)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 20)
                     }
                 }
+            } else {
+                leaderboardStack
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .indexViewStyle(.page(backgroundDisplayMode: .never))
-            .clipped()
-            pageDots
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 20)
+            if betaFlags.betaFeedbackButton {
+                BetaFeedbackButton()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 16)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .toolbar { addFriendToolbar }
-        .sheet(isPresented: Binding(get: { viewModel.isPresentingAddFriend }, set: { viewModel.isPresentingAddFriend = $0 })) { addFriendSheet }
+        .toolbar {
+            if betaFlags.contactDiscovery {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isPresentingFriendDiscovery = true
+                    } label: {
+                        Image(systemName: "person.2.badge.plus")
+                    }
+                    .accessibilityLabel(Text("Find friends"))
+                }
+            }
+        }
+        .sheet(isPresented: $isPresentingFriendDiscovery) {
+            if betaFlags.contactDiscovery {
+                FriendDiscoveryView(socialService: viewModel.socialService)
+            }
+        }
+        .sheet(isPresented: $isPresentingCircles) {
+            if betaFlags.multipleCircles {
+                NavigationStack {
+                    CirclesView(socialService: viewModel.socialService)
+                }
+            }
+        }
+        .sheet(isPresented: $isPresentingActivityFeed) {
+            if viewModel.shouldShowActivityFeed {
+                NavigationStack {
+                    ActivityFeedView(reactions: viewModel.recentReactions)
+                }
+            }
+        }
         .sheet(isPresented: Binding(get: { viewModel.isPresentingManageFriends }, set: { viewModel.isPresentingManageFriends = $0 })) {
             FriendManagementView(socialService: viewModel.socialService)
+        }
+        .sheet(isPresented: $isPresentingInviteFriends) {
+            SimplifiedShareView(socialService: viewModel.socialService)
+        }
+        .sheet(isPresented: $isPresentingBetaWelcome, onDismiss: {
+            betaWelcomeShown = true
+        }) {
+            BetaWelcomeView {
+                betaWelcomeShown = true
+                isPresentingBetaWelcome = false
+            }
         }
         .overlay(alignment: .top) {
             if let message = viewModel.errorMessage {
@@ -167,6 +236,10 @@ struct FriendsView: View {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
                     Text(message).lineLimit(2)
                     Spacer(minLength: 0)
+                    Button("Retry") {
+                        Task { await viewModel.refresh() }
+                    }
+                    .buttonStyle(.bordered)
                     Button("Dismiss") { withAnimation(.easeOut) { viewModel.errorMessage = nil } }
                 }
                 .font(.caption)
@@ -182,6 +255,11 @@ struct FriendsView: View {
         .onChange(of: viewModel.selectedDateUTC) { _, _ in withAnimation(.smooth) { viewModel.persistUIState() } }
         .onChange(of: viewModel.currentGamePage) { _, newValue in withAnimation(.smooth) { viewModel.persistUIState(); viewModel.selectedGameId = viewModel.availableGames[newValue].id } }
         .onChange(of: viewModel.range) { _, _ in withAnimation(.smooth) { Task { await viewModel.refresh() }; viewModel.persistUIState() } }
+        .onAppear {
+            if !betaWelcomeShown && viewModel.isMinimalBeta {
+                isPresentingBetaWelcome = true
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             if let summary = viewModel.myRankForSelectedGame() {
                 HStack(spacing: 12) {
@@ -208,6 +286,16 @@ struct FriendsView: View {
 // MARK: - Subviews
 private extension FriendsView {
     var header: some View {
+        Group {
+            if viewModel.isMinimalBeta {
+                minimalHeader
+            } else {
+                fullHeader
+            }
+        }
+    }
+
+    var fullHeader: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
@@ -239,7 +327,7 @@ private extension FriendsView {
                         .background(.ultraThinMaterial, in: Capsule())
                         
                         Button {
-                            viewModel.isPresentingManageFriends = true
+                            presentInviteFlow()
                         } label: {
                             Image(systemName: "paperplane.fill")
                                 .font(.caption)
@@ -249,6 +337,20 @@ private extension FriendsView {
                         .padding(.vertical, 6)
                         .background(.ultraThinMaterial, in: Capsule())
                         .accessibilityLabel(Text("Invite friends"))
+                        
+                        if viewModel.shouldShowCircleSelector {
+                            Button {
+                                isPresentingCircles = true
+                            } label: {
+                                Image(systemName: "circle.grid.2x2")
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .accessibilityLabel(Text("Manage circles"))
+                        }
                     }
                 }
                 if viewModel.serviceStatus == .local {
@@ -295,6 +397,10 @@ private extension FriendsView {
                     }
                     .padding(.horizontal, 12).padding(.vertical, 6)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    
+                    if viewModel.shouldShowCircleSelector {
+                        circleFilterMenu
+                    }
                 }
             }
             // Centered current game title to mimic NYT styling
@@ -311,6 +417,60 @@ private extension FriendsView {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("Friends leaderboard header"))
+    }
+
+    var minimalHeader: some View {
+        VStack(spacing: 12) {
+            VStack(spacing: 4) {
+                Text("Friends")
+                    .font(.largeTitle.bold())
+                Text("Today")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            rangeToggle
+            HStack(spacing: 12) {
+                Button(action: { HapticManager.shared.trigger(.pickerChange); viewModel.incrementDay(-1) }) {
+                    Image(systemName: "chevron.left")
+                }
+                .disabled(!viewModel.canIncrementDay(-1))
+                Text(formattedDate(viewModel.selectedDateUTC))
+                    .font(.headline)
+                    .contentTransition(.numericText())
+                    .onTapGesture {
+                        viewModel.isPresentingDatePicker = true
+                    }
+                Button(action: { HapticManager.shared.trigger(.pickerChange); viewModel.incrementDay(1) }) {
+                    Image(systemName: "chevron.right")
+                }
+                .disabled(!viewModel.canIncrementDay(1))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: Capsule())
+            Text(currentGameTitle)
+                .font(.title.bold())
+            Button {
+                presentInviteFlow()
+            } label: {
+                Label("Invite Friends", systemImage: "paperplane.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity)
+        .sheet(isPresented: $viewModel.isPresentingDatePicker) {
+            VStack {
+                DatePicker("Select Date", selection: $viewModel.selectedDateUTC, displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                    .padding()
+                Button("Done") {
+                    viewModel.isPresentingDatePicker = false
+                    Task { await viewModel.refresh() }
+                }
+                .padding(.bottom)
+            }
+        }
     }
 
     var currentGameTitle: String {
@@ -359,34 +519,144 @@ private extension FriendsView {
         )
     }
     
-    var addFriendToolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
+    var circleFilterMenu: some View {
+        Menu {
             Button {
-                viewModel.isPresentingAddFriend = true
+                Task { await viewModel.selectAllFriends() }
             } label: {
-                Image(systemName: "person.badge.plus")
+                Label("All Friends", systemImage: viewModel.selectedCircleId == nil ? "checkmark" : "person.3")
             }
-            .accessibilityLabel(Text("Add friend"))
+            ForEach(viewModel.circles) { circle in
+                Button {
+                    Task { await viewModel.selectCircle(circle) }
+                } label: {
+                    Label(circle.name, systemImage: viewModel.selectedCircleId == circle.id ? "checkmark" : "circle")
+                }
+            }
+            Divider()
+            Button("Manage Circles") {
+                isPresentingCircles = true
+            }
+        } label: {
+            Label(selectedCircleTitle, systemImage: "line.3.horizontal.decrease.circle")
+                .font(.subheadline)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+    
+    var selectedCircleTitle: String {
+        if let id = viewModel.selectedCircleId,
+           let circle = viewModel.circles.first(where: { $0.id == id }) {
+            return circle.name
+        }
+        return "All Friends"
+    }
+    
+    var activityFeedSnippet: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Recent Activity")
+                    .font(.headline)
+                Spacer()
+                Button("View all") { isPresentingActivityFeed = true }
+                    .font(.caption.weight(.semibold))
+            }
+            ForEach(viewModel.recentReactions.prefix(3)) { reaction in
+                reactionRow(reaction)
+            }
+        }
+        .padding(12)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+    }
+    
+    func reactionRow(_ reaction: Reaction) -> some View {
+        HStack(spacing: 12) {
+            Text(reaction.type.emoji)
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(reaction.senderName) \(reaction.type.description)")
+                    .font(.subheadline.weight(.semibold))
+                Text(relativeDateString(for: reaction.date))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
         }
     }
     
-    var addFriendSheet: some View {
-        NavigationStack {
-            Form {
-                Section("Your Code") {
-                    HStack {
-                        Text(viewModel.myFriendCode).font(.system(.body, design: .monospaced))
-                        Spacer()
-                        Button("Copy") { UIPasteboard.general.string = viewModel.myFriendCode }
-                    }
-                }
-                Section("Add a Friend") {
-                    TextField("Enter friend code", text: $viewModel.friendCodeToAdd)
-                    Button("Add") { Task { await viewModel.addFriend() } }
+    func relativeDateString(for date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+    
+    var friendListSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if viewModel.friends.isEmpty {
+                Text("No friends yet. Once contact discovery launches you'll see people from your address book here.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(viewModel.friends) { friend in
+                    Text(friend.displayName)
+                        .font(.headline)
+                    .padding(.vertical, 8)
+                    Divider()
                 }
             }
-            .navigationTitle("Add Friend")
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { viewModel.isPresentingAddFriend = false } } }
+            Button {
+                presentInviteFlow()
+            } label: {
+                Label("Manage friends", systemImage: "person.2.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+    
+    var leaderboardStack: some View {
+        VStack(spacing: 0) {
+            TabView(selection: $viewModel.currentGamePage) {
+                ForEach(Array(viewModel.availableGames.enumerated()), id: \.offset) { index, game in
+                    GeometryReader { proxy in
+                        GameLeaderboardPage(
+                            game: game,
+                            rows: viewModel.rowsForSelectedGameID(game.id),
+                            isLoading: viewModel.isLoading,
+                            dateLabel: formattedDate(viewModel.selectedDateUTC),
+                            rankDelta: viewModel.rankDeltas,
+                            onManageFriends: { presentInviteFlow() },
+                            metricText: { points in
+                                LeaderboardScoring.metricLabel(for: game, points: points)
+                            },
+                            myUserId: viewModel.myUserId,
+                            onRefresh: { await viewModel.refresh() },
+                            onReact: { row, _, type in
+                                let resolvedGame = Game.allAvailableGames.first(where: { $0.id == game.id }) ?? game
+                                viewModel.recordReaction(for: row, game: resolvedGame, type: type)
+                            }
+                        )
+                        .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel(Text("\(game.displayName) leaderboard for \(formattedDate(viewModel.selectedDateUTC))"))
+                    }
+                    .tag(index)
+                    .onAppear {
+                        viewModel.selectedGameId = game.id
+                    }
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .indexViewStyle(.page(backgroundDisplayMode: .never))
+            .clipped()
+            pageDots
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 20)
         }
     }
     
@@ -395,6 +665,14 @@ private extension FriendsView {
         f.dateStyle = .medium
         f.timeStyle = .none
         return f.string(from: date)
+    }
+
+    func presentInviteFlow() {
+        if betaFlags.shareLinks && !betaFlags.multipleCircles {
+            isPresentingInviteFriends = true
+        } else {
+            viewModel.isPresentingManageFriends = true
+        }
     }
 }
 

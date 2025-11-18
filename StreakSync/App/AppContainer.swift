@@ -114,6 +114,7 @@ final class AppContainer: ObservableObject {
     
     let gameCatalog: GameCatalog
     let gameManagementState: GameManagementState
+    let socialSettingsService: SocialSettingsService
 
     
     // MARK: - UI Services
@@ -182,6 +183,7 @@ final class AppContainer: ObservableObject {
         #endif
         
         self.gameManagementState = GameManagementState()
+        self.socialSettingsService = SocialSettingsService.shared
         
         // 6. Notification handling
         self.notificationCoordinator = NotificationCoordinator()
@@ -190,8 +192,11 @@ final class AppContainer: ObservableObject {
 
         // 8. Leaderboard sharing/sync (CKShare-based groups)
         self.leaderboardSyncService = LeaderboardSyncService()
-        // 8b. Social service (Hybrid: CloudKit with fallback to local)
-        self.socialService = HybridSocialService(leaderboardSyncService: leaderboardSyncService)
+        // 8b. Social service (CloudKit with local caching fallback)
+        self.socialService = CloudKitSocialService(
+            leaderboardSyncService: leaderboardSyncService,
+            privacyService: socialSettingsService
+        )
         // Attach to app state
         self.appState.socialService = socialService
         

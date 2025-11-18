@@ -116,6 +116,7 @@ struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     @EnvironmentObject private var coordinator: NavigationCoordinator
     @Environment(AppState.self) private var appState
+    @EnvironmentObject private var betaFlags: BetaFeatureFlags
     
     var body: some View {
         if #available(iOS 26.0, *) {
@@ -130,12 +131,13 @@ struct SettingsView: View {
 @available(iOS 26.0, *)
 private struct iOS26SettingsContent: View {
     @ObservedObject var viewModel: SettingsViewModel
+    @EnvironmentObject private var betaFlags: BetaFeatureFlags
     
     @State private var scrollPosition = ScrollPosition()
     @State private var hoveredSection: SettingsSection? = nil
     
     enum SettingsSection: String, CaseIterable {
-        case notifications, appearance, data, about
+        case notifications, appearance, social, data, about
     }
     
     var body: some View {
@@ -204,6 +206,28 @@ private struct iOS26SettingsContent: View {
                     }
                 }
                 
+                if betaFlags.granularPrivacy {
+                    iOS26SettingsSection(
+                        section: .social,
+                        isHovered: hoveredSection == .social
+                    ) {
+                        iOS26SettingsNavigationRow(
+                            icon: "lock.shield",
+                            iconColor: .pink,
+                            title: "Social Privacy",
+                            subtitle: "Control what gets shared",
+                            showChevron: true
+                        ) {
+                            SocialPrivacySettingsView()
+                        }
+                    }
+                    .onHover { isHovered in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            hoveredSection = isHovered ? .social : nil
+                        }
+                    }
+                }
+                
                 // About Section
                 iOS26SettingsSection(
                     section: .about,
@@ -239,6 +263,14 @@ private struct iOS26SettingsContent: View {
                             title: "Contact Support",
                             url: URL(string: "mailto:support@streaksync.app")!
                         )
+
+                        if betaFlags.betaFeedbackButton {
+                            Divider()
+                                .padding(.horizontal)
+                            BetaFeedbackButton()
+                                .padding(.horizontal)
+                                .padding(.vertical, 12)
+                        }
                     }
                 }
                 .onHover { isHovered in
@@ -421,6 +453,7 @@ private struct iOS26SettingsLinkRow: View {
 // MARK: - Legacy iOS 25 Implementation
 private struct LegacySettingsContent: View {
     @ObservedObject var viewModel: SettingsViewModel
+    @EnvironmentObject private var betaFlags: BetaFeatureFlags
     
     var body: some View {
         List {
@@ -447,6 +480,20 @@ private struct LegacySettingsContent: View {
                         title: "Appearance",
                         subtitle: viewModel.appearanceMode.displayName
                     )
+                }
+            }
+            
+            if betaFlags.granularPrivacy {
+                Section {
+                    NavigationLink {
+                        SocialPrivacySettingsView()
+                    } label: {
+                        SettingsRow(
+                            icon: "lock.shield",
+                            title: "Social Privacy",
+                            subtitle: "Control sharing per game"
+                        )
+                    }
                 }
             }
             
@@ -489,6 +536,12 @@ private struct LegacySettingsContent: View {
                         title: "Contact Support",
                         subtitle: nil
                     )
+                }
+            }
+
+            if betaFlags.betaFeedbackButton {
+                Section {
+                    BetaFeedbackButton()
                 }
             }
         }
@@ -535,6 +588,7 @@ struct SettingsRow: View {
     NavigationStack {
         SettingsView()
             .environmentObject(NavigationCoordinator())
+            .environmentObject(BetaFeatureFlags.shared)
     }
 }
 
@@ -544,5 +598,6 @@ struct SettingsRow: View {
     NavigationStack {
         SettingsView()
             .environmentObject(NavigationCoordinator())
+            .environmentObject(BetaFeatureFlags.shared)
     }
 }

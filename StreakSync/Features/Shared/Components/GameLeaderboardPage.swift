@@ -119,7 +119,33 @@ struct GameLeaderboardPage: View {
     let metricText: (Int) -> String
     let myUserId: String?
     let onRefresh: (() async -> Void)?
+    let onReact: ((LeaderboardRow, Game, ReactionType) -> Void)?
     @State private var pressedIndex: Int? = nil
+    @EnvironmentObject private var betaFlags: BetaFeatureFlags
+    
+    init(
+        game: Game,
+        rows: [(row: LeaderboardRow, points: Int)],
+        isLoading: Bool,
+        dateLabel: String,
+        rankDelta: [String: Int]?,
+        onManageFriends: @escaping () -> Void,
+        metricText: @escaping (Int) -> String,
+        myUserId: String?,
+        onRefresh: (() async -> Void)?,
+        onReact: ((LeaderboardRow, Game, ReactionType) -> Void)? = nil
+    ) {
+        self.game = game
+        self.rows = rows
+        self.isLoading = isLoading
+        self.dateLabel = dateLabel
+        self.rankDelta = rankDelta
+        self.onManageFriends = onManageFriends
+        self.metricText = metricText
+        self.myUserId = myUserId
+        self.onRefresh = onRefresh
+        self.onReact = onReact
+    }
     
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -172,7 +198,7 @@ struct GameLeaderboardPage: View {
                             .lineLimit(1)
                         Spacer()
                         HStack(spacing: 8) {
-                            if let delta = rankDelta?[entry.row.userId], delta != 0 {
+                            if betaFlags.rankDeltas, let delta = rankDelta?[entry.row.userId], delta != 0 {
                                 Text(delta > 0 ? "↑\(delta)" : "↓\(-delta)")
                                     .font(.caption2.weight(.semibold))
                                     .foregroundStyle(delta > 0 ? .green : .red)
@@ -184,6 +210,21 @@ struct GameLeaderboardPage: View {
                             Text(metricText(entry.points))
                         }
                             .font(.headline)
+                        if betaFlags.reactions, let onReact {
+                            Menu {
+                                ForEach(ReactionType.allCases) { reaction in
+                                    Button(reaction.emoji) {
+                                        onReact(entry.row, game, reaction)
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "face.smiling")
+                                    .font(.caption)
+                                    .padding(6)
+                                    .background(Color.secondary.opacity(0.12), in: Circle())
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                     .padding(.vertical, 10)
                     .background(

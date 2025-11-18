@@ -100,6 +100,7 @@ struct StreakSyncApp: App {
                         .environmentObject(container.navigationCoordinator)
                         .environmentObject(container.guestSessionManager)
                         .environmentObject(container.userDataSyncService)
+                        .environmentObject(BetaFeatureFlags.shared)
                         .environment(container.gameCatalog)
                         .applyAppearanceMode()
                         .onOpenURL { url in

@@ -109,6 +109,7 @@
  */
 
 import Foundation
+import OSLog
 
 @MainActor
 final class MockSocialService: SocialService, @unchecked Sendable {
@@ -129,7 +130,6 @@ final class MockSocialService: SocialService, @unchecked Sendable {
         let profile = UserProfile(
             id: id,
             displayName: displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty ?? "Player",
-            friendCode: String(id.suffix(6)),
             createdAt: now,
             updatedAt: now
         )
@@ -145,28 +145,10 @@ final class MockSocialService: SocialService, @unchecked Sendable {
     }
     
     // MARK: - Friends
-    func generateFriendCode() async throws -> String {
-        let profile = try await ensureProfile(displayName: nil)
-        return profile.friendCode
-    }
-    
-    func addFriend(using code: String) async throws {
-        // Local mock: store friend codes only (no remote lookup). For demo, accept any code string.
-        var codes = load([String].self, forKey: friendsKey) ?? []
-        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmed.isEmpty && !codes.contains(trimmed) {
-            codes.append(trimmed)
-            try save(codes, forKey: friendsKey)
-        }
-    }
-    
     func listFriends() async throws -> [UserProfile] {
-        let codes = load([String].self, forKey: friendsKey) ?? []
-        if codes.isEmpty { return [] }
-        return codes.map { code in
-            let name = code
-            return UserProfile(id: "friend_" + code, displayName: name, friendCode: code, createdAt: Date(), updatedAt: Date())
-        }
+        // Mock service: return empty friends list
+        // In real implementation, this would fetch from CloudKit or local storage
+        return []
     }
     
     // MARK: - Scores

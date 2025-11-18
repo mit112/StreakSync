@@ -40,8 +40,7 @@
  * - Sendable: For thread safety in concurrent environments
  * 
  * WHAT REFERENCES IT:
- * - HybridSocialService: Implements this protocol with backend selection
- * - CloudKitSocialService: Implements this protocol with CloudKit backend
+ * - CloudKitSocialService: Implements this protocol with CloudKit + local caching
  * - MockSocialService: Implements this protocol with local storage
  * - Social features: Use these models and protocols for social functionality
  * 
@@ -114,7 +113,6 @@ import Foundation
 struct UserProfile: Identifiable, Codable, Hashable {
     let id: String            // Stable user identifier
     var displayName: String
-    var friendCode: String
     var createdAt: Date
     var updatedAt: Date
 }
@@ -138,6 +136,53 @@ struct LeaderboardRow: Identifiable, Codable, Hashable {
     let perGameBreakdown: [UUID: Int]
 }
 
+struct DiscoveredFriend: Identifiable, Codable, Hashable {
+    let id: String
+    let displayName: String
+    let detail: String
+}
+
+struct SocialCircle: Identifiable, Codable, Hashable {
+    let id: UUID
+    var name: String
+    var createdBy: String
+    var members: [String]
+    var createdAt: Date
+}
+
+enum ReactionType: String, Codable, CaseIterable, Identifiable {
+    case clap
+    case fire
+    case star
+    
+    var id: String { rawValue }
+    
+    var emoji: String {
+        switch self {
+        case .clap: return "👏"
+        case .fire: return "🔥"
+        case .star: return "⭐️"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .clap: return "celebrated"
+        case .fire: return "sent fire to"
+        case .star: return "highlighted"
+        }
+    }
+}
+
+struct Reaction: Identifiable, Codable, Hashable {
+    let id: UUID
+    let targetUserId: String
+    let targetGameId: UUID
+    let senderName: String
+    let date: Date
+    let type: ReactionType
+}
+
 // MARK: - Social Service Protocol
 protocol SocialService: Sendable {
     // Profile
@@ -145,13 +190,27 @@ protocol SocialService: Sendable {
     func myProfile() async throws -> UserProfile
     
     // Friends
-    func generateFriendCode() async throws -> String
-    func addFriend(using code: String) async throws
     func listFriends() async throws -> [UserProfile]
     
     // Scores
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow]
+}
+
+@MainActor
+protocol FriendDiscoveryProviding: AnyObject {
+    func discoverFriends(forceRefresh: Bool) async throws -> [DiscoveredFriend]
+    func addFriend(usingUsername username: String) async throws
+}
+
+@MainActor
+protocol CircleManaging: AnyObject {
+    var activeCircleId: UUID? { get }
+    func listCircles() async throws -> [SocialCircle]
+    func createCircle(name: String) async throws -> SocialCircle
+    func joinCircle(using code: String) async throws -> SocialCircle
+    func leaveCircle(id: UUID) async throws
+    func selectCircle(id: UUID?) async
 }
 
 // MARK: - Helpers
