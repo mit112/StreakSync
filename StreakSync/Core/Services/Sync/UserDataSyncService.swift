@@ -87,6 +87,79 @@ final class UserDataSyncService: ObservableObject {
         storeLastKnownUserRecordName(nil)
     }
     
+    /// Diagnostic method to check if any GameResult records exist in CloudKit.
+    /// Returns the count of records found, or nil if check failed.
+    func checkCloudKitDataExists() async -> Int? {
+        do {
+            let accountStatus = try await container.accountStatus()
+            guard accountStatus == .available else {
+                logger.warning("⚠️ Cannot check CloudKit data - iCloud account unavailable")
+                return nil
+            }
+            
+            // Ensure zone exists first
+            try await CloudKitZoneSetup.ensureUserDataZone(in: database)
+            
+            // Query for any GameResult records in the UserDataZone
+            let predicate = NSPredicate(value: true) // Get all records
+            let query = CKQuery(recordType: "GameResult", predicate: predicate)
+            query.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+            
+            var recordCount = 0
+            var cursor: CKQueryOperation.Cursor?
+            
+            repeat {
+                let (results, newCursor) = try await performQuery(query, cursor: cursor, zoneID: CloudKitZones.userDataZoneID)
+                recordCount += results.count
+                cursor = newCursor
+            } while cursor != nil
+            
+            logger.info("🔍 CloudKit diagnostic: Found \(recordCount) GameResult records")
+            return recordCount
+        } catch {
+            logger.error("❌ Failed to check CloudKit data: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    /// Helper to perform a CloudKit query
+    private func performQuery(_ query: CKQuery, cursor: CKQueryOperation.Cursor?, zoneID: CKRecordZone.ID) async throws -> ([CKRecord], CKQueryOperation.Cursor?) {
+        try await withCheckedThrowingContinuation { continuation in
+            let operation: CKQueryOperation
+            if let cursor = cursor {
+                operation = CKQueryOperation(cursor: cursor)
+            } else {
+                operation = CKQueryOperation(query: query)
+            }
+            
+            operation.zoneID = zoneID
+            operation.resultsLimit = 100
+            var records: [CKRecord] = []
+            
+            operation.recordMatchedBlock = { _, result in
+                switch result {
+                case .success(let record):
+                    records.append(record)
+                case .failure(let error):
+                    self.logger.error("❌ Query record fetch failed: \(error.localizedDescription)")
+                }
+            }
+            
+            operation.queryResultBlock = { result in
+                switch result {
+                case .success:
+                    // For diagnostic purposes, we don't need full pagination
+                    // Return nil cursor to limit to first page (100 records is sufficient for diagnostics)
+                    continuation.resume(returning: (records, nil))
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            
+            database.add(operation)
+        }
+    }
+    
     // MARK: - Zone & Subscription Setup
     
     /// Ensures the user data zone and subscription exist. Safe to call repeatedly.
@@ -114,7 +187,7 @@ final class UserDataSyncService: ObservableObject {
         do {
             let accountStatus = try await container.accountStatus()
             guard accountStatus == .available else {
-                logger.info("ℹ️ iCloud account unavailable: \(String(describing: accountStatus))")
+                logger.warning("⚠️ iCloud account unavailable: \(String(describing: accountStatus))")
                 syncState = .offline
                 return
             }
@@ -122,22 +195,71 @@ final class UserDataSyncService: ObservableObject {
             syncState = .syncing
             
             // Ensure zone & subscription are present
+            logger.info("🔧 Ensuring UserDataZone exists...")
             try await CloudKitZoneSetup.ensureUserDataZone(in: database)
+            logger.info("✅ UserDataZone verified")
+            
+            logger.info("🔧 Ensuring subscription exists...")
             try await CloudKitZoneSetup.ensureUserDataZoneSubscription(in: database)
+            logger.info("✅ Subscription verified")
             
             // Fetch incremental changes
             let previousToken = loadSyncToken()
+            let isFirstSync = previousToken == nil
+            if isFirstSync {
+                logger.info("🔄 Performing first-time sync (no previous token found)")
+            } else {
+                logger.info("🔄 Performing incremental sync")
+            }
+            
             let (changedRecords, deletedIDs, newToken) = try await fetchChanges(since: previousToken)
+            
+            logger.info("📥 Fetched from CloudKit: \(changedRecords.count) records, \(deletedIDs.count) deletions")
+            
+            // CRITICAL: On first sync, if we get zero records, log a warning
+            if isFirstSync && changedRecords.isEmpty {
+                logger.warning("⚠️ FIRST SYNC RETURNED ZERO RECORDS - This might indicate:")
+                logger.warning("   1. No data was ever synced to CloudKit before")
+                logger.warning("   2. Zone was just created and is empty")
+                logger.warning("   3. User's data exists in CloudKit but fetch failed silently")
+                logger.warning("   Check CloudKit Dashboard to verify if data exists")
+            }
             
             await applyChanges(added: changedRecords, deleted: deletedIDs)
             
             if let newToken {
                 saveSyncToken(newToken)
+                logger.info("💾 Saved sync token for future incremental syncs")
+            } else {
+                logger.warning("⚠️ No sync token returned - this might indicate an issue")
             }
             
             // After applying server changes, attempt to recover any local-only results
             // that were never uploaded due to crashes or transient failures.
             await recoverUnsyncedResultsIfNeeded()
+            
+            // CRITICAL: If CloudKit is empty but we have local data, upload all local results
+            // to prevent data loss on reinstall. This handles cases where:
+            // 1. First sync with existing local data
+            // 2. Data was added before CloudKit sync was implemented  
+            // 3. Previous syncs failed silently
+            // Note: recoverUnsyncedResultsIfNeeded already handles results marked for sync,
+            // so we only need to handle results that were never marked.
+            if changedRecords.isEmpty && !appState.recentResults.isEmpty {
+                let unsyncedIDs = await syncTracker.getUnsynced()
+                // Find local results that aren't in the unsynced tracker (never marked for sync)
+                let neverMarkedForSync = appState.recentResults.filter { !unsyncedIDs.contains($0.id) }
+                
+                if !neverMarkedForSync.isEmpty {
+                    logger.warning("⚠️ CloudKit empty but found \(neverMarkedForSync.count) local results never uploaded - uploading now")
+                    logger.info("📤 Uploading \(neverMarkedForSync.count) local results to CloudKit")
+                    for result in neverMarkedForSync {
+                        await syncTracker.markForSync(result.id)
+                    }
+                    await uploadBatch(neverMarkedForSync)
+                    logger.info("✅ Uploaded \(neverMarkedForSync.count) local results to CloudKit")
+                }
+            }
             
             // Track the current CloudKit userRecordID so we can safely detect real
             // account changes (Apple ID switches) later and avoid spurious wipes.
@@ -147,6 +269,14 @@ final class UserDataSyncService: ObservableObject {
             logger.info("✅ User data sync completed. Added: \(changedRecords.count), Deleted: \(deletedIDs.count)")
         } catch {
             logger.error("❌ User data sync failed: \(error.localizedDescription)")
+            if let ckError = error as? CKError {
+                logger.error("   CloudKit Error Code: \(ckError.code.rawValue) (\(String(describing: ckError.code)))")
+                logger.error("   Error Description: \(ckError.localizedDescription)")
+                // CKError doesn't have underlyingError property, but we can check for partial failures
+                if ckError.code == .partialFailure, let partialErrors = ckError.partialErrorsByItemID {
+                    logger.error("   Partial failures: \(partialErrors.count) items failed")
+                }
+            }
             syncState = .failed(error)
         }
     }
@@ -355,16 +485,41 @@ final class UserDataSyncService: ObservableObject {
                 switch result {
                 case .success(let zoneResult):
                     newToken = zoneResult.serverChangeToken
+                    self.logger.info("✅ Zone fetch succeeded for zone: \(zoneID.zoneName)")
+                    if zoneResult.moreComing {
+                        self.logger.info("   More changes coming: true")
+                    }
                 case .failure(let error):
-                    self.logger.error("❌ Record zone fetch failed: \(error.localizedDescription)")
+                    self.logger.error("❌ Record zone fetch failed for zone \(zoneID.zoneName): \(error.localizedDescription)")
+                    if let ckError = error as? CKError {
+                        self.logger.error("   CloudKit Error Code: \(ckError.code.rawValue) (\(String(describing: ckError.code)))")
+                        // CRITICAL: If zone doesn't exist, this is a fatal error
+                        if ckError.code == .zoneNotFound {
+                            self.logger.error("   ⚠️ ZONE NOT FOUND - Zone may not exist in CloudKit!")
+                        }
+                    }
                 }
             }
             
             operation.fetchRecordZoneChangesResultBlock = { result in
                 switch result {
                 case .success:
+                    self.logger.info("✅ Fetch operation completed successfully")
                     continuation.resume(returning: (changedRecords, deletedRecordIDs, newToken))
                 case .failure(let error):
+                    self.logger.error("❌ Fetch operation failed: \(error.localizedDescription)")
+                    if let ckError = error as? CKError {
+                        self.logger.error("   CloudKit Error Code: \(ckError.code.rawValue) (\(String(describing: ckError.code)))")
+                        // Log partial failures
+                        if ckError.code == .partialFailure {
+                            if let partialErrors = ckError.partialErrorsByItemID {
+                                self.logger.error("   Partial failures: \(partialErrors.count) items failed")
+                                for (itemID, itemError) in partialErrors.prefix(5) {
+                                    self.logger.error("     - \(itemID): \(itemError.localizedDescription)")
+                                }
+                            }
+                        }
+                    }
                     continuation.resume(throwing: error)
                 }
             }

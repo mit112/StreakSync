@@ -331,7 +331,9 @@ final class CloudKitSocialService: SocialService, @unchecked Sendable {
         if !flags.multipleCircles {
             LeaderboardGroupStore.setSelectedGroup(id: betaDefaultGroupId, title: betaDefaultGroupName)
         }
-        let result = try await leaderboardSyncService.ensureFriendsShare()
+        // In beta mode, force recreation to ensure share has current build number
+        let forceRecreate = !flags.multipleCircles
+        let result = try await leaderboardSyncService.ensureFriendsShare(forceRecreate: forceRecreate)
         if !flags.multipleCircles {
             LeaderboardGroupStore.setSelectedGroup(id: result.groupId, title: betaDefaultGroupName)
         }
@@ -339,7 +341,8 @@ final class CloudKitSocialService: SocialService, @unchecked Sendable {
     }
 
     func ensureFriendsShareURL() async throws -> URL? {
-        try await ensureFriendsShare()?.url
+        // In beta mode, forceRecreate is handled inside ensureFriendsShare()
+        return try await ensureFriendsShare()?.url
     }
     #else
     func ensureFriendsShareURL() async throws -> URL? { nil }

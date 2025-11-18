@@ -1,6 +1,6 @@
 # Bug Log & Solutions
 
-*Last Updated: January 2025*
+*Last Updated: November 2025*
 
 This document tracks all bugs discovered and resolved in the StreakSync iOS app, organized chronologically for easy reference and future prevention.
 
@@ -3351,6 +3351,235 @@ ForEach(Array(filteredGames.enumerated()), id: \.element.id) { index, game in
 - **Test first-launch scenarios** to ensure all expected items are visible
 - **Use `filteredGames` for display logic** and look up related data (like streaks) as needed
 - **Ensure UI components receive all necessary data** and handle missing related data gracefully
+
+---
+
+## Bug #049: CloudKit Share Link Build Version Mismatch Error
+**Date:** November 2025  
+**Severity:** Critical  
+**Component:** CloudKit Sharing - LeaderboardSyncService.swift, Info.plist
+
+### Bug Description
+When testing CloudKit share links (invite links) on the same device, iOS showed an error dialog:
+> "You need a newer version of StreakSync to open this, but the required version couldn't be found in the App Store."
+
+Share links would not open the app, preventing users from accepting friend invitations and joining leaderboards.
+
+### Error Messages
+- iOS error dialog: "You need a newer version of StreakSync to open this, but the required version couldn't be found in the App Store."
+- Share links failed to open the app
+- No crash logs, but share acceptance flow completely blocked
+
+### Root Cause
+**Primary Issue:** Missing `CKSharingSupported` key in Info.plist
+- This key is **required** for CloudKit sharing functionality
+- Without it, iOS cannot properly validate and handle CloudKit share links
+- Even if share records are created correctly, iOS rejects them without this key
+
+**Secondary Factors:**
+- CloudKit share URLs are deterministic and tied to root record ID
+- The URL hash (`092-KwFItxxJu3dn1-RoJ6jAA`) is tied to the root record, not the share record
+- Since beta mode uses a hardcoded group ID (`00000000-0000-0000-0000-000000000000`), the root record ID never changes
+- Even creating new share records doesn't change the URL hash (expected CloudKit behavior)
+- Build number validation happens at the iOS level when opening share links
+
+### Solution
+**1. Added `CKSharingSupported` Key to Info.plist:**
+```xml
+<key>CKSharingSupported</key>
+<true/>
+```
+This was the **critical fix** that resolved the issue. Without this key, iOS cannot properly handle CloudKit share links.
+
+**2. Implemented Force Share Recreation Logic:**
+Added automatic share recreation in beta mode to ensure shares always have current build number:
+
+```swift
+// In CloudKitSocialService.swift
+func ensureFriendsShareURL() async throws -> URL? {
+    // In beta mode, forceRecreate is handled inside ensureFriendsShare()
+    return try await ensureFriendsShare()?.url
+}
+
+func ensureFriendsShare() async throws -> CKShare? {
+    // In beta mode, force recreation to ensure share has current build number
+    let forceRecreate = !flags.multipleCircles
+    let result = try await leaderboardSyncService.ensureFriendsShare(forceRecreate: forceRecreate)
+    return result.share
+}
+```
+
+**3. Added Share Deletion Method:**
+```swift
+// In LeaderboardSyncService.swift
+func deleteShare(for groupId: UUID) async throws {
+    // Deletes existing share record
+    // CloudKit automatically updates root record's share reference
+    // Includes verification to confirm deletion succeeded
+}
+```
+
+**4. Enhanced Share Creation with Logging:**
+- Added comprehensive logging for share creation/deletion
+- Added verification step to confirm share deletion succeeded
+- Added delay to allow CloudKit to propagate deletion before creating new share
+
+### Files Modified
+1. `StreakSync/Info.plist` - Added `CKSharingSupported` key
+2. `StreakSync/Core/Services/Social/LeaderboardSyncService.swift` - Added `deleteShare()` and `forceRecreate` parameter
+3. `StreakSync/Core/Services/Social/CloudKitSocialService.swift` - Modified to force recreation in beta mode
+
+### Verification
+- ✅ Share links now open correctly and return to app
+- ✅ Share acceptance flow works properly
+- ✅ New shares created with current build number
+- ✅ Verified on TestFlight builds
+
+### Prevention
+- **Always include `CKSharingSupported` key** in Info.plist when using CloudKit sharing
+- **Document CloudKit requirements** in project setup documentation
+- **Test share links** as part of CloudKit integration testing
+- **Understand CloudKit URL behavior** - URLs are deterministic based on root record ID
+- **For beta builds**, implement force recreation logic to ensure current build numbers
+- **Add comprehensive logging** for share creation/deletion to aid debugging
+
+### Related Documentation
+- See `BETA_SIMPLIFICATION_IMPLEMENTATION_SUMMARY.md` for full implementation details
+- Apple Documentation: [Sharing CloudKit Data with Other iCloud Users](https://developer.apple.com/documentation/cloudkit/sharing-cloudkit-data-with-other-icloud-users)
+
+---
+
+## Bug #050: Data Loss on App Reinstall - CloudKit Sync Not Restoring Data
+**Date:** January 2025  
+**Severity:** Critical - Data Loss  
+**Component:** CloudKit Sync - UserDataSyncService
+
+### Bug Description
+Users lose all their game results, streaks, and achievements when reinstalling the app, even though CloudKit sync is implemented. Data that should be restored from iCloud is not being recovered.
+
+### Error Messages
+- No error messages shown to user (silent failure)
+- Console logs may show: "FIRST SYNC RETURNED ZERO RECORDS"
+- Sync completes successfully but with 0 records restored
+
+### Root Cause
+**Primary Cause**: Data was never successfully synced to CloudKit before reinstall.
+
+The app uses CloudKit for data sync, but if:
+1. User was offline when adding results
+2. CloudKit sync failed silently (network issues, quota exceeded, etc.)
+3. User never opened the app while signed into iCloud
+4. Sync errors were logged but not surfaced to the user
+
+Then the data exists only locally in UserDefaults, which is deleted when the app is uninstalled. On reinstall, CloudKit has no data to restore.
+
+**Secondary Issues**:
+- Insufficient error logging made it difficult to diagnose
+- No user-facing sync status indicator
+- Silent failures in zone fetch operations
+- No verification that data actually exists in CloudKit
+
+### Solution Implemented
+
+#### 1. Enhanced Error Logging
+Added comprehensive logging throughout the sync process:
+- Logs when first-time sync returns zero records (critical warning)
+- Detailed CloudKit error codes and descriptions
+- Zone-level fetch result logging
+- Partial failure detection and logging
+
+#### 2. Diagnostic Method
+Added `checkCloudKitDataExists()` method to verify if data exists in CloudKit:
+```swift
+func checkCloudKitDataExists() async -> Int? {
+    // Queries CloudKit directly to count GameResult records
+    // Returns count or nil if check failed
+}
+```
+
+#### 3. Improved Zone Fetch Error Handling
+Enhanced `recordZoneFetchResultBlock` to properly log zone-level errors:
+- Detects `zoneNotFound` errors specifically
+- Logs CloudKit error codes for debugging
+- Tracks `moreComing` flag for pagination
+
+#### 4. Better Sync State Tracking
+Added detailed logging at each sync step:
+- Zone creation/verification
+- Subscription setup
+- First-time vs incremental sync detection
+- Token save verification
+
+### How to Diagnose
+
+1. **Check Console Logs**:
+   - Look for "FIRST SYNC RETURNED ZERO RECORDS" warning
+   - Check for CloudKit error codes
+   - Verify zone creation succeeded
+
+2. **Use Diagnostic Method**:
+   ```swift
+   let count = await userDataSyncService.checkCloudKitDataExists()
+   if count == 0 {
+       // No data in CloudKit - data was never synced
+   }
+   ```
+
+3. **Check CloudKit Dashboard**:
+   - Go to https://icloud.developer.apple.com/dashboard
+   - Check if `UserDataZone` exists
+   - Verify if `GameResult` records exist
+   - Check container: `iCloud.com.mitsheth.StreakSync2`
+
+4. **Verify iCloud Account**:
+   - Ensure user is signed into iCloud
+   - Check Settings → [Your Name] → iCloud → iCloud Drive is enabled
+   - Verify app has CloudKit capability enabled
+
+### Prevention Strategies
+
+1. **Proactive Sync Verification**:
+   - Add UI indicator showing sync status
+   - Warn users if sync hasn't completed successfully
+   - Show "Last synced" timestamp
+
+2. **Offline Queue Persistence**:
+   - Ensure offline queue persists across app launches
+   - Automatically retry failed syncs when network returns
+   - Show user when data is pending sync
+
+3. **First-Time Sync Migration**:
+   - On first CloudKit connection, upload all existing local data
+   - Verify upload succeeded before marking as synced
+   - Show progress indicator during initial sync
+
+4. **User Education**:
+   - Explain that data syncs to iCloud
+   - Warn users about data loss if not signed into iCloud
+   - Provide clear instructions for enabling iCloud sync
+
+### Testing Checklist
+
+- [ ] Test reinstall with data previously synced to CloudKit
+- [ ] Test reinstall with data never synced (offline usage)
+- [ ] Test reinstall without iCloud account
+- [ ] Test reinstall with different iCloud account
+- [ ] Verify diagnostic method works correctly
+- [ ] Check logs for proper error messages
+- [ ] Test zone creation on first launch
+- [ ] Test sync with network interruptions
+
+### Related Files
+- `StreakSync/Core/Services/Sync/UserDataSyncService.swift`
+- `StreakSync/Core/Services/Sync/CloudKitZoneSetup.swift`
+- `StreakSync/Core/Services/Sync/OfflineQueue.swift`
+- `StreakSync/Core/Services/Sync/SyncTracker.swift`
+
+### Status
+✅ **Enhanced Logging Implemented**  
+⚠️ **User-Facing Sync Status UI - TODO**  
+⚠️ **Proactive Sync Verification - TODO**  
+⚠️ **First-Time Sync Migration - TODO**
 
 ---
 

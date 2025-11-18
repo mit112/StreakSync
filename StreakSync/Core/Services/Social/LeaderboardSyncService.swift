@@ -31,17 +31,29 @@ final class LeaderboardSyncService {
     #if canImport(CloudKit)
     // MARK: - Default "Friends" Share
     /// Ensures a default Friends share exists and returns a CKShare ready for UICloudSharingController.
-    func ensureFriendsShare() async throws -> (groupId: UUID, share: CKShare) {
+    /// - Parameter forceRecreate: If true, deletes existing share and creates a fresh one (useful for beta builds to ensure current build number)
+    func ensureFriendsShare(forceRecreate: Bool = false) async throws -> (groupId: UUID, share: CKShare) {
         let container = self.container
         let db = container.privateCloudDatabase
         if let existing = LeaderboardGroupStore.selectedGroupId {
+            // If forcing recreation, delete existing share first
+            if forceRecreate {
+                logger.info("🔄 Force recreating share for group \(existing.uuidString)")
+                try? await deleteShare(for: existing)
+                // Wait a bit longer to ensure CloudKit has processed the deletion
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            }
+            
             // Try to fetch existing share via root record's share property; if missing, recreate it
-            if let share = try? await existingShare(for: existing, in: db) {
+            if !forceRecreate, let share = try? await existingShare(for: existing, in: db) {
+                logger.info("✅ Using existing share for group \(existing.uuidString)")
                 try? await ensureZoneSubscription(for: existing, in: db)
                 return (existing, share)
             } else {
+                logger.info("🆕 Creating new share for group \(existing.uuidString)")
                 let share = try await createShare(for: existing, title: LeaderboardGroupStore.selectedGroupTitle ?? "Friends", in: db)
                 try? await ensureZoneSubscription(for: existing, in: db)
+                logger.info("✅ Share created with URL: \(share.url?.absoluteString ?? "nil")")
                 return (existing, share)
             }
         } else {
@@ -59,6 +71,51 @@ final class LeaderboardSyncService {
         return shareRecord as? CKShare
     }
     
+    /// Deletes an existing share for a group. Used to force regeneration with current build number.
+    func deleteShare(for groupId: UUID) async throws {
+        let container = self.container
+        let db = container.privateCloudDatabase
+        let rootID = groupRecordID(for: groupId)
+        
+        do {
+            let root = try await db.record(for: rootID)
+            if let shareReference = root.share {
+                logger.info("🗑️ Deleting existing share \(shareReference.recordID.recordName) for group \(groupId.uuidString)")
+                // Delete the share record
+                // CloudKit will automatically update the root record's share reference
+                try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                    let op = CKModifyRecordsOperation(recordsToSave: [], recordIDsToDelete: [shareReference.recordID])
+                    op.modifyRecordsResultBlock = { result in
+                        switch result {
+                        case .success:
+                            self.logger.info("✅ Successfully deleted share for group \(groupId.uuidString)")
+                            cont.resume()
+                        case .failure(let error):
+                            self.logger.error("❌ Failed to delete share: \(error.localizedDescription)")
+                            cont.resume(throwing: error)
+                        }
+                    }
+                    db.add(op)
+                }
+                
+                // Verify deletion by fetching root record again
+                // Small delay to allow CloudKit to propagate the deletion
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                let refreshedRoot = try? await db.record(for: rootID)
+                if refreshedRoot?.share == nil {
+                    logger.info("✅ Verified share deletion - root record no longer has share reference")
+                } else {
+                    logger.warning("⚠️ Share reference still exists after deletion - CloudKit may need more time")
+                }
+            } else {
+                logger.info("ℹ️ No existing share to delete for group \(groupId.uuidString)")
+            }
+        } catch {
+            // Share might not exist, which is fine
+            logger.info("ℹ️ No existing share to delete for group \(groupId.uuidString): \(error.localizedDescription)")
+        }
+    }
+    
     private func createShare(for groupId: UUID, title: String, in database: CKDatabase) async throws -> CKShare {
         // Ensure zone exists
         try await modifyZones(database: database, saving: [CKRecordZone(zoneID: groupZoneID(for: groupId))], deleting: [])
@@ -67,15 +124,27 @@ final class LeaderboardSyncService {
         let groupRecord: CKRecord
         do {
             groupRecord = try await database.record(for: rootID)
+            // If root record already has a share reference, we need to create a completely new share
+            // by creating a new CKShare object (this will get a new record ID)
+            if groupRecord.share != nil {
+                logger.info("🔄 Root record has existing share reference - creating new share with new record ID")
+            }
         } catch {
             let rec = CKRecord(recordType: "LeaderboardGroup", recordID: rootID)
             rec["title"] = title as CKRecordValue
             rec["createdAt"] = Date() as CKRecordValue
             groupRecord = rec
         }
+        // Always create a new CKShare - CloudKit will assign a new record ID
+        // This ensures we get a fresh share with the current build number
         let share = CKShare(rootRecord: groupRecord)
         share[CKShare.SystemFieldKey.title] = title as CKRecordValue
-        _ = try await saveRecords(database: database, records: [groupRecord, share])
+        logger.info("🆕 Creating new share for group \(groupId.uuidString) with title '\(title)'")
+        let savedRecords = try await saveRecords(database: database, records: [groupRecord, share])
+        if let savedShare = savedRecords.first(where: { $0 is CKShare }) as? CKShare {
+            logger.info("✅ Created new share with record ID: \(savedShare.recordID.recordName)")
+            return savedShare
+        }
         return share
     }
     
