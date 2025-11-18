@@ -2,12 +2,17 @@
 
 ## Executive Summary
 
-The StreakSync app implements **two distinct CloudKit sync strategies**:
+The StreakSync app implements **three CloudKit-integrated systems**:
 
-1. **Manual CloudKit Sync** (for Tiered Achievements) - Feature-flagged, currently disabled by default
-2. **Social Features CloudKit Integration** (for Friends/Leaderboards) - Stubbed out, falls back to local storage
+1. **Per-Result CloudKit Sync** (for `GameResult` records) – Always-on sync via a custom `UserDataZone` in the private database, implemented by `UserDataSyncService`.
+2. **Manual CloudKit Sync for Tiered Achievements** – Feature-flagged, optional sync of the single `UserAchievements` record in `AchievementsZone` via `AchievementSyncService`.
+3. **Social Features CloudKit Integration** (Friends/Leaderboards) – CKShare-based architecture defined and partially implemented, with local `MockSocialService` still used as a fallback in many cases.
 
-**Current Status**: CloudKit sync is **partially implemented** and **disabled by default**. The app uses local storage (UserDefaults) for all data persistence. CloudKit integration is prepared but not active due to missing entitlements and feature flags.
+**Current Status**:
+- Local storage (UserDefaults + App Group JSON) remains the canonical on-device store.
+- CloudKit sync is **active** for per-result user data and **optional** for tiered achievements.
+- CloudKit entitlements and container are configured for `iCloud.com.mitsheth.StreakSync2`.
+- Social features are partially implemented; some operations still rely on `MockSocialService` while full CloudKit-backed leaderboards are rolled out.
 
 ---
 
@@ -15,30 +20,36 @@ The StreakSync app implements **two distinct CloudKit sync strategies**:
 
 ### 1.1 CloudKit Container Configuration
 
-**Container Identifier**: `iCloud.com.mitsheth.StreakSync`
+**Container Identifier**: `iCloud.com.mitsheth.StreakSync2`
 
 **Location**: Defined in `CloudKitConfiguration.swift`
 
 ```swift
-static let containerIdentifier = "iCloud.com.mitsheth.StreakSync"
+static let containerIdentifier = "iCloud.com.mitsheth.StreakSync2"
 ```
 
-**Current Status**: Container identifier is defined but CloudKit capability is **not enabled** in entitlements.
+**Current Status**: CloudKit capability is enabled for the app target, and entitlements reference `iCloud.com.mitsheth.StreakSync2` alongside the App Group.
 
 ### 1.2 Sync Strategy
 
-The app uses **manual CloudKit sync** (not `NSPersistentCloudKitContainer`). There is **no Core Data integration** - all persistence uses `UserDefaults` with JSON encoding.
+The app uses **manual CloudKit sync** (not `NSPersistentCloudKitContainer`). There is **no Core Data integration** – all persistence uses `UserDefaults` with JSON encoding, and CloudKit is used as a sync layer, not a backup/restore system.
 
-**Two Sync Systems**:
+**Three Sync Systems**:
 
-1. **AchievementSyncService** - Manual push/pull for tiered achievements
-   - Uses `CKContainer.default().privateCloudDatabase`
-   - Feature-flagged via `AppConstants.Flags.cloudSyncEnabled` (default: `false`)
-   - Bidirectional sync: pull (merge) then push
+1. **UserDataSyncService** – Per-result sync for `GameResult` records
+   - Uses a custom `UserDataZone` in the private database.
+   - Maintains a `CKServerChangeToken` in UserDefaults for incremental fetch.
+   - Uses an in-memory `UploadQueue` plus a persistent `OfflineQueue` and `SyncTracker` to safely upload results and recover from crashes/offline periods.
+   - Listens to CloudKit zone subscriptions (via `CloudKitSubscriptionManager`) to refresh on silent pushes.
 
-2. **HybridSocialService** - Social features with CloudKit fallback
-   - Attempts CloudKit first, falls back to `MockSocialService` (local storage)
-   - Currently always uses local storage (CloudKit unavailable)
+2. **AchievementSyncService** – Manual push/pull for tiered achievements
+   - Uses `CKContainer.default().privateCloudDatabase` and the `AchievementsZone`.
+   - Feature-flagged via `AppConstants.Flags.cloudSyncEnabled` (default: `false`).
+   - Bidirectional sync: pull (merge) then push, using a custom merge strategy for tiered achievements.
+
+3. **HybridSocialService** – Social features with CloudKit fallback
+   - Integrates with `LeaderboardSyncService` for CKShare-based leaderboards.
+   - Falls back to `MockSocialService` (local storage) when CloudKit is unavailable or not yet fully configured.
 
 ### 1.3 Conflict Resolution
 
@@ -335,53 +346,29 @@ enum ServiceStatus {
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| AchievementSyncService | **Partially Implemented** | Code complete, feature-flagged off, no entitlements |
-| CloudKitSocialService | **Stub Only** | All methods throw errors |
-| HybridSocialService | **Functional (Local Only)** | Works with local storage fallback |
-| CloudKit Entitlements | **Missing** | Not configured in entitlements file |
-| CloudKit Capability | **Not Enabled** | Not added in Xcode project |
+| UserDataSyncService | **Implemented** | Active per-result sync in private DB `UserDataZone` with change tokens, queues, and subscriptions |
+| AchievementSyncService | **Implemented (Optional)** | Feature-flagged, syncs tiered achievements in `AchievementsZone` when enabled |
+| CloudKitSocialService | **Stub / In Progress** | Some methods still throw or are no-ops; CKShare-based leaderboards rolling out |
+| HybridSocialService | **Functional** | Uses CloudKit when available, falls back to local `MockSocialService` |
+| CloudKit Entitlements | **Configured** | Entitlements include CloudKit services and the `iCloud.com.mitsheth.StreakSync2` container |
+| CloudKit Capability | **Enabled** | iCloud/CloudKit capability added to the app target |
 
-### 4.2 Known Issues & TODOs
+### 4.2 Known Issues & TODOs (Updated)
 
-1. **Missing CloudKit Entitlements**
-   - `StreakSync.entitlements` only has App Groups
-   - CloudKit entitlements commented out in documentation
-   - Need to add:
-     ```xml
-     <key>com.apple.developer.icloud-container-identifiers</key>
-     <array>
-         <string>iCloud.com.mitsheth.StreakSync</string>
-     </array>
-     <key>com.apple.developer.icloud-services</key>
-     <array>
-         <string>CloudKit</string>
-     </array>
-     ```
+1. **CloudKitSocialService Coverage**
+   - Some methods remain stubbed or partially implemented.
+   - Real-time subscriptions for all leaderboard scenarios are not yet fully wired.
 
-2. **Feature Flag Default**
-   - `AppConstants.Flags.cloudSyncEnabled` defaults to `false`
-   - No UI to enable it (except Settings toggle if implemented)
+2. **Feature Flag Default (Achievements)**
+   - `AppConstants.Flags.cloudSyncEnabled` still defaults to `false`.
+   - Users must explicitly opt in via the Data & Privacy settings toggle.
 
-3. **CloudKitSocialService Not Implemented**
-   - All methods are stubs
-   - Real-time subscriptions not implemented
-   - No actual CloudKit CRUD operations
+3. **Conflict Resolution UI**
+   - Merge and “server wins” conflict strategies are handled in code, but there is no dedicated UI explaining when merges occur.
 
-4. **No Conflict Resolution UI**
-   - Merge happens silently
-   - No user notification of conflicts or merges
-
-5. **No Sync Status UI**
-   - AchievementSyncService has no status indicator
-   - Users can't see if sync is in progress or failed
-
-6. **No Retry Logic**
-   - Failed syncs are logged but not retried
-   - No exponential backoff or retry mechanism
-
-7. **No Background Sync**
-   - Sync only happens on app launch
-   - No background fetch or push notifications for sync
+4. **Background Sync Enhancements**
+   - Silent push-based refresh via CloudKit subscriptions is implemented.
+   - No `BGTaskScheduler`-based periodic background sync yet; foreground/notification-driven refresh is the primary mechanism.
 
 ### 4.3 Permissions & Capabilities
 

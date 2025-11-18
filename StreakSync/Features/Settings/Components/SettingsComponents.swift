@@ -162,7 +162,9 @@ private struct FeatureRow: View {
 // MARK: - Data Management View (FIXED)
 struct DataManagementView: View {
     @Environment(AppState.self) private var appState
-    @EnvironmentObject private var container: AppContainer  // Add this!
+    @EnvironmentObject private var container: AppContainer  // App-wide services
+    @EnvironmentObject private var syncService: UserDataSyncService
+    @EnvironmentObject private var guestSessionManager: GuestSessionManager
     @State private var showExportSheet = false
     @State private var showImportPicker = false
     @State private var showClearDataAlert = false
@@ -175,6 +177,8 @@ struct DataManagementView: View {
     @State private var importedItemsCount = 0
     @State private var showTestAlert = false
     @State private var testMessage = ""
+    @State private var showGuestModeConfirmation = false
+    @State private var showExitGuestModeConfirmation = false
     
     var body: some View {
         List {
@@ -242,6 +246,37 @@ struct DataManagementView: View {
                         }
                         #endif
                     }
+                    
+                    // User data (GameResult) sync status – automatic, no toggle
+                    HStack {
+                        Label("Game Results Sync", systemImage: "icloud.and.arrow.up")
+                        Spacer()
+                        switch syncService.syncState {
+                        case .syncing:
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        case .synced(let date):
+                            Text(date.formatted(.relative(presentation: .named)))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        case .offline:
+                            Text("Offline")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        case .failed:
+                            Text("Failed")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        case .notStarted:
+                            Text("Not started")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    Text("Game results and streaks are tied to the iCloud account currently signed in on this device. To use a different account, change the iCloud account in iOS Settings. Data is never shared between iCloud accounts. Game results sync automatically via your private iCloud database—no manual backup or restore needed.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
             }
             // Export Section
@@ -311,6 +346,43 @@ struct DataManagementView: View {
                 Text("Data Summary")
             }
             
+            // Guest Mode Section
+            Section("Guest Mode") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Guest Mode")
+                        .font(.headline)
+                    Text("Let someone else use StreakSync temporarily without touching your streaks or stats.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    DisclosureGroup("How Guest Mode Works") {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("• Your data is hidden while Guest Mode is active and restored when you exit.")
+                            Text("• Guest results stay local only – they never sync to iCloud or other devices.")
+                            Text("• When exiting, you can discard guest data or export it as a JSON file.")
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                    }
+                }
+                
+                if guestSessionManager.isGuestMode {
+                    Button {
+                        showExitGuestModeConfirmation = true
+                    } label: {
+                        Label("Exit Guest Mode", systemImage: "person.crop.circle.badge.checkmark")
+                    }
+                    .tint(.orange)
+                } else {
+                    Button {
+                        showGuestModeConfirmation = true
+                    } label: {
+                        Label("Start Guest Mode", systemImage: "person.crop.circle.badge.clock")
+                    }
+                }
+            }
+            
             // Clear Data Section
             Section {
                 Button(role: .destructive) {
@@ -358,11 +430,56 @@ struct DataManagementView: View {
         } message: {
             Text("Successfully imported \(importedItemsCount) items.")
         }
+        .alert("Start Guest Mode?", isPresented: $showGuestModeConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Start") {
+                guestSessionManager.enterGuestMode()
+            }
+        } message: {
+            Text("Your data will be hidden until you exit Guest Mode. The guest's data will not be saved to iCloud.")
+        }
+        .alert("Exit Guest Mode?", isPresented: $showExitGuestModeConfirmation) {
+            Button("Discard Guest Data", role: .destructive) {
+                Task {
+                    _ = await guestSessionManager.exitGuestMode(exportGuestData: false)
+                }
+            }
+            Button("Export Guest Data") {
+                Task {
+                    _ = await guestSessionManager.exitGuestMode(exportGuestData: true)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("What would you like to do with the guest's data?")
+        }
         .alert("CloudKit Connection", isPresented: $showTestAlert) {
             Button("OK") { }
         } message: {
             Text(testMessage)
         }
+        #if DEBUG
+        // Debug-only CloudKit sync info
+        Section("CloudKit Debug") {
+            HStack {
+                Text("UserData Sync Token")
+                Spacer()
+                Text(syncService.hasSyncToken ? "Present" : "None")
+                    .foregroundStyle(.secondary)
+            }
+            
+            Button {
+                Task { @MainActor in
+                    await syncService.forceFullSync()
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.clockwise.circle")
+                    Text("Force Full Sync")
+                }
+            }
+        }
+        #endif
     }
     
     private func exportData() {

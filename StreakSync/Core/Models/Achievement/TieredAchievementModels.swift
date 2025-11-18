@@ -127,6 +127,37 @@ enum AchievementCategory: String, CaseIterable, Codable, Sendable {
         case .marathonRunner: return "Stay active for extended periods"
         }
     }
+    
+    /// Generates a consistent UUID for this achievement category.
+    /// This ensures the same category always gets the same ID, preventing duplicates.
+    var consistentID: UUID {
+        // Use fixed, deterministic UUIDs for each category to prevent duplicates
+        // These UUIDs are hardcoded to ensure consistency across app launches
+        let uuidString: String
+        switch self {
+        case .streakMaster:
+            uuidString = "A1B2C3D4-E5F6-4789-A012-3456789ABCDE"
+        case .gameCollector:
+            uuidString = "B2C3D4E5-F6A7-4890-B123-456789ABCDEF"
+        case .perfectionist:
+            uuidString = "C3D4E5F6-A7B8-4901-C234-56789ABCDEF0"
+        case .dailyDevotee:
+            uuidString = "D4E5F6A7-B8C9-4012-D345-6789ABCDEF01"
+        case .varietyPlayer:
+            uuidString = "E5F6A7B8-C9D0-4123-E456-789ABCDEF012"
+        case .speedDemon:
+            uuidString = "F6A7B8C9-D0E1-4234-F567-89ABCDEF0123"
+        case .earlyBird:
+            uuidString = "A7B8C9D0-E1F2-4345-A678-9ABCDEF01234"
+        case .nightOwl:
+            uuidString = "B8C9D0E1-F2A3-4456-B789-ABCDEF012345"
+        case .comebackChampion:
+            uuidString = "C9D0E1F2-A3B4-4567-C89A-BCDEF0123456"
+        case .marathonRunner:
+            uuidString = "D0E1F2A3-B4C5-4678-D9AB-CDEF01234567"
+        }
+        return UUID(uuidString: uuidString) ?? UUID()
+    }
 }
 
 // MARK: - Tier Requirement
@@ -313,6 +344,7 @@ struct AchievementFactory {
     // MARK: - Streak Master Achievement (fixed naming)
     static func createStreakMasterAchievement(for gameId: UUID? = nil) -> TieredAchievement {
         TieredAchievement(
+            id: AchievementCategory.streakMaster.consistentID,
             category: .streakMaster,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 3, specificGameId: gameId),
@@ -328,6 +360,7 @@ struct AchievementFactory {
     // MARK: - Game Collector Achievement
     static func createGameCollectorAchievement() -> TieredAchievement {
         TieredAchievement(
+            id: AchievementCategory.gameCollector.consistentID,
             category: .gameCollector,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 10),
@@ -343,6 +376,7 @@ struct AchievementFactory {
     // MARK: - Perfectionist Achievement
     static func createPerfectionistAchievement() -> TieredAchievement {
         TieredAchievement(
+            id: AchievementCategory.perfectionist.consistentID,
             category: .perfectionist,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 5),
@@ -358,6 +392,7 @@ struct AchievementFactory {
     // MARK: - Daily Devotee Achievement
     static func createDailyDevoteeAchievement() -> TieredAchievement {
         TieredAchievement(
+            id: AchievementCategory.dailyDevotee.consistentID,
             category: .dailyDevotee,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 3),
@@ -395,6 +430,7 @@ struct AchievementFactory {
         }
         
         return TieredAchievement(
+            id: AchievementCategory.varietyPlayer.consistentID,
             category: .varietyPlayer,
             requirements: requirements
         )
@@ -403,6 +439,7 @@ struct AchievementFactory {
     // MARK: - Speed Demon Achievement
     static func createSpeedDemonAchievement() -> TieredAchievement {
         TieredAchievement(
+            id: AchievementCategory.speedDemon.consistentID,
             category: .speedDemon,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 1),    // Win in ≤3 attempts once
@@ -418,6 +455,7 @@ struct AchievementFactory {
     // MARK: - Early Bird Achievement
     static func createEarlyBirdAchievement() -> TieredAchievement {
         TieredAchievement(
+            id: AchievementCategory.earlyBird.consistentID,
             category: .earlyBird,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 1),   // Count plays between 05:00–08:59 (occurrence count tiers)
@@ -431,6 +469,7 @@ struct AchievementFactory {
     // MARK: - Night Owl Achievement
     static func createNightOwlAchievement() -> TieredAchievement {
         TieredAchievement(
+            id: AchievementCategory.nightOwl.consistentID,
             category: .nightOwl,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 1),   // Count plays between 00:00–04:59 (occurrence count tiers)
@@ -444,6 +483,7 @@ struct AchievementFactory {
     // MARK: - Comeback Champion Achievement
     static func createComebackChampionAchievement() -> TieredAchievement {
         TieredAchievement(
+            id: AchievementCategory.comebackChampion.consistentID,
             category: .comebackChampion,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 1),   // Start new streak
@@ -457,6 +497,7 @@ struct AchievementFactory {
     // MARK: - Marathon Runner Achievement
     static func createMarathonRunnerAchievement() -> TieredAchievement {
         TieredAchievement(
+            id: AchievementCategory.marathonRunner.consistentID,
             category: .marathonRunner,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 10),

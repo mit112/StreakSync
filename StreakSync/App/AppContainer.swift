@@ -97,12 +97,15 @@
 
 import SwiftUI
 import OSLog
+import CloudKit
 
 @MainActor
 final class AppContainer: ObservableObject {
     // MARK: - Core Services
     let appState: AppState
     let navigationCoordinator: NavigationCoordinator
+    let userDataSyncService: UserDataSyncService
+    let guestSessionManager: GuestSessionManager
     
     // MARK: - Data Services
     let persistenceService: PersistenceServiceProtocol
@@ -117,6 +120,7 @@ final class AppContainer: ObservableObject {
     let themeManager: ThemeManager
     let hapticManager: HapticManager
     let browserLauncher: BrowserLauncher
+    let networkMonitor: NetworkMonitor
     
     let achievementCelebrationCoordinator: AchievementCelebrationCoordinator
 
@@ -163,6 +167,12 @@ final class AppContainer: ObservableObject {
         self.hapticManager = HapticManager.shared
         self.browserLauncher = BrowserLauncher.shared
         
+        // 5a. User data CloudKit sync
+        self.userDataSyncService = UserDataSyncService(appState: appState)
+        // 5b. Guest Mode manager (local-only guest sessions)
+        self.guestSessionManager = GuestSessionManager(appState: appState, syncService: userDataSyncService)
+        self.networkMonitor = NetworkMonitor(syncService: userDataSyncService)
+        
         // 5b. Game Management (NEW)
         self.gameCatalog = GameCatalog()
         
@@ -197,6 +207,21 @@ final class AppContainer: ObservableObject {
         // Start day change detection
         DayChangeDetector.shared.startMonitoring()
         
+        // Observe iCloud account changes to keep user data in sync and protect privacy
+        NotificationCenter.default.addObserver(
+            forName: .CKAccountChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                await self.handleCloudKitAccountChanged()
+            }
+        }
+        
+        // Handle any stranded guest sessions (e.g. app killed while in Guest Mode).
+        guestSessionManager.handleStrandedGuestSessionIfNeeded()
+        
         // Kick off cloud sync if enabled
         Task { @MainActor in
             await self.achievementSyncService.syncIfEnabled()
@@ -223,6 +248,61 @@ final class AppContainer: ObservableObject {
         notificationCoordinator.setupObservers()
     }
     
+    // MARK: - CloudKit Account Changes
+    private func handleCloudKitAccountChanged() async {
+        logger.info("👤 Detected CKAccountChanged – evaluating whether the iCloud account actually changed")
+        
+        // Load the last known userRecordID.recordName we successfully synced with.
+        let previousRecordName = userDataSyncService.lastKnownUserRecordName()
+        
+        // If an iCloud account change occurs during Guest Mode, first exit guest
+        // mode (discarding guest data) so that we can safely reset host data for
+        // the new account without restoring a stale snapshot.
+        if guestSessionManager.isGuestMode {
+            logger.warning("⚠️ CKAccountChanged fired while Guest Mode is active – exiting Guest Mode before processing account change")
+            _ = await guestSessionManager.exitGuestMode(exportGuestData: false, shouldSyncAfterExit: false)
+        }
+        var currentRecordName: String?
+        
+        do {
+            let container = CKContainer(identifier: CloudKitConfiguration.containerIdentifier)
+            let recordID = try await container.userRecordID()
+            currentRecordName = recordID.recordName
+        } catch {
+            logger.error("⚠️ Failed to fetch current userRecordID after CKAccountChanged: \(error.localizedDescription)")
+        }
+        
+        // Only treat this as a real account change when we have both a previous and
+        // current record name and they differ. This avoids wiping data on spurious
+        // CKAccountChanged notifications, first-time sign-ins, or transient states.
+        guard
+            let previous = previousRecordName,
+            let current = currentRecordName,
+            previous != current
+        else {
+            logger.info("👤 CKAccountChanged but userRecordID did not change in a confirmed way (previous=\(previousRecordName ?? "nil", privacy: .private), current=\(currentRecordName ?? "nil", privacy: .private)) – skipping data clear")
+            return
+        }
+        
+        logger.warning("👤 iCloud account changed from \(previous, privacy: .private) to \(current, privacy: .private) – resetting local data and sync state")
+        
+        // Clear all local data for privacy when account really changes.
+        await appState.clearAllData()
+        
+        // Reset all CloudKit user-data sync state (incremental token, offline
+        // queue, unsynced trackers, and last known userRecordID) so we never
+        // upload results from the previous account under the new one.
+        await userDataSyncService.resetForAccountChange()
+        
+        // Attempt to sync data for the new account (if available)
+        await userDataSyncService.syncIfNeeded()
+        
+        // Rebuild streaks from the freshly-synced results
+        await appState.rebuildStreaksFromResults()
+        
+        logger.info("✅ Completed CloudKit account change handling for new iCloud user")
+    }
+    
     // MARK: - View Model Factories
     
     /// Creates a new DashboardViewModel
@@ -245,6 +325,13 @@ final class AppContainer: ObservableObject {
     /// Call when app becomes active
     func handleAppBecameActive() async {
         logger.info("📱 App became active")
+        
+        // In Guest Mode we avoid refreshing host data from persistence or
+        // triggering CloudKit-related refreshes; guest sessions are local-only.
+        if appState.isGuestMode {
+            logger.info("🧑‍🤝‍🧑 Guest Mode active – skipping host data refresh on app activation")
+            return
+        }
         
         // Start monitoring for share extension results
         appGroupBridge.startMonitoringForResults()

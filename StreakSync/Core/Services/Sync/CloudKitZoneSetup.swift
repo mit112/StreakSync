@@ -13,12 +13,19 @@ import CloudKit
 /// Centralized CloudKit zone identifiers and setup helpers.
 enum CloudKitZones {
     #if canImport(CloudKit)
+    /// Zone for tiered achievements sync.
     static let achievementsZoneID = CKRecordZone.ID(zoneName: "AchievementsZone")
+    
+    /// Zone for per-result user data sync (GameResult records).
+    /// This lives in the private database and is separate from AchievementsZone.
+    static let userDataZoneID = CKRecordZone.ID(zoneName: "UserDataZone")
     #endif
 }
 
 #if canImport(CloudKit)
 enum CloudKitZoneSetup {
+    
+    // MARK: - Achievements Zone
     
     /// Ensures the AchievementsZone exists in the provided database. Safe to call repeatedly.
     static func ensureAchievementsZone(in database: CKDatabase) async throws {
@@ -43,8 +50,49 @@ enum CloudKitZoneSetup {
         let info = CKSubscription.NotificationInfo()
         info.shouldSendContentAvailable = true
         
-        let subscription = CKRecordZoneSubscription(zoneID: CloudKitZones.achievementsZoneID, subscriptionID: subID)
+        let subscription = CKRecordZoneSubscription(
+            zoneID: CloudKitZones.achievementsZoneID,
+            subscriptionID: subID
+        )
         subscription.notificationInfo = info
+        try await modifySubscriptions(database: database, saving: [subscription], deleting: [])
+    }
+    
+    // MARK: - User Data Zone (GameResult)
+    
+    /// Ensures the UserDataZone exists in the provided database. Safe to call repeatedly.
+    /// This zone stores individual GameResult records for per-user history.
+    static func ensureUserDataZone(in database: CKDatabase) async throws {
+        let zone = CKRecordZone(zoneID: CloudKitZones.userDataZoneID)
+        do {
+            try await modifyZones(database: database, saving: [zone], deleting: [])
+        } catch let error as CKError {
+            // If zone already exists, that's fine (idempotent)
+            if error.code == .serverRecordChanged {
+                // Zone already exists, which is what we want
+                return
+            }
+            // Re-throw other errors
+            throw error
+        }
+    }
+    
+    /// Ensures a CKRecordZoneSubscription exists for UserDataZone (silent push).
+    /// Uses the subscription identifier `user-data-zone-changes` as defined in the sync spec.
+    static func ensureUserDataZoneSubscription(in database: CKDatabase) async throws {
+        let subscriptionID = "user-data-zone-changes"
+        
+        let notificationInfo = CKSubscription.NotificationInfo()
+        notificationInfo.shouldSendContentAvailable = true
+        notificationInfo.shouldBadge = false
+        notificationInfo.shouldSendMutableContent = false
+        
+        let subscription = CKRecordZoneSubscription(
+            zoneID: CloudKitZones.userDataZoneID,
+            subscriptionID: subscriptionID
+        )
+        subscription.notificationInfo = notificationInfo
+        
         try await modifySubscriptions(database: database, saving: [subscription], deleting: [])
     }
 }

@@ -3192,3 +3192,165 @@ This preserves the intended behavior (nil for 0 categories) while explicitly han
 
 ---
 
+## Bug #047: Achievement Duplication Issue
+**Date:** November 2025  
+**Severity:** High  
+**Component:** Achievement System - TieredAchievementModels.swift, AppState+TieredAchievements.swift
+
+### Bug Description
+Achievements were appearing multiple times in the achievements list. The issue was particularly noticeable after CloudKit sync, where 230 duplicate achievements were detected and removed.
+
+### Error Messages
+```
+⚠️ Removed 230 duplicate achievements
+⚠️ Removed X duplicate achievements from persistence
+```
+
+### Root Cause
+The `AchievementFactory.createDefaultAchievements()` method was creating new `TieredAchievement` instances with random UUIDs each time it was called. When achievements were recalculated or synced, new achievements with different IDs were created, causing the system to treat them as separate achievements and resulting in duplicates.
+
+**Key Issues:**
+1. `TieredAchievement` initializer used `UUID()` as default, generating random IDs
+2. `recalculateAllTieredAchievementProgress()` created new achievements from scratch without preserving existing IDs
+3. CloudKit sync merge function couldn't properly deduplicate because IDs were inconsistent
+
+### Solution
+**1. Added Consistent ID Generation:**
+```swift
+// Added to AchievementCategory enum
+var consistentID: UUID {
+    // Use fixed, deterministic UUIDs for each category
+    let uuidString: String
+    switch self {
+    case .streakMaster:
+        uuidString = "A1B2C3D4-E5F6-4789-A012-3456789ABCDE"
+    case .gameCollector:
+        uuidString = "B2C3D4E5-F6A7-4890-B123-456789ABCDEF"
+    // ... etc for all categories
+    }
+    return UUID(uuidString: uuidString) ?? UUID()
+}
+```
+
+**2. Updated Factory Methods:**
+```swift
+// Before: Random UUID
+TieredAchievement(
+    category: .streakMaster,
+    requirements: [...]
+)
+
+// After: Consistent ID
+TieredAchievement(
+    id: AchievementCategory.streakMaster.consistentID,
+    category: .streakMaster,
+    requirements: [...]
+)
+```
+
+**3. Preserve Existing IDs During Recalculation:**
+```swift
+// In recalculateAllTieredAchievementProgress()
+// Create a map of existing achievements by category to preserve their IDs
+var existingByCategory: [AchievementCategory: TieredAchievement] = [:]
+for existing in tieredAchievements {
+    existingByCategory[existing.category] = existing
+}
+
+// Create new achievements with consistent IDs, but preserve existing IDs if they exist
+var current = AchievementFactory.createDefaultAchievements()
+for i in current.indices {
+    if let existing = existingByCategory[current[i].category] {
+        // Preserve the existing ID to prevent duplicates
+        current[i] = TieredAchievement(
+            id: existing.id,
+            category: current[i].category,
+            requirements: current[i].requirements,
+            progress: current[i].progress
+        )
+    }
+}
+```
+
+**4. Added Deduplication Safeguards:**
+```swift
+// In tieredAchievements getter and setter
+// Deduplicate by category (keep the first occurrence of each category)
+var deduplicated: [TieredAchievement] = []
+var seenCategories: Set<AchievementCategory> = []
+for achievement in newValue {
+    if !seenCategories.contains(achievement.category) {
+        deduplicated.append(achievement)
+        seenCategories.insert(achievement.category)
+    }
+}
+```
+
+### Prevention
+- **Always use deterministic IDs** for entities that should be unique by a specific property (like category)
+- **Preserve existing IDs** when recalculating or merging data instead of creating new instances
+- **Add deduplication logic** in getters/setters for critical data structures
+- **Test sync scenarios** to ensure IDs remain consistent across devices and app launches
+- **Log deduplication events** to catch issues early in production
+
+---
+
+## Bug #048: Games Not Showing on First Load
+**Date:** November 2025  
+**Severity:** High  
+**Component:** UI - DashboardGamesContent.swift
+
+### Bug Description
+On first app launch, only games with active streaks were visible on the home page dashboard. Games without streaks (new games or games that hadn't been played recently) didn't appear until the screen was manually refreshed.
+
+### Error Messages
+- No error messages, but games were missing from the UI
+- Logs showed: "✅ Games refresh complete. Total games: 15" but only 4-5 games visible
+
+### Root Cause
+The `DashboardGamesContent` view was iterating over `filteredStreaks` instead of `filteredGames`. Since streaks are only persisted for games that have been played, games without streaks were completely excluded from the display.
+
+**Key Issues:**
+1. `DashboardGamesContent` used `ForEach(filteredStreaks)` in both card and grid views
+2. Games without streaks weren't in the `filteredStreaks` array
+3. The view received `filteredGames` as a parameter but wasn't using it for display
+
+### Solution
+**Updated Both Card and Grid Views to Use `filteredGames`:**
+
+```swift
+// Before: Only showing games with streaks
+ForEach(Array(filteredStreaks.enumerated()), id: \.element.id) { index, streak in
+    if let game = appState.games.first(where: { $0.id == streak.gameId }) {
+        ModernGameCard(streak: streak, game: game, ...)
+    }
+}
+
+// After: Show all filtered games, create empty streak if needed
+ForEach(Array(filteredGames.enumerated()), id: \.element.id) { index, game in
+    // Get streak for this game, or create an empty one if it doesn't exist
+    let streak = appState.getStreak(for: game) ?? GameStreak.empty(for: game)
+    
+    ModernGameCard(
+        streak: streak,
+        game: game,
+        ...
+    )
+    .id(game.id)
+}
+```
+
+**Applied to both views:**
+- `modernCardView`: Changed from `filteredStreaks` to `filteredGames`
+- `modernGridView`: Changed from `filteredStreaks` to `filteredGames`
+- Updated animation modifier to use `filteredGames.count` instead of `filteredStreaks.count`
+
+### Prevention
+- **Always iterate over the source data** (games) rather than derived data (streaks) when displaying lists
+- **Create empty/default instances on-the-fly** for missing related data rather than excluding items
+- **Test first-launch scenarios** to ensure all expected items are visible
+- **Use `filteredGames` for display logic** and look up related data (like streaks) as needed
+- **Ensure UI components receive all necessary data** and handle missing related data gracefully
+
+---
+

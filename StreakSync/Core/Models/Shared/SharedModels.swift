@@ -1204,8 +1204,36 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
     let sharedText: String
     let parsedData: [String: String]
     
-    // MARK: - Validated Initializer
+    // MARK: - Public Initializer (Auto‑generated ID)
     init(
+        gameId: UUID,
+        gameName: String,
+        date: Date = Date(),
+        score: Int?,
+        maxAttempts: Int,
+        completed: Bool,
+        sharedText: String,
+        parsedData: [String: String] = [:]
+    ) {
+        // Delegate to the designated initializer with a fresh UUID.
+        self.init(
+            id: UUID(),
+            gameId: gameId,
+            gameName: gameName,
+            date: date,
+            score: score,
+            maxAttempts: maxAttempts,
+            completed: completed,
+            sharedText: sharedText,
+            parsedData: parsedData
+        )
+    }
+    
+    // MARK: - Designated Initializer (Injectable ID)
+    /// Designated initializer that allows callers (including CloudKit sync) to provide a stable ID.
+    /// All validation rules mirror the convenience initializer above.
+    init(
+        id: UUID,
         gameId: UUID,
         gameName: String,
         date: Date = Date(),
@@ -1239,7 +1267,7 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
             }
         }
         
-        self.id = UUID()
+        self.id = id
         self.gameId = gameId
         self.gameName = gameName.trimmingCharacters(in: .whitespacesAndNewlines)
         self.date = date
@@ -1308,7 +1336,8 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
         
         // Standard score display
         guard let score = score else {
-            return NSLocalizedString("game.failed_score", comment: "X/\(maxAttempts)")
+            let formatString = NSLocalizedString("game.failed_score", comment: "X/%d")
+            return String(format: formatString, maxAttempts)
         }
         return "\(score)/\(maxAttempts)"
     }

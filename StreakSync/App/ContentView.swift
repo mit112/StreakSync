@@ -90,25 +90,41 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var container: AppContainer
     @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
+    @EnvironmentObject private var guestSessionManager: GuestSessionManager
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        MainTabView()
-            .achievementCelebrations(coordinator: container.achievementCelebrationCoordinator)
-            .sheet(item: $navigationCoordinator.presentedSheet) { sheet in
-                sheetView(for: sheet)
-                    .presentationDragIndicator(.visible)
-                    .presentationCornerRadius(20)
-                    .presentationBackground(.ultraThinMaterial)
+        VStack(spacing: 0) {
+            if guestSessionManager.isGuestMode {
+                HStack {
+                    Image(systemName: "person.circle.fill")
+                    Text("Guest Mode Active")
+                        .fontWeight(.semibold)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.orange)
+                .foregroundStyle(.white)
             }
-            .background(
-                StreakSyncColors.backgroundGradient(for: colorScheme)
-                    .ignoresSafeArea()
-            )
-            .onChange(of: scenePhase) { _, newPhase in
-                handleScenePhaseChange(newPhase)
-            }
+            
+            MainTabView()
+                .achievementCelebrations(coordinator: container.achievementCelebrationCoordinator)
+                .sheet(item: $navigationCoordinator.presentedSheet) { sheet in
+                    sheetView(for: sheet)
+                        .presentationDragIndicator(.visible)
+                        .presentationCornerRadius(20)
+                        .presentationBackground(.ultraThinMaterial)
+                }
+        }
+        .background(
+            StreakSyncColors.backgroundGradient(for: colorScheme)
+                .ignoresSafeArea()
+        )
+        .onChange(of: scenePhase) { _, newPhase in
+            handleScenePhaseChange(newPhase)
+        }
     }
     
     // MARK: - Scene Phase Handling

@@ -14,12 +14,32 @@ Layers
 - Deep links: `AppGroupURLSchemeHandler` parses scheme and posts typed payloads → `NotificationCoordinator` navigates.
 - App lifecycle: `StreakSyncApp.initializeApp()` loads state once; `AppContainer` forwards lifecycle to services and is the single owner of foreground refreshes (no duplicate reloads from other components).
 
- Decisions
+Decisions
 - Duplicate achievement helpers removed from `AppState+GameLogic`; single source lives in `AppState+TieredAchievements`.
 - NotificationCoordinator focuses on internal app notifications (share results, deep links) and does not trigger full data reloads; `AppGroupBridge` posts `gameResultReceived` and `AppContainer` coordinates refresh when appropriate.
 - URL payload keys centralized under `AppConstants.DeepLinkKeys`.
 - Notification names exposed as typed `Notification.Name` static constants.
 - Avoid `UserDefaults.synchronize()` for performance; rely on the system.
+
+## Account & Identity Model
+
+- One StreakSync account per **iCloud Apple ID**:
+  - All CloudKit-backed data (game results, streaks, tiered achievements, leaderboard scores) is scoped to the Apple ID signed into iOS.
+  - There is no in-app login/logout; to use a different account, the user changes the iCloud account in iOS Settings.
+- Private database:
+  - Container: `iCloud.com.mitsheth.StreakSync2` as configured in `CloudKitConfiguration` and the app entitlements.
+  - Custom zones:
+    - `AchievementsZone` for the single `UserAchievements` record (tiered achievements sync via `AchievementSyncService`).
+    - `UserDataZone` for per-result `GameResult` records (synced via `UserDataSyncService`).
+- Shared database:
+  - CKShare-based leaderboard groups using `LeaderboardGroup` and `DailyScore` records per friend group.
+- Account changes & privacy:
+  - The app listens for `CKAccountChanged` and compares the current `userRecordID.recordName` with the last seen value.
+  - On a real Apple ID change, local data is cleared, sync tokens/queues are reset, and data for the new account is fetched from CloudKit.
+  - This ensures data from one Apple ID is never shown when another Apple ID is signed in.
+- Guest Mode:
+  - A local-only mode that lets someone temporarily use StreakSync without syncing their data to iCloud.
+  - While Guest Mode is active, CloudKit sync and leaderboard publishing are disabled and host data is kept isolated.
 
 ## Achievements (Tiered-Only)
 
@@ -29,6 +49,8 @@ Layers
 - Flow: `AppState.checkAchievements` -> `TieredAchievementChecker` -> post `AppConstants.Notification.tieredAchievementUnlocked` -> `AchievementCelebrationCoordinator` shows `AchievementUnlockCelebrationView`.
 - Migration: `AppState+Persistence.migrateLegacyAchievementsIfNeeded()` seeds tiered from legacy payloads once and clears legacy key.
 - Analytics: `AnalyticsService` computes `AchievementAnalytics` using tiered data only (tier distribution, category progress, recent unlocks).
+- **ID Consistency**: Each achievement category has a deterministic UUID via `AchievementCategory.consistentID` to prevent duplicates during recalculation and CloudKit sync. The `recalculateAllTieredAchievementProgress()` method preserves existing IDs when recalculating progress.
+- **Deduplication**: The `tieredAchievements` getter and setter include deduplication logic to remove any duplicate achievements by category that may exist in persisted data.
 
 ## Smart Reminder Engine
 
@@ -70,6 +92,7 @@ CSV Export
 
 Refresh Model
 - Dashboard listens for: `GameDataUpdated`, `GameResultAdded`, `RefreshGameData`.
+- **Display Logic**: `DashboardGamesContent` iterates over `filteredGames` (not `filteredStreaks`) to ensure all games are visible, even those without streaks. Missing streaks are created on-the-fly using `GameStreak.empty(for:)` to prevent games from being hidden on first load.
 
 Developer (DEBUG)
 - Lightweight analytics self-tests live in `Core/Services/Analytics/AnalyticsSelfTests.swift` and can be called at startup in DEBUG to verify overview, trends, per-game stats, and achievements analytics.

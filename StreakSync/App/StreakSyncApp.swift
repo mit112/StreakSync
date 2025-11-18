@@ -98,6 +98,8 @@ struct StreakSyncApp: App {
                         .environmentObject(container)
                         .environment(container.appState)
                         .environmentObject(container.navigationCoordinator)
+                        .environmentObject(container.guestSessionManager)
+                        .environmentObject(container.userDataSyncService)
                         .environment(container.gameCatalog)
                         .applyAppearanceMode()
                         .onOpenURL { url in
@@ -138,11 +140,24 @@ struct StreakSyncApp: App {
             await NotificationScheduler.shared.registerCategories()
         }
         
-        // Load app data
+        // Load app data from local persistence first (instant UX)
         await container.appState.loadPersistedData()
+        
+        // Perform CloudKit user data sync (if iCloud available)
+        await container.userDataSyncService.syncIfNeeded()
+        
+        // Rebuild streaks from any newly-synced results
+        await container.appState.rebuildStreaksFromResults()
+        
+        // Normalize streaks again after rebuild to check for gaps up to today
+        // (rebuildStreaksFromResults only checks gaps between results, not gaps to today)
+        await container.appState.normalizeStreaksForMissedDays()
         
         // Check for streak reminders on app launch
         await container.appState.checkAndScheduleStreakReminders()
+        
+        // Start network monitoring to flush offline queue when network returns
+        container.networkMonitor.startMonitoring()
         
         // Mark as initialized
         await MainActor.run {

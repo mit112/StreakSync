@@ -144,6 +144,10 @@ final class AppState {
     var currentError: AppError?  // This will be observable with @Observable
     var showingAddCustomGame = false
     
+    /// When true, the app is running in Guest Mode. Host data is hidden and
+    /// guest interactions should not persist to disk or sync to CloudKit.
+    var isGuestMode: Bool = false
+    
     // MARK: - Navigation State
     var isNavigatingFromNotification = false
 
@@ -163,6 +167,12 @@ final class AppState {
             }
         }
         return favorites
+    }
+    
+    /// Convenience accessor for the set of favorite game IDs, used by features
+    /// like Guest Mode snapshots.
+    var favoriteGameIds: Set<UUID> {
+        GameCatalog.shared.favoriteGameIDs
     }
     
     // MARK: - Persistence State
@@ -456,6 +466,13 @@ final class AppState {
             return
         }
         
+        // In Guest Mode, enforce a simple upper bound on in-memory guest
+        // results to avoid unbounded memory growth.
+        if isGuestMode && recentResults.count >= 100 {
+            logger.warning("🧑‍🤝‍🧑 Guest Mode result limit reached (100) – rejecting additional guest results")
+            return
+        }
+        
         // Add result
         self.recentResults.insert(result, at: 0)
         
@@ -491,11 +508,15 @@ final class AppState {
             }
         }
         
-        // Update streak SYNCHRONOUSLY
-        updateStreak(for: result)
+        // Update streak SYNCHRONOUSLY (host mode only)
+        if !isGuestMode {
+            updateStreak(for: result)
+        }
         
-        // Check for new achievements (tiered-only)
-        checkAchievements(for: result)
+        // Check for new achievements (tiered-only, host mode only)
+        if !isGuestMode {
+            checkAchievements(for: result)
+        }
         
         // Removed hard cap to avoid unintended data loss between updates
         // If needed in the future, implement archival instead of trimming
@@ -537,30 +558,34 @@ final class AppState {
         
         logger.info("Added game result for \(result.gameName)")
         
-        // Check for streak risk and schedule reminders
-        Task {
-            await checkAndScheduleStreakReminders()
+        // Check for streak risk and schedule reminders (host mode only)
+        if !isGuestMode {
+            Task {
+                await checkAndScheduleStreakReminders()
+            }
         }
 
-        // Publish to social service (best-effort, non-blocking)
-        Task { [weak self] in
-            guard let self else { return }
-            guard let social = self.socialService else { return }
-            // Build one DailyGameScore for this result
-            let userId = "local_user" // MockSocialService will map to real on publish
-            let dateInt = result.date.utcYYYYMMDD
-            let compositeId = "\(userId)|\(dateInt)|\(result.gameId.uuidString)"
-            let score = DailyGameScore(
-                id: compositeId,
-                userId: userId,
-                dateInt: dateInt,
-                gameId: result.gameId,
-                gameName: result.gameName,
-                score: result.score,
-                maxAttempts: result.maxAttempts,
-                completed: result.completed
-            )
-            try? await social.publishDailyScores(dateUTC: result.date, scores: [score])
+        // Publish to social service (best-effort, non-blocking; host mode only)
+        if !isGuestMode {
+            Task { [weak self] in
+                guard let self else { return }
+                guard let social = self.socialService else { return }
+                // Build one DailyGameScore for this result
+                let userId = "local_user" // MockSocialService will map to real on publish
+                let dateInt = result.date.utcYYYYMMDD
+                let compositeId = "\(userId)|\(dateInt)|\(result.gameId.uuidString)"
+                let score = DailyGameScore(
+                    id: compositeId,
+                    userId: userId,
+                    dateInt: dateInt,
+                    gameId: result.gameId,
+                    gameName: result.gameName,
+                    score: result.score,
+                    maxAttempts: result.maxAttempts,
+                    completed: result.completed
+                )
+                try? await social.publishDailyScores(dateUTC: result.date, scores: [score])
+            }
         }
     }
     
@@ -1044,8 +1069,53 @@ final class AppState {
         self.streaks = streaks
     }
     
+    /// Atomically replace an existing result with the same id or append it if missing,
+    /// then keep `recentResults` sorted with newest first.
+    internal func replaceOrAppendResult(_ result: GameResult) {
+        if let index = recentResults.firstIndex(where: { $0.id == result.id }) {
+            recentResults[index] = result
+        } else {
+            recentResults.append(result)
+        }
+        recentResults.sort { $0.date > $1.date }
+    }
     
+    // MARK: - Guest Mode Helpers
     
+    /// Clears visible state for Guest Mode without touching persistence. Host
+    /// data is expected to have been snapshotted by `GuestSessionManager`.
+    func clearForGuestMode() {
+        logger.info("🧑‍🤝‍🧑 Clearing visible state for Guest Mode")
+        recentResults = []
+        streaks = games.map { GameStreak.empty(for: $0) }
+        // Show a blank/default achievements view while in Guest Mode; host
+        // achievements are preserved in the snapshot managed by GuestSessionManager.
+        _tieredAchievements = AchievementFactory.createDefaultAchievements()
+        gameResultsCache.removeAll()
+        invalidateCache()
+    }
+    
+    /// Restores state from a guest-mode snapshot. This does not modify favorites,
+    /// which are owned by `GameCatalog`. Persistence is handled separately.
+    func restoreFromSnapshot(
+        results: [GameResult],
+        streaks: [GameStreak],
+        achievements: [TieredAchievement]
+    ) {
+        logger.info("🧑‍🤝‍🧑 Restoring host state from Guest Mode snapshot")
+        recentResults = results
+        self.streaks = streaks
+        _tieredAchievements = achievements
+        buildResultsCache()
+        invalidateCache()
+        
+        // Persist restored host state best-effort.
+        Task {
+            await saveGameResults()
+            await saveStreaks()
+            await saveTieredAchievements()
+        }
+    }
     
 }
 

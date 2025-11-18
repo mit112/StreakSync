@@ -17,6 +17,12 @@ extension AppState {
     // In your existing AppState implementation, update the loadPersistedData method:
 
     func loadPersistedData() async {
+        // In Guest Mode we never reload host data from persistence; the guest
+        // session operates purely in memory and is managed by GuestSessionManager.
+        if isGuestMode {
+            logger.info("🧑‍🤝‍🧑 Guest Mode active – skipping loadPersistedData()")
+            return
+        }
         // Debounce/guard: avoid overlapping or rapid back-to-back loads
         if isLoading {
             logger.debug("⏭️ Skipping loadPersistedData - already loading")
@@ -255,6 +261,12 @@ extension AppState {
     
     // MARK: - Share Extension Sync
     private func syncFromShareExtension() async {
+        // Ignore share extension ingestion while Guest Mode is active – host
+        // data is hidden and guest sessions should not mutate it.
+        if isGuestMode {
+            logger.info("🧑‍🤝‍🧑 Guest Mode active – ignoring Share Extension sync")
+            return
+        }
         do {
             // Create the coordinator locally to avoid capturing self into a stored property
             let coordinator = AppGroupSyncCoordinator()
@@ -303,6 +315,12 @@ extension AppState {
     
     
     func saveGameResults() async {
+        // In Guest Mode we never persist results to disk – the guest session
+        // lives only in memory and is managed by GuestSessionManager.
+        if isGuestMode {
+            logger.debug("🧑‍🤝‍🧑 Guest Mode active – skipping saveGameResults()")
+            return
+        }
         do {
             try persistenceService.save(
                 self.recentResults,
@@ -317,6 +335,12 @@ extension AppState {
     // Legacy achievements saver removed
     
     func saveStreaks() async {
+        // In Guest Mode we never persist streaks – host streaks are preserved
+        // in memory and restored when Guest Mode exits.
+        if isGuestMode {
+            logger.debug("🧑‍🤝‍🧑 Guest Mode active – skipping saveStreaks()")
+            return
+        }
         do {
             try persistenceService.save(
                 self.streaks,
@@ -370,6 +394,10 @@ extension AppState {
     
     func refreshData() async {
         guard !isLoading else { return }
+        if isGuestMode {
+            logger.info("🧑‍🤝‍🧑 Guest Mode active – skipping refreshData()")
+            return
+        }
         
         // Refresh games first to pick up any new games
         refreshGames()
@@ -380,6 +408,10 @@ extension AppState {
     /// Lightweight data refresh for notification navigation - skips expensive operations
     func refreshDataForNotification() async {
         guard !isLoading else { return }
+        if isGuestMode {
+            logger.info("🧑‍🤝‍🧑 Guest Mode active – skipping refreshDataForNotification()")
+            return
+        }
         
         logger.info("🚀 Lightweight data refresh for notification navigation")
         

@@ -7,7 +7,7 @@ This document is the source of truth for our CloudKit/iCloud implementation. It 
 ASCII Diagram
 
 ```
-                       iCloud Container: iCloud.com.mitsheth.StreakSync
+                       iCloud Container: iCloud.com.mitsheth.StreakSync2
                                      (Development | Production)
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                             Private Database                                 │
@@ -54,7 +54,7 @@ Flow
 ```
 
 ### 2) CloudKit Containers & Databases
-- Container ID: `iCloud.com.mitsheth.StreakSync`
+- Container ID: `iCloud.com.mitsheth.StreakSync2`
 - Databases used:
   - Private Database (achievements; one record per user)
   - Shared Database (leaderboards via CKShare; one shared zone per group)
@@ -160,7 +160,7 @@ for participant in share.participants {
 }
 ```
 
-For `DailyScore.userId` (stable per account)
+For `DailyScore.userId` (stable per account, tied to the current iCloud Apple ID)
 ```swift
 // Fetch owner's record ID and cache its recordName for userId
 let container = CKContainer.default()
@@ -266,7 +266,7 @@ Background Notification Handling
 Xcode
 - Target: StreakSync → Signing & Capabilities
   - Add iCloud capability → enable CloudKit
-  - Select container: `iCloud.com.mitsheth.StreakSync`
+  - Select container: `iCloud.com.mitsheth.StreakSync2`
   - Add Background Modes → Remote notifications (for subscriptions)
 
 Entitlements (app)
@@ -277,7 +277,7 @@ Entitlements (app)
 </array>
 <key>com.apple.developer.icloud-container-identifiers</key>
 <array>
-    <string>iCloud.com.mitsheth.StreakSync</string>
+    <string>iCloud.com.mitsheth.StreakSync2</string>
 </array>
 ```
 

@@ -150,10 +150,31 @@ struct TieredAchievementsGridView: View {
     }
     
     var body: some View {
-        if #available(iOS 26.0, *) {
-            iOS26AchievementsView
+        if appState.isGuestMode {
+            ScrollView {
+                VStack(spacing: 16) {
+                    Image(systemName: "person.fill.questionmark")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.orange)
+                    Text("Achievements Hidden in Guest Mode")
+                        .font(.headline)
+                    Text("Guest Mode lets someone try StreakSync without affecting your data. Achievements are only visible when you're using your own account.")
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Achievements")
+            .navigationBarTitleDisplayMode(.large)
         } else {
-            legacyAchievementsView
+            if #available(iOS 26.0, *) {
+                iOS26AchievementsView
+            } else {
+                legacyAchievementsView
+            }
         }
     }
     

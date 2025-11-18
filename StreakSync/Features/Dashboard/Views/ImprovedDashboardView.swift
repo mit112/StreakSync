@@ -219,10 +219,24 @@ struct ImprovedDashboardView: View {
     
     // MARK: - Body
     var body: some View {
-        if #available(iOS 26.0, *) {
-            iOS26NativeNavigationBody
-        } else {
-            legacyNativeNavigationBody
+        let _ = refreshToken // keep token alive for potential future use
+        
+        Group {
+            if #available(iOS 26.0, *) {
+                iOS26NativeNavigationBody
+            } else {
+                legacyNativeNavigationBody
+            }
+        }
+        .onChange(of: appState.isGuestMode) { oldValue, newValue in
+            // When exiting Guest Mode, reset dashboard filters so the user
+            // always returns to the full games list instead of a potentially
+            // stale "Active only" or category-filtered view.
+            if oldValue == true && newValue == false {
+                showOnlyActive = false
+                selectedCategory = nil
+                searchText = ""
+            }
         }
     }
         

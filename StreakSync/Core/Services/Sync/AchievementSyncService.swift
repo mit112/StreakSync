@@ -30,6 +30,12 @@ final class AchievementSyncService: ObservableObject {
     
     // MARK: - Public API
     func syncIfEnabled() async {
+        // Never sync achievements while Guest Mode is active; host achievements
+        // are preserved in the guest snapshot and restored on exit.
+        if appState.isGuestMode {
+            logger.info("🧑‍🤝‍🧑 Guest Mode active – skipping AchievementSyncService.syncIfEnabled()")
+            return
+        }
         guard AppConstants.Flags.cloudSyncEnabled else { return }
         do {
             let container = CKContainer(identifier: CloudKitConfiguration.containerIdentifier)
@@ -228,9 +234,14 @@ final class AchievementSyncService: ObservableObject {
     /// - Device B: 80% progress, Tier 1 NOT unlocked
     /// - Result: Tier 1 unlocked with 80% progress (unlock status wins, but higher progress is kept)
     internal func merge(local: [TieredAchievement], remote: [TieredAchievement]) -> [TieredAchievement] {
+        // First, deduplicate both arrays by category (in case of old duplicates with different IDs)
+        let deduplicatedLocal = deduplicateByCategory(local)
+        let deduplicatedRemote = deduplicateByCategory(remote)
+        
+        // Merge by ID
         var map: [UUID: TieredAchievement] = [:]
-        for a in local { map[a.id] = a }
-        for r in remote {
+        for a in deduplicatedLocal { map[a.id] = a }
+        for r in deduplicatedRemote {
             if var l = map[r.id] {
                 // Priority 1: Tier unlock status (if unlocked on either device, keep unlocked)
                 // Priority 2: Take higher tier if one is unlocked
@@ -257,7 +268,23 @@ final class AchievementSyncService: ObservableObject {
                 map[r.id] = r
             }
         }
-        return Array(map.values)
+        
+        // Final deduplication by category as safeguard (in case IDs don't match due to old data)
+        let merged = Array(map.values)
+        return deduplicateByCategory(merged)
+    }
+    
+    /// Deduplicates achievements by category, keeping the first occurrence of each category.
+    private func deduplicateByCategory(_ achievements: [TieredAchievement]) -> [TieredAchievement] {
+        var deduplicated: [TieredAchievement] = []
+        var seenCategories: Set<AchievementCategory> = []
+        for achievement in achievements {
+            if !seenCategories.contains(achievement.category) {
+                deduplicated.append(achievement)
+                seenCategories.insert(achievement.category)
+            }
+        }
+        return deduplicated
     }
     
     // MARK: - Retry policy

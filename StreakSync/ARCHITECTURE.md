@@ -1,3 +1,23 @@
+## Account & Identity Model
+
+- One StreakSync account per **iCloud Apple ID**:
+  - All CloudKit-backed data (game results, streaks, tiered achievements, leaderboard scores) is scoped to the Apple ID signed into iOS.
+  - There is no in-app login/logout; to use a different account, the user changes the iCloud account in iOS Settings.
+- Private database:
+  - Container: `iCloud.com.mitsheth.StreakSync2` as configured in `CloudKitConfiguration` and the app entitlements.
+  - Custom zones:
+    - `AchievementsZone` for the single `UserAchievements` record (tiered achievements sync via `AchievementSyncService`).
+    - `UserDataZone` for per-result `GameResult` records (synced via `UserDataSyncService`).
+- Shared database:
+  - CKShare-based leaderboard groups using `LeaderboardGroup` and `DailyScore` records per friend group.
+- Account changes & privacy:
+  - The app listens for `CKAccountChanged` and compares the current `userRecordID.recordName` with the last seen value.
+  - On a real Apple ID change, local data is cleared, sync tokens/queues are reset, and data for the new account is fetched from CloudKit.
+  - This ensures data from one Apple ID is never shown when another Apple ID is signed in.
+- Guest Mode:
+  - A local-only mode that lets someone temporarily use StreakSync without syncing their data to iCloud.
+  - While Guest Mode is active, CloudKit sync and leaderboard publishing are disabled and host data is kept isolated.
+
 ## Analytics Definitions (Source of Truth)
 
 - Time ranges

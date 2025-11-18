@@ -250,30 +250,17 @@ struct GameResultDetailView: View {
     // MARK: - iOS 26 Action Buttons
     @available(iOS 26.0, *)
     private var iOS26ActionButtons: some View {
-        VStack(spacing: 12) {
-            Button {
-                copyToClipboard()
-            } label: {
-                Label(copiedToClipboard ? "Copied" : "Copy to Clipboard", systemImage: copiedToClipboard ? "checkmark" : "doc.on.doc")
-                    .font(.subheadline.weight(.medium))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-            }
-            .buttonStyle(.bordered)
-            .tint(gameColor)
-            
-            Button {
-                showShareSheet = true
-                HapticManager.shared.trigger(.buttonTap)
-            } label: {
-                Label("Share", systemImage: "square.and.arrow.up")
-                    .font(.body.weight(.medium))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(gameColor)
+        Button {
+            showShareSheet = true
+            HapticManager.shared.trigger(.buttonTap)
+        } label: {
+            Label("Share", systemImage: "square.and.arrow.up")
+                .font(.body.weight(.medium))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
         }
+        .buttonStyle(.borderedProminent)
+        .tint(gameColor)
     }
     
     // MARK: - iOS 26 Background

@@ -42,28 +42,29 @@ struct DashboardGamesContent: View {
     // MARK: - Modern Card View
     private var modernCardView: some View {
         LazyVStack(spacing: 8) {
-            ForEach(Array(filteredStreaks.enumerated()), id: \.element.id) { index, streak in
-                if let game = appState.games.first(where: { $0.id == streak.gameId }) {
-                    ModernGameCard(
-                        streak: streak,
-                        game: game,
-                        isFavorite: gameCatalog.isFavorite(streak.gameId),
-                        onFavoriteToggle: {
-                            gameCatalog.toggleFavorite(streak.gameId)
-                            HapticManager.shared.trigger(.toggleSwitch)
-                        },
-                        action: {
-                            DispatchQueue.main.async {
-                                coordinator.navigateTo(.gameDetail(game))
-                            }
+            ForEach(Array(filteredGames.enumerated()), id: \.element.id) { index, game in
+                // Get streak for this game, or create an empty one if it doesn't exist
+                let streak = appState.getStreak(for: game) ?? GameStreak.empty(for: game)
+                
+                ModernGameCard(
+                    streak: streak,
+                    game: game,
+                    isFavorite: gameCatalog.isFavorite(game.id),
+                    onFavoriteToggle: {
+                        gameCatalog.toggleFavorite(game.id)
+                        HapticManager.shared.trigger(.toggleSwitch)
+                    },
+                    action: {
+                        DispatchQueue.main.async {
+                            coordinator.navigateTo(.gameDetail(game))
                         }
-                    )
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .move(edge: .bottom)),
-                        removal: .opacity.combined(with: .scale)
-                    ))
-                    .id(streak.id)
-                }
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .bottom)),
+                    removal: .opacity.combined(with: .scale)
+                ))
+                .id(game.id)
             }
         }
     }
@@ -74,30 +75,31 @@ struct DashboardGamesContent: View {
             GridItem(.flexible(), spacing: 12),
             GridItem(.flexible(), spacing: 12)
         ], spacing: 12) {
-            ForEach(Array(filteredStreaks.enumerated()), id: \.element.id) { index, streak in
-                if let game = appState.games.first(where: { $0.id == streak.gameId }) {
-                    GameCompactCardView(
-                        streak: streak,
-                        isFavorite: gameCatalog.isFavorite(streak.gameId),
-                        onFavoriteToggle: {
-                            gameCatalog.toggleFavorite(streak.gameId)
-                            HapticManager.shared.trigger(.toggleSwitch)
-                        },
-                        onTap: {
-                            coordinator.navigateTo(.gameDetail(game))
-                        }
-                    )
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.8)).combined(with: .move(edge: .bottom)),
-                        removal: .opacity.combined(with: .scale(scale: 0.8))
-                    ))
-                    .id(streak.id)
-                    .modifier(InitialAnimationModifier(
-                        hasAppeared: hasInitiallyAppeared,
-                        index: index,
-                        totalCount: filteredStreaks.count
-                    ))
-                }
+            ForEach(Array(filteredGames.enumerated()), id: \.element.id) { index, game in
+                // Get streak for this game, or create an empty one if it doesn't exist
+                let streak = appState.getStreak(for: game) ?? GameStreak.empty(for: game)
+                
+                GameCompactCardView(
+                    streak: streak,
+                    isFavorite: gameCatalog.isFavorite(game.id),
+                    onFavoriteToggle: {
+                        gameCatalog.toggleFavorite(game.id)
+                        HapticManager.shared.trigger(.toggleSwitch)
+                    },
+                    onTap: {
+                        coordinator.navigateTo(.gameDetail(game))
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.8)).combined(with: .move(edge: .bottom)),
+                    removal: .opacity.combined(with: .scale(scale: 0.8))
+                ))
+                .id(game.id)
+                .modifier(InitialAnimationModifier(
+                    hasAppeared: hasInitiallyAppeared,
+                    index: index,
+                    totalCount: filteredGames.count
+                ))
             }
         }
         .padding(.horizontal, 16)
