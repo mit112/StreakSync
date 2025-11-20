@@ -251,10 +251,18 @@ struct FriendsView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .task { await viewModel.load() }
-        .onChange(of: viewModel.selectedDateUTC) { _, _ in withAnimation(.smooth) { viewModel.persistUIState() } }
+        .task { 
+            await viewModel.load() 
+        }
+        .onChange(of: viewModel.selectedDateUTC) { _, _ in
+            viewModel.handleSelectedDateChange()
+        }
         .onChange(of: viewModel.currentGamePage) { _, newValue in withAnimation(.smooth) { viewModel.persistUIState(); viewModel.selectedGameId = viewModel.availableGames[newValue].id } }
-        .onChange(of: viewModel.range) { _, _ in withAnimation(.smooth) { Task { await viewModel.refresh() }; viewModel.persistUIState() } }
+        .onChange(of: viewModel.range) { _, _ in 
+            withAnimation(.smooth) { 
+                _ = Task { await viewModel.handleRangeSelectionChange() }
+            } 
+        }
         .onAppear {
             if !betaWelcomeShown && viewModel.isMinimalBeta {
                 isPresentingBetaWelcome = true
@@ -367,7 +375,9 @@ private extension FriendsView {
                         ForEach(LeaderboardRange.allCases, id: \.self) { r in
                             Button(action: {
                                 HapticManager.shared.trigger(.toggleSwitch)
-                                withAnimation(.smooth) { viewModel.range = r }
+                                withAnimation(.smooth) { 
+                                    viewModel.range = r
+                                }
                             }) {
                                 Text(r == .today ? "Today" : "7 Days")
                                     .font(.subheadline.weight(viewModel.range == r ? .semibold : .regular))
@@ -410,6 +420,7 @@ private extension FriendsView {
             VStack {
                 DatePicker("Select Date", selection: $viewModel.selectedDateUTC, displayedComponents: .date)
                     .datePickerStyle(.graphical)
+                    .environment(\.timeZone, TimeZone(secondsFromGMT: 0) ?? .gmt)
                     .padding()
                 Button("Done") { viewModel.isPresentingDatePicker = false; Task { await viewModel.refresh() } }
                     .padding(.bottom)
@@ -463,6 +474,7 @@ private extension FriendsView {
             VStack {
                 DatePicker("Select Date", selection: $viewModel.selectedDateUTC, displayedComponents: .date)
                     .datePickerStyle(.graphical)
+                    .environment(\.timeZone, TimeZone(secondsFromGMT: 0) ?? .gmt)
                     .padding()
                 Button("Done") {
                     viewModel.isPresentingDatePicker = false
@@ -481,8 +493,12 @@ private extension FriendsView {
     
     var rangeToggle: some View {
         HStack(spacing: 12) {
-            toggleChip(title: "Today", isSelected: viewModel.range == .today) { viewModel.range = .today }
-            toggleChip(title: "7 Days", isSelected: viewModel.range == .sevenDays) { viewModel.range = .sevenDays }
+            toggleChip(title: "Today", isSelected: viewModel.range == .today) { 
+                viewModel.range = .today
+            }
+            toggleChip(title: "7 Days", isSelected: viewModel.range == .sevenDays) { 
+                viewModel.range = .sevenDays
+            }
         }
         .padding(.horizontal, 0)
         .accessibilityElement(children: .contain)
@@ -662,6 +678,10 @@ private extension FriendsView {
     
     func formattedDate(_ date: Date) -> String {
         let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        // Use UTC so the displayed day matches how scores are stored (utcYYYYMMDD),
+        // avoiding off-by-one issues for users behind GMT.
+        f.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
         f.dateStyle = .medium
         f.timeStyle = .none
         return f.string(from: date)

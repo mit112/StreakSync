@@ -148,7 +148,6 @@ final class AppGroupBridge: ObservableObject {
         
         setupObservers()
         setupDarwinNotifications()
-        Task { await checkForNewResults() }
     }
     
     deinit {

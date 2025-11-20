@@ -132,6 +132,7 @@ private extension FriendDiscoveryView {
         case .denied: return "Denied"
         case .restricted: return "Restricted"
         case .notDetermined: return "Not yet asked"
+        case .limited: return "Limited"
         }
     }
     

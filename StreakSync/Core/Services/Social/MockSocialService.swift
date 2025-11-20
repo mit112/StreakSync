@@ -153,26 +153,79 @@ final class MockSocialService: SocialService, @unchecked Sendable {
     
     // MARK: - Scores
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws {
+        print("💾 Storing \(scores.count) scores locally")
         var existing = load([DailyGameScore].self, forKey: scoresKey) ?? []
+        print("📦 Existing scores: \(existing.count)")
         // Upsert by id
         var index: [String: Int] = [:]
         for (i, s) in existing.enumerated() { index[s.id] = i }
+        var added = 0
+        var updated = 0
         for score in scores {
             if let i = index[score.id] {
                 existing[i] = score
+                updated += 1
             } else {
                 existing.append(score)
+                added += 1
             }
         }
+        print("💾 Upserted: \(added) added, \(updated) updated")
         try save(existing, forKey: scoresKey)
+        
+        // Immediately verify
+        let verification = load([DailyGameScore].self, forKey: scoresKey) ?? []
+        print("💾 Storage verification:")
+        print("  - Attempted to save: \(existing.count) scores")
+        print("  - Actually stored: \(verification.count) scores")
+        let today = Date().utcYYYYMMDD
+        let todayScores = verification.filter { $0.dateInt == today }
+        print("  - Today's scores (\(today)): \(todayScores.count)")
+        for score in todayScores.prefix(5) {
+            print("    → \(score.gameName): userId=\(score.userId), dateInt=\(score.dateInt), completed=\(score.completed)")
+        }
     }
     
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
         let my = try? await myProfile()
+        print("🔍 === MOCK FETCH LEADERBOARD ===")
+        print("📅 Filter range: \(startDateUTC) → \(startDateUTC.utcYYYYMMDD) to \(endDateUTC) → \(endDateUTC.utcYYYYMMDD)")
+        print("👤 My profile ID: \(my?.id ?? "nil")")
+        
         let all = load([DailyGameScore].self, forKey: scoresKey) ?? []
-        let start = startDateUTC.utcYYYYMMDD
-        let end = endDateUTC.utcYYYYMMDD
-        let filtered = all.filter { $0.dateInt >= start && $0.dateInt <= end }
+        print("📦 Loaded \(all.count) total scores from storage")
+        for score in all.prefix(10) {
+            print("  - \(score.gameName): userId=\(score.userId), dateInt=\(score.dateInt), completed=\(score.completed)")
+        }
+        
+        // Convert stored UTC dayInts into the user's *local* calendar days for filtering.
+        let cal = Calendar.current
+        let localStart = cal.startOfDay(for: startDateUTC)
+        let localEnd = cal.startOfDay(for: endDateUTC)
+        
+        func localDay(for dateInt: Int) -> Date? {
+            var utcCal = Calendar(identifier: .gregorian)
+            utcCal.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+            let y = dateInt / 10_000
+            let m = (dateInt / 100) % 100
+            let d = dateInt % 100
+            var comps = DateComponents()
+            comps.year = y
+            comps.month = m
+            comps.day = d
+            guard let utcDate = utcCal.date(from: comps) else { return nil }
+            return cal.startOfDay(for: utcDate)
+        }
+        
+        let filtered = all.filter { score in
+            guard let day = localDay(for: score.dateInt) else { return false }
+            return day >= localStart && day <= localEnd
+        }
+        
+        let startInt = startDateUTC.utcYYYYMMDD
+        let endInt = endDateUTC.utcYYYYMMDD
+        print("📊 Filtered to \(filtered.count) scores in date range [\(startInt), \(endInt)]")
+        
         var perUser: [String: (name: String, total: Int, perGame: [UUID: Int])] = [:]
         for s in filtered {
             // Map gameId to Game if available for accurate scoring
@@ -183,19 +236,28 @@ final class MockSocialService: SocialService, @unchecked Sendable {
             entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + p
             perUser[s.userId] = entry
         }
+        print("👥 Aggregated to \(perUser.count) users")
+        for (userId, agg) in perUser {
+            print("  - \(userId): \(agg.name) - \(agg.total) total points")
+        }
+        
         let rows = perUser.map { (userId, agg) in
-            LeaderboardRow(id: userId, userId: userId, displayName: agg.name, totalPoints: agg.total, perGameBreakdown: agg.perGame)
+            // Normalize \"self\" row so its userId matches myProfile.id. This lets the UI
+            // reliably detect the current user and label them as \"Me\".
+            if let me = my, userId == me.id {
+                return LeaderboardRow(
+                    id: me.id,
+                    userId: me.id,
+                    displayName: me.displayName,
+                    totalPoints: agg.total,
+                    perGameBreakdown: agg.perGame
+                )
+            }
+            return LeaderboardRow(id: userId, userId: userId, displayName: agg.name, totalPoints: agg.total, perGameBreakdown: agg.perGame)
         }.sorted { $0.totalPoints > $1.totalPoints }
 
+        print("✅ Returning \(rows.count) leaderboard rows")
         return rows
-    }
-
-    private func demoBreakdown(seed: Int) -> [UUID: Int] {
-        var map: [UUID: Int] = [:]
-        for (idx, g) in Game.allAvailableGames.prefix(3).enumerated() {
-            map[g.id] = max(0, (seed + idx) % 4)
-        }
-        return map
     }
     
     // MARK: - Storage helpers

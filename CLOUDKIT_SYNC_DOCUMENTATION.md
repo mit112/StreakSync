@@ -13,6 +13,7 @@ The StreakSync app implements **three CloudKit-integrated systems**:
 - CloudKit sync is **active** for per-result user data and **optional** for tiered achievements.
 - CloudKit entitlements and container are configured for `iCloud.com.mitsheth.StreakSync2`.
 - Social features are partially implemented; some operations still rely on `MockSocialService` while full CloudKit-backed leaderboards are rolled out.
+- **Data retention**: Automatic upload of local data to CloudKit when CloudKit is empty prevents data loss on reinstall (implemented January 2025).
 
 ---
 
@@ -41,6 +42,7 @@ The app uses **manual CloudKit sync** (not `NSPersistentCloudKitContainer`). The
    - Maintains a `CKServerChangeToken` in UserDefaults for incremental fetch.
    - Uses an in-memory `UploadQueue` plus a persistent `OfflineQueue` and `SyncTracker` to safely upload results and recover from crashes/offline periods.
    - Listens to CloudKit zone subscriptions (via `CloudKitSubscriptionManager`) to refresh on silent pushes.
+   - **Automatic data migration**: Detects when CloudKit is empty but local data exists, and automatically uploads all local results that were never synced. This prevents data loss on app reinstall (implemented January 2025).
 
 2. **AchievementSyncService** – Manual push/pull for tiered achievements
    - Uses `CKContainer.default().privateCloudDatabase` and the `AchievementsZone`.

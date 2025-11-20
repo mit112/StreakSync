@@ -116,7 +116,8 @@ final class FriendsViewModel: ObservableObject {
     @Published var leaderboard: [LeaderboardRow] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
-    @Published var selectedDateUTC: Date = Date()
+    /// Day currently selected by the user (stored at the local calendar's start-of-day). Converted to UTC when querying.
+    @Published var selectedDateUTC: Date = Calendar.current.startOfDay(for: Date())
     @Published var selectedGameId: UUID? = nil
     @Published var isPresentingManageFriends: Bool = false
     @Published var isPresentingDatePicker: Bool = false
@@ -152,9 +153,24 @@ final class FriendsViewModel: ObservableObject {
         self.circleManager = socialService as? CircleManaging
         self.activityFeedService = activityFeedService
         // Restore persisted UI state
-        if let saved = defaults.object(forKey: lastDateKey) as? Date { self.selectedDateUTC = saved }
         if let page = defaults.object(forKey: lastPageKey) as? Int { self.currentGamePage = page }
         if let raw = defaults.string(forKey: lastRangeKey), let r = LeaderboardRange(rawValue: raw) { self.range = r }
+        let todayLocal = localStartOfDay(Date())
+        if let saved = defaults.object(forKey: lastDateKey) as? Date {
+            let savedLocal = localStartOfDay(saved)
+            if isSameLocalDay(savedLocal, todayLocal) {
+                self.selectedDateUTC = todayLocal
+            } else {
+                switch self.range {
+                case .today:
+                    self.selectedDateUTC = todayLocal
+                case .sevenDays:
+                    self.selectedDateUTC = min(savedLocal, todayLocal)
+                }
+            }
+        } else {
+            self.selectedDateUTC = todayLocal
+        }
         // Check status
         if let cloudService = socialService as? CloudKitSocialService {
             self.serviceStatus = cloudService.serviceStatus
@@ -183,6 +199,14 @@ final class FriendsViewModel: ObservableObject {
             friends = try await socialService.listFriends()
             let (start, end) = dateRange()
             leaderboard = try await socialService.fetchLeaderboard(startDateUTC: start, endDateUTC: end)
+            // Normalize myUserId to match whatever identifier the leaderboard rows use.
+            // In hybrid/local mode scores may be stored under a different userId (e.g. CloudKit record name),
+            // so if we don't find a row matching `me.id` but there is exactly one row, assume it's us.
+            if let currentId = myUserId,
+               !leaderboard.contains(where: { $0.userId == currentId }),
+               leaderboard.count == 1 {
+                myUserId = leaderboard.first?.userId
+            }
             if range == .today && flags.rankDeltas { await computeRankDeltasForToday() }
             if flags.multipleCircles { await refreshCircles() }
             if flags.reactions { recentReactions = activityFeedService.reactions }
@@ -259,15 +283,22 @@ final class FriendsViewModel: ObservableObject {
         }
     }
     func dateRange() -> (Date, Date) {
-        let cal = Calendar(identifier: .gregorian)
-        let startDay = cal.startOfDay(for: selectedDateUTC)
+        // Interpret selectedDateUTC as a *local* calendar day, then let services
+        // convert to UTC day buckets via `utcYYYYMMDD` for storage/comparison.
+        let cal = Calendar.current
+        let endLocal = cal.startOfDay(for: selectedDateUTC)
         switch range {
         case .today:
-            return (startDay, startDay)
+            if flags.debugInfo {
+                debugLog("📅 dateRange (today) selectedLocal=\(selectedDateUTC) endInt=\(endLocal.utcYYYYMMDD)")
+            }
+            return (endLocal, endLocal)
         case .sevenDays:
-            let end = startDay
-            let start = cal.date(byAdding: .day, value: -6, to: end) ?? end
-            return (start, end)
+            let start = cal.date(byAdding: .day, value: -6, to: endLocal) ?? endLocal
+            if flags.debugInfo {
+                debugLog("📅 dateRange (7d) startInt=\(start.utcYYYYMMDD) endInt=\(endLocal.utcYYYYMMDD)")
+            }
+            return (start, endLocal)
         }
     }
     
@@ -277,19 +308,44 @@ final class FriendsViewModel: ObservableObject {
         defaults.set(range.rawValue, forKey: lastRangeKey)
     }
     
+    func handleSelectedDateChange() {
+        if normalizeSelectedDateIfNeeded() { return }
+        persistUIState()
+    }
+    
+    func handleRangeSelectionChange() async {
+        _ = normalizeSelectedDateIfNeeded()
+        persistUIState()
+        await refresh()
+    }
+    
+    @discardableResult
+    private func normalizeSelectedDateIfNeeded() -> Bool {
+        let normalized = localStartOfDay(selectedDateUTC)
+        let today = localStartOfDay(Date())
+        let clamped = normalized > today ? today : normalized
+        if clamped != selectedDateUTC {
+            selectedDateUTC = clamped
+            return true
+        }
+        return false
+    }
+    
+    /// Updates selectedDateUTC to today's date in UTC when range changes to "today"
     // MARK: - Date Paging
     func canIncrementDay(_ delta: Int) -> Bool {
-        let cal = Calendar(identifier: .gregorian)
+        let cal = Calendar.current
         let newDate = cal.date(byAdding: .day, value: delta, to: selectedDateUTC) ?? selectedDateUTC
-        let newStart = cal.startOfDay(for: newDate)
-        let todayStart = cal.startOfDay(for: Date())
-        return newStart <= todayStart
+        let normalized = localStartOfDay(newDate)
+        let today = localStartOfDay(Date())
+        return normalized <= today
     }
 
     func incrementDay(_ delta: Int) {
         guard canIncrementDay(delta) else { return }
-        let cal = Calendar(identifier: .gregorian)
-        selectedDateUTC = cal.date(byAdding: .day, value: delta, to: selectedDateUTC) ?? selectedDateUTC
+        let cal = Calendar.current
+        let newDate = cal.date(byAdding: .day, value: delta, to: selectedDateUTC) ?? selectedDateUTC
+        selectedDateUTC = localStartOfDay(newDate)
         Task { await refresh() }
     }
     
@@ -305,14 +361,23 @@ final class FriendsViewModel: ObservableObject {
     private func stopPeriodicRefresh() { refreshTimer?.invalidate(); refreshTimer = nil }
     
     // MARK: - Leaderboard projection for selected game
+    /// Returns only rows that have **non-zero points** for the given game.
+    /// This avoids showing generic/static rows for games a user hasn't played.
     func rowsForSelectedGameID(_ gid: UUID) -> [(row: LeaderboardRow, points: Int)] {
-        leaderboard.map { row in
-            let p = row.perGameBreakdown[gid] ?? 0
-            return (row, p)
-        }.sorted { a, b in
-            if a.points == b.points { return a.row.displayName < b.row.displayName }
-            return a.points > b.points
+        let rows = leaderboard
+            .compactMap { row -> (row: LeaderboardRow, points: Int)? in
+                let p = row.perGameBreakdown[gid] ?? 0
+                guard p > 0 else { return nil }
+                return (row, p)
+            }
+            .sorted { a, b in
+                if a.points == b.points { return a.row.displayName < b.row.displayName }
+                return a.points > b.points
+            }
+        if flags.debugInfo {
+            debugLog("📊 rowsForGame \(gid) count=\(rows.count) selectedDate=\(selectedDateUTC)")
         }
+        return rows
     }
     
     func myRankForSelectedGame() -> (rank: Int, points: Int, game: Game)? {
@@ -364,9 +429,97 @@ final class FriendsViewModel: ObservableObject {
     var isMinimalBeta: Bool {
         flags.isMinimalBeta
     }
+    
+    // MARK: - Debug Function
+    func debugLeaderboardIssue() async {
+        print("🔍 === LEADERBOARD DEBUG ===")
+        
+        // 1. Check storage
+        if let scoresData = UserDefaults.standard.data(forKey: "social_mock_scores"),
+           let scores = try? JSONDecoder().decode([DailyGameScore].self, from: scoresData) {
+            print("📦 Raw storage has \(scores.count) scores")
+            
+            let today = Date().utcYYYYMMDD
+            let todayScores = scores.filter { $0.dateInt == today }
+            print("📅 Today's scores (\(today)): \(todayScores.count)")
+            
+            for score in todayScores {
+                print("  - Game: \(score.gameName)")
+                print("    userId: \(score.userId)")
+                print("    dateInt: \(score.dateInt)")
+                print("    completed: \(score.completed)")
+                print("    score: \(score.score?.description ?? "nil")")
+            }
+        } else {
+            print("❌ No scores in storage!")
+        }
+        
+        // 2. Check profile
+        let profile = try? await socialService.myProfile()
+        print("👤 My profile ID: \(profile?.id ?? "nil")")
+        print("👤 My display name: \(profile?.displayName ?? "nil")")
+        
+        // 3. Check fetch
+        let today = Calendar.current.startOfDay(for: Date())
+        print("📅 Fetching leaderboard for: \(today) → \(today.utcYYYYMMDD)")
+        let rows = try? await socialService.fetchLeaderboard(
+            startDateUTC: today,
+            endDateUTC: today
+        )
+        print("📊 Fetched \(rows?.count ?? 0) rows")
+        if let rows = rows {
+            for row in rows {
+                print("  - \(row.displayName) (userId=\(row.userId)): \(row.totalPoints) pts")
+                for (gameId, points) in row.perGameBreakdown {
+                    if let game = Game.allAvailableGames.first(where: { $0.id == gameId }) {
+                        print("    → \(game.displayName): \(points) pts")
+                    }
+                }
+            }
+        }
+        
+        // 4. Check date range
+        let (start, end) = dateRange()
+        print("📅 Current date range:")
+        print("  - selectedDateUTC: \(selectedDateUTC)")
+        print("  - range: \(range)")
+        print("  - start: \(start) → \(start.utcYYYYMMDD)")
+        print("  - end: \(end) → \(end.utcYYYYMMDD)")
+        
+        print("🔍 === END DEBUG ===")
+    }
 }
 
 // MARK: - Leaderboard Range
+/// Leaderboard ranges:
+/// - `.today`: single-day leaderboard controlled by `selectedDateUTC`
+/// - `.sevenDays`: rolling seven-day window ending at `selectedDateUTC`
 enum LeaderboardRange: String, CaseIterable { case today, sevenDays }
+
+// MARK: - Date Helpers
+private extension FriendsViewModel {
+    var utcCalendar: Calendar {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        return cal
+    }
+    
+    func utcStartOfDay(_ date: Date) -> Date {
+        utcCalendar.startOfDay(for: date)
+    }
+    
+    func localStartOfDay(_ date: Date) -> Date {
+        Calendar.current.startOfDay(for: date)
+    }
+    
+    func isSameLocalDay(_ lhs: Date, _ rhs: Date) -> Bool {
+        Calendar.current.isDate(lhs, inSameDayAs: rhs)
+    }
+    
+    func debugLog(_ message: String) {
+        guard flags.debugInfo else { return }
+        print("👀 [FriendsViewModel] \(message)")
+    }
+}
 
 

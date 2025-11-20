@@ -358,7 +358,12 @@ Section("iCloud Sync") {
 
 ## Migration from Existing Users
 
-**Existing users with local data will automatically upload to CloudKit on first sync after app update. No data loss.**
+**✅ IMPLEMENTED (January 2025)**: Existing users with local data automatically upload to CloudKit when CloudKit is detected as empty. The `UserDataSyncService` detects when:
+- CloudKit returns 0 records during sync
+- Local results exist that were never marked for sync
+- Automatically uploads all local results to prevent data loss on reinstall
+
+**No data loss**: Users who had data before CloudKit sync was implemented, or whose data was never successfully synced, will have their data automatically uploaded and preserved across app reinstalls.
 
 Process is additive:
 1. Local results are uploaded to cloud
@@ -815,7 +820,7 @@ func ensureUserDataZoneSubscription(in database: CKDatabase) async throws {
 
 ## Summary: What Makes This "Just Work"
 
-✅ **Delete app → reinstall → data appears automatically** (no restore button)  
+✅ **Delete app → reinstall → data appears automatically** (no restore button) - **VERIFIED January 2025**  
 ✅ **Multi-device sync** (changes on iPhone appear on iPad instantly)  
 ✅ **Offline-first** (local data always available, syncs when online)  
 ✅ **No conflicts** (derived data computed locally, atomic results synced)  

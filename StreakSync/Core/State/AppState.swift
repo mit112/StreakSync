@@ -567,12 +567,23 @@ final class AppState {
 
         // Publish to social service (best-effort, non-blocking; host mode only)
         if !isGuestMode {
+            logger.info("🎯 Publishing score - isGuestMode: \(self.isGuestMode)")
+            logger.info("🎯 socialService exists: \(self.socialService != nil)")
+            let logger = self.logger
             Task { [weak self] in
-                guard let self else { return }
-                guard let social = self.socialService else { return }
+                guard let self else {
+                    logger.error("❌ CRITICAL: self is nil in publish task")
+                    return
+                }
+                guard let social = self.socialService else {
+                    logger.error("❌ CRITICAL: socialService is nil!")
+                    return
+                }
                 // Build one DailyGameScore for this result
                 let userId = "local_user" // MockSocialService will map to real on publish
                 let dateInt = result.date.utcYYYYMMDD
+                logger.info("📅 Score dateInt: \(dateInt), date: \(result.date)")
+                logger.info("📅 Score details: game=\(result.gameName), score=\(result.score?.description ?? "nil"), completed=\(result.completed), maxAttempts=\(result.maxAttempts)")
                 let compositeId = "\(userId)|\(dateInt)|\(result.gameId.uuidString)"
                 let score = DailyGameScore(
                     id: compositeId,
@@ -584,8 +595,15 @@ final class AppState {
                     maxAttempts: result.maxAttempts,
                     completed: result.completed
                 )
-                try? await social.publishDailyScores(dateUTC: result.date, scores: [score])
+                do {
+                    try await social.publishDailyScores(dateUTC: result.date, scores: [score])
+                    logger.info("✅ Score published successfully")
+                } catch {
+                    logger.error("❌ PUBLISH FAILED: \(error.localizedDescription)")
+                }
             }
+        } else {
+            logger.warning("⚠️ GUEST MODE - Score NOT published")
         }
     }
     
@@ -675,6 +693,9 @@ final class AppState {
         
         logger.info("✅ All notifications posted successfully")
         
+        // Capture logger for async tasks
+        let logger = self.logger
+        
         // CRITICAL: Save all data including updated streaks
         Task {
             await saveGameResults()
@@ -690,12 +711,22 @@ final class AppState {
         }
         
         // Publish to social service (best-effort, non-blocking)
+        logger.info("🎯 Publishing score (addGameResultReturningAdded) - isGuestMode: \(self.isGuestMode)")
+        logger.info("🎯 socialService exists: \(self.socialService != nil)")
         Task { [weak self] in
-            guard let self else { return }
-            guard let social = self.socialService else { return }
+            guard let self else {
+                logger.error("❌ CRITICAL: self is nil in publish task")
+                return
+            }
+            guard let social = self.socialService else {
+                logger.error("❌ CRITICAL: socialService is nil!")
+                return
+            }
             // Build one DailyGameScore for this result
             let userId = "local_user" // MockSocialService will map to real on publish
             let dateInt = result.date.utcYYYYMMDD
+            logger.info("📅 Score dateInt: \(dateInt), date: \(result.date)")
+            logger.info("📅 Score details: game=\(result.gameName), score=\(result.score?.description ?? "nil"), completed=\(result.completed), maxAttempts=\(result.maxAttempts)")
             let compositeId = "\(userId)|\(dateInt)|\(result.gameId.uuidString)"
             let score = DailyGameScore(
                 id: compositeId,
@@ -707,7 +738,12 @@ final class AppState {
                 maxAttempts: result.maxAttempts,
                 completed: result.completed
             )
-            try? await social.publishDailyScores(dateUTC: result.date, scores: [score])
+            do {
+                try await social.publishDailyScores(dateUTC: result.date, scores: [score])
+                logger.info("✅ Score published successfully")
+            } catch {
+                logger.error("❌ PUBLISH FAILED: \(error.localizedDescription)")
+            }
         }
         
         return true

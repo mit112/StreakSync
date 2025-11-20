@@ -111,6 +111,7 @@
  */
 
 import Foundation
+import OSLog
 #if canImport(CloudKit)
 import CloudKit
 #endif
@@ -128,6 +129,7 @@ struct LeaderboardCacheEntry: Codable {
 
 @MainActor
 final class CloudKitSocialService: SocialService, @unchecked Sendable {
+    private let logger = Logger(subsystem: "com.streaksync.app", category: "CloudKitSocialService")
     private let flags = BetaFeatureFlags.shared
     private let betaDefaultGroupId = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
     private let betaDefaultGroupName = "Friends"
@@ -179,7 +181,7 @@ final class CloudKitSocialService: SocialService, @unchecked Sendable {
             let container = CKContainer(identifier: CloudKitConfiguration.containerIdentifier)
             let status = try await container.accountStatus()
             isCloudKitAvailable = (status == .available)
-            if isCloudKitAvailable && !flags.multipleCircles {
+            if self.isCloudKitAvailable && !flags.multipleCircles {
                 await ensureDefaultGroupShareIfNeeded()
             }
         } catch {
@@ -228,34 +230,99 @@ final class CloudKitSocialService: SocialService, @unchecked Sendable {
     }
     
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws {
+        logger.info("🔍 Filter check - Input scores: \(scores.count)")
         let publishableScores = scores.filter { shouldShare(score: $0) }
-        guard !publishableScores.isEmpty else { return }
+        logger.info("🔍 Filter check - Publishable: \(publishableScores.count)")
+        
+        if publishableScores.count < scores.count {
+            logger.warning("⚠️ Some scores were filtered out!")
+            for score in scores {
+                let willShare = shouldShare(score: score)
+                logger.info("  - \(score.gameName): shouldShare=\(willShare)")
+                if !willShare {
+                    // Check why it was filtered
+                    let game = Game.allAvailableGames.first(where: { $0.id == score.gameId })
+                    logger.info("    → Game found: \(game != nil)")
+                    logger.info("    → Completed: \(score.completed)")
+                    logger.info("    → Score value: \(score.score?.description ?? "nil")")
+                    logger.info("    → Max attempts: \(score.maxAttempts)")
+                    if let game = game {
+                        let points = LeaderboardScoring.points(for: score, game: game)
+                        logger.info("    → Calculated points: \(points)")
+                    }
+                }
+            }
+        }
+        
+        guard !publishableScores.isEmpty else {
+            logger.warning("⚠️ All scores filtered out - nothing to publish")
+            return
+        }
         let normalized = await normalizeScores(publishableScores)
+        logger.info("🔄 Normalized \(normalized.count) scores")
         do {
             try await sendNormalizedScores(normalized, dateUTC: dateUTC)
             await flushPendingScores()
+            logger.info("✅ Successfully sent normalized scores")
         } catch {
+            logger.error("❌ Failed to send scores, enqueueing: \(error.localizedDescription)")
             enqueuePending(scores: normalized)
             throw error
         }
     }
     
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
+        logger.info("🔍 === FETCH LEADERBOARD ===")
+        logger.info("📅 Filter range: \(startDateUTC) → \(startDateUTC.utcYYYYMMDD) to \(endDateUTC) → \(endDateUTC.utcYYYYMMDD)")
+        
         let groupIdForMode = currentGroupIdentifier()
         let key = LeaderboardCacheKey(startDateInt: startDateUTC.utcYYYYMMDD,
                                       endDateInt: endDateUTC.utcYYYYMMDD,
                                       groupId: groupIdForMode)
         if let cached = cachedLeaderboard(for: key) {
+            logger.info("📦 Returning cached leaderboard: \(cached.count) rows")
             return cached
         }
         
-        if isCloudKitAvailable {
+        logger.info("🔄 Cache miss - fetching fresh data")
+        logger.info("☁️ CloudKit available: \(self.isCloudKitAvailable)")
+        logger.info("🆔 Group ID: \(groupIdForMode?.uuidString ?? "nil")")
+        
+        if self.isCloudKitAvailable {
             if let groupId = groupIdForMode {
                 #if canImport(CloudKit)
-                // Fetch records and aggregate into rows
-                let dbScoresRecords = try await leaderboardSyncService.fetchScores(groupId: groupId, dateInt: nil)
-                let nameMap = await leaderboardSyncService.participantDisplayNames(for: groupId)
-                let scores: [DailyGameScore] = dbScoresRecords.compactMap { rec in
+                // Always fetch local scores first - user's own scores are stored locally
+                logger.info("📥 Fetching local scores first...")
+                let localRows = try await mockService.fetchLeaderboard(startDateUTC: startDateUTC, endDateUTC: endDateUTC)
+                logger.info("📥 Local rows fetched: \(localRows.count)")
+                for row in localRows {
+                    logger.info("  - Local: userId=\(row.userId), name=\(row.displayName), points=\(row.totalPoints)")
+                }
+                
+                // Try to fetch from CloudKit (may fail if group/zone doesn't exist yet)
+                let dbScoresRecords: [CKRecord]
+                let nameMap: [String: String]
+                do {
+                    logger.info("☁️ Attempting CloudKit fetch...")
+                    dbScoresRecords = try await leaderboardSyncService.fetchScores(groupId: groupId, dateInt: nil)
+                    nameMap = await leaderboardSyncService.participantDisplayNames(for: groupId)
+                    logger.info("☁️ CloudKit fetch succeeded: \(dbScoresRecords.count) records")
+                } catch {
+                    // Group/zone doesn't exist yet - return local scores directly
+                    logger.warning("⚠️ CloudKit fetch failed (group/zone doesn't exist): \(error.localizedDescription)")
+                    logger.info("📤 Returning local scores directly: \(localRows.count) rows")
+                    storeLeaderboard(localRows, for: key)
+                    return localRows
+                }
+                
+                // If CloudKit has no scores, return local scores directly
+                if dbScoresRecords.isEmpty {
+                    logger.info("☁️ CloudKit has no scores, returning local scores: \(localRows.count) rows")
+                    storeLeaderboard(localRows, for: key)
+                    return localRows
+                }
+                
+                let cloudKitScores: [DailyGameScore] = dbScoresRecords.compactMap { rec in
                     guard let gameIdStr = rec["gameId"] as? String,
                           let gameId = UUID(uuidString: gameIdStr) else { return nil }
                     let gameName = (rec["gameName"] as? String) ?? ""
@@ -267,9 +334,34 @@ final class CloudKitSocialService: SocialService, @unchecked Sendable {
                     let id = "\(userId)|\(dateInt)|\(gameId.uuidString)"
                     return DailyGameScore(id: id, userId: userId, dateInt: dateInt, gameId: gameId, gameName: gameName, score: score, maxAttempts: maxAttempts, completed: completed)
                 }
-                // Aggregate per user
+                
+                let ckUserId = await currentUserRecordName()
+                let myProfile = try? await myProfile()
+                
+                // Aggregate CloudKit scores per user. Convert stored UTC dayInts into
+                // the user's *local* calendar days for filtering, to match MockSocialService.
+                let cal = Calendar.current
+                let localStart = cal.startOfDay(for: startDateUTC)
+                let localEnd = cal.startOfDay(for: endDateUTC)
+                
+                func localDay(for dateInt: Int) -> Date? {
+                    var utcCal = Calendar(identifier: .gregorian)
+                    utcCal.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+                    let y = dateInt / 10_000
+                    let m = (dateInt / 100) % 100
+                    let d = dateInt % 100
+                    var comps = DateComponents()
+                    comps.year = y
+                    comps.month = m
+                    comps.day = d
+                    guard let utcDate = utcCal.date(from: comps) else { return nil }
+                    return cal.startOfDay(for: utcDate)
+                }
+                
                 var perUser: [String: (name: String, total: Int, perGame: [UUID: Int])] = [:]
-                for s in scores where s.dateInt >= startDateUTC.utcYYYYMMDD && s.dateInt <= endDateUTC.utcYYYYMMDD {
+                for s in cloudKitScores {
+                    guard let day = localDay(for: s.dateInt),
+                          day >= localStart, day <= localEnd else { continue }
                     let game = Game.allAvailableGames.first(where: { $0.id == s.gameId })
                     let pts = LeaderboardScoring.points(for: s, game: game)
                     let display = nameMap[s.userId] ?? s.userId
@@ -280,9 +372,99 @@ final class CloudKitSocialService: SocialService, @unchecked Sendable {
                     entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + pts
                     perUser[s.userId] = entry
                 }
+                
+                // Merge local scores: ensure current user's scores are always included
+                // The current user's local scores use "local_user" or device user ID
+                logger.info("🔄 Merging local scores...")
+                let myLocalProfile = try? await mockService.myProfile()
+                logger.info("👤 My local profile ID: \(myLocalProfile?.id ?? "nil")")
+                logger.info("👤 CloudKit user ID: \(ckUserId ?? "nil")")
+                logger.info("👤 My profile display name: \(myProfile?.displayName ?? "nil")")
+                
+                // Find the current user's local row - check all possible userId formats
+                let myLocalRow: LeaderboardRow? = {
+                    // Try all local rows - one of them should be the current user
+                    for row in localRows {
+                        // Match by profile ID
+                        if let myLocalProfile = myLocalProfile, row.userId == myLocalProfile.id {
+                            logger.info("✅ Found local row by profile ID: \(row.userId)")
+                            return row
+                        }
+                        // Match by "local_user" (scores are published with this)
+                        if row.userId == "local_user" {
+                            logger.info("✅ Found local row by 'local_user': \(row.userId)")
+                            return row
+                        }
+                    }
+                    // Fallback: if there's only one local row, it's probably the current user
+                    if localRows.count == 1 {
+                        logger.info("✅ Using single local row as fallback: \(localRows.first?.userId ?? "nil")")
+                        return localRows.first
+                    }
+                    // If multiple rows, prefer the one with highest score (likely current user)
+                    let maxRow = localRows.max(by: { $0.totalPoints < $1.totalPoints })
+                    logger.info("✅ Using highest-scoring local row: \(maxRow?.userId ?? "nil")")
+                    return maxRow
+                }()
+                
+                if let myLocalRow = myLocalRow {
+                    logger.info("📋 Found local row: userId=\(myLocalRow.userId), name=\(myLocalRow.displayName), points=\(myLocalRow.totalPoints)")
+                    // Determine which user ID to use for the current user
+                    // Use CloudKit user ID if available, otherwise use local user ID
+                    let userIdToUse = ckUserId ?? myLocalRow.userId
+                    logger.info("🆔 Using userId: \(userIdToUse) for merge")
+                    
+                    // Always merge local scores - they represent the current user's actual data
+                    if !perUser.keys.contains(userIdToUse) {
+                        // User doesn't exist in CloudKit, add from local
+                        logger.info("➕ Adding local user to results (not in CloudKit)")
+                        perUser[userIdToUse] = (
+                            name: myProfile?.displayName ?? myLocalRow.displayName,
+                            total: myLocalRow.totalPoints,
+                            perGame: myLocalRow.perGameBreakdown
+                        )
+                    } else {
+                        // User exists in CloudKit - merge scores, preferring local if CloudKit is empty
+                        logger.info("🔄 Merging with existing CloudKit user")
+                        var existing = perUser[userIdToUse]!
+                        logger.info("  - CloudKit total: \(existing.total)")
+                        logger.info("  - Local total: \(myLocalRow.totalPoints)")
+                        if existing.total == 0 && myLocalRow.totalPoints > 0 {
+                            // CloudKit has no scores, use local
+                            logger.info("  → CloudKit empty, using local scores")
+                            existing.total = myLocalRow.totalPoints
+                            existing.perGame = myLocalRow.perGameBreakdown
+                        } else {
+                            // Merge: combine scores from both sources
+                            logger.info("  → Merging scores from both sources")
+                            existing.total += myLocalRow.totalPoints
+                            for (gameId, points) in myLocalRow.perGameBreakdown {
+                                existing.perGame[gameId] = (existing.perGame[gameId] ?? 0) + points
+                            }
+                        }
+                        // Update name from profile if available
+                        if let profileName = myProfile?.displayName, !profileName.isEmpty {
+                            existing.name = profileName
+                        }
+                        perUser[userIdToUse] = existing
+                    }
+                } else {
+                    logger.warning("⚠️ Could not find local row for current user!")
+                    logger.warning("  - Local rows available: \(localRows.count)")
+                    for row in localRows {
+                        logger.warning("    → userId=\(row.userId), name=\(row.displayName)")
+                    }
+                }
+                
                 let rows = perUser.map { (userId, agg) in
                     LeaderboardRow(id: userId, userId: userId, displayName: agg.name, totalPoints: agg.total, perGameBreakdown: agg.perGame)
                 }.sorted { $0.totalPoints > $1.totalPoints }
+                
+                logger.info("✅ Final leaderboard: \(rows.count) rows")
+                for row in rows {
+                    logger.info("  - \(row.displayName) (userId=\(row.userId)): \(row.totalPoints) total points")
+                }
+                
                 storeLeaderboard(rows, for: key)
                 return rows
                 #else
@@ -306,7 +488,7 @@ final class CloudKitSocialService: SocialService, @unchecked Sendable {
     // MARK: - Real-time Features
     
     var isRealTimeEnabled: Bool {
-        return isCloudKitAvailable
+        return self.isCloudKitAvailable
     }
     
     func setupRealTimeSubscriptions() async {
@@ -317,7 +499,7 @@ final class CloudKitSocialService: SocialService, @unchecked Sendable {
     // MARK: - Service Status
     
     var serviceStatus: ServiceStatus {
-        if isCloudKitAvailable {
+        if self.isCloudKitAvailable {
             return .cloudKit
         } else {
             return .local
@@ -327,7 +509,7 @@ final class CloudKitSocialService: SocialService, @unchecked Sendable {
     #if canImport(CloudKit)
     @discardableResult
     func ensureFriendsShare() async throws -> CKShare? {
-        guard isCloudKitAvailable else { return nil }
+        guard self.isCloudKitAvailable else { return nil }
         if !flags.multipleCircles {
             LeaderboardGroupStore.setSelectedGroup(id: betaDefaultGroupId, title: betaDefaultGroupName)
         }
@@ -416,7 +598,7 @@ private extension CloudKitSocialService {
     
     func normalizeScores(_ scores: [DailyGameScore]) async -> [DailyGameScore] {
         #if canImport(CloudKit)
-        let ckUserId = isCloudKitAvailable ? await currentUserRecordName() : nil
+        let ckUserId = self.isCloudKitAvailable ? await self.currentUserRecordName() : nil
         #else
         let ckUserId: String? = nil
         #endif
@@ -437,8 +619,8 @@ private extension CloudKitSocialService {
     }
     
     func sendNormalizedScores(_ scores: [DailyGameScore], dateUTC: Date) async throws {
-        if isCloudKitAvailable {
-            if let groupId = currentGroupIdentifier() {
+        if self.isCloudKitAvailable {
+            if let groupId = self.currentGroupIdentifier() {
                 #if canImport(CloudKit)
                 for score in scores {
                     try await leaderboardSyncService.publishDailyScore(groupId: groupId, score: score)
@@ -457,7 +639,7 @@ private extension CloudKitSocialService {
     }
     
     func flushPendingScores() async {
-        guard isCloudKitAvailable, !pendingScoreQueue.isEmpty else { return }
+        guard self.isCloudKitAvailable, !self.pendingScoreQueue.isEmpty else { return }
         let batch = pendingScoreQueue
         pendingScoreQueue.removeAll()
         pendingScoreStore.save(pendingScoreQueue)
@@ -473,7 +655,7 @@ private extension CloudKitSocialService {
 // MARK: - Friend Discovery
 extension CloudKitSocialService: FriendDiscoveryProviding {
     func discoverFriends(forceRefresh: Bool) async throws -> [DiscoveredFriend] {
-        guard isCloudKitAvailable else { return [] }
+        guard self.isCloudKitAvailable else { return [] }
         if !forceRefresh,
            let timestamp = discoveryCacheTimestamp,
            Date().timeIntervalSince(timestamp) < discoveryCacheTTL,
@@ -498,14 +680,28 @@ extension CloudKitSocialService: FriendDiscoveryProviding {
         // Groups are stored in custom zones, so we need to fetch zones first
         let allZones: [CKRecordZone] = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecordZone], Error>) in
             let fetchZonesOperation = CKFetchRecordZonesOperation.fetchAllRecordZonesOperation()
-            fetchZonesOperation.fetchRecordZonesCompletionBlock = { zonesByID, error in
-                if let error = error {
+            var collectedZones: [CKRecordZone] = []
+            var hasResumed = false
+            
+            fetchZonesOperation.perRecordZoneResultBlock = { zoneID, result in
+                guard !hasResumed else { return }
+                switch result {
+                case .success(let zone):
+                    collectedZones.append(zone)
+                case .failure(let error):
+                    hasResumed = true
                     continuation.resume(throwing: error)
-                } else if let zonesByID = zonesByID {
-                    let zones = Array(zonesByID.values)
-                    continuation.resume(returning: zones)
-                } else {
-                    continuation.resume(returning: [])
+                }
+            }
+            
+            fetchZonesOperation.fetchRecordZonesResultBlock = { result in
+                guard !hasResumed else { return }
+                hasResumed = true
+                switch result {
+                case .success:
+                    continuation.resume(returning: collectedZones)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
                 }
             }
             privateDB.add(fetchZonesOperation)
@@ -530,7 +726,7 @@ extension CloudKitSocialService: FriendDiscoveryProviding {
                         switch result {
                         case .success:
                             continuation.resume()
-                        case .failure(let error):
+                        case .failure(_):
                             // Zone might not have records, continue
                             continuation.resume()
                         }
@@ -653,7 +849,7 @@ extension CloudKitSocialService: CircleManaging {
         guard !trimmed.isEmpty else { throw CircleError.invalidName }
         var circleId = UUID()
         #if canImport(CloudKit)
-        if isCloudKitAvailable {
+        if self.isCloudKitAvailable {
             do {
                 let result = try await leaderboardSyncService.createGroup(title: trimmed)
                 circleId = result.groupId

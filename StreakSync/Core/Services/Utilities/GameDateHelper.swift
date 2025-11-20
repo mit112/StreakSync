@@ -157,7 +157,11 @@ struct GameDateHelper {
         } else if isGameResultFromYesterday(importDate) {
             return "Yesterday"
         } else {
-            let days = calendar.dateComponents([.day], from: importDate, to: now).day ?? 0
+            // Compare at day granularity (start-of-day) so we don't treat
+            // "two calendar days ago" as "yesterday" once more than 24h passes.
+            let startOfImport = calendar.startOfDay(for: importDate)
+            let startOfNow = calendar.startOfDay(for: now)
+            let days = calendar.dateComponents([.day], from: startOfImport, to: startOfNow).day ?? 0
             if days <= 0 {
                 return "Today" // Fallback for edge cases
             } else if days == 1 {
@@ -174,9 +178,14 @@ struct GameDateHelper {
     static func isGameResultActive(_ importDate: Date) -> Bool {
         let calendar = Calendar.current
         let now = Date()
-        let days = calendar.dateComponents([.day], from: importDate, to: now).day ?? 0
+        // Active is defined at the calendar-day level: a game is "active"
+        // if its last play date is today or yesterday.
+        let startOfImport = calendar.startOfDay(for: importDate)
+        let startOfNow = calendar.startOfDay(for: now)
+        let days = calendar.dateComponents([.day], from: startOfImport, to: startOfNow).day ?? 0
         
-        // Consider a game "active" if played within the last 2 days
+        // Consider a game "active" if played within the last 1 day difference
+        // (0 = today, 1 = yesterday). 2+ is no longer active.
         return days <= 1
     }
 }

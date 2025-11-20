@@ -402,7 +402,13 @@ extension AppState {
         // Refresh games first to pick up any new games
         refreshGames()
         
+        // Reload persisted data
         await loadPersistedData()
+        
+        // Self-heal streaks from the authoritative source of truth (recentResults)
+        // and then normalize them up to "today" so gaps correctly break streaks.
+        await rebuildStreaksFromResults()
+        await normalizeStreaksForMissedDays()
     }
     
     /// Lightweight data refresh for notification navigation - skips expensive operations

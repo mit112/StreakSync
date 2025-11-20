@@ -425,17 +425,24 @@ class ShareViewController: UIViewController {
         }
         parsedData["source"] = "shareExtension"
         
-        return [
+        // Build JSON-safe payload (avoid Optional<Any> which breaks JSONSerialization)
+        var payload: [String: Any] = [
             "id": UUID().uuidString,
             "gameId": "550e8400-e29b-41d4-a716-446655440001", // Quordle game ID
             "gameName": "quordle",
             "date": ISO8601DateFormatter().string(from: Date()),
-            "score": averageScore as Any,
             "maxAttempts": 9,
             "completed": completed,
             "sharedText": text,
             "parsedData": parsedData
         ]
+        
+        // Only include score when we actually have one; missing key decodes as nil on the app side.
+        if let averageScore {
+            payload["score"] = averageScore
+        }
+        
+        return payload
     }
     
     // MARK: - Quordle Helper
@@ -493,12 +500,12 @@ class ShareViewController: UIViewController {
         
         print("🔍 SHARE EXTENSION: Extracted - Puzzle: \(puzzleNumber), Score: \(scoreString), Completed: \(completed)")
         
-        return [
+        // Build JSON-safe payload
+        var payload: [String: Any] = [
             "id": UUID().uuidString,
             "gameId": "550e8400-e29b-41d4-a716-446655440000", // Wordle game ID
             "gameName": "wordle",
             "date": ISO8601DateFormatter().string(from: Date()),
-            "score": score as Any,
             "maxAttempts": 6,
             "completed": completed,
             "sharedText": text,
@@ -507,6 +514,12 @@ class ShareViewController: UIViewController {
                 "source": "shareExtension"
             ]
         ]
+        
+        if let score {
+            payload["score"] = score
+        }
+        
+        return payload
     }
     
     // MARK: - Nerdle Parser
@@ -532,12 +545,12 @@ class ShareViewController: UIViewController {
         
         print("🔍 SHARE EXTENSION: Extracted - Puzzle: \(puzzleNumber), Score: \(scoreString), Completed: \(completed)")
         
-        return [
+        // Build JSON-safe payload
+        var payload: [String: Any] = [
             "id": UUID().uuidString,
             "gameId": "550e8400-e29b-41d4-a716-446655440002", // Nerdle game ID
             "gameName": "nerdle",
             "date": ISO8601DateFormatter().string(from: Date()),
-            "score": score as Any,
             "maxAttempts": 6,
             "completed": completed,
             "sharedText": text,
@@ -546,6 +559,12 @@ class ShareViewController: UIViewController {
                 "source": "shareExtension"
             ]
         ]
+        
+        if let score {
+            payload["score"] = score
+        }
+        
+        return payload
     }
     
     // MARK: - NYT Connections Parser
@@ -582,12 +601,12 @@ class ShareViewController: UIViewController {
         // Parse the emoji grid to extract game statistics
         let gameStats = parseConnectionsEmojiGrid(emojiRows.joined(separator: " "))
         
-        return [
+        // Build JSON-safe payload
+        var payload: [String: Any] = [
             "id": UUID().uuidString,
             "gameId": "550e8400-e29b-41d4-a716-446655440003", // Connections game ID
             "gameName": "connections",
             "date": ISO8601DateFormatter().string(from: Date()),
-            "score": (gameStats.solvedCategories > 0 ? gameStats.solvedCategories : nil) as Any, // Use nil for 0 categories
             "maxAttempts": 4, // 4 categories total
             "completed": gameStats.completed,
             "sharedText": text,
@@ -600,6 +619,12 @@ class ShareViewController: UIViewController {
                 "source": "shareExtension"
             ]
         ]
+        
+        if gameStats.solvedCategories > 0 {
+            payload["score"] = gameStats.solvedCategories
+        }
+        
+        return payload
     }
     
     // MARK: - Connections Emoji Grid Parser Helper

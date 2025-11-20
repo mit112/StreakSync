@@ -188,13 +188,18 @@ struct GameLeaderboardPage: View {
             } else {
                 ForEach(rows.indices, id: \.self) { index in
                     let entry = rows[index]
+                    // Treat the current user's row as \"Me\" based on myUserId. With the
+                    // mapping fix in FriendsViewModel, leaderboard rows now use the same
+                    // identifier as `myUserId`, so no heuristic fallback is needed here.
+                    let isMe = entry.row.userId == myUserId
+                    let displayName = isMe ? "Me" : entry.row.displayName
                     HStack(spacing: 12) {
                         Text("\(index + 1)")
                             .font(.headline)
                             .frame(width: 28, alignment: .trailing)
                         GradientAvatar(initials: String(entry.row.displayName.prefix(1)))
-                        Text(entry.row.displayName)
-                            .font(.body.weight(entry.row.userId == myUserId ? .semibold : .regular))
+                        Text(displayName)
+                            .font(.body.weight(isMe ? .semibold : .regular))
                             .lineLimit(1)
                         Spacer()
                         HStack(spacing: 8) {
@@ -263,7 +268,8 @@ struct GameLeaderboardPage: View {
 private extension GameLeaderboardPage {
     func accessibilityLabelForRow(index: Int, entry: (row: LeaderboardRow, points: Int)) -> String {
         let rankPart = "Rank \(index + 1)"
-        let namePart = entry.row.displayName
+        let isMe = entry.row.userId == myUserId
+        let namePart = isMe ? "Me" : entry.row.displayName
         let metricPart = metricText(entry.points)
         var deltaPart = ""
         if let delta = rankDelta?[entry.row.userId], delta != 0 {

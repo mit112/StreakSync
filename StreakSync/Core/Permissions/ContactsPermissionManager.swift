@@ -13,6 +13,7 @@ struct ContactsPermissionManager {
         case restricted
         case denied
         case authorized
+        case limited
     }
     
     func currentStatus() -> Status {
@@ -21,6 +22,7 @@ struct ContactsPermissionManager {
         case .denied: return .denied
         case .restricted: return .restricted
         case .notDetermined: return .notDetermined
+        case .limited: return .limited
         @unknown default: return .restricted
         }
     }

@@ -1,3 +1,54 @@
+## Bug #013: Friends Leaderboard Date & Self-Labeling Issues
+**Date:** November 2025  
+**Severity:** High  
+**Component:** FriendsView / FriendsViewModel, MockSocialService, CloudKitSocialService, GameLeaderboardPage
+
+### Bug Description
+The Friends leaderboard sometimes failed to show the user’s own scores on the expected “today” date, and when it did, the row appeared as a generic **Friend** instead of **Me**. Other games occasionally showed generic rows even when there were no real scores, making the leaderboard feel static and unreliable during beta testing.
+
+### Root Cause
+- **UTC vs Local Day Mismatch:**  
+  - Scores were stored with `dateInt` in UTC (`utcYYYYMMDD`), while the Friends UI (`selectedDateUTC` and `DatePicker`) worked in the user’s local time.  
+  - Date filtering used `startDateUTC.utcYYYYMMDD` / `endDateUTC.utcYYYYMMDD` directly, so a valid score (e.g. `20251119` UTC) could miss the local-day filter for Nov 18.
+- **User ID Mismatch:**  
+  - Leaderboard rows used the normalized CloudKit record ID (e.g. `_41be6d6…`), while `FriendsViewModel.myUserId` pointed to a different profile ID (e.g. `804D6D…`).  
+  - The UI highlighted and labeled the current user based on `row.userId == myUserId`, so the user appeared as “Friend” instead of “Me”.
+- **Static Row Projection:**  
+  - `rowsForSelectedGameID(_:)` returned rows even when the selected game’s per‑game points were `0`, creating generic-looking rows for games the user had never played in that range.
+
+### Solution
+**1. Align calendar and filtering with local day semantics**
+- Treated `FriendsViewModel.selectedDateUTC` as the **local calendar day** the user is viewing.
+- Updated `FriendsViewModel.dateRange()` to:
+  - Use `Calendar.current.startOfDay(for:)` to compute a local anchor day.
+  - Return local start-of-day for both `.today` and `.sevenDays`, with the seven-day window ending at this anchor.
+- Updated `MockSocialService.fetchLeaderboard` and `CloudKitSocialService.fetchLeaderboard` to:
+  - Convert stored `DailyGameScore.dateInt` (UTC yyyymmdd) back into a UTC `Date`.
+  - Map that UTC date into the user’s **local start-of-day**.
+  - Filter scores by comparing those local days against the local start/end from the view model.
+- Result: a score saved with `dateInt=20251119` (UTC) correctly appears in the **Nov 18 local** leaderboard when that UTC day maps to Nov 18 in the user’s timezone.
+
+**2. Normalize IDs and label the current user as “Me”**
+- In `FriendsViewModel.load()`:
+  - Set `myUserId = me.id` from `socialService.ensureProfile(displayName:)`.
+  - After fetching the leaderboard, if no row matches `me.id` but there is exactly **one** row, assume it is the current user and set `myUserId` to that row’s `userId` (e.g. the CloudKit record name).
+- In `MockSocialService.fetchLeaderboard`:
+  - Normalized the self row when constructing `LeaderboardRow`s so that, when possible, the row’s `userId` matches the profile’s ID.
+- In `GameLeaderboardPage`:
+  - Render the current user’s row as **“Me”** whenever `entry.row.userId == myUserId`, and mirror this behavior in VoiceOver accessibility labels.
+
+**3. Remove static-looking rows**
+- Updated `FriendsViewModel.rowsForSelectedGameID(_:)` to:
+  - Project only rows where the selected game’s points are **> 0**.
+  - Sort the resulting rows by points (desc) and name (asc).
+- Ensured `GameLeaderboardPage` shows the empty state when there are no real scores for a game in the selected range.
+
+### Prevention
+- Always design date storage and filtering pipelines around a **single canonical representation** (UTC) and explicitly map to local-day semantics at the UI boundary.  
+- When normalizing IDs (e.g. local vs CloudKit), ensure that the **same identifier** is used consistently through storage, aggregation, and rendering, or add an explicit mapping step in the view model.  
+- Avoid returning generic rows from projection helpers; filter out zero‑point and non‑relevant games so the UI only shows data that actually exists.  
+- For complex flows (publish → store → filter → merge → project), keep a dedicated analysis document (see `LEADERBOARD_SCORE_DISPLAY_ISSUE_ANALYSIS.md`) up to date with both the investigation steps and the final resolution.
+
 # Bug Log & Solutions
 
 *Last Updated: November 2025*
@@ -3577,9 +3628,35 @@ Added detailed logging at each sync step:
 
 ### Status
 ✅ **Enhanced Logging Implemented**  
+✅ **Automatic Upload of Local Data - IMPLEMENTED**  
 ⚠️ **User-Facing Sync Status UI - TODO**  
-⚠️ **Proactive Sync Verification - TODO**  
-⚠️ **First-Time Sync Migration - TODO**
+⚠️ **Proactive Sync Verification - TODO**
+
+### Resolution (January 2025)
+
+**Fix Implemented**: Added automatic upload logic in `UserDataSyncService.syncIfNeeded()` that detects when CloudKit is empty but local data exists, and automatically uploads all local results that were never marked for sync.
+
+**Code Changes**:
+- Added detection logic after `recoverUnsyncedResultsIfNeeded()` 
+- Checks if CloudKit returned 0 records but local results exist
+- Identifies results that were never marked for sync (not in SyncTracker)
+- Automatically uploads those results to CloudKit
+- Prevents data loss on reinstall
+
+**Testing Results**:
+- ✅ Tested with 3 local results that were never synced
+- ✅ Automatic upload triggered successfully
+- ✅ Data restored correctly after app reinstall
+- ✅ All 3 game results restored from CloudKit
+- ✅ Streaks recomputed correctly from restored data
+
+**Key Log Messages**:
+- `⚠️ CloudKit empty but found X local results never uploaded - uploading now`
+- `📤 Uploading X local results to CloudKit`
+- `✅ Uploaded X local results to CloudKit`
+- `📥 Fetched from CloudKit: 3 records, 0 deletions` (on reinstall)
+
+**Impact**: Users who had data before CloudKit sync was implemented, or whose data was never successfully synced, will now have their data automatically uploaded and preserved across app reinstalls.
 
 ---
 
