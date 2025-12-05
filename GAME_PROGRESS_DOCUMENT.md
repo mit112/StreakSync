@@ -433,4 +433,16 @@ Each game follows this implementation pattern:
 
 ---
 
+## November 2025 Updates
+
+- **Share Extension Optional-Score Reliability**
+  - Updated `ShareViewController` to build JSON-safe payloads for games where `score` can be `nil` (Wordle, Nerdle, Quordle, Connections).
+  - Optional scores are now omitted from the payload instead of attempting to serialize `Optional.none`, eliminating \"result saved but nothing imported\" failures.
+
+- **Share Extension Queue Ingestion Robustness**
+  - Removed the eager `checkForNewResults()` call from `AppGroupBridge` initialization to avoid draining the App Group queue before observers are wired.
+  - Ingestion is now fully event-driven (Darwin notifications + app lifecycle), so queued results shared while the app is closed are processed reliably on next launch/foreground.
+
+---
+
 *This document will be updated as games are implemented and new research is completed.*

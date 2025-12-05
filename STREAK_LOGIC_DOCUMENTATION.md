@@ -334,3 +334,18 @@ Game Result Deleted
 - **Day Change Detection**: `StreakSync/Core/Services/Utilities/DayChangeDetector.swift`
 - **Main App State**: `StreakSync/Core/State/AppState.swift`
 
+---
+
+## November 2025 Updates
+
+- **Refresh Data Self-Healing**
+  - `AppState.refreshData()` now calls `rebuildStreaksFromResults()` followed by `normalizeStreaksForMissedDays()` after reloading persisted data.
+  - This ensures streaks are always recomputed from the authoritative source of truth (`recentResults`) whenever the dashboard or game detail is refreshed or the app comes back to the foreground.
+  - Fixes cases where streak summaries could drift out of sync with actual results (e.g. a Zip result existing while the Zip streak showed 0).
+
+- **Calendar-Day Status & Activity**
+  - `GameDateHelper` now computes "Today", "Yesterday", and "X days ago" using **calendar-day** comparisons via `startOfDay(for:)` instead of raw elapsed time.
+  - `GameStreak.isActive` is `true` only when the last played date is today or yesterday; games played 2+ calendar days ago are considered inactive even if less than 48 hours have passed.
+  - This keeps streak activity and status text correct across midnight boundaries and during early-morning launches.
+
+

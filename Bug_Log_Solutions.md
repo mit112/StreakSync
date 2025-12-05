@@ -3660,3 +3660,249 @@ Added detailed logging at each sync step:
 
 ---
 
+## Bug #051: Share Extension \"Result Saved\" but Game Not Imported (Optional Score Serialization)
+**Date:** November 2025  
+**Severity:** High – Silent Data Loss  
+**Component:** Share Extension - `ShareViewController.swift`
+
+### Bug Description
+For some games, the share extension displayed a success message (e.g. \"Wordle result saved!\"), but no new result appeared in the main app. This happened even when the text clearly matched a supported game format.
+
+### Error Symptoms
+- Share sheet message: *\"\<Game\> result saved!\"*  
+- No new result visible in `recentResults` or the dashboard  
+- No crash or visible error in the extension  
+- App Group queue keys (`gameResultKeys`) sometimes empty despite the success UI
+
+### Root Cause
+Several parsers used an optional `score` but forced it into the result dictionary as `Any`:
+
+```swift
+// Before (simplified examples)
+"score": score as Any              // Wordle/Nerdle
+"score": averageScore as Any       // Quordle
+"score": (solvedCategories > 0 ? solvedCategories : nil) as Any // Connections
+```
+
+When `score` was `nil` (e.g. Wordle `X/6`, Quordle with failed boards, Connections with 0 solved categories), the value became an `Optional<Int>.none`, which is **not JSON-serializable**.  
+`JSONSerialization.data(withJSONObject:options:)` threw at save time, and `saveResult(_:)` logged the failure but had already shown the success alert to the user, so the main app never saw the result.
+
+### Solution
+**1. Build JSON-safe payloads for optional scores:**
+
+```swift
+// After (pattern used for affected games)
+var payload: [String: Any] = [
+    "id": UUID().uuidString,
+    "gameId": "...",
+    "gameName": "...",
+    "date": ISO8601DateFormatter().string(from: Date()),
+    "maxAttempts": 6,
+    "completed": completed,
+    "sharedText": text,
+    "parsedData": parsedData
+]
+
+// Only include score when non-nil; omitting the key decodes as score == nil in GameResult.
+if let score {
+    payload["score"] = score
+}
+
+return payload
+```
+
+Applied to:
+- Wordle (`parseWordle`)
+- Nerdle (`parseNerdle`)
+- Quordle (`parseQuordle`)
+- Connections (`parseConnections`)
+
+### Prevention
+- **Never insert `Optional` values directly into `[String: Any]` dictionaries** used with `JSONSerialization`.
+- **Model `nil` scores by omitting the key**, not by storing `Optional.none`.
+- Add tests that attempt to serialize each share payload to JSON to catch failures early.
+
+---
+
+## Bug #052: Share Extension Queue Results Lost on Cold Start (AppGroupBridge Startup Race)
+**Date:** November 2025  
+**Severity:** High – Lost Shared Results  
+**Component:** App Group Bridge - `AppGroupBridge.swift`, `AppGroupDataManager.swift`
+
+### Bug Description
+When users shared results while the app was not running and then opened the app later, some queued results never appeared in the app even though they were correctly written to the App Group queue.
+
+### Error Symptoms
+- Multiple results shared while app is closed  
+- App opened later:
+  - Some or all results missing from `recentResults`
+  - No obvious errors in logs aside from queue clearing
+- `gameResultKeys` cleared shortly after launch
+
+### Root Cause
+`AppGroupBridge`'s initializer performed an eager scan of the queue:
+
+```swift
+private init() {
+    self.dataManager = AppGroupDataManager()
+    self.darwinHandler = AppGroupDarwinNotificationHandler()
+    self.urlHandler = AppGroupURLSchemeHandler()
+    self.resultMonitor = AppGroupResultMonitor(dataManager: dataManager)
+
+    setupObservers()
+    setupDarwinNotifications()
+    Task { await checkForNewResults() } // ❌ Early queue drain
+}
+```
+
+On cold start:
+1. `AppContainer` created `AppGroupBridge.shared`, triggering `checkForNewResults()` before observers were wired.
+2. `checkForNewResults()`:
+   - Loaded queued results from `gameResultKeys`
+   - Posted `.gameResultReceived` notifications
+   - Cleared the queue keys
+3. `NotificationCoordinator.setupObservers()` ran **after** this, so no observers were present when the notifications were posted.  
+Result: the queue was drained and cleared, but no `GameResult` ever reached `AppState`.
+
+### Solution
+**1. Remove the eager startup scan:**
+
+```swift
+private init() {
+    self.dataManager = AppGroupDataManager()
+    self.darwinHandler = AppGroupDarwinNotificationHandler()
+    self.urlHandler = AppGroupURLSchemeHandler()
+    self.resultMonitor = AppGroupResultMonitor(dataManager: dataManager)
+
+    setupObservers()
+    setupDarwinNotifications()
+    // Task { await checkForNewResults() }  // ❌ Removed
+}
+```
+
+**2. Rely solely on event-driven ingestion:**
+- Darwin notifications from the share extension
+- `UIApplication.didBecomeActiveNotification`
+- `UIApplication.willEnterForegroundNotification`
+
+These events now call `checkForNewResults()` only **after** `NotificationCoordinator` has installed its observers.
+
+### Prevention
+- **Avoid performing side-effectful work (like draining queues) in initializers** of long-lived singletons.
+- Ensure all observers are registered **before** posting notifications that feed them.
+- Document lifecycle ordering: `AppContainer` wiring → observer setup → ingestion.
+
+---
+
+## Bug #053: Streak Summary Out of Sync with Results After Manual Refresh
+**Date:** November 2025  
+**Severity:** Medium – Inconsistent UI  
+**Component:** App State - `AppState+Persistence.swift`, Dashboard / Game Detail Refresh
+
+### Bug Description
+After pulling to refresh on the dashboard or game detail, users sometimes saw:
+- New results appear (e.g. newest Quordle), **but**
+- Some streaks (e.g. Zip) drop to 0 or show \"Never played\" even though results for that game still exist.
+
+### Root Cause
+`AppState.refreshData()` only reloaded persisted data but did **not** recompute streaks from `recentResults`:
+
+```swift
+// Before
+func refreshData() async {
+    guard !isLoading else { return }
+    if isGuestMode { return }
+
+    refreshGames()
+    await loadPersistedData()        // ✅ reloads results + streak snapshot
+    // ❌ No rebuild/normalize step here
+}
+```
+
+If the persisted `streaks` snapshot had been computed under older logic (or partially updated), reloading it could desync streaks from the authoritative `recentResults`. The detail view (which uses `recentResults`) still showed correct scores, while the streak badge (which uses `streaks`) showed 0.
+
+### Solution
+**Added a self-healing streak recomputation step to `refreshData()`:**
+
+```swift
+// After
+func refreshData() async {
+    guard !isLoading else { return }
+    if isGuestMode {
+        logger.info("🧑‍🤝‍🧑 Guest Mode active – skipping refreshData()")
+        return
+    }
+
+    refreshGames()
+    await loadPersistedData()
+
+    // Self-heal from the single source of truth (recentResults)
+    await rebuildStreaksFromResults()
+    await normalizeStreaksForMissedDays()
+}
+```
+
+Now every manual refresh:
+- Reloads `recentResults` and persisted streaks
+- **Rebuilds streaks purely from `recentResults`**
+- Normalizes them up to \"today\" to break any streaks that should be broken
+
+### Prevention
+- Treat `recentResults` as the **source of truth**; `streaks` is always a derived view.
+- Whenever data is reloaded from disk or CloudKit, **rebuild derived aggregates** rather than trusting stale snapshots.
+- Document that `refreshData()` performs a full streak recompute to keep UI consistent.
+
+---
+
+## Bug #054: After-Midnight \"Today/Yesterday\" and Active Status Incorrect
+**Date:** November 2025  
+**Severity:** Medium – Confusing Status & Streak Activity  
+**Component:** Date Logic - `GameDateHelper.swift`, Streak Models
+
+### Bug Description
+When opening the app shortly after midnight (e.g. around 1 AM), some games incorrectly showed:
+- \"Yesterday\" even when they were played **two or more calendar days ago**
+- Active streak badges for games that should have been inactive or broken
+
+### Root Cause
+`GameDateHelper` mixed two different notions of \"days\":
+
+- `isGameResultFromToday` / `isGameResultFromYesterday` used calendar-day comparisons (correct)
+- `getGamePlayedDescription` and `isGameResultActive` used **elapsed time**:
+
+```swift
+// Before (simplified)
+let days = calendar.dateComponents([.day], from: importDate, to: now).day ?? 0
+```
+
+This could treat a result from two calendar days ago as only 1 day old when `now` was less than 48 hours later, causing:
+- Status label: \"Yesterday\" instead of \"2 days ago\"
+- `GameStreak.isActive` to return `true` for games played two calendar days ago
+
+### Solution
+**1. Switch to calendar-day comparisons using start-of-day:**
+
+```swift
+let startOfImport = calendar.startOfDay(for: importDate)
+let startOfNow = calendar.startOfDay(for: now)
+let days = calendar.dateComponents([.day], from: startOfImport, to: startOfNow).day ?? 0
+```
+
+Applied to:
+- `getGamePlayedDescription(_:)`
+  - 0 → \"Today\"
+  - 1 → \"Yesterday\"
+  - 2+ → `\"\(days) days ago\"`
+- `isGameResultActive(_:)`
+  - `true` only when `days <= 1` (today **or** yesterday)
+
+**2. Streak integration:**
+- `GameStreak.isActive` now reflects this corrected logic, so a game is considered active **only** if its last play date is today or yesterday.
+
+### Prevention
+- Use **calendar-day comparisons (`startOfDay`)** for any user-facing concepts like \"today\", \"yesterday\", and \"X days ago\".
+- Reserve raw time-interval differences for performance metrics, not streak or activity semantics.
+- Add unit tests around midnight boundaries (e.g. 23:59 → 00:01 two days later) to ensure labels and `isActive` behavior stay correct.
+
+---
+
