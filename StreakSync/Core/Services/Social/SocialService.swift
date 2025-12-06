@@ -183,6 +183,26 @@ struct Reaction: Identifiable, Codable, Hashable {
     let type: ReactionType
 }
 
+// MARK: - Service Status
+enum ServiceStatus {
+    case cloudKit
+    case local
+    
+    var displayName: String {
+        switch self {
+        case .cloudKit: return "Real-time Sync"
+        case .local: return "Local Storage"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .cloudKit: return "Scores sync automatically across devices"
+        case .local: return "Scores stored locally on this device"
+        }
+    }
+}
+
 // MARK: - Social Service Protocol
 protocol SocialService: Sendable {
     // Profile

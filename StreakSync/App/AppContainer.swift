@@ -127,7 +127,6 @@ final class AppContainer: ObservableObject {
 
     // MARK: - Social Service
     let socialService: SocialService
-    let leaderboardSyncService: LeaderboardSyncService
     
     // MARK: - Analytics Service
     let analyticsService: AnalyticsService
@@ -190,13 +189,8 @@ final class AppContainer: ObservableObject {
         // 7. Achievement celebrations
         self.achievementCelebrationCoordinator = AchievementCelebrationCoordinator()
 
-        // 8. Leaderboard sharing/sync (CKShare-based groups)
-        self.leaderboardSyncService = LeaderboardSyncService()
-        // 8b. Social service (CloudKit with local caching fallback)
-        self.socialService = CloudKitSocialService(
-            leaderboardSyncService: leaderboardSyncService,
-            privacyService: socialSettingsService
-        )
+        // 8. Social service (Firebase-backed; falls back to local cache patterns in service)
+        self.socialService = FirebaseSocialService()
         // Attach to app state
         self.appState.socialService = socialService
         

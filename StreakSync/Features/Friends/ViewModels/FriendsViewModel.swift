@@ -123,14 +123,12 @@ final class FriendsViewModel: ObservableObject {
     @Published var isPresentingDatePicker: Bool = false
     @Published var currentGamePage: Int = 0
     @Published var range: LeaderboardRange = .today
-    @Published var serviceStatus: ServiceStatus = .local
-    @Published var isRealTimeEnabled: Bool = false
     @Published var myUserId: String? = nil
     
     // Rank deltas keyed by userId when comparing today vs yesterday
     @Published var rankDeltas: [String: Int] = [:]
     @Published var circles: [SocialCircle] = []
-    @Published var selectedCircleId: UUID? = LeaderboardGroupStore.selectedGroupId
+    @Published var selectedCircleId: UUID? = nil
     @Published var recentReactions: [Reaction] = []
     
     // Only show games that are actually displayed on the homepage
@@ -171,13 +169,8 @@ final class FriendsViewModel: ObservableObject {
         } else {
             self.selectedDateUTC = todayLocal
         }
-        // Check status
-        if let cloudService = socialService as? CloudKitSocialService {
-            self.serviceStatus = cloudService.serviceStatus
-            self.isRealTimeEnabled = cloudService.isRealTimeEnabled
-        }
         if flags.multipleCircles {
-            self.selectedCircleId = circleManager?.activeCircleId ?? LeaderboardGroupStore.selectedGroupId
+            self.selectedCircleId = circleManager?.activeCircleId
         } else {
             self.selectedCircleId = nil
             self.circles = []
@@ -210,12 +203,7 @@ final class FriendsViewModel: ObservableObject {
             if range == .today && flags.rankDeltas { await computeRankDeltasForToday() }
             if flags.multipleCircles { await refreshCircles() }
             if flags.reactions { recentReactions = activityFeedService.reactions }
-            if let cloudService = socialService as? CloudKitSocialService {
-                await cloudService.setupRealTimeSubscriptions()
-                self.serviceStatus = cloudService.serviceStatus
-                self.isRealTimeEnabled = cloudService.isRealTimeEnabled
-                if cloudService.isRealTimeEnabled { startPeriodicRefresh() }
-            }
+            startPeriodicRefresh()
         } catch { errorMessage = error.localizedDescription }
     }
     

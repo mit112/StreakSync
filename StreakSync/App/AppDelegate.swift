@@ -21,26 +21,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         return true
     }
     
-    func application(_ application: UIApplication, userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
-        guard let container = container else {
-            logger.warning("⚠️ CKShare accepted before container initialization")
-            return
-        }
-        Task { @MainActor in
-            do {
-                try await container.leaderboardSyncService.acceptShare(metadata: cloudKitShareMetadata)
-                logger.info("✅ Accepted CloudKit share")
-                if let rootRecord = cloudKitShareMetadata.rootRecord,
-                   let gid = parseGroupId(from: rootRecord.recordID.recordName) {
-                    LeaderboardGroupStore.setSelectedGroup(id: gid, title: nil)
-                    logger.info("📌 Set active leaderboard group: \(gid.uuidString, privacy: .public)")
-                }
-            } catch {
-                logger.error("❌ Failed to accept CloudKit share: \(error.localizedDescription)")
-            }
-        }
-    }
-    
     func application(_ application: UIApplication,
                      didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         logger.info("✅ Registered for remote notifications")
@@ -64,12 +44,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             await CloudKitSubscriptionManager.handleRemoteNotification(userInfo, container: container)
             completionHandler(.newData)
         }
-    }
-    
-    private func parseGroupId(from recordName: String) -> UUID? {
-        guard recordName.hasPrefix("group_") else { return nil }
-        let uuidString = String(recordName.dropFirst("group_".count))
-        return UUID(uuidString: uuidString)
     }
 }
 

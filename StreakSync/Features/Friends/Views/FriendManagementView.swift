@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import CloudKit
 
 @MainActor
 struct FriendManagementView: View {
@@ -12,13 +11,12 @@ struct FriendManagementView: View {
     @State private var friends: [UserProfile] = []
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
-    @EnvironmentObject private var container: AppContainer
-    // Shared Leaderboards (CKShare)
     @State private var isCreatingGroup: Bool = false
-    @State private var createdShare: CKShare?
-    @State private var showShareSheet: Bool = false
-    @State private var activeGroupTitle: String = LeaderboardGroupStore.selectedGroupTitle ?? ""
-    @State private var activeGroupIdText: String = LeaderboardGroupStore.selectedGroupId?.uuidString ?? ""
+    @State private var isJoiningGroup: Bool = false
+    @State private var joinCode: String = ""
+    @State private var activeCircle: SocialCircle?
+    
+    private var circleManager: CircleManaging? { socialService as? CircleManaging }
     
     var body: some View {
         NavigationStack {
@@ -34,48 +32,49 @@ struct FriendManagementView: View {
                     }
                 }
                 
-                // Friends Sharing (CKShare)
+                // Sharing (Firebase join codes)
                 Section("Friends Sharing") {
-                    if let gid = LeaderboardGroupStore.selectedGroupId {
+                    if let circle = activeCircle {
                         VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Label("Sharing Enabled", systemImage: "person.3")
-                                Spacer()
-                            }
-                            Text(activeGroupTitle.isEmpty ? "Friends" : activeGroupTitle)
+                            Label("Sharing Enabled", systemImage: "person.3")
                                 .font(.subheadline.weight(.semibold))
-                            Text(gid.uuidString)
+                            Text(circle.name)
+                                .font(.subheadline.weight(.semibold))
+                            Text(circle.id.uuidString)
                                 .font(.caption.monospaced())
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 4)
-                        
-                        Button(role: .destructive) {
-                            LeaderboardGroupStore.clearSelectedGroup()
-                            activeGroupTitle = ""
-                            activeGroupIdText = ""
-                        } label: {
-                            Label("Stop Sharing on this device", systemImage: "xmark.circle")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.red)
-                        Text("You’ll stop receiving and publishing scores to the shared leaderboard on this device. Others keep access unless you revoke sharing in iCloud later.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     } else {
                         Text("Not sharing yet").font(.subheadline).foregroundStyle(.secondary)
                     }
                     
                     Button {
-                        Task { await inviteFriends() }
+                        Task { await createCircle() }
                     } label: {
                         HStack {
                             if isCreatingGroup { ProgressView().scaleEffect(0.8) }
-                            Text(isCreatingGroup ? "Preparing..." : "Invite Friends")
+                            Text(isCreatingGroup ? "Creating..." : "Create Group & Join")
                         }
                     }
                     .disabled(isCreatingGroup)
-                    Text("Shares your leaderboard with invited friends using iCloud.")
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("Join code (e.g. AB7K2M)", text: $joinCode)
+                            .textInputAutocapitalization(.characters)
+                            .disableAutocorrection(true)
+                        Button {
+                            Task { await joinCircle() }
+                        } label: {
+                            HStack {
+                                if isJoiningGroup { ProgressView().scaleEffect(0.8) }
+                                Text("Join with Code")
+                            }
+                        }
+                        .disabled(joinCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isJoiningGroup)
+                    }
+                    
+                    Text("Create a group to get a join code, then share it with friends. Everyone who joins sees and contributes to the same leaderboard.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -90,14 +89,6 @@ struct FriendManagementView: View {
             .alert(isPresented: .constant(errorMessage != nil), content: {
                 Alert(title: Text("Error"), message: Text(errorMessage ?? ""), dismissButton: .default(Text("OK")) { errorMessage = nil })
             })
-            .sheet(isPresented: $showShareSheet) {
-                if let share = createdShare {
-                    ShareInviteView(
-                        share: share,
-                        container: CKContainer(identifier: CloudKitConfiguration.containerIdentifier)
-                    )
-                }
-            }
         }
     }
     
@@ -106,19 +97,40 @@ struct FriendManagementView: View {
         defer { isLoading = false }
         do {
             friends = try await socialService.listFriends()
+            if let circleManager {
+                let circles = try await circleManager.listCircles()
+                if let activeId = circleManager.activeCircleId,
+                   let existing = circles.first(where: { $0.id == activeId }) {
+                    activeCircle = existing
+                } else {
+                    activeCircle = circles.first
+                }
+            }
         } catch { errorMessage = error.localizedDescription }
     }
     
-    private func inviteFriends() async {
+    private func createCircle() async {
+        guard let circleManager else { return }
         isCreatingGroup = true
         defer { isCreatingGroup = false }
         do {
-            let result = try await container.leaderboardSyncService.ensureFriendsShare()
-            createdShare = result.share
-            LeaderboardGroupStore.setSelectedGroup(id: result.groupId, title: "Friends")
-            activeGroupTitle = "Friends"
-            activeGroupIdText = result.groupId.uuidString
-            showShareSheet = true
+            let circle = try await circleManager.createCircle(name: "Friends")
+            activeCircle = circle
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+    
+    private func joinCircle() async {
+        guard let circleManager else { return }
+        let code = joinCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !code.isEmpty else { return }
+        isJoiningGroup = true
+        defer { isJoiningGroup = false }
+        do {
+            let circle = try await circleManager.joinCircle(using: code)
+            activeCircle = circle
+            joinCode = ""
         } catch {
             errorMessage = error.localizedDescription
         }

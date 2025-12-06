@@ -97,29 +97,9 @@ struct SimplifiedShareView: View {
     }
 
     private func loadShareLink() async {
-        guard betaFlags.shareLinks else {
-            errorMessage = "Sharing is disabled in this beta build."
-            return
-        }
-        guard let cloudService = socialService as? CloudKitSocialService else {
-            errorMessage = "Invite links require iCloud syncing."
-            return
-        }
-        isLoadingLink = true
-        errorMessage = nil
-        defer { isLoadingLink = false }
-        do {
-            if let url = try await cloudService.ensureFriendsShareURL() {
-                shareLink = url
-                BetaMetrics.track(.inviteLinkCreated)
-            } else {
-                errorMessage = "Unable to create a share link right now."
-                BetaMetrics.track(.inviteLinkFailed, properties: ["reason": "missing_url"])
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-            BetaMetrics.track(.inviteLinkFailed, properties: ["reason": error.localizedDescription])
-        }
+        errorMessage = "Invite links are being updated for the new social backend."
+        shareLink = nil
+        isLoadingLink = false
     }
 }
 

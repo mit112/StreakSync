@@ -112,11 +112,9 @@ struct FriendsView: View {
     @StateObject private var viewModel: FriendsViewModel
     @EnvironmentObject private var betaFlags: BetaFeatureFlags
     @AppStorage("beta_welcome_shown") private var betaWelcomeShown = false
-    @AppStorage("selectedLeaderboardGroupId") private var selectedGroupIdString: String?
     @State private var isPresentingFriendDiscovery: Bool = false
     @State private var isPresentingCircles: Bool = false
     @State private var isPresentingActivityFeed: Bool = false
-    @State private var isPresentingInviteFriends: Bool = false
     @State private var isPresentingBetaWelcome = false
     @State private var selectedFriendsSection: FriendsSection = .leaderboard
     
@@ -219,9 +217,6 @@ struct FriendsView: View {
         .sheet(isPresented: Binding(get: { viewModel.isPresentingManageFriends }, set: { viewModel.isPresentingManageFriends = $0 })) {
             FriendManagementView(socialService: viewModel.socialService)
         }
-        .sheet(isPresented: $isPresentingInviteFriends) {
-            SimplifiedShareView(socialService: viewModel.socialService)
-        }
         .sheet(isPresented: $isPresentingBetaWelcome, onDismiss: {
             betaWelcomeShown = true
         }) {
@@ -310,30 +305,6 @@ private extension FriendsView {
                     Text("Friends").font(.largeTitle.bold())
                     Spacer()
                     HStack(spacing: 8) {
-                        HStack(spacing: 6) {
-                            Image(systemName: viewModel.isRealTimeEnabled ? "icloud.fill" : "externaldrive.fill")
-                                .font(.caption)
-                                .foregroundStyle(viewModel.isRealTimeEnabled ? .blue : .secondary)
-                            Text(viewModel.serviceStatus.displayName)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        
-                        HStack(spacing: 6) {
-                            Image(systemName: (selectedGroupIdString?.isEmpty == false) ? "person.3.fill" : "person.3")
-                                .font(.caption)
-                                .foregroundStyle((selectedGroupIdString?.isEmpty == false) ? .green : .secondary)
-                            Text((selectedGroupIdString?.isEmpty == false) ? "Sharing" : "Not sharing")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        
                         Button {
                             presentInviteFlow()
                         } label: {
@@ -360,14 +331,6 @@ private extension FriendsView {
                             .accessibilityLabel(Text("Manage circles"))
                         }
                     }
-                }
-                if viewModel.serviceStatus == .local {
-                    HStack(spacing: 6) {
-                        Image(systemName: "wave.3.right").font(.caption)
-                        Text("Not syncing. Enable iCloud later to sync across devices.")
-                            .font(.caption)
-                    }
-                    .foregroundStyle(.secondary)
                 }
                 HStack(spacing: 12) {
                     // Segmented range
@@ -688,11 +651,7 @@ private extension FriendsView {
     }
 
     func presentInviteFlow() {
-        if betaFlags.shareLinks && !betaFlags.multipleCircles {
-            isPresentingInviteFriends = true
-        } else {
-            viewModel.isPresentingManageFriends = true
-        }
+        viewModel.isPresentingManageFriends = true
     }
 }
 
