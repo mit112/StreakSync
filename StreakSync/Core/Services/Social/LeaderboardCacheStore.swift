@@ -4,6 +4,18 @@
 //
 
 import Foundation
+import struct Foundation.Date
+
+struct LeaderboardCacheKey: Hashable, Codable {
+    let startDateInt: Int
+    let endDateInt: Int
+    let groupId: UUID?
+}
+
+struct LeaderboardCacheEntry: Codable {
+    let rows: [LeaderboardRow]
+    let timestamp: Date
+}
 
 struct LeaderboardCacheStore {
     private let key = "social_leaderboard_cache"

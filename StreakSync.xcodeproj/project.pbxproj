@@ -48,7 +48,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Core/Models/Shared/SharedModels.swift,
-				"StreakSync GoogleService Info.plist",
+				"GoogleService-Info.plist",
 			);
 			target = CCD1ED0D2E2DCE4F00053DAC /* StreakSyncShareExtension */;
 		};
