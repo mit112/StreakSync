@@ -148,6 +148,12 @@ final class NavigationCoordinator: ObservableObject {
     // MARK: - Sheet Presentation
     @Published var presentedSheet: SheetDestination?
     
+    // MARK: - Deep Link State
+    /// Join code received from deep link - FriendManagementView will consume this
+    @Published var pendingJoinCode: String?
+    /// Triggers presentation of the friend management sheet with join code
+    @Published var shouldShowJoinSheet: Bool = false
+    
     // MARK: - Legacy path (for migration)
     @Published var path = NavigationPath()
     
@@ -361,5 +367,30 @@ final class NavigationCoordinator: ObservableObject {
     func navigateToAchievements(highlightId: UUID? = nil) {
         switchToTab(.awards)
         // The achievements view can handle highlighting based on the highlightId
+    }
+    
+    /// Handle join group deep link - navigates to Friends tab and shows join sheet
+    func handleJoinGroupDeepLink(code: String) {
+        pendingJoinCode = code
+        switchToTab(.friends)
+        // Slight delay to ensure tab switch completes before showing sheet
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.shouldShowJoinSheet = true
+        }
+    }
+    
+    /// Setup notification observers for deep links
+    func setupDeepLinkObservers() {
+        NotificationCenter.default.addObserver(
+            forName: .joinGroupRequested,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let userInfo = notification.object as? [String: String],
+                  let code = userInfo["code"] else { return }
+            Task { @MainActor in
+                self?.handleJoinGroupDeepLink(code: code)
+            }
+        }
     }
 }

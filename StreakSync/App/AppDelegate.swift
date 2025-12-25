@@ -15,6 +15,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        // Note: Firebase is configured in AppContainer.init() which runs before this
+        // due to SwiftUI's @StateObject initialization order
+        
         // Register for remote notifications (required for silent CloudKit pushes)
         UIApplication.shared.registerForRemoteNotifications()
         logger.info("📬 Requested remote notification registration")

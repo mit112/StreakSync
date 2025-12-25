@@ -79,8 +79,6 @@ import SwiftUI
 import OSLog
 import UserNotifications
 import UIKit
-import FirebaseCore
-import FirebaseAuth
 
 // MARK: - Main App
 @main
@@ -92,11 +90,8 @@ struct StreakSyncApp: App {
     
     private let logger = Logger(subsystem: "com.streaksync.app", category: "StreakSyncApp")
     
-    init() {
-        if FirebaseApp.app() == nil {
-            FirebaseApp.configure()
-        }
-    }
+    // Note: Firebase is configured in AppDelegate.didFinishLaunchingWithOptions
+    // to ensure it's ready before any services try to use it.
     
     var body: some Scene {
         WindowGroup {
@@ -144,7 +139,8 @@ struct StreakSyncApp: App {
         NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
         
         // Ensure Firebase Anonymous Auth for social backend
-        await ensureAnonymousAuth()
+        // Uses the AuthStateManager which also handles re-authentication on sign-out
+        await container.firebaseAuthManager.ensureAuthenticated()
         
         // Register categories on launch if already authorized
         let authStatus = await NotificationScheduler.shared.checkPermissionStatus()
@@ -175,16 +171,6 @@ struct StreakSyncApp: App {
         await MainActor.run {
             isInitialized = true
             logger.info("✅ App initialization completed")
-        }
-    }
-    
-    private func ensureAnonymousAuth() async {
-        guard Auth.auth().currentUser == nil else { return }
-        do {
-            _ = try await Auth.auth().signInAnonymously()
-            logger.info("✅ Firebase anonymous auth established")
-        } catch {
-            logger.error("⚠️ Firebase anonymous auth failed: \(error.localizedDescription)")
         }
     }
     

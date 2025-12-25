@@ -111,6 +111,7 @@ import UIKit
 struct FriendsView: View {
     @StateObject private var viewModel: FriendsViewModel
     @EnvironmentObject private var betaFlags: BetaFeatureFlags
+    @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
     @AppStorage("beta_welcome_shown") private var betaWelcomeShown = false
     @State private var isPresentingFriendDiscovery: Bool = false
     @State private var isPresentingCircles: Bool = false
@@ -216,6 +217,15 @@ struct FriendsView: View {
         }
         .sheet(isPresented: Binding(get: { viewModel.isPresentingManageFriends }, set: { viewModel.isPresentingManageFriends = $0 })) {
             FriendManagementView(socialService: viewModel.socialService)
+        }
+        .sheet(isPresented: $navigationCoordinator.shouldShowJoinSheet, onDismiss: {
+            // Clear the pending join code after dismissing
+            navigationCoordinator.pendingJoinCode = nil
+        }) {
+            FriendManagementView(
+                socialService: viewModel.socialService,
+                initialJoinCode: navigationCoordinator.pendingJoinCode
+            )
         }
         .sheet(isPresented: $isPresentingBetaWelcome, onDismiss: {
             betaWelcomeShown = true

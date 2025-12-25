@@ -148,6 +148,7 @@ struct SocialCircle: Identifiable, Codable, Hashable {
     var createdBy: String
     var members: [String]
     var createdAt: Date
+    var joinCode: String?
 }
 
 enum ReactionType: String, Codable, CaseIterable, Identifiable {
@@ -215,6 +216,9 @@ protocol SocialService: Sendable {
     // Scores
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow]
+    
+    // Sync status (nonisolated for Sendable conformance)
+    nonisolated var pendingScoreCount: Int { get }
 }
 
 @MainActor

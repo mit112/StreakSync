@@ -98,9 +98,29 @@
 import SwiftUI
 import OSLog
 import CloudKit
+import FirebaseCore
+import FirebaseFirestore
+
+// MARK: - Firebase Early Configuration
+// This ensures Firebase is configured before any class initializers run
+private enum FirebaseEarlyConfiguration {
+    static let isConfigured: Bool = {
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+            
+            // Configure Firestore settings
+            let settings = FirestoreSettings()
+            settings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: 100 * 1024 * 1024))
+            Firestore.firestore().settings = settings
+        }
+        return true
+    }()
+}
 
 @MainActor
 final class AppContainer: ObservableObject {
+    // Ensure Firebase is configured before any properties are initialized
+    private let _firebaseConfigured = FirebaseEarlyConfiguration.isConfigured
     // MARK: - Core Services
     let appState: AppState
     let navigationCoordinator: NavigationCoordinator
@@ -125,7 +145,8 @@ final class AppContainer: ObservableObject {
     
     let achievementCelebrationCoordinator: AchievementCelebrationCoordinator
 
-    // MARK: - Social Service
+    // MARK: - Firebase Services
+    let firebaseAuthManager: FirebaseAuthStateManager
     let socialService: SocialService
     
     // MARK: - Analytics Service
@@ -141,6 +162,9 @@ final class AppContainer: ObservableObject {
     
     // MARK: - Initialization
     init(isPreview: Bool = false, isTest: Bool = false) {
+        // Note: Firebase is configured via _firebaseConfigured stored property
+        // which runs before this init() body executes
+        
         logger.info("🏗️ Initializing AppContainer (preview: \(isPreview), test: \(isTest))")
         
         // Initialize services in dependency order
@@ -157,6 +181,7 @@ final class AppContainer: ObservableObject {
         
         // 3. Navigation
         self.navigationCoordinator = NavigationCoordinator()
+        self.navigationCoordinator.setupDeepLinkObservers()
         
         // 4. Sync services
         self.syncCoordinator = AppGroupSyncCoordinator()
@@ -189,14 +214,17 @@ final class AppContainer: ObservableObject {
         // 7. Achievement celebrations
         self.achievementCelebrationCoordinator = AchievementCelebrationCoordinator()
 
-        // 8. Social service (Firebase-backed; falls back to local cache patterns in service)
+        // 8. Firebase Auth Manager (handles auth state and automatic re-authentication)
+        self.firebaseAuthManager = FirebaseAuthStateManager()
+        
+        // 9. Social service (Firebase-backed; falls back to local cache patterns in service)
         self.socialService = FirebaseSocialService()
         // Attach to app state
         self.appState.socialService = socialService
         
-        // 9. Analytics service
+        // 10. Analytics service
         self.analyticsService = AnalyticsService(appState: appState)
-        // 10. CloudKit achievements sync (feature-flagged)
+        // 11. CloudKit achievements sync (feature-flagged)
         self.achievementSyncService = AchievementSyncService(appState: appState)
 
         

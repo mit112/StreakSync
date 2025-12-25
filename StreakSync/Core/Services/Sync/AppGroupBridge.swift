@@ -291,6 +291,7 @@ extension Notification.Name {
     static let gameResultReceived = Notification.Name("gameResultReceived")
     static let openGameRequested = Notification.Name("openGameRequested")
     static let openAchievementRequested = Notification.Name("openAchievementRequested")
+    static let joinGroupRequested = Notification.Name("joinGroupRequested")
     static let streakUpdated = Notification.Name("streakUpdated")
     static let achievementUnlocked = Notification.Name("achievementUnlocked")
 }

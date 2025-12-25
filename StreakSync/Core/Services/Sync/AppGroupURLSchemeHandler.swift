@@ -39,6 +39,9 @@ final class AppGroupURLSchemeHandler {
         case "achievement":
             return handleAchievementDeepLink(parameters)
             
+        case "join":
+            return handleJoinDeepLink(parameters)
+            
         default:
             logger.warning("Unknown URL scheme host: \(host)")
             return false
@@ -91,6 +94,21 @@ final class AppGroupURLSchemeHandler {
         )
         
         logger.info("Handled achievement deep link for: \(uuid)")
+        return true
+    }
+    
+    private func handleJoinDeepLink(_ parameters: [String: String]) -> Bool {
+        guard let code = parameters["code"], !code.isEmpty else {
+            logger.warning("Join deep link missing code parameter")
+            return false
+        }
+        
+        NotificationCenter.default.post(
+            name: .joinGroupRequested,
+            object: ["code": code]
+        )
+        
+        logger.info("Handled join deep link with code: \(code)")
         return true
     }
 }

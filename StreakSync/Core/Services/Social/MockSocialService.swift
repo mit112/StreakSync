@@ -118,6 +118,9 @@ final class MockSocialService: SocialService, @unchecked Sendable {
     private let friendsKey = "social_mock_friends"
     private let scoresKey = "social_mock_scores" // [DailyGameScore]
     
+    /// Mock service has no pending scores (always synced)
+    nonisolated var pendingScoreCount: Int { 0 }
+    
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }

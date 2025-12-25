@@ -10,5 +10,16 @@
 	</array>
 	<key>CKSharingSupported</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.streaksync.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>streaksync</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
