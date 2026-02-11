@@ -15,7 +15,6 @@ struct GameResultDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(AppState.self) private var appState
-    @EnvironmentObject private var themeManager: ThemeManager
     @State private var showingDeleteConfirmation = false
     
     @State private var scoreRevealed = false
@@ -719,5 +718,4 @@ struct QuordlePuzzleRow: View {
         )
     )
     .environment(AppState())
-    .environmentObject(ThemeManager.shared)
 }

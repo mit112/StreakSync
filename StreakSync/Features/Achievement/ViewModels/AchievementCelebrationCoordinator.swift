@@ -146,7 +146,7 @@ final class AchievementCelebrationCoordinator: ObservableObject {
     // MARK: - Setup
     private func setupObserver() {
         notificationObserver = NotificationCenter.default.addObserver(
-            forName: Notification.Name(AppConstants.Notification.tieredAchievementUnlocked),
+            forName: .appTieredAchievementUnlocked,
             object: nil,
             queue: .main
         ) { [weak self] notification in

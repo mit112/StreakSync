@@ -181,7 +181,7 @@ final class AppGroupBridge: ObservableObject {
             
             // Handle new result notifications
             NotificationCenter.default.addObserver(
-                forName: Notification.Name("HandleNewGameResult"),
+                forName: .appHandleNewGameResult,
                 object: nil,
                 queue: .main
             ) { [weak self] _ in

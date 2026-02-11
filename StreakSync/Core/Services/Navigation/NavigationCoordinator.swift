@@ -358,7 +358,7 @@ final class NavigationCoordinator: ObservableObject {
         
         // Post a notification to navigate to the specific game
         NotificationCenter.default.post(
-            name: Notification.Name("NavigateToGame"),
+            name: .appNavigateToGame,
             object: ["gameId": gameId]
         )
     }

@@ -22,7 +22,7 @@ final class TieredAchievementStore {
     
     private func setupObservers() {
         NotificationCenter.default.addObserver(
-            forName: Notification.Name("TieredAchievementUnlocked"),
+            forName: .appTieredAchievementUnlocked,
             object: nil,
             queue: .main
         ) { [weak self] _ in
@@ -32,7 +32,7 @@ final class TieredAchievementStore {
         }
 
         NotificationCenter.default.addObserver(
-            forName: Notification.Name("GameDataUpdated"),
+            forName: .appGameDataUpdated,
             object: nil,
             queue: .main
         ) { [weak self] _ in

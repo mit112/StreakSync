@@ -112,7 +112,7 @@ actor GameResultIngestionActor {
     /// Ingests a single result and returns true if it was actually added (not duplicate/invalid).
     func ingest(_ result: GameResult, into appState: AppState) async -> Bool {
         let added: Bool = await MainActor.run {
-            appState.addGameResultReturningAdded(result)
+            appState.addGameResult(result)
         }
         return added
     }

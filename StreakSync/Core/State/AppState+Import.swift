@@ -101,8 +101,8 @@ extension AppState {
             newStreaks.append(streak)
         }
         
-        // Update streaks array
-        self.streaks = newStreaks
+        // Ensure all games have streak entries (including games with zero results)
+        self.streaks = ensureStreaksForAllGames(newStreaks)
         
         logger.info("✅ Rebuilt \(newStreaks.count) streaks")
     }
@@ -179,7 +179,7 @@ extension AppState {
             
             // Notify UI
             invalidateCache()
-            NotificationCenter.default.post(name: NSNotification.Name("GameDataUpdated"), object: nil)
+            NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
             
             logger.info("✅ Fixed existing Connections results and rebuilt streaks")
         } else {
@@ -206,7 +206,7 @@ extension AppState {
         
         // Notify UI
         invalidateCache()
-        NotificationCenter.default.post(name: NSNotification.Name("GameDataUpdated"), object: nil)
+        NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
         
         logger.info("✅ All streaks rebuilt and saved")
     }
@@ -237,30 +237,12 @@ extension AppState {
         }
     }
     
-    /// Save all data to persistence
+    /// Save all data to persistence using the canonical save methods
     @MainActor
     func saveAllData() async {
-        // Manually trigger persistence for all data types
-        do {
-            // Save recent results
-            try persistenceService.save(recentResults, forKey: PersistenceKeys.recentResults)
-            
-            // Save achievements
-            try persistenceService.save(achievements, forKey: PersistenceKeys.achievements)
-            
-            // Save streaks
-            try persistenceService.save(streaks, forKey: PersistenceKeys.streaks)
-            
-            logger.info("✅ All data saved successfully")
-        } catch {
-            logger.error("❌ Failed to save data: \(error)")
-        }
+        await saveGameResults()
+        await saveStreaks()
+        await saveTieredAchievements()
+        logger.info("✅ All data saved successfully")
     }
-}
-
-// MARK: - Persistence Keys
-private enum PersistenceKeys {
-    static let recentResults = "recentResults"
-    static let achievements = "achievements"
-    static let streaks = "streaks"
 }

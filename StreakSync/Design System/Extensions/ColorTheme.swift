@@ -127,7 +127,7 @@ extension Color {
 
 // MARK: - Theme-Based Semantic Colors
 extension Color {
-    // MARK: - Primary Colors (Direct access without ThemeManager)
+    // MARK: - Primary Colors
     static var themeBackground: Color {
         Color(.systemBackground)
     }
@@ -197,7 +197,7 @@ extension Color {
 
 // MARK: - Gradient Extensions
 extension LinearGradient {
-    // Create theme gradients dynamically in views that have access to ThemeManager
+    // Create theme gradients dynamically
     static func themeGradient(colors: [Color]) -> LinearGradient {
         LinearGradient(
             colors: colors,

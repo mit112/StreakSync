@@ -10,7 +10,6 @@ import SwiftUI
 // MARK: - All Streaks View
 struct AllStreaksView: View {
     @Environment(AppState.self) private var appState
-    @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var coordinator: NavigationCoordinator
     @Environment(\.colorScheme) private var colorScheme
     @State private var searchText = ""
@@ -1307,7 +1306,6 @@ struct SummaryStatView: View {
     let value: String
     let title: String
     let color: Color
-    @EnvironmentObject private var themeManager: ThemeManager
     
     var body: some View {
         VStack(spacing: Spacing.xs) {
@@ -1414,6 +1412,5 @@ enum StreakFilter: String, CaseIterable {
         AllStreaksView()
             .environment(AppState())
             .environmentObject(NavigationCoordinator())
-            .environmentObject(ThemeManager.shared)
     }
 }

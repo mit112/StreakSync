@@ -47,6 +47,8 @@
 		CCA36BFF2E47B81400761153 /* Exceptions for "StreakSync" folder in "StreakSyncShareExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Core/Models/Shared/CodableColor.swift,
+				Core/Models/Shared/FoundationExtensions.swift,
 				Core/Models/Shared/SharedModels.swift,
 				"GoogleService-Info.plist",
 			);

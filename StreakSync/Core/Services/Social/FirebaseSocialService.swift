@@ -276,7 +276,7 @@ final class FirebaseSocialService: SocialService, FriendDiscoveryProviding, Circ
             if socialError.isRetryable {
                 pendingScores.append(contentsOf: filtered)
                 pendingScoreStore.save(pendingScores)
-                logger.warning("⚠️ Queued \(filtered.count) scores for retry: \(socialError.localizedDescription ?? "unknown")")
+                logger.warning("⚠️ Queued \(filtered.count) scores for retry: \(socialError.localizedDescription)")
             } else {
                 logger.error("❌ Failed to publish scores (non-retryable): \(error.localizedDescription)")
             }

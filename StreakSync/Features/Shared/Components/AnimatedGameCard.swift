@@ -322,5 +322,4 @@ struct InitialAnimationModifier: ViewModifier {
     .padding()
     .preferredColorScheme(.dark) // Test in dark mode
     .environment(AppState())
-    .environmentObject(ThemeManager.shared)
 }

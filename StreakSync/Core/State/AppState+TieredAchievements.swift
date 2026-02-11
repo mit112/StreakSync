@@ -108,7 +108,7 @@ extension AppState {
         // Post notification for UI with delay to prevent race conditions
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(
-                name: Notification.Name(AppConstants.Notification.tieredAchievementUnlocked),
+                name: .appTieredAchievementUnlocked,
                 object: unlock
             )
         }

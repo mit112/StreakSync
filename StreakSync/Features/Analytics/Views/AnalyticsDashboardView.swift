@@ -67,17 +67,17 @@ struct AnalyticsDashboardView: View {
             await viewModel.refreshAnalytics()
         }
         // Respond to data changes
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameDataUpdated"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .appGameDataUpdated)) { _ in
             Task { @MainActor in
                 await viewModel.refreshAnalytics()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("GameResultAdded"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .appGameResultAdded)) { _ in
             Task { @MainActor in
                 await viewModel.refreshAnalytics()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshGameData"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .appRefreshGameData)) { _ in
             Task { @MainActor in
                 await viewModel.refreshAnalytics()
             }

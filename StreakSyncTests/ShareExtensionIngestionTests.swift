@@ -3,7 +3,7 @@ import XCTest
 
 final class ShareExtensionIngestionTests: XCTestCase {
     
-    func testAddGameResultReturningAdded_UniqueThenDuplicateByID() {
+    func testAddGameResult_UniqueThenDuplicateByID() {
         let app = AppState()
         let wordle = Game.wordle
         
@@ -19,17 +19,17 @@ final class ShareExtensionIngestionTests: XCTestCase {
         )
         
         // First add should succeed
-        let added1 = app.addGameResultReturningAdded(result)
+        let added1 = app.addGameResult(result)
         XCTAssertTrue(added1, "First unique result should be added")
         XCTAssertEqual(app.recentResults.count, 1)
         
         // Adding the same instance should be detected by exact ID
-        let added2 = app.addGameResultReturningAdded(result)
+        let added2 = app.addGameResult(result)
         XCTAssertFalse(added2, "Second add of the same instance should be detected as duplicate by ID")
         XCTAssertEqual(app.recentResults.count, 1)
     }
     
-    func testAddGameResultReturningAdded_DuplicateByPuzzleNumber() {
+    func testAddGameResult_DuplicateByPuzzleNumber() {
         let app = AppState()
         let wordle = Game.wordle
         
@@ -43,7 +43,7 @@ final class ShareExtensionIngestionTests: XCTestCase {
             sharedText: "Wordle 1606 2/6",
             parsedData: ["puzzleNumber": "1606"]
         )
-        XCTAssertTrue(app.addGameResultReturningAdded(first))
+        XCTAssertTrue(app.addGameResult(first))
         XCTAssertEqual(app.recentResults.count, 1)
         
         // New instance with same puzzleNumber should be duplicate
@@ -57,9 +57,7 @@ final class ShareExtensionIngestionTests: XCTestCase {
             sharedText: "Wordle 1606 4/6",
             parsedData: ["puzzleNumber": "1606"]
         )
-        XCTAssertFalse(app.addGameResultReturningAdded(second), "Duplicate by puzzle number should be rejected")
+        XCTAssertFalse(app.addGameResult(second), "Duplicate by puzzle number should be rejected")
         XCTAssertEqual(app.recentResults.count, 1)
     }
 }
-
-

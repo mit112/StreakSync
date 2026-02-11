@@ -2,95 +2,8 @@
 //  MainTabView.swift
 //  StreakSync
 //
-//  SIMPLIFIED Native iOS 26 TabView
-//  FIXED: Updated to use new StreakSyncColors system
+//  Tab-based navigation with shared tab definitions and iOS 26 enhancements
 //
-
-/*
- * MAINTABVIEW - TAB-BASED NAVIGATION SYSTEM
- * 
- * WHAT THIS FILE DOES:
- * This file creates the main tab bar navigation that users see at the bottom of the app. It's like the
- * "main menu" of the app, with four tabs: Home, Awards, Friends, and Settings. Each tab has its own
- * navigation stack, so users can navigate deep into each section without losing their place.
- * 
- * WHY IT EXISTS:
- * Tab-based navigation is a standard iOS pattern that users expect. It provides quick access to the
- * main sections of the app and keeps the navigation simple and intuitive. This file implements both
- * the standard iOS tab view and enhanced iOS 26+ features for a better user experience.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This is the primary navigation system that users interact with
- * - Provides access to all major app features through four main tabs
- * - Manages separate navigation stacks for each tab (users don't lose their place when switching tabs)
- * - Implements lazy loading to improve performance (tabs only load when selected)
- * - Handles iOS version differences (iOS 26+ gets enhanced features)
- * 
- * WHAT IT REFERENCES:
- * - NavigationCoordinator: Manages which tab is selected and navigation state
- * - AppContainer: Provides access to all app services and data
- * - Various view files: ImprovedDashboardView, TieredAchievementsGridView, FriendsView, SettingsView
- * - StreakSyncColors: Provides the app's visual theme
- * - HapticManager: Provides tactile feedback when switching tabs
- * 
- * WHAT REFERENCES IT:
- * - ContentView.swift: This is the main view shown in the root container
- * - No other views directly reference this (it's a top-level navigation component)
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. CODE DUPLICATION REDUCTION:
- *    - The iOS 26 and standard tab views have a lot of duplicated code
- *    - Consider extracting common tab configuration into a shared function
- *    - Create a protocol-based approach for tab configuration
- *    - Use composition to reduce the amount of repeated code
- * 
- * 2. LAZY LOADING OPTIMIZATION:
- *    - The current lazy loading implementation is basic - could be more sophisticated
- *    - Consider preloading adjacent tabs for smoother transitions
- *    - Add memory management for tabs that haven't been visited in a while
- *    - Implement tab state persistence across app launches
- * 
- * 3. NAVIGATION ENHANCEMENTS:
- *    - The destinationView function is getting large - could be split into smaller functions
- *    - Consider using a router pattern for more complex navigation
- *    - Add navigation breadcrumbs for better user orientation
- *    - Implement deep linking support for specific tab states
- * 
- * 4. ACCESSIBILITY IMPROVEMENTS:
- *    - Add accessibility labels for tab switching
- *    - Implement VoiceOver navigation improvements
- *    - Add support for accessibility shortcuts
- *    - Consider adding haptic feedback customization options
- * 
- * 5. PERFORMANCE OPTIMIZATIONS:
- *    - The current implementation creates all tab views upfront - could be truly lazy
- *    - Add view recycling for better memory management
- *    - Implement tab preloading strategies
- *    - Add performance monitoring for tab switching
- * 
- * 6. TESTING IMPROVEMENTS:
- *    - Add unit tests for tab switching logic
- *    - Test lazy loading behavior
- *    - Add UI tests for tab navigation
- *    - Test iOS version compatibility
- * 
- * 7. CONFIGURATION MANAGEMENT:
- *    - Tab configuration is hard-coded - could be made configurable
- *    - Add support for dynamic tab ordering
- *    - Consider adding tab badges for notifications
- *    - Implement tab customization options
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - TabView is a SwiftUI component that creates tab-based navigation
- * - NavigationStack provides navigation within each tab
- * - Lazy loading means content is only created when needed (improves performance)
- * - @available(iOS 26.0, *) allows different code for different iOS versions
- * - .tabItem defines what each tab looks like (icon and label)
- * - .tag() associates each tab with a value for selection tracking
- * - @ViewBuilder allows building different views conditionally
- * - The LazyAwardsTabContent, etc. are helper views that prevent unnecessary rendering
- */
 
 import SwiftUI
 
@@ -99,234 +12,119 @@ struct MainTabView: View {
     @EnvironmentObject private var coordinator: NavigationCoordinator
     @Environment(\.colorScheme) private var colorScheme
     @Environment(AppState.self) private var appState
-    
+
     var body: some View {
-        if #available(iOS 26.0, *) {
-            iOS26TabView
-        } else {
-            standardTabView
-        }
+        tabContent
+            .tint(StreakSyncColors.primary(for: colorScheme))
+            .onChange(of: coordinator.selectedTab) { _, _ in
+                Task { @MainActor in HapticManager.shared.trigger(.buttonTap) }
+            }
     }
-    
-    // MARK: - iOS 26 TabView (SIMPLIFIED)
-    @available(iOS 26.0, *)
-    private var iOS26TabView: some View {
-        TabView(selection: $coordinator.selectedTab) {
-            // Home Tab
-            NavigationStack(path: $coordinator.homePath) {
-                ImprovedDashboardView()
-                    .environmentObject(container.gameManagementState)
-                    .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                        destinationView(for: destination)
-                    }
-            }
-            .tabItem {
-                Label("Home", systemImage: "house.fill")
-            }
-            .tag(MainTab.home)
-            
-            
-            // Awards Tab
-            NavigationStack(path: $coordinator.awardsPath) {
-                LazyAwardsTabContent()
-                    .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                        destinationView(for: destination)
-                    }
-            }
-            .tabItem {
-                Label("Awards", systemImage: "trophy.fill")
-            }
-            .tag(MainTab.awards)
 
-            // Friends Tab
-            NavigationStack(path: $coordinator.friendsPath) {
-                LazyFriendsTabContent(socialService: container.socialService)
-            }
-            .tabItem {
-                Label("Friends", systemImage: "person.2.fill")
-            }
-            .tag(MainTab.friends)
-            
-            // Settings Tab
-            NavigationStack(path: $coordinator.settingsPath) {
-                LazySettingsTabContent()
-                    .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                        destinationView(for: destination)
-                    }
-            }
-            .tabItem {
-                Label("Settings", systemImage: "gearshape.fill")
-            }
-            .tag(MainTab.settings)
-        }
-        .tabBarMinimizeBehavior(.onScrollDown)
-        .tint(StreakSyncColors.primary(for: colorScheme))
-        .onChange(of: coordinator.selectedTab) { _, _ in
-            Task { @MainActor in HapticManager.shared.trigger(.buttonTap) }
-        }
-    }
-    
-    // MARK: - iOS 26 Enhanced Destination Views (SIMPLIFIED)
-    @available(iOS 26.0, *)
+    // MARK: - Tab Content (shared across iOS versions)
+
     @ViewBuilder
-    private func ios26DestinationView(
-        for destination: NavigationCoordinator.Destination,
-        namespace: Namespace.ID
-    ) -> some View {
-        Group {  // Wrap in Group to ensure single view type
-            switch destination {
-            case .gameDetail(let game):
-                GameDetailView(game: game)
-                    .environmentObject(container)
-                    .navigationTransition(.zoom(sourceID: "game-\(game.id)", in: namespace))
-                
-            case .streakHistory(let streak):
-                StreakHistoryView(streak: streak)
-                    .environmentObject(container)
-                    .navigationTransition(.zoom(sourceID: "streak-\(streak.id)", in: namespace))
-                
-            case .allStreaks:
-                AllStreaksView()
-                    .environmentObject(container)
-                    .navigationTransition(.automatic)
-                
-            case .achievements:
-                TieredAchievementsGridView()
-                    .environmentObject(container)
-                    .navigationTransition(.automatic)
-                
-            case .settings:
-                SettingsView()
-                    .environmentObject(container)
-                    .navigationTransition(.automatic)
-                    
-            case .gameManagement:
-                GameManagementView()
-                    .environment(container.appState)
-                    .environment(container.gameCatalog)
-                    .environmentObject(container.gameManagementState)
-                    .navigationTransition(.automatic)
-                    
-            case .tieredAchievementDetail(let achievement):
-                TieredAchievementDetailView(achievement: achievement)
-                    .environmentObject(container)
-                    .navigationTransition(.zoom(
-                        sourceID: "achievement-\(achievement.id)",
-                        in: namespace
-                    ))
-                    
-            case .analyticsDashboard:
-                AnalyticsDashboardView(analyticsService: container.analyticsService)
-                    .environmentObject(container)
-                    .navigationTransition(.automatic)
-                    
-            case .streakTrendsDetail(let timeRange, let game):
-                StreakTrendsDetailView(
-                    analyticsService: container.analyticsService,
-                    timeRange: timeRange,
-                    selectedGame: game
-                )
-                .environment(container.appState)
-                .environmentObject(container)
-                .navigationTransition(.automatic)
-            }
+    private var tabContent: some View {
+        if #available(iOS 26.0, *) {
+            sharedTabView
+                .tabBarMinimizeBehavior(.onScrollDown)
+        } else {
+            sharedTabView
         }
     }
-    
-    // MARK: - Standard TabView (Pre-iOS 26)
-    private var standardTabView: some View {
-        TabView(selection: $coordinator.selectedTab) {
-            // Home Tab
-            NavigationStack(path: $coordinator.homePath) {
-                ImprovedDashboardView()
-                    .environmentObject(container.gameManagementState)
-                    .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                        destinationView(for: destination)
-                    }
-            }
-            .tabItem {
-                Label("Home", systemImage: "house.fill")
-            }
-            .tag(MainTab.home)
-            
-            
-            // Awards Tab
-            NavigationStack(path: $coordinator.awardsPath) {
-                LazyAwardsTabContent()
-                    .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                        destinationView(for: destination)
-                    }
-            }
-            .tabItem {
-                Label("Awards", systemImage: "trophy.fill")
-            }
-            .tag(MainTab.awards)
 
-            // Friends Tab
-            NavigationStack(path: $coordinator.friendsPath) {
-                LazyFriendsTabContent(socialService: container.socialService)
-            }
-            .tabItem {
-                Label("Friends", systemImage: "person.2.fill")
-            }
-            .tag(MainTab.friends)
-            
-            // Settings Tab
-            NavigationStack(path: $coordinator.settingsPath) {
-                LazySettingsTabContent()
-                    .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                        destinationView(for: destination)
-                    }
-            }
-            .tabItem {
-                Label("Settings", systemImage: "gearshape.fill")
-            }
-            .tag(MainTab.settings)
-        }
-        .tint(StreakSyncColors.primary(for: colorScheme))
-        .onChange(of: coordinator.selectedTab) { _, _ in
-            Task { @MainActor in HapticManager.shared.trigger(.buttonTap) }
+    private var sharedTabView: some View {
+        TabView(selection: $coordinator.selectedTab) {
+            homeTab
+            awardsTab
+            friendsTab
+            settingsTab
         }
     }
-    
-    // MARK: - Destination Views
+
+    // MARK: - Individual Tabs
+
+    private var homeTab: some View {
+        NavigationStack(path: $coordinator.homePath) {
+            ImprovedDashboardView()
+                .environmentObject(container.gameManagementState)
+                .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
+                    destinationView(for: destination)
+                }
+        }
+        .tabItem { Label("Home", systemImage: "house.fill") }
+        .tag(MainTab.home)
+    }
+
+    private var awardsTab: some View {
+        NavigationStack(path: $coordinator.awardsPath) {
+            LazyAwardsTabContent()
+                .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
+                    destinationView(for: destination)
+                }
+        }
+        .tabItem { Label("Awards", systemImage: "trophy.fill") }
+        .tag(MainTab.awards)
+    }
+
+    private var friendsTab: some View {
+        NavigationStack(path: $coordinator.friendsPath) {
+            LazyFriendsTabContent(socialService: container.socialService)
+        }
+        .tabItem { Label("Friends", systemImage: "person.2.fill") }
+        .tag(MainTab.friends)
+    }
+
+    private var settingsTab: some View {
+        NavigationStack(path: $coordinator.settingsPath) {
+            LazySettingsTabContent()
+                .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
+                    destinationView(for: destination)
+                }
+        }
+        .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+        .tag(MainTab.settings)
+    }
+
+    // MARK: - Destination Views (single implementation)
+
     @ViewBuilder
     private func destinationView(for destination: NavigationCoordinator.Destination) -> some View {
         switch destination {
         case .gameDetail(let game):
             GameDetailView(game: game)
                 .environmentObject(container)
-            
+
         case .streakHistory(let streak):
             StreakHistoryView(streak: streak)
                 .environmentObject(container)
-            
+
         case .allStreaks:
             AllStreaksView()
                 .environmentObject(container)
-            
+
         case .achievements:
             TieredAchievementsGridView()
                 .environmentObject(container)
-            
+
         case .settings:
             SettingsView()
                 .environmentObject(container)
-                
+
         case .gameManagement:
             GameManagementView()
                 .environment(container.appState)
                 .environment(container.gameCatalog)
                 .environmentObject(container.gameManagementState)
-                
+
         case .tieredAchievementDetail(let achievement):
             TieredAchievementDetailView(achievement: achievement)
                 .environmentObject(container)
-                
+
         case .analyticsDashboard:
             AnalyticsDashboardView(analyticsService: container.analyticsService)
                 .environmentObject(container)
-                
+
         case .streakTrendsDetail(let timeRange, let game):
             StreakTrendsDetailView(
                 analyticsService: container.analyticsService,
@@ -340,12 +138,11 @@ struct MainTabView: View {
 }
 
 // MARK: - Lazy Tab Wrappers
-/// Prevents TabView pre-rendering issues by deferring content load until tab is actually selected
 
 private struct LazyAwardsTabContent: View {
     @EnvironmentObject private var coordinator: NavigationCoordinator
     @State private var hasBeenSelected = false
-    
+
     var body: some View {
         Group {
             if hasBeenSelected {
@@ -367,7 +164,7 @@ private struct LazyFriendsTabContent: View {
     let socialService: any SocialService
     @EnvironmentObject private var coordinator: NavigationCoordinator
     @State private var hasBeenSelected = false
-    
+
     var body: some View {
         Group {
             if hasBeenSelected {
@@ -388,7 +185,7 @@ private struct LazyFriendsTabContent: View {
 private struct LazySettingsTabContent: View {
     @EnvironmentObject private var coordinator: NavigationCoordinator
     @State private var hasBeenSelected = false
-    
+
     var body: some View {
         Group {
             if hasBeenSelected {
@@ -402,22 +199,6 @@ private struct LazySettingsTabContent: View {
         }
         .onAppear {
             if coordinator.selectedTab == .settings { hasBeenSelected = true }
-        }
-    }
-}
-
-// MARK: - Tab Switch Animation Configuration
-@available(iOS 26.0, *)
-struct TabSwitchConfiguration {
-    static let animationDuration: TimeInterval = 0.3
-    static let hapticFeedback: HapticManager.HapticType = .buttonTap
-    static let navigationDelay: TimeInterval = 0.15
-    
-    static func animate<Result>(
-        _ body: () throws -> Result
-    ) rethrows -> Result {
-        try withAnimation(.smooth(duration: animationDuration)) {
-            try body()
         }
     }
 }

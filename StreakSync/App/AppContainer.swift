@@ -138,7 +138,6 @@ final class AppContainer: ObservableObject {
 
     
     // MARK: - UI Services
-    let themeManager: ThemeManager
     let hapticManager: HapticManager
     let browserLauncher: BrowserLauncher
     let networkMonitor: NetworkMonitor
@@ -188,7 +187,6 @@ final class AppContainer: ObservableObject {
         self.appGroupBridge = AppGroupBridge.shared
         
         // 5. UI services
-        self.themeManager = ThemeManager.shared
         self.hapticManager = HapticManager.shared
         self.browserLauncher = BrowserLauncher.shared
         
@@ -334,7 +332,7 @@ final class AppContainer: ObservableObject {
     
     /// Creates a new DashboardViewModel
     func makeDashboardViewModel() -> DashboardViewModel {
-        DashboardViewModel(appState: appState)  // Removed themeManager parameter
+        DashboardViewModel(appState: appState)
     }
     
     /// Creates a new GameDetailViewModel for a specific game

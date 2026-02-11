@@ -242,7 +242,7 @@ final class NotificationCoordinator: ObservableObject {
         // Listen for refresh triggers
         self.observers.append(
             NotificationCenter.default.addObserver(
-                forName: NSNotification.Name(AppConstants.Notification.gameDataUpdated),
+                forName: .appGameDataUpdated,
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
@@ -284,7 +284,7 @@ final class NotificationCoordinator: ObservableObject {
             if let ingest = self.resultIngestion {
                 added = await ingest(result)
             } else {
-                added = self.appState?.addGameResultReturningAdded(result) ?? false
+                added = self.appState?.addGameResult(result) ?? false
             }
             
             // Trigger UI refresh
@@ -323,7 +323,7 @@ final class NotificationCoordinator: ObservableObject {
             if let ingest = self.resultIngestion {
                 added = await ingest(result)
             } else {
-                added = self.appState?.addGameResultReturningAdded(result) ?? false
+                added = self.appState?.addGameResult(result) ?? false
             }
             self.triggerUIRefresh()
             let isActive = UIApplication.shared.applicationState == .active

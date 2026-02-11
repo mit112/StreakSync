@@ -381,5 +381,4 @@ struct AddCustomGameView: View {
     AddCustomGameView()
         .environment(GameCatalog())
         .environment(AppState())
-        .environmentObject(ThemeManager.shared)
 }

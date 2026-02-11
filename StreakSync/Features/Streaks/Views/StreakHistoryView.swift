@@ -12,7 +12,6 @@ import Charts
 struct StreakHistoryView: View {
     let streak: GameStreak
     @Environment(AppState.self) private var appState
-    @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
     
     @State private var selectedMonth = Date()
@@ -1271,6 +1270,5 @@ struct iOS26TimeBasedChart: View {
             )
         )
         .environment(AppState())
-        .environmentObject(ThemeManager.shared)
     }
 }

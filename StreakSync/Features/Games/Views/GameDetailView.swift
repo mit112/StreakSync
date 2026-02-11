@@ -36,7 +36,6 @@
  * - Game: The specific game being displayed
  * - AppState: Access to game data, results, and streaks
  * - NavigationCoordinator: For navigating to other screens
- * - ThemeManager: For consistent styling and theming
  * - BrowserLauncher: For opening games in the browser
  * - Various game detail components: Header, actions, performance, results
  * 
@@ -119,7 +118,6 @@ struct GameDetailView: View {
     @StateObject private var browserLauncher = BrowserLauncher.shared
     @Environment(AppState.self) internal var appState
     @EnvironmentObject private var coordinator: NavigationCoordinator
-    @EnvironmentObject private var themeManager: ThemeManager
     
     @State internal var showingManualEntry = false
     @State internal var showingShareSheet = false
@@ -292,7 +290,6 @@ struct GameDetailView: View {
         GameDetailView(game: Game.wordle)
             .environment(AppState())
             .environmentObject(NavigationCoordinator())
-            .environmentObject(ThemeManager.shared)
     }
 }
 

@@ -53,7 +53,7 @@ final class AppGroupURLSchemeHandler {
         logger.info("Received new result URL scheme trigger")
         
         NotificationCenter.default.post(
-            name: Notification.Name("HandleNewGameResult"),
+            name: .appHandleNewGameResult,
             object: nil
         )
         

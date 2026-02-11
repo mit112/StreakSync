@@ -285,7 +285,7 @@ extension AppState {
                 
                 // Post update notification
                 NotificationCenter.default.post(
-                    name: Notification.Name(AppConstants.Notification.gameDataUpdated),
+                    name: .appGameDataUpdated,
                     object: nil
                 )
             }
@@ -363,7 +363,7 @@ extension AppState {
         }
     }
     
-    private func ensureStreaksForAllGames(_ streaks: [GameStreak]) -> [GameStreak] {
+    internal func ensureStreaksForAllGames(_ streaks: [GameStreak]) -> [GameStreak] {
         var result = streaks
         
         for game in games {

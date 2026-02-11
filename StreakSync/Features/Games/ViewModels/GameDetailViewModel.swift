@@ -152,7 +152,7 @@ final class GameDetailViewModel: ObservableObject {
         
         // Listen for data updates
         let dataObserver = NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("GameDataUpdated"),
+            forName: .appGameDataUpdated,
             object: nil,
             queue: .main
         ) { [weak self] _ in
@@ -166,7 +166,7 @@ final class GameDetailViewModel: ObservableObject {
         
         // CRITICAL: Also observe RefreshGameData
         let refreshObserver = NotificationCenter.default.addObserver(
-            forName: Notification.Name("RefreshGameData"),
+            forName: .appRefreshGameData,
             object: nil,
             queue: .main
         ) { [weak self] notification in

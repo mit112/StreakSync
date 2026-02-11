@@ -95,4 +95,8 @@ extension Notification.Name {
     static let appShareExtensionResultAvailable = Notification.Name(AppConstants.Notification.shareExtensionResultAvailable)
     static let appGameDataUpdated = Notification.Name(AppConstants.Notification.gameDataUpdated)
     static let appRefreshGameData = Notification.Name(AppConstants.Notification.refreshGameData)
+    static let appGameResultAdded = Notification.Name("GameResultAdded")
+    static let appNavigateToGame = Notification.Name("NavigateToGame")
+    static let appHandleNewGameResult = Notification.Name("HandleNewGameResult")
+    static let appTieredAchievementUnlocked = Notification.Name(AppConstants.Notification.tieredAchievementUnlocked)
 }
