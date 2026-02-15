@@ -43,7 +43,7 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
         static let streaks = "streaksync_streaks"
     }
     
-    /// File URL for game results (Documents directory, backed up by iCloud)
+    /// File URL for game results (Documents directory)
     private var gameResultsFileURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("game_results.json")
