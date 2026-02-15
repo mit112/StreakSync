@@ -31,23 +31,23 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             settings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: 100 * 1024 * 1024))
             Firestore.firestore().settings = settings
             
-            logger.info("🔥 Firebase configured in AppDelegate")
+ logger.info("Firebase configured in AppDelegate")
         }
         
         // Register for remote notifications
         UIApplication.shared.registerForRemoteNotifications()
-        logger.info("📬 Requested remote notification registration")
+ logger.info("Requested remote notification registration")
         return true
     }
     
     func application(_ application: UIApplication,
                      didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        logger.info("✅ Registered for remote notifications")
+ logger.info("Registered for remote notifications")
     }
     
     func application(_ application: UIApplication,
                      didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        logger.error("❌ Failed to register for remote notifications: \(error.localizedDescription)")
+ logger.error("Failed to register for remote notifications: \(error.localizedDescription)")
     }
     
     func application(_ application: UIApplication,

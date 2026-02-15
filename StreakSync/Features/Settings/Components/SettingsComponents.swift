@@ -622,7 +622,7 @@ struct DataManagementView: View {
             if !appState.recentResults.contains(where: { $0.id == result.id }) {
                 appState.addGameResult(result)
                 importCount += 1
-//                logger.info("Imported game result: \(result.gameName) - \(result.date)")
+// logger.info("Imported game result: \(result.gameName) - \(result.date)")
             }
         }
         
@@ -632,7 +632,7 @@ struct DataManagementView: View {
         // Update favorite games
         for gameId in data.favoriteGameIds {
             container.gameCatalog.addFavorite(gameId)
-//            logger.info("Added favorite: \(gameId)")
+// logger.info("Added favorite: \(gameId)")
         }
         
         // Rebuild streaks from imported results

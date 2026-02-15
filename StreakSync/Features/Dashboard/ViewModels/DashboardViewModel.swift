@@ -149,7 +149,7 @@ final class DashboardViewModel: ObservableObject {
     // MARK: - Actions
     
     func refreshData() async {
-        logger.info("🔄 Refreshing dashboard data")
+ logger.info("Refreshing dashboard data")
         isRefreshing = true
         
         await appState.refreshData()
@@ -158,7 +158,7 @@ final class DashboardViewModel: ObservableObject {
             isRefreshing = false
         }
         
-        logger.info("✅ Dashboard refresh complete")
+ logger.info("Dashboard refresh complete")
     }
     
     func clearSearch() {

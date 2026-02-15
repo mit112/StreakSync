@@ -14,7 +14,7 @@ extension AppState {
     // MARK: - Streak Updates
     func updateStreak(for result: GameResult) {
         guard let streakIndex = self.streaks.firstIndex(where: { $0.gameId == result.gameId }) else {
-            logger.warning("No streak found for game: \(result.gameName)")
+ logger.warning("No streak found for game: \(result.gameName)")
             return
         }
         
@@ -27,19 +27,19 @@ extension AppState {
         setStreaks(updatedStreaks)
         
         #if DEBUG
-        logger.info("Updated streak for \(result.gameName): \(currentStreak.currentStreak) → \(updatedStreak.currentStreak)")
-        logger.info("Streaks array now contains \(self.streaks.count) streaks")
-        logger.info("Updated streak verified: \(self.streaks[streakIndex].currentStreak) days, \(self.streaks[streakIndex].totalGamesPlayed) played")
+ logger.info("Updated streak for \(result.gameName): \(currentStreak.currentStreak) → \(updatedStreak.currentStreak)")
+ logger.info("Streaks array now contains \(self.streaks.count) streaks")
+ logger.info("Updated streak verified: \(self.streaks[streakIndex].currentStreak) days, \(self.streaks[streakIndex].totalGamesPlayed) played")
         
         // NOTE: Caller is responsible for saving streaks
-        logger.info("⚠️ Streak updated in memory - caller must save!")
+ logger.info("Streak updated in memory - caller must save!")
         #endif
     }
     
     internal func calculateUpdatedStreak(current: GameStreak, with result: GameResult) -> GameStreak {
         #if DEBUG
-        logger.info("📊 Calculating updated streak for \(result.gameName)")
-        logger.info("  Current state: streak=\(current.currentStreak), played=\(current.totalGamesPlayed), completed=\(current.totalGamesCompleted)")
+ logger.info("Calculating updated streak for \(result.gameName)")
+ logger.info("Current state: streak=\(current.currentStreak), played=\(current.totalGamesPlayed), completed=\(current.totalGamesCompleted)")
         #endif
         
         let newTotalPlayed = current.totalGamesPlayed + 1
@@ -55,7 +55,7 @@ extension AppState {
                 newCurrentStreak = 1
                 newStreakStartDate = result.date
                 #if DEBUG
-                logger.info("  Starting new streak")
+ logger.info("Starting new streak")
                 #endif
             } else {
                 // Check if this extends the streak
@@ -66,26 +66,26 @@ extension AppState {
                     let daysBetween = calendar.dateComponents([.day], from: lastPlayedDay, to: resultDay).day ?? 0
                     
                     #if DEBUG
-                    logger.info("  Days between plays: \(daysBetween)")
+ logger.info("Days between plays: \(daysBetween)")
                     #endif
                     
                     if daysBetween == 1 {
                         // Consecutive day - extend streak
                         newCurrentStreak += 1
                         #if DEBUG
-                        logger.info("  Extending streak to \(newCurrentStreak)")
+ logger.info("Extending streak to \(newCurrentStreak)")
                         #endif
                     } else if daysBetween == 0 {
                         // Same day - don't increment streak
                         #if DEBUG
-                        logger.info("  Same day play - maintaining streak at \(newCurrentStreak)")
+ logger.info("Same day play - maintaining streak at \(newCurrentStreak)")
                         #endif
                     } else {
                         // Streak broken - start new one
                         newCurrentStreak = 1
                         newStreakStartDate = result.date
                         #if DEBUG
-                        logger.info("  Streak broken - starting new streak")
+ logger.info("Streak broken - starting new streak")
                         #endif
                     }
                 } else {
@@ -93,7 +93,7 @@ extension AppState {
                     newCurrentStreak = 1
                     newStreakStartDate = result.date
                     #if DEBUG
-                    logger.info("  First play - starting streak at 1")
+ logger.info("First play - starting streak at 1")
                     #endif
                 }
             }
@@ -105,7 +105,7 @@ extension AppState {
             newCurrentStreak = 0
             newStreakStartDate = nil
             #if DEBUG
-            logger.info("  Failed game - breaking streak")
+ logger.info("Failed game - breaking streak")
             #endif
         }
         
@@ -122,7 +122,7 @@ extension AppState {
         )
         
         #if DEBUG
-        logger.info("  New state: streak=\(updatedStreak.currentStreak), played=\(updatedStreak.totalGamesPlayed), completed=\(updatedStreak.totalGamesCompleted)")
+ logger.info("New state: streak=\(updatedStreak.currentStreak), played=\(updatedStreak.totalGamesPlayed), completed=\(updatedStreak.totalGamesCompleted)")
         #endif
         
         return updatedStreak

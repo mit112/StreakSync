@@ -57,7 +57,7 @@ struct StreakSyncApp: App {
     
     // MARK: - App Initialization
     private func initializeApp() async {
-        logger.info("🚀 Starting app initialization")
+ logger.info("Starting app initialization")
         
         do {
             // Initialize notification delegate dependencies early
@@ -101,10 +101,10 @@ struct StreakSyncApp: App {
             // Mark as initialized
             await MainActor.run {
                 isInitialized = true
-                logger.info("✅ App initialization completed")
+ logger.info("App initialization completed")
             }
         } catch {
-            logger.error("❌ App initialization failed: \(error.localizedDescription)")
+ logger.error("App initialization failed: \(error.localizedDescription)")
             await MainActor.run {
                 initializationError = "Failed to initialize: \(error.localizedDescription)"
             }

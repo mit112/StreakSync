@@ -117,7 +117,7 @@ final class FirebaseSocialService: SocialService {
             guard let self = self else { return }
             if user != nil {
                 Task { @MainActor in
-                    self.logger.info("🔐 Auth state changed — user authenticated, flushing pending scores")
+ self.logger.info("Auth state changed — user authenticated, flushing pending scores")
                     await self.flushPendingScoresIfNeeded()
                 }
             }
@@ -130,7 +130,7 @@ final class FirebaseSocialService: SocialService {
 
     private func requireUID() throws -> String {
         guard let uid = uid else {
-            logger.warning("⚠️ Attempted Firebase operation without authentication")
+ logger.warning("Attempted Firebase operation without authentication")
             throw FirebaseSocialError.notAuthenticated
         }
         return uid
@@ -176,7 +176,7 @@ final class FirebaseSocialService: SocialService {
             ], merge: true)
             return UserProfile(id: currentUID, displayName: resolvedName, authProvider: provider, createdAt: now, updatedAt: now)
         } catch {
-            logger.error("❌ Failed to ensure profile: \(error.localizedDescription)")
+ logger.error("Failed to ensure profile: \(error.localizedDescription)")
             throw FirebaseSocialError.from(error)
         }
     }
@@ -188,7 +188,7 @@ final class FirebaseSocialService: SocialService {
             let data = doc.data() ?? [:]
             return Self.parseUserProfile(id: currentUID, data: data)
         } catch {
-            logger.error("❌ Failed to fetch profile: \(error.localizedDescription)")
+ logger.error("Failed to fetch profile: \(error.localizedDescription)")
             throw FirebaseSocialError.from(error)
         }
     }
@@ -208,7 +208,7 @@ final class FirebaseSocialService: SocialService {
             fields["photoURL"] = photoURL
         }
         try await db.collection("users").document(currentUID).setData(fields, merge: true)
-        logger.info("✅ Updated profile (provider: \(authProvider ?? "unchanged"))")
+ logger.info("Updated profile (provider: \(authProvider ?? "unchanged"))")
     }
 
     func lookupUser(byId userId: String) async throws -> UserProfile? {
@@ -258,7 +258,7 @@ final class FirebaseSocialService: SocialService {
             return (u1 == currentUID && u2 == targetId) || (u1 == targetId && u2 == currentUID)
         }
         guard !alreadyExists else {
-            logger.info("Friendship already exists between \(currentUID) and \(targetId)")
+ logger.info("Friendship already exists between \(currentUID) and \(targetId)")
             return
         }
         // Resolve sender's display name for pending request UI
@@ -271,7 +271,7 @@ final class FirebaseSocialService: SocialService {
             "senderDisplayName": senderName,
             "createdAt": Timestamp(date: Date())
         ])
-        logger.info("✅ Sent friend request to \(targetId)")
+ logger.info("Sent friend request to \(targetId)")
     }
 
     func acceptFriendRequest(friendshipId: String) async throws {
@@ -296,7 +296,7 @@ final class FirebaseSocialService: SocialService {
         batch.updateData(["friends": FieldValue.arrayUnion([u1])], forDocument: db.collection("users").document(u2))
         try await batch.commit()
         
-        logger.info("✅ Accepted friendship \(friendshipId) — updated friends arrays for \(u1) and \(u2)")
+ logger.info("Accepted friendship \(friendshipId) — updated friends arrays for \(u1) and \(u2)")
         invalidateFriendsCache()
     }
 
@@ -316,7 +316,7 @@ final class FirebaseSocialService: SocialService {
         } else {
             try await docRef.delete()
         }
-        logger.info("✅ Removed friendship \(friendshipId)")
+ logger.info("Removed friendship \(friendshipId)")
         invalidateFriendsCache()
     }
 
@@ -326,7 +326,7 @@ final class FirebaseSocialService: SocialService {
         let doc = db.collection("friendships").document(docId)
         let snapshot = try await doc.getDocument()
         guard snapshot.exists else {
-            logger.warning("⚠️ No friendship found between \(currentUID) and \(targetId)")
+ logger.warning("No friendship found between \(currentUID) and \(targetId)")
             return
         }
         // Remove from friends arrays and delete friendship in one batch
@@ -335,7 +335,7 @@ final class FirebaseSocialService: SocialService {
         batch.updateData(["friends": FieldValue.arrayRemove([currentUID])], forDocument: db.collection("users").document(targetId))
         batch.deleteDocument(doc)
         try await batch.commit()
-        logger.info("✅ Removed friendship with user \(targetId)")
+ logger.info("Removed friendship with user \(targetId)")
         invalidateFriendsCache()
     }
 
@@ -375,7 +375,7 @@ final class FirebaseSocialService: SocialService {
             "displayName": displayName
         ], forDocument: db.collection("friendCodes").document(code))
         try await batch.commit()
-        logger.info("✅ Generated friend code: \(code)")
+ logger.info("Generated friend code: \(code)")
         return code
     }
 
@@ -410,9 +410,9 @@ final class FirebaseSocialService: SocialService {
             try await db.collection("users").document(userId).updateData([
                 "friends": friendIds
             ])
-            logger.info("✅ Backfilled friends array for \(userId) with \(friendIds.count) friends")
+ logger.info("Backfilled friends array for \(userId) with \(friendIds.count) friends")
         } catch {
-            logger.warning("⚠️ Failed to backfill friends array: \(error.localizedDescription)")
+ logger.warning("Failed to backfill friends array: \(error.localizedDescription)")
             // Non-fatal — the array will be populated when the next friendship is accepted
         }
     }
@@ -449,7 +449,7 @@ final class FirebaseSocialService: SocialService {
                     profiles.append(Self.parseUserProfile(id: doc.documentID, data: doc.data()))
                 }
             } catch {
-                logger.warning("⚠️ Failed to fetch profiles: \(error.localizedDescription)")
+ logger.warning("Failed to fetch profiles: \(error.localizedDescription)")
             }
         }
         return profiles
@@ -499,7 +499,7 @@ final class FirebaseSocialService: SocialService {
             let friendIds = try await acceptedFriendIds(for: uid)
             return [uid] + friendIds
         } catch {
-            logger.warning("⚠️ Failed to fetch friends for allowedReaders, using self only")
+ logger.warning("Failed to fetch friends for allowedReaders, using self only")
             return [uid]
         }
     }
@@ -537,14 +537,14 @@ final class FirebaseSocialService: SocialService {
             try await batch.commit()
             pendingScores.removeAll()
             pendingScoreStore.save(pendingScores)
-            logger.info("✅ Published \(filtered.count) scores to Firebase")
+ logger.info("Published \(filtered.count) scores to Firebase")
         } catch {
             let socialError = FirebaseSocialError.from(error)
             // Always queue for retry — even "non-retryable" errors like permissionDenied
             // can be transient (e.g., App Check enforcement misconfiguration).
             pendingScores.append(contentsOf: filtered)
             pendingScoreStore.save(pendingScores)
-            logger.warning("⚠️ Queued \(filtered.count) scores for retry (error: \(error.localizedDescription))")
+ logger.warning("Queued \(filtered.count) scores for retry (error: \(error.localizedDescription))")
             throw socialError
         }
     }
@@ -552,7 +552,7 @@ final class FirebaseSocialService: SocialService {
     func flushPendingScoresIfNeeded() async {
         guard !pendingScores.isEmpty else { return }
         guard let currentUID = uid else {
-            logger.debug("⏳ Skipping pending score flush — not authenticated")
+ logger.debug("Skipping pending score flush — not authenticated")
             return
         }
         let toFlush = pendingScores
@@ -580,12 +580,12 @@ final class FirebaseSocialService: SocialService {
         }
         do {
             try await batch.commit()
-            logger.info("✅ Flushed \(toFlush.count) pending scores")
+ logger.info("Flushed \(toFlush.count) pending scores")
         } catch {
             // Always re-queue — scores are too valuable to drop
             pendingScores.append(contentsOf: toFlush)
             pendingScoreStore.save(pendingScores)
-            logger.warning("⚠️ Re-queued \(toFlush.count) scores after flush failure: \(error.localizedDescription)")
+ logger.warning("Re-queued \(toFlush.count) scores after flush failure: \(error.localizedDescription)")
         }
     }
 
@@ -644,9 +644,9 @@ final class FirebaseSocialService: SocialService {
         }
         do {
             try await batch.commit()
-            logger.info("✅ Reconciled \(filtered.count) scores for today")
+ logger.info("Reconciled \(filtered.count) scores for today")
         } catch {
-            logger.warning("⚠️ Score reconciliation failed: \(error.localizedDescription)")
+ logger.warning("Score reconciliation failed: \(error.localizedDescription)")
         }
     }
 
@@ -724,7 +724,7 @@ final class FirebaseSocialService: SocialService {
                     names[doc.documentID] = name
                 }
             } catch {
-                logger.warning("⚠️ Failed to fetch display names: \(error.localizedDescription)")
+ logger.warning("Failed to fetch display names: \(error.localizedDescription)")
             }
         }
         return names

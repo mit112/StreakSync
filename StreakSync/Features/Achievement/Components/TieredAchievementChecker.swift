@@ -69,7 +69,7 @@ struct TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-                logger.info("🏆 Unlocked Streak Master \(newTier.displayName) - \(gameStreak.currentStreak) days")
+ logger.info("Unlocked Streak Master \(newTier.displayName) - \(gameStreak.currentStreak) days")
             }
         }
         
@@ -99,7 +99,7 @@ struct TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-                logger.info("🏆 Unlocked Game Collector \(newTier.displayName) - \(totalGamesPlayed) games")
+ logger.info("Unlocked Game Collector \(newTier.displayName) - \(totalGamesPlayed) games")
             }
         }
         
@@ -129,7 +129,7 @@ struct TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-                logger.info("🏆 Unlocked Perfectionist \(newTier.displayName) - \(successfulGames) perfect games")
+ logger.info("Unlocked Perfectionist \(newTier.displayName) - \(successfulGames) perfect games")
             }
         }
         
@@ -158,7 +158,7 @@ struct TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-                logger.info("🏆 Unlocked Daily Devotee \(newTier.displayName) - \(consecutiveDays) consecutive days")
+ logger.info("Unlocked Daily Devotee \(newTier.displayName) - \(consecutiveDays) consecutive days")
             }
         }
         
@@ -191,7 +191,7 @@ struct TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-                logger.info("🏆 Unlocked Variety Player \(newTier.displayName) - \(newValue) different games overall")
+ logger.info("Unlocked Variety Player \(newTier.displayName) - \(newValue) different games overall")
             }
         }
         
@@ -227,7 +227,7 @@ struct TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-                logger.info("🏆 Unlocked Speed Demon \(newTier.displayName) - minimal-attempt wins: \(minimalAttemptWins)")
+ logger.info("Unlocked Speed Demon \(newTier.displayName) - minimal-attempt wins: \(minimalAttemptWins)")
             }
         }
         
@@ -373,7 +373,7 @@ struct TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-                logger.info("🏆 Unlocked Marathon Runner \(newTier.displayName) - \(uniqueDays) active days")
+ logger.info("Unlocked Marathon Runner \(newTier.displayName) - \(uniqueDays) active days")
             }
         }
         

@@ -46,11 +46,11 @@ final class NotificationSettingsViewModel: ObservableObject {
         Task {
             if let appState = appState {
                 await appState.checkAndScheduleStreakReminders()
-                logger.info("🔄 Rescheduled reminders with new settings")
+ logger.info("Rescheduled reminders with new settings")
             }
         }
         
-        logger.info("💾 Saved notification settings")
+ logger.info("Saved notification settings")
     }
     
     func checkPermissionStatus() async {

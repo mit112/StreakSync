@@ -20,25 +20,25 @@ extension AppState {
         // In Guest Mode we never reload host data from persistence; the guest
         // session operates purely in memory and is managed by GuestSessionManager.
         if isGuestMode {
-            logger.info("🧑‍🤝‍🧑 Guest Mode active – skipping loadPersistedData()")
+ logger.info("Guest Mode active – skipping loadPersistedData()")
             return
         }
         // Debounce/guard: avoid overlapping or rapid back-to-back loads
         if isLoading {
-            logger.debug("⏭️ Skipping loadPersistedData - already loading")
+ logger.debug("Skipping loadPersistedData - already loading")
             return
         }
         if let last = lastDataLoad, Date().timeIntervalSince(last) < 1.0 {
-            logger.debug("⏭️ Skipping loadPersistedData - called too soon")
+ logger.debug("Skipping loadPersistedData - called too soon")
             return
         }
         self.loadCountSinceLaunch += 1
-        logger.debug("📈 loadPersistedData invoked (count since launch: \(self.loadCountSinceLaunch))")
+ logger.debug("loadPersistedData invoked (count since launch: \(self.loadCountSinceLaunch))")
         
         setLoading(true)
         defer { setLoading(false) }
         
-        logger.info("🔄 Loading persisted data...")
+ logger.info("Loading persisted data...")
         
         // Migrate notification settings to simplified system
         migrateNotificationSettings()
@@ -64,7 +64,7 @@ extension AppState {
         
         // Share Extension ingestion is handled by AppGroupBridge (event-driven); no direct sync here
         
-        logger.info("✅ Data loading complete with tiered achievements")
+ logger.info("Data loading complete with tiered achievements")
     }
     
     
@@ -77,7 +77,7 @@ extension AppState {
     }
     
     private func loadGameResults() async {
-        logger.debug("Loading game results...")
+ logger.debug("Loading game results...")
         
         if let results = persistenceService.load(
             [GameResult].self,
@@ -86,14 +86,14 @@ extension AppState {
             let validResults = results.filter { $0.isValid }
             setRecentResults(validResults.sorted { $0.date > $1.date })
             buildResultsCache()
-            logger.debug("Loaded \(validResults.count) game results")
+ logger.debug("Loaded \(validResults.count) game results")
         } else {
             setRecentResults([])
         }
     }
     
     private func loadStreaks() async {
-        logger.debug("Loading streaks...")
+ logger.debug("Loading streaks...")
         
         if let persisted = persistenceService.load(
             [GameStreak].self,
@@ -157,7 +157,7 @@ extension AppState {
                 )
                 updated.append(reset)
                 didChange = true
-                logger.info("🔥 Breaking streak for \(streak.gameName) - missed day detected")
+ logger.info("Breaking streak for \(streak.gameName) - missed day detected")
             } else {
                 updated.append(streak)
             }
@@ -167,7 +167,7 @@ extension AppState {
             setStreaks(updated)
             await saveStreaks()
             invalidateCache()
-            logger.info("🔥 Normalized streaks for missed days (some streaks reset)")
+ logger.info("Normalized streaks for missed days (some streaks reset)")
         }
     }
     
@@ -197,7 +197,7 @@ extension AppState {
         // Ignore share extension ingestion while Guest Mode is active – host
         // data is hidden and guest sessions should not mutate it.
         if isGuestMode {
-            logger.info("🧑‍🤝‍🧑 Guest Mode active – ignoring Share Extension sync")
+ logger.info("Guest Mode active – ignoring Share Extension sync")
             return
         }
         do {
@@ -211,7 +211,7 @@ extension AppState {
             }
             
             if !pendingResults.isEmpty {
-                logger.info("✅ Processed \(pendingResults.count) results from Share Extension")
+ logger.info("Processed \(pendingResults.count) results from Share Extension")
                 
                 // Force UI refresh
                 invalidateCache()
@@ -223,7 +223,7 @@ extension AppState {
                 )
             }
         } catch {
-            logger.error("Share Extension sync failed: \(error)")
+ logger.error("Share Extension sync failed: \(error)")
             // Non-critical - don't show error to user
         }
     }
@@ -237,7 +237,7 @@ extension AppState {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
-                logger.info("📱 Received Share Extension notification")
+ logger.info("Received Share Extension notification")
                 await self.syncFromShareExtension()
                 
                 // Tell AppGroupBridge we handled it
@@ -251,7 +251,7 @@ extension AppState {
         // In Guest Mode we never persist results to disk – the guest session
         // lives only in memory and is managed by GuestSessionManager.
         if isGuestMode {
-            logger.debug("🧑‍🤝‍🧑 Guest Mode active – skipping saveGameResults()")
+ logger.debug("Guest Mode active – skipping saveGameResults()")
             return
         }
         do {
@@ -259,7 +259,7 @@ extension AppState {
                 self.recentResults,
                 forKey: UserDefaultsPersistenceService.Keys.gameResults
             )
-            logger.debug("Saved \(self.recentResults.count) game results")
+ logger.debug("Saved \(self.recentResults.count) game results")
         } catch {
             handleSaveError(error, dataType: "game results")
         }
@@ -269,7 +269,7 @@ extension AppState {
         // In Guest Mode we never persist streaks – host streaks are preserved
         // in memory and restored when Guest Mode exits.
         if isGuestMode {
-            logger.debug("🧑‍🤝‍🧑 Guest Mode active – skipping saveStreaks()")
+ logger.debug("Guest Mode active – skipping saveStreaks()")
             return
         }
         do {
@@ -318,13 +318,13 @@ extension AppState {
         persistenceService.clearAll()
         invalidateCache()
         
-        logger.info("🗑️ Cleared all app data")
+ logger.info("Cleared all app data")
     }
     
     func refreshData() async {
         guard !isLoading else { return }
         if isGuestMode {
-            logger.info("🧑‍🤝‍🧑 Guest Mode active – skipping refreshData()")
+ logger.info("Guest Mode active – skipping refreshData()")
             return
         }
         
@@ -344,17 +344,17 @@ extension AppState {
     func refreshDataForNotification() async {
         guard !isLoading else { return }
         if isGuestMode {
-            logger.info("🧑‍🤝‍🧑 Guest Mode active – skipping refreshDataForNotification()")
+ logger.info("Guest Mode active – skipping refreshDataForNotification()")
             return
         }
         
-        logger.info("🚀 Lightweight data refresh for notification navigation")
+ logger.info("Lightweight data refresh for notification navigation")
         
         // Only load essential data, skip expensive operations
         await loadGameResults()
         await loadStreaks()
         
         // Skip tiered achievements recomputation and other expensive operations
-        logger.info("✅ Lightweight data refresh complete")
+ logger.info("Lightweight data refresh complete")
     }
 }

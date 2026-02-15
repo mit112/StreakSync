@@ -44,11 +44,11 @@ final class AnalyticsService {
         if let cached = cachedAnalytics[cacheKey],
            let lastUpdate = lastCacheUpdateByKey[cacheKey],
            Date().timeIntervalSince(lastUpdate) < cacheValidityDuration {
-            logger.info("📊 Returning cached analytics for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
+ logger.info("Returning cached analytics for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
             return cached
         }
         
-        logger.info("📊 Calculating analytics for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
+ logger.info("Calculating analytics for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
         
         // Snapshot state once to avoid racing AppState during background compute
         let snapshotGames = appState.games
@@ -70,7 +70,7 @@ final class AnalyticsService {
         cachedAnalytics[cacheKey] = analyticsData
         lastCacheUpdateByKey[cacheKey] = Date()
         
-        logger.info("✅ Analytics calculation complete for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
+ logger.info("Analytics calculation complete for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
         return analyticsData
     }
     
@@ -109,7 +109,7 @@ final class AnalyticsService {
     func clearCache() {
         cachedAnalytics.removeAll()
         lastCacheUpdateByKey.removeAll()
-        logger.info("🗑️ Analytics cache cleared")
+ logger.info("Analytics cache cleared")
     }
     
     // MARK: - Concurrent Computation (off main actor)

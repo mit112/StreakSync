@@ -16,7 +16,7 @@ extension AppState {
         let remindersEnabled = UserDefaults.standard.bool(forKey: "streakRemindersEnabled")
         guard remindersEnabled else {
             await NotificationScheduler.shared.cancelAllStreakReminders()
-            logger.info("⏭️ Streak reminders disabled - cancelled all notifications")
+ logger.info("Streak reminders disabled - cancelled all notifications")
             return
         }
 
@@ -34,22 +34,22 @@ extension AppState {
            lastSig == signature,
            let lastAt = lastReminderScheduleAt,
            now.timeIntervalSince(lastAt) < 300 { // 5 minutes
-            logger.debug("⏭️ Skipping reminder reschedule (unchanged within debounce window)")
+ logger.debug("Skipping reminder reschedule (unchanged within debounce window)")
             return
         }
 
-        logger.info("🔍 Found \(gamesAtRisk.count) games at risk: \(gamesAtRisk.map { $0.name }.joined(separator: ", "))")
+ logger.info("Found \(gamesAtRisk.count) games at risk: \(gamesAtRisk.map { $0.name }.joined(separator: ", "))")
 
         if gamesAtRisk.isEmpty {
             await NotificationScheduler.shared.cancelDailyStreakReminder()
-            logger.debug("✅ No games at risk - cancelled daily reminder")
+ logger.debug("No games at risk - cancelled daily reminder")
         } else {
             await NotificationScheduler.shared.scheduleDailyStreakReminder(
                 games: gamesAtRisk,
                 hour: preferredHour,
                 minute: preferredMinute
             )
-            logger.info("✅ Scheduled daily reminder at \(preferredHour):\(String(format: "%02d", preferredMinute)) for \(gamesAtRisk.count) games")
+ logger.info("Scheduled daily reminder at \(preferredHour):\(String(format: "%02d", preferredMinute)) for \(gamesAtRisk.count) games")
         }
 
         lastAtRiskGamesSignature = signature
@@ -109,7 +109,7 @@ extension AppState {
         // Mark migration as complete
         UserDefaults.standard.set(true, forKey: migrationKey)
 
-        logger.info("✅ Migrated to simplified notification system with smart default time: \(smartTime.hour):\(String(format: "%02d", smartTime.minute))")
+ logger.info("Migrated to simplified notification system with smart default time: \(smartTime.hour):\(String(format: "%02d", smartTime.minute))")
     }
 
     /// Calculate smart default time based on user's typical play patterns
@@ -135,7 +135,7 @@ extension AppState {
 
         let reminderHour = max(6, mostCommonHour - 2)
 
-        logger.info("📊 Smart default time: Most common play hour: \(mostCommonHour), Setting reminder for: \(reminderHour):00")
+ logger.info("Smart default time: Most common play hour: \(mostCommonHour), Setting reminder for: \(reminderHour):00")
 
         return (hour: reminderHour, minute: 0)
     }
@@ -195,6 +195,6 @@ extension AppState {
         defaults.set(suggestion.windowEnd, forKey: "smartReminderWindowEndHour")
         defaults.set(suggestion.coverage, forKey: "smartReminderCoveragePercent")
         await checkAndScheduleStreakReminders()
-        logger.info("🔔 Applied smart reminder: \(suggestion.hour):\(String(format: "%02d", suggestion.minute)) window \(suggestion.windowStart)-\(suggestion.windowEnd) coverage \(suggestion.coverage)%")
+ logger.info("Applied smart reminder: \(suggestion.hour):\(String(format: "%02d", suggestion.minute)) window \(suggestion.windowStart)-\(suggestion.windowEnd) coverage \(suggestion.coverage)%")
     }
 }

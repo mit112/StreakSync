@@ -34,7 +34,7 @@ extension AppState {
                     }
                     _tieredAchievements = deduplicated
                     if deduplicated.count != saved.count {
-                        logger.debug("🧹 Removed \(saved.count - deduplicated.count) duplicate achievements from persistence")
+ logger.debug("Removed \(saved.count - deduplicated.count) duplicate achievements from persistence")
                     }
                 } else {
                     // Create default achievements if none exist
@@ -55,7 +55,7 @@ extension AppState {
             }
             _tieredAchievements = deduplicated
             if deduplicated.count != newValue.count {
-                logger.debug("🧹 Removed \(newValue.count - deduplicated.count) duplicate achievements")
+ logger.debug("Removed \(newValue.count - deduplicated.count) duplicate achievements")
             }
             // Save immediately
             Task {
@@ -103,7 +103,7 @@ extension AppState {
     }
     
     private func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
-        logger.info("🎉 Tiered Achievement Unlocked: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
+ logger.info("Tiered Achievement Unlocked: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
         
         // Queue celebration directly (deterministic, no fire-and-forget)
         celebrationCoordinator?.queueCelebration(unlock)
@@ -118,7 +118,7 @@ extension AppState {
         // In Guest Mode we never persist changes to tiered achievements. Host
         // achievements are part of the snapshot managed by GuestSessionManager.
         if isGuestMode {
-            logger.debug("🧑‍🤝‍🧑 Guest Mode active – skipping saveTieredAchievements()")
+ logger.debug("Guest Mode active – skipping saveTieredAchievements()")
             return
         }
         guard let achievements = _tieredAchievements else { return }
@@ -126,10 +126,10 @@ extension AppState {
         do {
             try persistenceService.save(achievements, forKey: Self.tieredAchievementsKey)
             self.tieredAchievementSavesSinceLaunch += 1
-            logger.debug("📈 Tiered achievements saved (count since launch: \(self.tieredAchievementSavesSinceLaunch))")
-            logger.info("✅ Saved \(achievements.count) tiered achievements")
+ logger.debug("Tiered achievements saved (count since launch: \(self.tieredAchievementSavesSinceLaunch))")
+ logger.info("Saved \(achievements.count) tiered achievements")
         } catch {
-            logger.error("❌ Failed to save tiered achievements: \(error)")
+ logger.error("Failed to save tiered achievements: \(error)")
         }
     }
     
@@ -152,27 +152,27 @@ extension AppState {
     func saveUniqueGamesEver() async {
         // In Guest Mode we do not mutate the persisted unique-games set.
         if isGuestMode {
-            logger.debug("🧑‍🤝‍🧑 Guest Mode active – skipping saveUniqueGamesEver()")
+ logger.debug("Guest Mode active – skipping saveUniqueGamesEver()")
             return
         }
         let setToSave = _uniqueGamesEver ?? []
         do {
             try persistenceService.save(setToSave, forKey: Self.uniqueGamesEverKey)
-            logger.info("✅ Saved unique games ever set with \(setToSave.count) entries")
+ logger.info("Saved unique games ever set with \(setToSave.count) entries")
         } catch {
-            logger.error("❌ Failed to save unique games set: \(error)")
+ logger.error("Failed to save unique games set: \(error)")
         }
     }
     
     func loadTieredAchievements() async {
         if let saved = persistenceService.load([TieredAchievement].self, forKey: Self.tieredAchievementsKey) {
             _tieredAchievements = saved
-            logger.info("✅ Loaded \(saved.count) tiered achievements")
+ logger.info("Loaded \(saved.count) tiered achievements")
         } else {
             // Initialize with default achievements
             _tieredAchievements = AchievementFactory.createDefaultAchievements()
             await saveTieredAchievements()
-            logger.info("📱 Initialized default tiered achievements")
+ logger.info("Initialized default tiered achievements")
         }
     }
     
@@ -184,7 +184,7 @@ extension AppState {
     
     // Recalculate progress from existing data
         internal func recalculateAllTieredAchievementProgress() {
-            logger.info("🔄 Recomputing tiered achievements from all results...")
+ logger.info("Recomputing tiered achievements from all results...")
             
             // Create a map of existing achievements by category to preserve their IDs
             var existingByCategory: [AchievementCategory: TieredAchievement] = [:]
@@ -229,9 +229,9 @@ extension AppState {
             // Persist if changed
             if current != tieredAchievements {
                 tieredAchievements = current
-                logger.info("✅ Tiered achievements recomputed")
+ logger.info("Tiered achievements recomputed")
             } else {
-                logger.info("ℹ️ Tiered achievements already up to date")
+ logger.info("ℹ Tiered achievements already up to date")
             }
         }
 }

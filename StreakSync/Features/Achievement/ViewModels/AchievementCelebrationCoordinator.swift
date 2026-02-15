@@ -39,11 +39,11 @@ final class AchievementCelebrationCoordinator {
         let achievementId = "\(unlock.achievement.id)-\(unlock.tier.rawValue)"
 
         if processedAchievements.contains(achievementId) {
-            logger.info("🚫 Skipping duplicate celebration: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
+ logger.info("Skipping duplicate celebration: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
             return
         }
 
-        logger.info("🎊 Queueing celebration for \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
+ logger.info("Queueing celebration for \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
 
         celebrationQueue.append(unlock)
         
@@ -73,7 +73,7 @@ final class AchievementCelebrationCoordinator {
     
     private func processCelebrationQueue() {
         guard !isProcessingQueue else {
-            logger.info("🔄 Already processing celebration queue")
+ logger.info("Already processing celebration queue")
             return
         }
         
@@ -83,7 +83,7 @@ final class AchievementCelebrationCoordinator {
     
     private func showNextCelebration() {
         guard !celebrationQueue.isEmpty else {
-            logger.info("✅ All celebrations completed")
+ logger.info("All celebrations completed")
             isProcessingQueue = false
             return
         }
@@ -91,7 +91,7 @@ final class AchievementCelebrationCoordinator {
         let nextUnlock = celebrationQueue.removeFirst()
         
         if UIApplication.shared.applicationState != .active {
-            logger.info("🔇 Suppressing celebrations while app not active; will resume on activation")
+ logger.info("Suppressing celebrations while app not active; will resume on activation")
             celebrationQueue.insert(nextUnlock, at: 0)
             isProcessingQueue = false
             
@@ -114,7 +114,7 @@ final class AchievementCelebrationCoordinator {
             return
         }
         
-        logger.info("🎉 Showing celebration for \(nextUnlock.achievement.displayName) - \(nextUnlock.tier.displayName)")
+ logger.info("Showing celebration for \(nextUnlock.achievement.displayName) - \(nextUnlock.tier.displayName)")
         
         let achievementId = "\(nextUnlock.achievement.id)-\(nextUnlock.tier.rawValue)"
         processedAchievements.insert(achievementId)
@@ -125,18 +125,18 @@ final class AchievementCelebrationCoordinator {
     }
     
     func dismissCurrentCelebration() {
-        logger.info("👋 Dismissing current celebration")
+ logger.info("Dismissing current celebration")
         
         isShowingCelebration = false
         currentCelebration = nil
         
         if !self.celebrationQueue.isEmpty {
-            logger.info("⏭️ Showing next celebration in queue (\(self.celebrationQueue.count) remaining)")
+ logger.info("Showing next celebration in queue (\(self.celebrationQueue.count) remaining)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.showNextCelebration()
             }
         } else {
-            logger.info("🏁 Celebration queue completed")
+ logger.info("Celebration queue completed")
             self.isProcessingQueue = false
         }
     }

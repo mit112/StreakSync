@@ -15,7 +15,7 @@ extension AppState {
     /// Rebuild streaks from imported game results
     @MainActor
     func rebuildStreaksFromResults() async {
-        logger.info("🔄 Rebuilding streaks from results")
+ logger.info("Rebuilding streaks from results")
         
         // Group results by game
         let resultsByGame = Dictionary(grouping: recentResults) { $0.gameId }
@@ -104,7 +104,7 @@ extension AppState {
         // Ensure all games have streak entries (including games with zero results)
         self.streaks = ensureStreaksForAllGames(newStreaks)
         
-        logger.info("✅ Rebuilt \(newStreaks.count) streaks")
+ logger.info("Rebuilt \(newStreaks.count) streaks")
     }
     
     /// Fix existing Connections results with updated completion logic
@@ -117,10 +117,10 @@ extension AppState {
         // Find all Connections results
         let connectionsResults = recentResults.filter { $0.gameName.lowercased() == "connections" }
         
-        logger.info("🔧 Fixing existing Connections results with updated completion logic")
+ logger.info("Fixing existing Connections results with updated completion logic")
         
         guard !connectionsResults.isEmpty else {
-            logger.info("ℹ️ No Connections results found to fix")
+ logger.info("ℹ No Connections results found to fix")
             defaults.set(true, forKey: "connectionsFixV2Complete")
             return
         }
@@ -130,7 +130,7 @@ extension AppState {
         
         for (index, result) in recentResults.enumerated() {
             if result.gameName.lowercased() == "connections" {
-                logger.info("🔍 Checking Connections result: \(result.displayScore), completed: \(result.completed)")
+ logger.info("Checking Connections result: \(result.displayScore), completed: \(result.completed)")
                 
                 // Reparse the Connections result with updated logic
                 if let game = games.first(where: { $0.name.lowercased() == "connections" }) {
@@ -138,22 +138,22 @@ extension AppState {
                         let parser = GameResultParser()
                         let fixedResult = try parser.parse(result.sharedText, for: game)
                         
-                        logger.info("🔍 Reparsed result: \(fixedResult.displayScore), completed: \(fixedResult.completed)")
+ logger.info("Reparsed result: \(fixedResult.displayScore), completed: \(fixedResult.completed)")
                         
                         // Always update to ensure consistency (even if completion status is the same)
                         if fixedResult.completed != result.completed || fixedResult.score != result.score {
                             updatedResults[index] = fixedResult
                             didUpdate = true
-                            logger.info("🔧 Fixed Connections result: \(result.displayScore) -> \(fixedResult.displayScore), completed: \(result.completed) -> \(fixedResult.completed)")
+ logger.info("Fixed Connections result: \(result.displayScore) -> \(fixedResult.displayScore), completed: \(result.completed) -> \(fixedResult.completed)")
                         } else {
-                            logger.info("ℹ️ No changes needed for this result")
+ logger.info("ℹ No changes needed for this result")
                         }
                     } catch {
-                        logger.warning("⚠️ Failed to reparse Connections result: \(error)")
-                        logger.warning("⚠️ Original shared text: \(result.sharedText)")
+ logger.warning("Failed to reparse Connections result: \(error)")
+ logger.warning("Original shared text: \(result.sharedText)")
                     }
                 } else {
-                    logger.warning("⚠️ Could not find Connections game in games list")
+ logger.warning("Could not find Connections game in games list")
                 }
             }
         }
@@ -174,9 +174,9 @@ extension AppState {
             invalidateCache()
             NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
             
-            logger.info("✅ Fixed existing Connections results and rebuilt streaks")
+ logger.info("Fixed existing Connections results and rebuilt streaks")
         } else {
-            logger.debug("ℹ️ No Connections results needed fixing")
+ logger.debug("ℹ No Connections results needed fixing")
         }
         
         // Mark migration as permanently complete
@@ -186,14 +186,14 @@ extension AppState {
     /// Force fix all Connections results (for debugging/manual trigger)
     @MainActor
     public func forceFixConnectionsResults() async {
-        logger.info("🔧 FORCE FIXING Connections results...")
+ logger.info("FORCE FIXING Connections results...")
         await fixExistingConnectionsResults()
     }
     
     /// Force rebuild all streaks from scratch (for debugging/manual trigger)
     @MainActor
     public func forceRebuildAllStreaks() async {
-        logger.info("🔧 FORCE REBUILDING all streaks from scratch...")
+ logger.info("FORCE REBUILDING all streaks from scratch...")
         await rebuildStreaksFromResults()
         await saveStreaks()
         
@@ -201,32 +201,32 @@ extension AppState {
         invalidateCache()
         NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
         
-        logger.info("✅ All streaks rebuilt and saved")
+ logger.info("All streaks rebuilt and saved")
     }
     
     /// Debug function to check Connections results
     @MainActor
     public func debugConnectionsResults() {
-        logger.info("🔍 DEBUG: Checking all Connections results")
+ logger.info("DEBUG: Checking all Connections results")
         
         let connectionsResults = recentResults.filter { $0.gameName.lowercased() == "connections" }
-        logger.info("🔍 Found \(connectionsResults.count) Connections results")
+ logger.info("Found \(connectionsResults.count) Connections results")
         
         for (index, result) in connectionsResults.enumerated() {
-            logger.info("🔍 Result \(index + 1):")
-            logger.info("  - Display Score: \(result.displayScore)")
-            logger.info("  - Score: \(result.score ?? -1)")
-            logger.info("  - Max Attempts: \(result.maxAttempts)")
-            logger.info("  - Completed: \(result.completed)")
-            logger.info("  - Date: \(result.date)")
-            logger.info("  - Shared Text: \(result.sharedText)")
+ logger.info("Result \(index + 1):")
+ logger.info("- Display Score: \(result.displayScore)")
+ logger.info("- Score: \(result.score ?? -1)")
+ logger.info("- Max Attempts: \(result.maxAttempts)")
+ logger.info("- Completed: \(result.completed)")
+ logger.info("- Date: \(result.date)")
+ logger.info("- Shared Text: \(result.sharedText)")
         }
         
         // Check if Connections game exists
         if let game = games.first(where: { $0.name.lowercased() == "connections" }) {
-            logger.info("✅ Connections game found: \(game.displayName)")
+ logger.info("Connections game found: \(game.displayName)")
         } else {
-            logger.warning("⚠️ Connections game not found in games list")
+ logger.warning("Connections game not found in games list")
         }
     }
     
@@ -236,6 +236,6 @@ extension AppState {
         await saveGameResults()
         await saveStreaks()
         await saveTieredAchievements()
-        logger.info("✅ All data saved successfully")
+ logger.info("All data saved successfully")
     }
 }

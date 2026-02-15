@@ -29,7 +29,7 @@ final class AppGroupSyncCoordinator {
     
     // MARK: - Load Pending Results
     func loadPendingResults() async throws -> [GameResult] {
-        logger.info("📥 Loading pending results from App Group")
+ logger.info("Loading pending results from App Group")
         
         var results: [GameResult] = []
         
@@ -38,9 +38,9 @@ final class AppGroupSyncCoordinator {
             if !isDuplicate(latestResult) {
                 results.append(latestResult)
                 markAsProcessed(latestResult)
-                logger.info("✅ Loaded latest result: \(latestResult.gameName) #\(latestResult.parsedData["puzzleNumber"] ?? "")")
+ logger.info("Loaded latest result: \(latestResult.gameName) #\(latestResult.parsedData["puzzleNumber"] ?? "")")
             } else {
-                logger.info("⚠️ Skipped duplicate latest result")
+ logger.info("Skipped duplicate latest result")
             }
             
             // Always clear latest result after checking
@@ -49,14 +49,14 @@ final class AppGroupSyncCoordinator {
         
         // Load queued results
         if let queuedResults = loadQueuedResults() {
-            logger.info("📦 Found \(queuedResults.count) queued results")
+ logger.info("Found \(queuedResults.count) queued results")
             
             for result in queuedResults {
                 if !isDuplicate(result) {
                     results.append(result)
                     markAsProcessed(result)
                 } else {
-                    logger.debug("Skipped duplicate queued result: \(result.gameName)")
+ logger.debug("Skipped duplicate queued result: \(result.gameName)")
                 }
             }
             
@@ -66,7 +66,7 @@ final class AppGroupSyncCoordinator {
             }
         }
         
-        logger.info("✅ Loaded \(results.count) new results total")
+ logger.info("Loaded \(results.count) new results total")
         return results
     }
     
@@ -88,12 +88,12 @@ final class AppGroupSyncCoordinator {
     // MARK: - Cleanup Methods
     private func clearLatestResult() {
         appGroupPersistence.remove(forKey: AppConstants.AppGroup.latestResultKey)
-        logger.debug("🗑️ Cleared latest result from App Group")
+ logger.debug("Cleared latest result from App Group")
     }
     
     private func clearQueuedResults() {
         appGroupPersistence.remove(forKey: AppConstants.AppGroup.queuedResultsKey)
-        logger.debug("🗑️ Cleared queued results from App Group")
+ logger.debug("Cleared queued results from App Group")
     }
     
     // MARK: - Duplicate Detection
@@ -102,7 +102,7 @@ final class AppGroupSyncCoordinator {
         
         // Check hash cache
         if processedResultHashes.contains(hash) {
-            logger.debug("Duplicate by hash: \(hash)")
+ logger.debug("Duplicate by hash: \(hash)")
             return true
         }
         
@@ -111,7 +111,7 @@ final class AppGroupSyncCoordinator {
             let timeDiff = abs(result.date.timeIntervalSince(lastTimestamp))
             if timeDiff < AppConstants.Storage.duplicateTimeWindow &&
                result.gameName == result.gameName { // Same game
-                logger.debug("Duplicate by timestamp proximity: \(timeDiff)s")
+ logger.debug("Duplicate by timestamp proximity: \(timeDiff)s")
                 return true
             }
         }
@@ -140,7 +140,7 @@ final class AppGroupSyncCoordinator {
         // Maintain cache size
         if processedResultHashes.count > AppConstants.Storage.maxCacheSize {
             processedResultHashes.removeAll()
-            logger.debug("Reset duplicate detection cache")
+ logger.debug("Reset duplicate detection cache")
         }
     }
     

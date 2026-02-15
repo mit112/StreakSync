@@ -53,11 +53,11 @@ final class GuestSessionManager: ObservableObject {
     /// data so the guest starts from a clean slate. No persistence is touched.
     func enterGuestMode() {
         guard !isGuestMode else {
-            logger.info("Guest Mode already active – ignoring enterGuestMode()")
+ logger.info("Guest Mode already active – ignoring enterGuestMode()")
             return
         }
         
-        logger.info("🧑‍🤝‍🧑 Entering Guest Mode – snapshotting host state")
+ logger.info("Entering Guest Mode – snapshotting host state")
         
         // 1. Snapshot host state (in memory only).
         hostSnapshot = HostSnapshot(
@@ -85,11 +85,11 @@ final class GuestSessionManager: ObservableObject {
         shouldSyncAfterExit: Bool = true
     ) async -> URL? {
         guard isGuestMode else {
-            logger.info("Guest Mode not active – ignoring exitGuestMode()")
+ logger.info("Guest Mode not active – ignoring exitGuestMode()")
             return nil
         }
         
-        logger.info("🧑‍🤝‍🧑 Exiting Guest Mode (exportGuestData=\(exportGuestData))")
+ logger.info("Exiting Guest Mode (exportGuestData=\(exportGuestData))")
         
         var exportedURL: URL?
         if exportGuestData {
@@ -131,7 +131,7 @@ final class GuestSessionManager: ObservableObject {
         let wasInGuestMode = userDefaults.bool(forKey: guestModeFlagKey)
         guard wasInGuestMode else { return }
         
-        logger.warning("⚠️ Detected stranded Guest Mode flag on launch – clearing and restoring host context")
+ logger.warning("Detected stranded Guest Mode flag on launch – clearing and restoring host context")
         
         // Clear flag and ensure we start in host mode.
         userDefaults.removeObject(forKey: guestModeFlagKey)
@@ -149,7 +149,7 @@ final class GuestSessionManager: ObservableObject {
     private func exportGuestSession() async -> URL? {
         let guestResults = appState.recentResults
         guard !guestResults.isEmpty else {
-            logger.info("Guest Mode export requested but there are no guest results to export")
+ logger.info("Guest Mode export requested but there are no guest results to export")
             return nil
         }
         
@@ -173,7 +173,7 @@ final class GuestSessionManager: ObservableObject {
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
             
         try data.write(to: url, options: .atomic)
-        logger.info("📤 Exported guest session data to \(url.absoluteString, privacy: .private)")
+ logger.info("Exported guest session data to \(url.absoluteString, privacy: .private)")
         
         // Present a share sheet directly so the user can save/share the JSON.
         await MainActor.run {
@@ -190,7 +190,7 @@ final class GuestSessionManager: ObservableObject {
         
         return url
         } catch {
-            logger.error("❌ Failed to export guest session: \(error.localizedDescription)")
+ logger.error("Failed to export guest session: \(error.localizedDescription)")
             return nil
         }
     }

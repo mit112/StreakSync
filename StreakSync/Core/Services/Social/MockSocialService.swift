@@ -71,7 +71,7 @@ final class MockSocialService: SocialService {
             }
         }
         try save(existing, forKey: scoresKey)
-        logger.info("📝 Stored \(scores.count) scores locally (total: \(existing.count))")
+ logger.info("Stored \(scores.count) scores locally (total: \(existing.count))")
     }
     
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {

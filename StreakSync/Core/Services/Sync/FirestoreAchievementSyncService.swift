@@ -78,7 +78,7 @@ final class FirestoreAchievementSyncService {
                     let merged = merge(local: appState.tieredAchievements, remote: remote)
                     if merged != appState.tieredAchievements {
                         appState.tieredAchievements = merged
-                        logger.info("✅ Pulled and merged tiered achievements from Firestore")
+ logger.info("Pulled and merged tiered achievements from Firestore")
                     }
                 }
             }
@@ -92,12 +92,12 @@ final class FirestoreAchievementSyncService {
             // Warn at 500KB raw (~667KB base64) and refuse at 750KB (~1MB base64).
             let payloadKB = payload.count / 1024
             if payloadKB > 750 {
-                logger.error("❌ Achievement payload too large (\(payloadKB)KB) — skipping sync to avoid Firestore limit")
+ logger.error("Achievement payload too large (\(payloadKB)KB) — skipping sync to avoid Firestore limit")
                 status = .error("Data too large to sync (\(payloadKB)KB)")
                 return
             }
             if payloadKB > 500 {
-                logger.warning("⚠️ Achievement payload growing large (\(payloadKB)KB) — consider restructuring")
+ logger.warning("Achievement payload growing large (\(payloadKB)KB) — consider restructuring")
             }
             
             let summary = summarize(appState.tieredAchievements)
@@ -110,10 +110,10 @@ final class FirestoreAchievementSyncService {
             ])
 
             status = .success(Date())
-            logger.info("✅ Achievement sync completed")
+ logger.info("Achievement sync completed")
         } catch {
             let message = userFriendlyMessage(for: error)
-            logger.error("❌ Achievement sync failed: \(error.localizedDescription)")
+ logger.error("Achievement sync failed: \(error.localizedDescription)")
             status = .error(message)
         }
     }

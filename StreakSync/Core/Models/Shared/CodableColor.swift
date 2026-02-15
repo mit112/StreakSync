@@ -45,7 +45,7 @@ struct CodableColor: Codable, Hashable, Sendable {
                 // Fallback for colors that can't be converted
                 self.colorData = .systemBlue
                 let logger = Logger(subsystem: "com.streaksync.models", category: "CodableColor")
-                logger.error("Failed to convert UIColor to CodableColor, using systemBlue fallback")
+ logger.error("Failed to convert UIColor to CodableColor, using systemBlue fallback")
             }
         }
     }

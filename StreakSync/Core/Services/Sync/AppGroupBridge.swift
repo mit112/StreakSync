@@ -124,12 +124,12 @@ final class AppGroupBridge: ObservableObject {
             hasNewResults = true
             lastResultProcessedTime = Date()
             
-            logger.info("📥 Processing \(queuedResults.count) queued results")
+ logger.info("Processing \(queuedResults.count) queued results")
             
             // Process each result in the queue
             for result in queuedResults {
                 latestResult = result
-                logger.info("📥 Processing queued result: \(result.gameName)")
+ logger.info("Processing queued result: \(result.gameName)")
                 
                 // Post notification with the result object
                 NotificationCenter.default.post(
@@ -141,7 +141,7 @@ final class AppGroupBridge: ObservableObject {
             
             // Clear single-result key to prevent duplicate handling via fallback path
             dataManager.removeData(forKey: AppConstants.AppGroup.latestResultKey)
-            logger.info("🧹 Cleared latest result after queue processing to prevent duplicates")
+ logger.info("Cleared latest result after queue processing to prevent duplicates")
             
             return
         }
@@ -155,7 +155,7 @@ final class AppGroupBridge: ObservableObject {
             // Load the result
             if let result = try? await dataManager.loadGameResult(forKey: AppConstants.AppGroup.latestResultKey) {
                 latestResult = result
-                logger.info("📥 Loaded new result: \(result.gameName)")
+ logger.info("Loaded new result: \(result.gameName)")
                 
                 // Post notification with the result object
                 NotificationCenter.default.post(
@@ -165,7 +165,7 @@ final class AppGroupBridge: ObservableObject {
                 
                 // Clear the single-result key so we don't re-ingest on subsequent lifecycle events
                 clearLatestResult()
-                logger.debug("🧹 Cleared single-result App Group key after posting")
+ logger.debug("Cleared single-result App Group key after posting")
             }
         }
     }
@@ -174,7 +174,7 @@ final class AppGroupBridge: ObservableObject {
         dataManager.removeData(forKey: AppConstants.AppGroup.latestResultKey)
         hasNewResults = false
         latestResult = nil
-        logger.info("🗑️ Cleared latest result")
+ logger.info("Cleared latest result")
     }
     
     // MARK: - Private Methods

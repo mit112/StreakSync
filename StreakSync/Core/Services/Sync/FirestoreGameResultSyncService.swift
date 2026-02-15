@@ -80,20 +80,20 @@ final class FirestoreGameResultSyncService {
 
     func syncIfNeeded() async {
         guard let appState else {
-            logger.warning("⚠️ AppState deallocated – skipping sync")
+ logger.warning("AppState deallocated – skipping sync")
             return
         }
         if appState.isGuestMode {
-            logger.info("🧑‍🤝‍🧑 Guest Mode active – skipping game result sync")
+ logger.info("Guest Mode active – skipping game result sync")
             return
         }
         guard let uid = currentUserId else {
-            logger.warning("⚠️ No authenticated user – skipping game result sync")
+ logger.warning("No authenticated user – skipping game result sync")
             syncState = .offline
             return
         }
 
-        logger.info("☁️ Starting Firestore game result sync")
+ logger.info("Starting Firestore game result sync")
         syncState = .syncing
 
         do {
@@ -106,7 +106,7 @@ final class FirestoreGameResultSyncService {
             if let since = lastSyncTimestamp {
                 query = collectionRef
                     .whereField("lastModified", isGreaterThan: Timestamp(date: since))
-                logger.info("📥 Incremental sync: fetching results modified after \(since.formatted())")
+ logger.info("Incremental sync: fetching results modified after \(since.formatted())")
             }
 
             let snapshot = try await query.getDocuments(source: .default)
@@ -114,7 +114,7 @@ final class FirestoreGameResultSyncService {
                 return GameResult(fromFirestore: doc.data(), documentId: doc.documentID)
             }
 
-            logger.info("📥 Fetched \(remoteResults.count) game results from Firestore\(isIncremental ? " (incremental)" : " (full)")")
+ logger.info("Fetched \(remoteResults.count) game results from Firestore\(isIncremental ? " (incremental)" : " (full)")")
 
             // Merge: remote into local (remote is source of truth for existing IDs)
             var merged = appState.recentResults
@@ -161,7 +161,7 @@ final class FirestoreGameResultSyncService {
                 }
             }
             if !toPush.isEmpty {
-                logger.info("📤 Uploading \(toPush.count) results to Firestore")
+ logger.info("Uploading \(toPush.count) results to Firestore")
                 for result in toPush {
                     try await uploadResult(result, to: collectionRef)
                 }
@@ -176,9 +176,9 @@ final class FirestoreGameResultSyncService {
 
             syncState = .synced(lastSyncDate: Date())
             saveLastSyncTimestamp(Date())
-            logger.info("✅ Game result sync completed. Total: \(merged.count)")
+ logger.info("Game result sync completed. Total: \(merged.count)")
         } catch {
-            logger.error("❌ Game result sync failed: \(error.localizedDescription)")
+ logger.error("Game result sync failed: \(error.localizedDescription)")
             syncState = .failed(error)
         }
     }
@@ -200,9 +200,9 @@ final class FirestoreGameResultSyncService {
         Task {
             do {
                 try await uploadResult(result, to: collectionRef)
-                logger.info("📤 Uploaded game result \(result.id.uuidString)")
+ logger.info("Uploaded game result \(result.id.uuidString)")
             } catch {
-                logger.error("⚠️ Failed to upload game result: \(error.localizedDescription)")
+ logger.error("Failed to upload game result: \(error.localizedDescription)")
                 // Firestore offline cache will retry automatically when back online
             }
         }
@@ -215,9 +215,9 @@ final class FirestoreGameResultSyncService {
         do {
             try await db.collection("users").document(uid)
                 .collection("gameResults").document(id.uuidString).delete()
-            logger.info("🗑️ Deleted game result \(id.uuidString) from Firestore")
+ logger.info("Deleted game result \(id.uuidString) from Firestore")
         } catch {
-            logger.error("⚠️ Failed to delete game result from Firestore: \(error.localizedDescription)")
+ logger.error("Failed to delete game result from Firestore: \(error.localizedDescription)")
         }
     }
 

@@ -40,7 +40,7 @@ final class NotificationCoordinator: ObservableObject {
     
     // MARK: - Setup
     func setupObservers() {
-        logger.info("📡 Setting up notification observers")
+ logger.info("Setting up notification observers")
         
         // Remove any existing observers first
         removeObservers()
@@ -147,7 +147,7 @@ final class NotificationCoordinator: ObservableObject {
                 
         )
         
-        logger.info("✅ Set up \(self.observers.count) notification observers")
+ logger.info("Set up \(self.observers.count) notification observers")
     }
     
     private func removeObservers() {
@@ -158,13 +158,13 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - Cleanup
     func cleanup() {
         removeObservers()
-        logger.info("🧹 NotificationCoordinator cleaned up")
+ logger.info("NotificationCoordinator cleaned up")
     }
     
     // MARK: - Notification Handlers
     
     private func handleGameResult(_ result: GameResult, quiet: Bool) {
-        logger.info("✅ Handling game result: \(result.gameName) - \(result.displayScore)")
+ logger.info("Handling game result: \(result.gameName) - \(result.displayScore)")
         
         Task { @MainActor [weak self] in
             guard let self = self else { return }
@@ -186,22 +186,22 @@ final class NotificationCoordinator: ObservableObject {
                 HapticManager.shared.trigger(.streakUpdate)
             } else {
                 let reason = !isActive ? "app not active" : !added ? "duplicate/invalid result" : "quiet batch"
-                self.logger.debug("🔇 Haptics suppressed: \(reason)")
+ self.logger.debug("Haptics suppressed: \(reason)")
             }
         }
     }
     
     private func handleGameDeepLinkWithId(_ gameId: UUID) {
         if let game = appState?.games.first(where: { $0.id == gameId }) {
-            logger.info("🔗 Handling game deep link by id: \(gameId)")
+ logger.info("Handling game deep link by id: \(gameId)")
             navigationCoordinator?.navigateTo(.gameDetail(game))
         } else {
-            logger.error("❌ Game not found for id: \(gameId)")
+ logger.error("Game not found for id: \(gameId)")
         }
     }
     
     private func handleAchievementDeepLinkWithId(_ achievementId: UUID) {
-        logger.info("🔗 Handling achievement deep link: \(achievementId)")
+ logger.info("Handling achievement deep link: \(achievementId)")
         
         // Navigate to achievements
         navigationCoordinator?.navigateTo(.achievements)
@@ -215,11 +215,11 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - App Lifecycle
     
     private func handleAppDidBecomeActive() async {
-        logger.info("📱 App became active (via notification)")
+ logger.info("App became active (via notification)")
         
         // Skip expensive operations if navigating from notification
         if appState?.isNavigatingFromNotification == true {
-            logger.info("🚀 Skipping share extension check - navigating from notification")
+ logger.info("Skipping share extension check - navigating from notification")
             return
         }
         
@@ -228,12 +228,12 @@ final class NotificationCoordinator: ObservableObject {
     
     private func handleAppWillResignActive() {
         // Downgrade to debug to avoid duplicate lifecycle noise; AppContainer handles monitoring stop.
-        logger.debug("📱 App will resign active (NotificationCoordinator)")
+ logger.debug("App will resign active (NotificationCoordinator)")
     }
     
     private func handleShareExtensionResult() async {
         // No-op: AppGroupBridge's Darwin observer triggers the check; avoid duplicate processing here.
-        logger.info("📤 Received Share Extension notification (handled by bridge)")
+ logger.info("Received Share Extension notification (handled by bridge)")
     }
     
     // MARK: - UI Updates
@@ -242,12 +242,12 @@ final class NotificationCoordinator: ObservableObject {
         // Debounce to avoid rapid repeated refreshes from batch operations
         let now = Date()
         if let last = lastUIRefreshAt, now.timeIntervalSince(last) < uiRefreshDebounceInterval {
-            logger.debug("⏭️ Skipping UI refresh (debounced)")
+ logger.debug("Skipping UI refresh (debounced)")
             return
         }
         lastUIRefreshAt = now
         
-        logger.info("🔄 Triggering UI refresh")
+ logger.info("Triggering UI refresh")
         refreshID = UUID()
         
         // Post additional notifications for specific UI updates
@@ -260,7 +260,7 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - Public Methods
     
     func handleURLScheme(_ url: URL) -> Bool {
-        logger.info("🔗 NotificationCoordinator handling URL: \(url.absoluteString)")
+ logger.info("NotificationCoordinator handling URL: \(url.absoluteString)")
         return appGroupBridge?.handleURLScheme(url) ?? false
     }
 }

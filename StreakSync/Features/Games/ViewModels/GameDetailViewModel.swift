@@ -91,7 +91,7 @@ final class GameDetailViewModel: ObservableObject {
                 ta.requirements.contains(where: { $0.specificGameId == nil || $0.specificGameId == gameId })
             }
         
-        logger.info("🎮 Loaded data for game: \(gameName)")
+ logger.info("Loaded data for game: \(gameName)")
     }
     
     func refreshData() async {

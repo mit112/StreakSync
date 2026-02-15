@@ -27,14 +27,14 @@ final class AppGroupResultMonitor {
     func startMonitoring(onNewResult: @escaping () async -> Void) {
         // Event-driven via Darwin notifications and lifecycle; no polling needed
         guard !isMonitoring else { return }
-        logger.info("🔄 Enabling event-driven monitoring (no polling)")
+ logger.info("Enabling event-driven monitoring (no polling)")
         isMonitoring = true
         monitoringTask?.cancel()
         monitoringTask = nil
     }
     
     func stopMonitoring() {
-        logger.debug("⏹️ Stopping continuous monitoring")
+ logger.debug("Stopping continuous monitoring")
         isMonitoring = false
         monitoringTask?.cancel()
         monitoringTask = nil
@@ -47,13 +47,13 @@ final class AppGroupResultMonitor {
             let queuedResults = try await dataManager.loadGameResultQueue()
             
             if !queuedResults.isEmpty {
-                logger.info("✅ Found \(queuedResults.count) queued results")
+ logger.info("Found \(queuedResults.count) queued results")
                 return true
             }
             
             // Legacy array-based queue fallback
             if let legacy = dataManager.loadLegacyQueuedResultsArray(), !legacy.isEmpty {
-                logger.info("✅ Found \(legacy.count) legacy queued results (array)")
+ logger.info("Found \(legacy.count) legacy queued results (array)")
                 return true
             }
             
@@ -69,11 +69,11 @@ final class AppGroupResultMonitor {
             
             // New result detected
             lastKnownResultId = result.id
-            logger.info("✅ New result detected: \(result.gameName)")
+ logger.info("New result detected: \(result.gameName)")
             return true
             
         } catch {
-            logger.error("Error checking for result: \(error)")
+ logger.error("Error checking for result: \(error)")
             return false
         }
     }
@@ -86,21 +86,21 @@ final class AppGroupResultMonitor {
             if !queuedResults.isEmpty {
                 // Clear the queue after processing
                 dataManager.clearGameResultQueue()
-                logger.info("✅ Processed and cleared \(queuedResults.count) queued results")
+ logger.info("Processed and cleared \(queuedResults.count) queued results")
                 return queuedResults
             }
             
             // Fallback: process legacy array-based queue
             if let legacy = dataManager.loadLegacyQueuedResultsArray(), !legacy.isEmpty {
                 dataManager.clearLegacyQueuedResultsArray()
-                logger.info("✅ Processed and cleared \(legacy.count) legacy queued results (array)")
+ logger.info("Processed and cleared \(legacy.count) legacy queued results (array)")
                 return legacy
             }
             
             return []
             
         } catch {
-            logger.error("Error processing queued results: \(error)")
+ logger.error("Error processing queued results: \(error)")
             return []
         }
     }

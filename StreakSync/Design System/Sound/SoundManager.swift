@@ -60,7 +60,7 @@ final class SoundManager: ObservableObject {
             try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
-            logger.error("Failed to setup audio session: \(error)")
+ logger.error("Failed to setup audio session: \(error)")
         }
     }
     
@@ -95,7 +95,7 @@ final class SoundManager: ObservableObject {
         if now.timeIntervalSince(lastSoundTime) < minimumSoundInterval {
             // Queue the sound instead of playing immediately
             soundQueue.append((type, now))
-            logger.info("🎵 Queued sound: \(type.rawValue) (throttled)")
+ logger.info("Queued sound: \(type.rawValue) (throttled)")
             return
         }
         
@@ -122,7 +122,7 @@ final class SoundManager: ObservableObject {
             AudioServicesPlaySystemSound(1103)
         }
         
-        logger.info("🔊 Playing sound: \(type.rawValue)")
+ logger.info("Playing sound: \(type.rawValue)")
     }
     
     private func processQueuedSounds() {

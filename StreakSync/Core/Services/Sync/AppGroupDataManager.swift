@@ -54,7 +54,7 @@ final class AppGroupDataManager {
         do {
             return try decoder.decode(GameResult.self, from: data)
         } catch {
-            logger.error("Failed to decode game result: \(error)")
+ logger.error("Failed to decode game result: \(error)")
             // Provide the required string argument describing what data was corrupted
             throw AppError.persistence(.dataCorrupted(dataType: "GameResult"))
         }
@@ -69,13 +69,13 @@ final class AppGroupDataManager {
         userDefaults.set(data, forKey: key)
         userDefaults.synchronize()
         
-        logger.debug("Saved game result to key: \(key)")
+ logger.debug("Saved game result to key: \(key)")
     }
     
     func removeData(forKey key: String) {
         userDefaults?.removeObject(forKey: key)
         userDefaults?.synchronize()
-        logger.debug("Removed data for key: \(key)")
+ logger.debug("Removed data for key: \(key)")
     }
     
     func loadGameResultQueue() async throws -> [GameResult] {
@@ -90,7 +90,7 @@ final class AppGroupDataManager {
         do {
             // Decode the array of result keys
             guard let resultKeys = try JSONSerialization.jsonObject(with: keysData) as? [String] else {
-                logger.error("Failed to decode game result keys")
+ logger.error("Failed to decode game result keys")
                 return []
             }
             
@@ -102,17 +102,17 @@ final class AppGroupDataManager {
                         let result = try decoder.decode(GameResult.self, from: resultData)
                         results.append(result)
                     } catch {
-                        logger.error("Failed to decode game result for key \(key): \(error)")
+ logger.error("Failed to decode game result for key \(key): \(error)")
                         // Continue processing other results
                     }
                 }
             }
             
-            logger.info("Loaded \(results.count) results from queue")
+ logger.info("Loaded \(results.count) results from queue")
             return results
             
         } catch {
-            logger.error("Failed to decode game result keys: \(error)")
+ logger.error("Failed to decode game result keys: \(error)")
             throw AppError.persistence(.dataCorrupted(dataType: "GameResultKeys"))
         }
     }
@@ -134,7 +134,7 @@ final class AppGroupDataManager {
         userDefaults.removeObject(forKey: "gameResultKeys")
         userDefaults.synchronize()
         
-        logger.info("Cleared game result queue")
+ logger.info("Cleared game result queue")
     }
     
     // MARK: - Legacy Queue (Array) Support
@@ -149,11 +149,11 @@ final class AppGroupDataManager {
         do {
             let results = try decoder.decode([GameResult].self, from: data)
             if !results.isEmpty {
-                logger.info("Loaded \(results.count) legacy queued results (array)")
+ logger.info("Loaded \(results.count) legacy queued results (array)")
             }
             return results
         } catch {
-            logger.error("Failed to decode legacy queued results array: \(error)")
+ logger.error("Failed to decode legacy queued results array: \(error)")
             return nil
         }
     }
@@ -163,7 +163,7 @@ final class AppGroupDataManager {
         guard let userDefaults = userDefaults else { return }
         userDefaults.removeObject(forKey: AppConstants.AppGroup.queuedResultsKey)
         userDefaults.synchronize()
-        logger.info("Cleared legacy queued results array")
+ logger.info("Cleared legacy queued results array")
     }
     
     func clearAll() {
@@ -175,6 +175,6 @@ final class AppGroupDataManager {
         }
         userDefaults.synchronize()
         
-        logger.info("Cleared all App Group data")
+ logger.info("Cleared all App Group data")
     }
 }

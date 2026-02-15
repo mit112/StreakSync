@@ -93,7 +93,7 @@ final class DayChangeDetector: ObservableObject {
             currentDay = newDay
             
             // Log the day change
-            logger.info("📅 Day changed from \(oldDay) to \(newDay)")
+ logger.info("Day changed from \(oldDay) to \(newDay)")
             
             // Post notification for other parts of the app to respond
             NotificationCenter.default.post(

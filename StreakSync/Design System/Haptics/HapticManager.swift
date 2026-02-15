@@ -43,7 +43,7 @@ public final class HapticManager {
             hapticEngine = try CHHapticEngine()
             try hapticEngine?.start()
         } catch {
-            logger.error("Failed to start haptic engine: \(error.localizedDescription)")
+ logger.error("Failed to start haptic engine: \(error.localizedDescription)")
         }
     }
     
@@ -111,7 +111,7 @@ public final class HapticManager {
             let player = try engine.makePlayer(with: pattern)
             try player.start(atTime: 0)
         } catch {
-            logger.error("Failed to play custom haptic pattern: \(error.localizedDescription)")
+ logger.error("Failed to play custom haptic pattern: \(error.localizedDescription)")
         }
     }
     

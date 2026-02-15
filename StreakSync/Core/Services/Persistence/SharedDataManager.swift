@@ -26,7 +26,7 @@ final class SharedDataManager {
         // Use atomic write for data integrity
         try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
         
-        logger.info("Saved result to file: \(fileURL.lastPathComponent)")
+ logger.info("Saved result to file: \(fileURL.lastPathComponent)")
     }
     
     func loadLatestResult() throws -> GameResult? {

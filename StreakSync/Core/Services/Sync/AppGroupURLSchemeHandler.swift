@@ -15,15 +15,15 @@ final class AppGroupURLSchemeHandler {
     
     // MARK: - URL Handling
     func handleURLScheme(_ url: URL) -> Bool {
-        logger.info("Handling URL: \(url.absoluteString)")
+ logger.info("Handling URL: \(url.absoluteString)")
         
         guard url.scheme == "streaksync" else {
-            logger.error("Invalid URL scheme: \(url.scheme ?? "nil")")
+ logger.error("Invalid URL scheme: \(url.scheme ?? "nil")")
             return false
         }
         
         guard let host = url.host else {
-            logger.warning("URL missing host component")
+ logger.warning("URL missing host component")
             return false
         }
         
@@ -43,14 +43,14 @@ final class AppGroupURLSchemeHandler {
             return handleJoinDeepLink(parameters)
             
         default:
-            logger.warning("Unknown URL scheme host: \(host)")
+ logger.warning("Unknown URL scheme host: \(host)")
             return false
         }
     }
     
     // MARK: - Private Handlers
     private func handleNewResultLink() -> Bool {
-        logger.info("Received new result URL scheme trigger")
+ logger.info("Received new result URL scheme trigger")
         
         NotificationCenter.default.post(
             name: .appHandleNewGameResult,
@@ -67,7 +67,7 @@ final class AppGroupURLSchemeHandler {
                 name: .openGameRequested,
                 object: [AppConstants.DeepLinkKeys.gameId: uuid]
             )
-            logger.info("Handled game deep link for id: \(uuid)")
+ logger.info("Handled game deep link for id: \(uuid)")
             return true
         }
         if let name = parameters[AppConstants.DeepLinkKeys.name], !name.isEmpty {
@@ -75,16 +75,16 @@ final class AppGroupURLSchemeHandler {
                 name: .openGameRequested,
                 object: [AppConstants.DeepLinkKeys.name: name]
             )
-            logger.info("Handled game deep link for name: \(name)")
+ logger.info("Handled game deep link for name: \(name)")
             return true
         }
-        logger.warning("Game deep link missing identifiers")
+ logger.warning("Game deep link missing identifiers")
         return false
     }
     
     private func handleAchievementDeepLink(_ parameters: [String: String]) -> Bool {
         guard let idString = parameters["id"], let uuid = UUID(uuidString: idString) else {
-            logger.warning("Achievement deep link missing or invalid id parameter")
+ logger.warning("Achievement deep link missing or invalid id parameter")
             return false
         }
         
@@ -93,13 +93,13 @@ final class AppGroupURLSchemeHandler {
             object: [AppConstants.DeepLinkKeys.achievementId: uuid]
         )
         
-        logger.info("Handled achievement deep link for: \(uuid)")
+ logger.info("Handled achievement deep link for: \(uuid)")
         return true
     }
     
     private func handleJoinDeepLink(_ parameters: [String: String]) -> Bool {
         guard let code = parameters["code"], !code.isEmpty else {
-            logger.warning("Join deep link missing code parameter")
+ logger.warning("Join deep link missing code parameter")
             return false
         }
         
@@ -108,7 +108,7 @@ final class AppGroupURLSchemeHandler {
             object: ["code": code]
         )
         
-        logger.info("Handled join deep link with code: \(code)")
+ logger.info("Handled join deep link with code: \(code)")
         return true
     }
 }

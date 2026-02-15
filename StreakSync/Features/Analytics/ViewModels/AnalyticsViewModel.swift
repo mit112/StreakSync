@@ -83,7 +83,7 @@ final class AnalyticsViewModel: ObservableObject {
     
     /// Load analytics data for a specific time range and game
     func loadAnalytics(for timeRange: AnalyticsTimeRange, game: Game? = nil) async {
-        logger.info("📊 Loading analytics for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
+ logger.info("Loading analytics for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
         
         isLoading = true
         errorMessage = nil
@@ -102,12 +102,12 @@ final class AnalyticsViewModel: ObservableObject {
         scope.gameId = selectedGame?.id
         scope.save()
         
-        logger.info("✅ Analytics loaded successfully for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
+ logger.info("Analytics loaded successfully for \(timeRange.displayName) - \(game?.displayName ?? "All Games")")
     }
     
     /// Refresh analytics data
     func refreshAnalytics() async {
-        logger.info("🔄 Refreshing analytics data for \(self.selectedGame?.displayName ?? "All Games")")
+ logger.info("Refreshing analytics data for \(self.selectedGame?.displayName ?? "All Games")")
         analyticsService.clearCache()
         await loadAnalytics(for: selectedTimeRange, game: selectedGame)
     }
@@ -116,7 +116,7 @@ final class AnalyticsViewModel: ObservableObject {
     func changeTimeRange(to timeRange: AnalyticsTimeRange) async {
         guard timeRange != selectedTimeRange else { return }
         
-        logger.info("📅 Changing time range to \(timeRange.displayName) for \(self.selectedGame?.displayName ?? "All Games")")
+ logger.info("Changing time range to \(timeRange.displayName) for \(self.selectedGame?.displayName ?? "All Games")")
         await loadAnalytics(for: timeRange, game: selectedGame)
     }
     
@@ -125,9 +125,9 @@ final class AnalyticsViewModel: ObservableObject {
         guard game?.id != selectedGame?.id else { return }
         
         if let game = game {
-            logger.info("🎮 Selecting game: \(game.displayName)")
+ logger.info("Selecting game: \(game.displayName)")
         } else {
-            logger.info("🎮 Selecting all games")
+ logger.info("Selecting all games")
         }
         
         selectedGame = game

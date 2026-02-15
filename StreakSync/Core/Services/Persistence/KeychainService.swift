@@ -31,7 +31,7 @@ struct KeychainService {
 
         let status = SecItemAdd(query as CFDictionary, nil)
         if status != errSecSuccess {
-            logger.warning("⚠️ Keychain save failed for key '\(key)': \(status)")
+ logger.warning("Keychain save failed for key '\(key)': \(status)")
         }
         return status == errSecSuccess
     }
@@ -50,7 +50,7 @@ struct KeychainService {
 
         guard status == errSecSuccess else {
             if status != errSecItemNotFound {
-                logger.warning("⚠️ Keychain load failed for key '\(key)': \(status)")
+ logger.warning("Keychain load failed for key '\(key)': \(status)")
             }
             return nil
         }
@@ -75,7 +75,7 @@ struct KeychainService {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         guard let data = try? encoder.encode(object) else {
-            logger.warning("⚠️ Keychain encode failed for key '\(key)'")
+ logger.warning("Keychain encode failed for key '\(key)'")
             return false
         }
         return save(data, forKey: key)

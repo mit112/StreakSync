@@ -60,11 +60,11 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
             return
         }
         
-        logger.debug("💾 Saving data for key: \(key)")
+ logger.debug("Saving data for key: \(key)")
         do {
             let data = try encoder.encode(object)
             userDefaults.set(data, forKey: key)
-            logger.debug("✅ Successfully saved data for key: \(key) (\(data.count) bytes)")
+ logger.debug("Successfully saved data for key: \(key) (\(data.count) bytes)")
         } catch let error as AppError {
             throw error
         } catch {
@@ -78,17 +78,17 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
             return loadFromFile(type, url: gameResultsFileURL) ?? migrateGameResultsFromUserDefaults(type)
         }
         
-        logger.debug("📖 Loading data for key: \(key)")
+ logger.debug("Loading data for key: \(key)")
         guard let data = userDefaults.data(forKey: key) else {
-            logger.debug("No data found for key: \(key)")
+ logger.debug("No data found for key: \(key)")
             return nil
         }
         do {
             let object = try decoder.decode(type, from: data)
-            logger.debug("✅ Successfully loaded data for key: \(key)")
+ logger.debug("Successfully loaded data for key: \(key)")
             return object
         } catch {
-            logger.error("❌ Failed to decode data for key: \(key) - \(error.localizedDescription)")
+ logger.error("Failed to decode data for key: \(key) - \(error.localizedDescription)")
             return nil
         }
     }
@@ -98,7 +98,7 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
             try? FileManager.default.removeItem(at: gameResultsFileURL)
         }
         userDefaults.removeObject(forKey: key)
-        logger.info("🗑️ Removed data for key: \(key)")
+ logger.info("Removed data for key: \(key)")
     }
     
     func clearAll() {
@@ -106,7 +106,7 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
         for key in keys {
             remove(forKey: key)
         }
-        logger.info("🗑️ Cleared all persistence data")
+ logger.info("Cleared all persistence data")
     }
     
     // MARK: - File-Based Storage (for large datasets like game results)
@@ -115,9 +115,9 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
         do {
             let data = try encoder.encode(object)
             try data.write(to: url, options: .atomic)
-            logger.debug("💾 Saved \(data.count) bytes to \(url.lastPathComponent)")
+ logger.debug("Saved \(data.count) bytes to \(url.lastPathComponent)")
         } catch {
-            logger.error("❌ Failed to save to file \(url.lastPathComponent): \(error.localizedDescription)")
+ logger.error("Failed to save to file \(url.lastPathComponent): \(error.localizedDescription)")
             throw AppError.persistence(.saveFailed(dataType: url.lastPathComponent, underlying: error))
         }
     }
@@ -127,10 +127,10 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
         do {
             let data = try Data(contentsOf: url)
             let object = try decoder.decode(type, from: data)
-            logger.debug("📖 Loaded \(data.count) bytes from \(url.lastPathComponent)")
+ logger.debug("Loaded \(data.count) bytes from \(url.lastPathComponent)")
             return object
         } catch {
-            logger.error("❌ Failed to load from file \(url.lastPathComponent): \(error.localizedDescription)")
+ logger.error("Failed to load from file \(url.lastPathComponent): \(error.localizedDescription)")
             return nil
         }
     }
@@ -146,10 +146,10 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
             try encoded.write(to: gameResultsFileURL, options: .atomic)
             // Remove from UserDefaults
             userDefaults.removeObject(forKey: Keys.gameResults)
-            logger.info("✅ Migrated game results from UserDefaults to file storage (\(encoded.count) bytes)")
+ logger.info("Migrated game results from UserDefaults to file storage (\(encoded.count) bytes)")
             return object
         } catch {
-            logger.error("❌ Game results migration failed: \(error.localizedDescription)")
+ logger.error("Game results migration failed: \(error.localizedDescription)")
             // Fall through — data stays in UserDefaults until next successful migration
             return try? decoder.decode(type, from: data)
         }
@@ -183,14 +183,14 @@ final class AppGroupPersistenceService {
             throw AppError.sync(.appGroupCommunicationFailed)
         }
         
-        logger.debug("💾 Saving to App Group for key: \(key)")
+ logger.debug("Saving to App Group for key: \(key)")
         
         do {
             let data = try encoder.encode(object)
             userDefaults.set(data, forKey: key)
             // synchronize() is unnecessary on modern iOS; let the system flush
             
-            logger.debug("✅ Successfully saved to App Group for key: \(key)")
+ logger.debug("Successfully saved to App Group for key: \(key)")
         } catch let error as AppError {
             throw error
         } catch {
@@ -200,28 +200,28 @@ final class AppGroupPersistenceService {
     
     func load<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
         guard let userDefaults = UserDefaults(suiteName: appGroupID) else {
-            logger.error("❌ Invalid App Group ID: \(self.appGroupID)")
+ logger.error("Invalid App Group ID: \(self.appGroupID)")
             return nil
         }
         
         guard let data = userDefaults.data(forKey: key) else {
-            logger.debug("No App Group data found for key: \(key)")
+ logger.debug("No App Group data found for key: \(key)")
             return nil
         }
         
         do {
             let object = try decoder.decode(type, from: data)
-            logger.debug("✅ Successfully loaded from App Group for key: \(key)")
+ logger.debug("Successfully loaded from App Group for key: \(key)")
             
             // CRITICAL: Log date verification for GameResult
             if let result = object as? GameResult {
-                logger.debug("🕐 LOADED APP GROUP RESULT DATE: \(result.date)")
-                logger.debug("📅 YEAR VERIFICATION: \(Calendar.current.component(.year, from: result.date))")
+ logger.debug("LOADED APP GROUP RESULT DATE: \(result.date)")
+ logger.debug("YEAR VERIFICATION: \(Calendar.current.component(.year, from: result.date))")
             }
             
             return object
         } catch {
-            logger.error("❌ Failed to decode App Group data for key: \(key) - \(error.localizedDescription)")
+ logger.error("Failed to decode App Group data for key: \(key) - \(error.localizedDescription)")
             return nil
         }
     }
@@ -231,6 +231,6 @@ final class AppGroupPersistenceService {
         
         userDefaults.removeObject(forKey: key)
         // synchronize() is unnecessary on modern iOS; let the system flush
-        logger.info("🗑️ Removed App Group data for key: \(key)")
+ logger.info("Removed App Group data for key: \(key)")
     }
 }

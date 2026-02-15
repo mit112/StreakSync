@@ -16,20 +16,20 @@ extension AppState {
     @discardableResult
     func addGameResult(_ result: GameResult) -> Bool {
         guard result.isValid else {
-            logger.warning("Attempted to add invalid game result")
+ logger.warning("Attempted to add invalid game result")
             return false
         }
 
         // Enhanced duplicate check
         guard !isDuplicateResult(result) else {
-            logger.debug("Skipping duplicate result: \(result.gameName) - \(result.displayScore)")
+ logger.debug("Skipping duplicate result: \(result.gameName) - \(result.displayScore)")
             return false
         }
 
         // In Guest Mode, enforce a simple upper bound on in-memory guest
         // results to avoid unbounded memory growth.
         if isGuestMode && recentResults.count >= 100 {
-            logger.warning("🧑‍🤝‍🧑 Guest Mode result limit reached (100) – rejecting additional guest results")
+ logger.warning("Guest Mode result limit reached (100) – rejecting additional guest results")
             return false
         }
 
@@ -78,11 +78,11 @@ extension AppState {
                 self.recentResults.removeLast(overflow)
                 self.buildResultsCache()
                 await self.saveGameResults()
-                self.logger.info("🗑️ Pruned \(overflow) oldest results (limit: \(AppConstants.Storage.maxResults))")
+ self.logger.info("Pruned \(overflow) oldest results (limit: \(AppConstants.Storage.maxResults))")
             }
         }
 
-        logger.info("Added game result for \(result.gameName)")
+ logger.info("Added game result for \(result.gameName)")
 
         // Check for streak risk and schedule reminders (host mode only)
         if !isGuestMode {
@@ -95,7 +95,7 @@ extension AppState {
         if !isGuestMode {
             publishScoreToSocial(result)
         } else {
-            logger.warning("⚠️ GUEST MODE - Score NOT published")
+ logger.warning("GUEST MODE - Score NOT published")
         }
 
         return true
@@ -114,7 +114,7 @@ extension AppState {
         // Throttle: skip if same game was published within 5 seconds
         if let lastPublish = lastScorePublishByGame[result.gameId],
            Date().timeIntervalSince(lastPublish) < 5.0 {
-            logger.debug("⏭️ Throttled score publish for \(result.gameName) (< 5s since last)")
+ logger.debug("Throttled score publish for \(result.gameName) (< 5s since last)")
             return
         }
         lastScorePublishByGame[result.gameId] = Date()
@@ -124,11 +124,11 @@ extension AppState {
         Task { [weak self] in
             guard let self else { return }
             guard let social = self.socialService else {
-                logger.warning("⚠️ socialService is nil — score not published")
+ logger.warning("socialService is nil — score not published")
                 return
             }
             guard let userId = social.currentUserId else {
-                logger.warning("⚠️ No authenticated user — score not published")
+ logger.warning("No authenticated user — score not published")
                 return
             }
             let dateInt = result.date.utcYYYYMMDD
@@ -148,9 +148,9 @@ extension AppState {
             )
             do {
                 try await social.publishDailyScores(dateUTC: result.date, scores: [score])
-                logger.info("✅ Score published for \(result.gameName)")
+ logger.info("Score published for \(result.gameName)")
             } catch {
-                logger.error("❌ Score publish failed: \(error.localizedDescription)")
+ logger.error("Score publish failed: \(error.localizedDescription)")
             }
         }
     }

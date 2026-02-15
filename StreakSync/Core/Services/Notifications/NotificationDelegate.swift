@@ -33,7 +33,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        logger.info("📱 Received notification while app is active: \(notification.request.identifier)")
+ logger.info("Received notification while app is active: \(notification.request.identifier)")
         
         // Show banner, list, and play sound so notifications stay in notification center
         completionHandler([.banner, .list, .sound])
@@ -51,7 +51,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
         let gameIdString = response.notification.request.content.userInfo["gameId"] as? String
         let achievementIdString = response.notification.request.content.userInfo["achievementId"] as? String
         
-        logger.info("👆 User interacted with notification: \(actionIdentifier)")
+ logger.info("User interacted with notification: \(actionIdentifier)")
         
         Task { @MainActor in
             await handleNotificationResponse(
@@ -95,7 +95,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
             await handleViewAchievement(achievementIdString: achievementIdString)
             
         default:
-            logger.info("🤷 Unknown notification action: \(actionIdentifier)")
+ logger.info("Unknown notification action: \(actionIdentifier)")
         }
     }
     
@@ -111,18 +111,18 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
             await handleOpenGame(gameIdString: gameIdString)
             
         default:
-            logger.info("🤷 Unknown notification category: \(categoryIdentifier)")
+ logger.info("Unknown notification category: \(categoryIdentifier)")
         }
     }
     
     @MainActor private func handleOpenGame(gameIdString: String?) async {
         guard let gameIdString = gameIdString,
               let gameId = UUID(uuidString: gameIdString) else {
-            logger.warning("⚠️ Missing or invalid gameId in notification")
+ logger.warning("Missing or invalid gameId in notification")
             return
         }
         
-        logger.info("🎮 Opening game: \(gameId)")
+ logger.info("Opening game: \(gameId)")
         
         // Set flag to indicate we're navigating from notification
         appState?.isNavigatingFromNotification = true
@@ -130,7 +130,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
     }
     
     @MainActor private func handleSnooze(days: Int) async {
-        logger.info("😴 Snoozing reminder for \(days) days")
+ logger.info("Snoozing reminder for \(days) days")
         
         // Compute user's preferred time
         let hour = UserDefaults.standard.object(forKey: "streakReminderHour") as? Int ?? 19
@@ -163,11 +163,11 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
     @MainActor private func handleMarkPlayed(gameIdString: String?) async {
         guard let gameIdString = gameIdString,
               let gameId = UUID(uuidString: gameIdString) else {
-            logger.warning("⚠️ Missing or invalid gameId in mark played action")
+ logger.warning("Missing or invalid gameId in mark played action")
             return
         }
         
-        logger.info("✅ Marking game as played: \(gameId)")
+ logger.info("Marking game as played: \(gameId)")
         
         // Re-evaluate schedules immediately (will cancel or reschedule as needed)
         await appState?.checkAndScheduleStreakReminders()
@@ -176,11 +176,11 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
     @MainActor private func handleViewAchievement(achievementIdString: String?) async {
         guard let achievementIdString = achievementIdString,
               let achievementId = UUID(uuidString: achievementIdString) else {
-            logger.warning("⚠️ Missing or invalid achievementId in notification")
+ logger.warning("Missing or invalid achievementId in notification")
             return
         }
         
-        logger.info("🏆 Opening achievement: \(achievementId)")
+ logger.info("Opening achievement: \(achievementId)")
         
         // Navigate to achievements tab and highlight the specific achievement
         navigationCoordinator?.navigateToAchievements(highlightId: achievementId)

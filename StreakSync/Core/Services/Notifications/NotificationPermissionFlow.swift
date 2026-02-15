@@ -32,16 +32,16 @@ final class NotificationPermissionFlowViewModel: ObservableObject {
             await checkPermissionStatus()
             
             if granted {
-                logger.info("✅ Notification permission granted")
+ logger.info("Notification permission granted")
                 // Register notification categories
                 await NotificationScheduler.shared.registerCategories()
             } else {
-                logger.warning("⚠️ Notification permission denied")
+ logger.warning("Notification permission denied")
             }
             
             return granted
         } catch {
-            logger.error("❌ Failed to request notification permission: \(error.localizedDescription)")
+ logger.error("Failed to request notification permission: \(error.localizedDescription)")
             return false
         }
     }
