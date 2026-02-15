@@ -119,7 +119,7 @@ StreakSync/
 | Storage | UserDefaults + App Group + Keychain |
 | Notifications | UNUserNotificationCenter with smart scheduling |
 | Linting | SwiftLint (90+ rules, strict mode) |
-| Testing | XCTest (133 unit tests) |
+| Testing | XCTest (177 unit tests) |
 
 ## Security
 
@@ -172,7 +172,7 @@ xcodebuild test -project StreakSync.xcodeproj -scheme StreakSync -destination 'p
 
 ## Testing
 
-133 unit tests across 13 test files covering:
+177 unit tests across 14 test files covering:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|---------|
@@ -181,10 +181,12 @@ xcodebuild test -project StreakSync.xcodeproj -scheme StreakSync -destination 'p
 | GameDetectionTests | 17 | Share extension game detection |
 | NotificationContentTests | 13 | Notification content builder |
 | NormalizeStreaksTests | 10 | Streak normalization edge cases |
-| GameResultParserTests | — | Per-game result parsing |
-| LeaderboardScoringTests | — | Daily score computation |
-| StreakLogicTests | — | Core streak logic |
-| + 5 more suites | — | Sync, ingestion, social settings |
+| GameResultParserTests | 10 | Per-game result parsing |
+| LeaderboardScoringTests | 23 | All 5 scoring models + metric labels |
+| SocialModelTests | 18 | UserProfile, Friendship, DailyGameScore, Date |
+| StreakLogicTests | 15 | Core streak logic |
+| SyncMergeTests | 13 | Sync merge scenarios |
+| + 3 more suites | — | Ingestion, social settings, load |
 
 ## License
 
