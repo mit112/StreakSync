@@ -1,133 +1,174 @@
-/*
- * LEADERBOARDSCORINGTESTS - COMPREHENSIVE TESTING FOR SOCIAL SCORING LOGIC
- * 
- * WHAT THIS FILE DOES:
- * This file provides comprehensive unit tests for the leaderboard scoring system,
- * ensuring that different game types are scored correctly and fairly. It's like a
- * "scoring validation system" that verifies the complex scoring logic works correctly
- * for all supported games. Think of it as the "quality assurance tool" that ensures
- * the social features work properly and users get fair, accurate rankings.
- * 
- * WHY IT EXISTS:
- * The leaderboard scoring system is complex because different games have different
- * scoring models (lower attempts, lower time, higher scores, etc.). This test file
- * ensures that all these different scoring models work correctly and produce fair,
- * comparable results. Without these tests, scoring bugs could lead to unfair
- * leaderboards and poor user experience.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This ensures the social features work correctly and fairly
- * - Tests all scoring models: lowerAttempts, lowerTimeSeconds, lowerGuesses, lowerHints, higherIsBetter
- * - Validates that scoring produces fair, comparable results
- * - Ensures leaderboards are accurate and trustworthy
- * - Prevents scoring bugs that could affect user experience
- * - Provides confidence in the social features
- * 
- * WHAT IT REFERENCES:
- * - XCTest: For unit testing framework
- * - StreakSync: The main app module being tested
- * - LeaderboardScoring: The scoring logic being tested
- * - Game: Game models with different scoring types
- * - DailyGameScore: Score data for testing
- * 
- * WHAT REFERENCES IT:
- * - CI/CD pipeline: Runs these tests automatically
- * - Development workflow: Developers run these tests before committing
- * - Quality assurance: Ensures scoring logic works correctly
- * - Social features: Validates that leaderboards work properly
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. TEST COVERAGE IMPROVEMENTS:
- *    - The current tests are good but could be more comprehensive
- *    - Consider adding edge case tests (zero scores, maximum scores, etc.)
- *    - Add tests for score validation and error handling
- *    - Test with different game configurations
- * 
- * 2. TEST DATA IMPROVEMENTS:
- *    - The current test data is good but could be more varied
- *    - Consider adding more realistic test scenarios
- *    - Add tests with different user profiles and score distributions
- *    - Test with historical data patterns
- * 
- * 3. TEST ORGANIZATION IMPROVEMENTS:
- *    - The current organization is good but could be more modular
- *    - Consider separating tests by game type or scoring model
- *    - Add helper methods for common test setup
- *    - Implement test data builders for complex scenarios
- * 
- * 4. ASSERTION IMPROVEMENTS:
- *    - The current assertions are good but could be more detailed
- *    - Consider adding more specific error messages
- *    - Add assertions for edge cases and boundary conditions
- *    - Test for performance characteristics
- * 
- * 5. TESTING STRATEGIES:
- *    - Add property-based testing for scoring consistency
- *    - Implement integration tests with real data
- *    - Add performance tests for large datasets
- *    - Test with different user scenarios
- * 
- * 6. DOCUMENTATION IMPROVEMENTS:
- *    - Add detailed documentation for test scenarios
- *    - Document the expected behavior for each scoring model
- *    - Add examples of how to add new scoring tests
- *    - Create testing guidelines for scoring logic
- * 
- * 7. TESTING TOOLS:
- *    - Consider adding test coverage reporting
- *    - Implement automated test result analysis
- *    - Add test performance monitoring
- *    - Use test data generation tools
- * 
- * 8. CONTINUOUS INTEGRATION:
- *    - Ensure tests run on every commit
- *    - Add test result reporting and notifications
- *    - Implement test failure analysis
- *    - Add test performance monitoring
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - Unit testing: Testing individual components in isolation
- * - Test-driven development: Writing tests before implementing features
- * - Scoring systems: Converting different game metrics to comparable scores
- * - Social features: Features that involve multiple users and competition
- * - Quality assurance: Ensuring code works correctly and reliably
- * - Test coverage: Measuring how much of the code is tested
- * - Edge cases: Unusual or extreme scenarios that need testing
- * - Assertions: Statements that verify expected behavior
- * - Test data: Data used specifically for testing purposes
- * - Continuous integration: Automatically running tests on code changes
- */
+//
+//  LeaderboardScoringTests.swift
+//  StreakSyncTests
+//
 
 import XCTest
 @testable import StreakSync
 
 final class LeaderboardScoringTests: XCTestCase {
-    func testAttemptsScoring() {
-        let game = Game.wordle
-        let score = DailyGameScore(id: "u|20250101|g", userId: "u", dateInt: 20250101, gameId: game.id, gameName: game.displayName, score: 3, maxAttempts: 6, completed: true, currentStreak: nil)
-        XCTAssertEqual(LeaderboardScoring.points(for: score, game: game), 4) // 6-3+1
+
+    // MARK: - Helpers
+
+    private func makeScore(
+        gameId: UUID = Game.wordle.id,
+        gameName: String = "Wordle",
+        score: Int? = 3,
+        maxAttempts: Int = 6,
+        completed: Bool = true,
+        currentStreak: Int? = nil
+    ) -> DailyGameScore {
+        DailyGameScore(
+            id: "u|20250101|\(gameId.uuidString)",
+            userId: "user1",
+            dateInt: 20250101,
+            gameId: gameId,
+            gameName: gameName,
+            score: score,
+            maxAttempts: maxAttempts,
+            completed: completed,
+            currentStreak: currentStreak
+        )
     }
 
-    func testHintsScoring() {
-        let game = Game.strands
-        let score = DailyGameScore(id: "u|20250101|g", userId: "u", dateInt: 20250101, gameId: game.id, gameName: game.displayName, score: 2, maxAttempts: 10, completed: true, currentStreak: nil)
-        XCTAssertEqual(LeaderboardScoring.points(for: score, game: game), 9) // 10-2+1
+    // MARK: - Lower Attempts / Lower Guesses
+
+    func testAttemptsScoring_wordleSolvedIn3() {
+        let pts = LeaderboardScoring.points(for: makeScore(score: 3, maxAttempts: 6), game: .wordle)
+        XCTAssertEqual(pts, 4, "6 - 3 + 1 = 4")
     }
 
-    func testTimeBucketing() {
-        let game = Game.miniCrossword
-        let fast = DailyGameScore(id: "f|2025|g", userId: "f", dateInt: 20250101, gameId: game.id, gameName: game.displayName, score: 25, maxAttempts: 0, completed: true, currentStreak: nil)
-        let medium = DailyGameScore(id: "m|2025|g", userId: "m", dateInt: 20250101, gameId: game.id, gameName: game.displayName, score: 95, maxAttempts: 0, completed: true, currentStreak: nil)
-        let slow = DailyGameScore(id: "s|2025|g", userId: "s", dateInt: 20250101, gameId: game.id, gameName: game.displayName, score: 190, maxAttempts: 0, completed: true, currentStreak: nil)
-        XCTAssertTrue(LeaderboardScoring.points(for: fast, game: game) > LeaderboardScoring.points(for: medium, game: game))
-        XCTAssertTrue(LeaderboardScoring.points(for: medium, game: game) > LeaderboardScoring.points(for: slow, game: game))
+    func testAttemptsScoring_solvedIn1() {
+        let pts = LeaderboardScoring.points(for: makeScore(score: 1, maxAttempts: 6), game: .wordle)
+        XCTAssertEqual(pts, 6, "6 - 1 + 1 = 6")
     }
 
-    func testHigherIsBetter() {
-        let game = Game.spellingBee
-        let s1 = DailyGameScore(id: "1|2025|g", userId: "1", dateInt: 20250101, gameId: game.id, gameName: game.displayName, score: 3, maxAttempts: 0, completed: true, currentStreak: nil)
-        let s2 = DailyGameScore(id: "2|2025|g", userId: "2", dateInt: 20250101, gameId: game.id, gameName: game.displayName, score: 7, maxAttempts: 0, completed: true, currentStreak: nil)
-        XCTAssertTrue(LeaderboardScoring.points(for: s2, game: game) >= LeaderboardScoring.points(for: s1, game: game))
+    func testAttemptsScoring_solvedOnLastAttempt() {
+        let pts = LeaderboardScoring.points(for: makeScore(score: 6, maxAttempts: 6), game: .wordle)
+        XCTAssertEqual(pts, 1, "6 - 6 + 1 = 1")
+    }
+
+    func testAttemptsScoring_incompleteReturnsZero() {
+        let pts = LeaderboardScoring.points(for: makeScore(completed: false), game: .wordle)
+        XCTAssertEqual(pts, 0)
+    }
+
+    func testAttemptsScoring_nilScoreReturnsZero() {
+        let pts = LeaderboardScoring.points(for: makeScore(score: nil), game: .wordle)
+        XCTAssertEqual(pts, 0)
+    }
+
+    func testAttemptsScoring_nilGameFallsBackToAttempts() {
+        let pts = LeaderboardScoring.points(for: makeScore(score: 2, maxAttempts: 6), game: nil)
+        XCTAssertEqual(pts, 5, "Falls back to attemptsPoints: 6 - 2 + 1 = 5")
+    }
+
+    // MARK: - Lower Hints (Strands)
+
+    func testHintsScoring_twoHintsUsed() {
+        let score = makeScore(gameId: Game.strands.id, gameName: "Strands", score: 2, maxAttempts: 10)
+        let pts = LeaderboardScoring.points(for: score, game: .strands)
+        XCTAssertEqual(pts, 9, "10 - 2 + 1 = 9")
+    }
+
+    func testHintsScoring_zeroHints() {
+        let score = makeScore(gameId: Game.strands.id, gameName: "Strands", score: 0, maxAttempts: 10)
+        let pts = LeaderboardScoring.points(for: score, game: .strands)
+        XCTAssertEqual(pts, 11, "10 - 0 + 1 = 11")
+    }
+
+    func testHintsScoring_nilScoreReturnsZero() {
+        let score = makeScore(gameId: Game.strands.id, gameName: "Strands", score: nil, maxAttempts: 10)
+        let pts = LeaderboardScoring.points(for: score, game: .strands)
+        XCTAssertEqual(pts, 0)
+    }
+
+    // MARK: - Lower Time (Mini Crossword, LinkedIn games)
+
+    func testTimeBucketing_fastUnder30s() {
+        let score = makeScore(gameId: Game.miniCrossword.id, gameName: "Mini", score: 25, maxAttempts: 0)
+        let pts = LeaderboardScoring.points(for: score, game: .miniCrossword)
+        XCTAssertEqual(pts, 7, "0-29s bucket = 7 points")
+    }
+
+    func testTimeBucketing_mediumAround90s() {
+        let score = makeScore(gameId: Game.miniCrossword.id, gameName: "Mini", score: 95, maxAttempts: 0)
+        let pts = LeaderboardScoring.points(for: score, game: .miniCrossword)
+        XCTAssertEqual(pts, 4, "90-119s bucket = 4 points")
+    }
+
+    func testTimeBucketing_slowOver180s() {
+        let score = makeScore(gameId: Game.miniCrossword.id, gameName: "Mini", score: 200, maxAttempts: 0)
+        let pts = LeaderboardScoring.points(for: score, game: .miniCrossword)
+        XCTAssertEqual(pts, 1, ">=180s bucket = 1 point")
+    }
+
+    func testTimeBucketing_ordering() {
+        let fast = makeScore(gameId: Game.miniCrossword.id, gameName: "Mini", score: 25, maxAttempts: 0)
+        let medium = makeScore(gameId: Game.miniCrossword.id, gameName: "Mini", score: 95, maxAttempts: 0)
+        let slow = makeScore(gameId: Game.miniCrossword.id, gameName: "Mini", score: 190, maxAttempts: 0)
+        let fastPts = LeaderboardScoring.points(for: fast, game: .miniCrossword)
+        let medPts = LeaderboardScoring.points(for: medium, game: .miniCrossword)
+        let slowPts = LeaderboardScoring.points(for: slow, game: .miniCrossword)
+        XCTAssertTrue(fastPts > medPts, "Faster should score higher")
+        XCTAssertTrue(medPts > slowPts, "Medium should score higher than slow")
+    }
+
+    func testTimeBucketing_zeroSeconds() {
+        let score = makeScore(gameId: Game.miniCrossword.id, gameName: "Mini", score: 0, maxAttempts: 0)
+        let pts = LeaderboardScoring.points(for: score, game: .miniCrossword)
+        XCTAssertEqual(pts, 7, "0s should be in the fastest bucket")
+    }
+
+    // MARK: - Higher Is Better (Spelling Bee)
+
+    func testHigherIsBetter_cappedAt7() {
+        let score = makeScore(gameId: Game.spellingBee.id, gameName: "Spelling Bee", score: 50, maxAttempts: 0)
+        let pts = LeaderboardScoring.points(for: score, game: .spellingBee)
+        XCTAssertEqual(pts, 7, "Capped at 7 for cross-game comparability")
+    }
+
+    func testHigherIsBetter_lowScore() {
+        let score = makeScore(gameId: Game.spellingBee.id, gameName: "Spelling Bee", score: 3, maxAttempts: 0)
+        let pts = LeaderboardScoring.points(for: score, game: .spellingBee)
+        XCTAssertEqual(pts, 3)
+    }
+
+    func testHigherIsBetter_nilScoreReturnsZero() {
+        let score = makeScore(gameId: Game.spellingBee.id, gameName: "Spelling Bee", score: nil, maxAttempts: 0)
+        let pts = LeaderboardScoring.points(for: score, game: .spellingBee)
+        XCTAssertEqual(pts, 0)
+    }
+
+    // MARK: - Metric Labels
+
+    func testMetricLabel_attempts() {
+        let label = LeaderboardScoring.metricLabel(for: .wordle, points: 4)
+        XCTAssertEqual(label, "3 guesses")
+    }
+
+    func testMetricLabel_hints_singular() {
+        let label = LeaderboardScoring.metricLabel(for: .strands, points: 6)
+        XCTAssertEqual(label, "1 hint")
+    }
+
+    func testMetricLabel_hints_plural() {
+        let label = LeaderboardScoring.metricLabel(for: .strands, points: 4)
+        XCTAssertEqual(label, "3 hints")
+    }
+
+    func testMetricLabel_time_fast() {
+        let label = LeaderboardScoring.metricLabel(for: .miniCrossword, points: 7)
+        XCTAssertEqual(label, "<30s")
+    }
+
+    func testMetricLabel_higherIsBetter() {
+        let label = LeaderboardScoring.metricLabel(for: .spellingBee, points: 5)
+        XCTAssertEqual(label, "5 pts")
+    }
+
+    func testMetricLabel_higherIsBetter_singular() {
+        let label = LeaderboardScoring.metricLabel(for: .spellingBee, points: 1)
+        XCTAssertEqual(label, "1 pt")
     }
 }
