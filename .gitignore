@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+
+# Dev tools
+strip_comments.py
+generate_icon.swift
+
+# Firebase local
+.firebase/
+
+# Firebase credentials (keep out of version control)
+GoogleService-Info.plist
+*-firebase-adminsdk-*.json
+
+# Internal development docs (session notes, AI context, audits)
+docs_archive/
+State_of_things
+session_*_notes.md
+CLAUDE_PROJECT_REFERENCE.md
+CODEBASE_AUDIT.md
+ACHIEVEMENTS_MODULE_ANALYSIS.md
+ANALYTICS_MODULE_ANALYSIS.md
+FRIENDS_MODULE_ANALYSIS.md
+STREAKSYNC_AUDIT.md
+
+# Editor/AI tool artifacts
+.cursor/
