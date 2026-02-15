@@ -110,7 +110,7 @@ struct DashboardGamesHeader: View {
                 selectedGameSection: $selectedGameSection,
                 selectedCategory: $selectedCategory,
                 navigateToGameManagement: {
-                    print("Navigate to game management")
+                    // preview action
                 }
             )
         }

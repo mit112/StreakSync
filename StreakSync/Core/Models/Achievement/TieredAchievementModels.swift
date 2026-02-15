@@ -18,9 +18,9 @@ enum AchievementTier: Int, CaseIterable, Codable, Sendable {
     case legendary = 6
     
     var id: UUID {
-        // Create a consistent UUID based on the tier
-        let uuidString = "00000000-0000-0000-0000-00000000000\(rawValue)"
-        return UUID(uuidString: uuidString) ?? UUID()
+        let hex = String(format: "%012x", rawValue)
+        let uuidString = "00000000-0000-0000-0000-\(hex)"
+        return UUID(uuidString: uuidString)!
     }
     
     var displayName: String {
@@ -217,26 +217,6 @@ struct AchievementProgress: Codable, Hashable, Sendable {
         return min(1.0, max(0.0, Double(progress) / Double(range)))
     }
     
-    // MARK: - Hashable
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(currentValue)
-        hasher.combine(currentTier)
-        hasher.combine(lastUpdated)
-        // Convert dictionary to sorted array for consistent hashing
-        let sortedUnlocks = tierUnlockDates.sorted { $0.key.rawValue < $1.key.rawValue }
-        for (tier, date) in sortedUnlocks {
-            hasher.combine(tier)
-            hasher.combine(date)
-        }
-    }
-    
-    // MARK: - Equatable
-    static func == (lhs: AchievementProgress, rhs: AchievementProgress) -> Bool {
-        lhs.currentValue == rhs.currentValue &&
-        lhs.currentTier == rhs.currentTier &&
-        lhs.tierUnlockDates == rhs.tierUnlockDates &&
-        lhs.lastUpdated == rhs.lastUpdated
-    }
 }
 
 // MARK: - Tiered Achievement
@@ -321,21 +301,6 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
         }
     }
     
-    // MARK: - Hashable
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-        hasher.combine(category)
-        hasher.combine(requirements)
-        hasher.combine(progress)
-    }
-    
-    // MARK: - Equatable
-    static func == (lhs: TieredAchievement, rhs: TieredAchievement) -> Bool {
-        lhs.id == rhs.id &&
-        lhs.category == rhs.category &&
-        lhs.requirements == rhs.requirements &&
-        lhs.progress == rhs.progress
-    }
 }
 
 // MARK: - Achievement Factory
@@ -406,33 +371,17 @@ struct AchievementFactory {
     
     // MARK: - Variety Player Achievement
     static func createVarietyPlayerAchievement() -> TieredAchievement {
-        // Dynamic, sensible tiers based on catalog size (all-time unique games)
-        let total = max(1, Game.allAvailableGames.count)
-        
-        // Candidate thresholds scaled for progression
-        let candidates: [(AchievementTier, Int)] = [
-            (.bronze, min(3, total)),
-            (.silver, min(5, total)),
-            (.gold,   min(8, total)),
-            (.diamond,min(12, total)),
-            (.master, min(15, total)),
-            (.legendary, total) // All available games
-        ]
-        
-        // Keep strictly increasing thresholds (avoid duplicates for small catalogs)
-        var requirements: [TierRequirement] = []
-        var lastThreshold = 0
-        for (tier, threshold) in candidates {
-            guard threshold > lastThreshold else { continue }
-            requirements.append(TierRequirement(tier: tier, threshold: threshold))
-            lastThreshold = threshold
-            if threshold >= total { break } // stop once we've covered full catalog
-        }
-        
-        return TieredAchievement(
+        TieredAchievement(
             id: AchievementCategory.varietyPlayer.consistentID,
             category: .varietyPlayer,
-            requirements: requirements
+            requirements: [
+                TierRequirement(tier: .bronze, threshold: 3),
+                TierRequirement(tier: .silver, threshold: 5),
+                TierRequirement(tier: .gold, threshold: 8),
+                TierRequirement(tier: .diamond, threshold: 12),
+                TierRequirement(tier: .master, threshold: 15),
+                TierRequirement(tier: .legendary, threshold: 20)
+            ]
         )
     }
     

@@ -8,28 +8,14 @@
 import Foundation
 import SwiftUI
 
-// MARK: - Scope & Aggregation
+// MARK: - Scope
 struct AnalyticsScope: Codable, Equatable, Sendable {
-    enum Aggregation: String, Codable, CaseIterable, Sendable {
-        case daily
-        case weekly
-        
-        var displayName: String {
-            switch self {
-            case .daily: return "Daily"
-            case .weekly: return "Weekly"
-            }
-        }
-    }
-    
     var timeRange: AnalyticsTimeRange
     var gameId: UUID? // nil = All Games
-    var aggregation: Aggregation
     
-    init(timeRange: AnalyticsTimeRange = .week, gameId: UUID? = nil, aggregation: Aggregation = .daily) {
+    init(timeRange: AnalyticsTimeRange = .week, gameId: UUID? = nil) {
         self.timeRange = timeRange
         self.gameId = gameId
-        self.aggregation = aggregation
     }
 }
 
@@ -56,7 +42,6 @@ enum AnalyticsTimeRange: String, CaseIterable, Sendable, Codable {
     case today = "today"
     case week = "week"
     case month = "month"
-    case quarter = "quarter"
     case year = "year"
     
     var displayName: String {
@@ -64,7 +49,6 @@ enum AnalyticsTimeRange: String, CaseIterable, Sendable, Codable {
         case .today: return "Today"
         case .week: return "7 Days"
         case .month: return "30 Days"
-        case .quarter: return "90 Days"
         case .year: return "1 Year"
         }
     }
@@ -74,7 +58,6 @@ enum AnalyticsTimeRange: String, CaseIterable, Sendable, Codable {
         case .today: return 1
         case .week: return 7
         case .month: return 30
-        case .quarter: return 90
         case .year: return 365
         }
     }
@@ -215,16 +198,12 @@ struct PersonalBest: Identifiable, Sendable {
         case longestStreak = "longest_streak"
         case bestScore = "best_score"
         case mostGamesInDay = "most_games_day"
-        case perfectWeek = "perfect_week"
-        case fastestCompletion = "fastest_completion"
         
         var displayName: String {
             switch self {
             case .longestStreak: return "Longest Streak"
             case .bestScore: return "Best Score"
             case .mostGamesInDay: return "Most Games in a Day"
-            case .perfectWeek: return "Perfect Week"
-            case .fastestCompletion: return "Fastest Completion"
             }
         }
         
@@ -233,8 +212,6 @@ struct PersonalBest: Identifiable, Sendable {
             case .longestStreak: return "flame.fill"
             case .bestScore: return "star.fill"
             case .mostGamesInDay: return "gamecontroller.fill"
-            case .perfectWeek: return "calendar.badge.checkmark"
-            case .fastestCompletion: return "timer"
             }
         }
     }
@@ -248,7 +225,6 @@ struct WeeklySummary: Sendable {
     let totalGamesCompleted: Int
     let averageStreakLength: Double
     let longestStreak: Int
-    let achievementsUnlocked: Int
     let mostPlayedGame: Game?
     let completionRate: Double
     let streakConsistency: Double // Percentage of days with at least one game played
@@ -260,7 +236,6 @@ struct WeeklySummary: Sendable {
         totalGamesCompleted: Int = 0,
         averageStreakLength: Double = 0.0,
         longestStreak: Int = 0,
-        achievementsUnlocked: Int = 0,
         mostPlayedGame: Game? = nil,
         completionRate: Double = 0.0,
         streakConsistency: Double = 0.0
@@ -271,7 +246,6 @@ struct WeeklySummary: Sendable {
         self.totalGamesCompleted = totalGamesCompleted
         self.averageStreakLength = averageStreakLength
         self.longestStreak = longestStreak
-        self.achievementsUnlocked = achievementsUnlocked
         self.mostPlayedGame = mostPlayedGame
         self.completionRate = completionRate
         self.streakConsistency = streakConsistency
@@ -290,7 +264,6 @@ struct AnalyticsOverview: Sendable {
     let longestCurrentStreak: Int
     let totalGamesPlayed: Int
     let totalGamesCompleted: Int
-    let totalAchievementsUnlocked: Int
     let averageCompletionRate: Double
     let streakConsistency: Double
     let mostPlayedGame: Game?
@@ -301,7 +274,6 @@ struct AnalyticsOverview: Sendable {
         longestCurrentStreak: Int = 0,
         totalGamesPlayed: Int = 0,
         totalGamesCompleted: Int = 0,
-        totalAchievementsUnlocked: Int = 0,
         averageCompletionRate: Double = 0.0,
         streakConsistency: Double = 0.0,
         mostPlayedGame: Game? = nil,
@@ -311,7 +283,6 @@ struct AnalyticsOverview: Sendable {
         self.longestCurrentStreak = longestCurrentStreak
         self.totalGamesPlayed = totalGamesPlayed
         self.totalGamesCompleted = totalGamesCompleted
-        self.totalAchievementsUnlocked = totalAchievementsUnlocked
         self.averageCompletionRate = averageCompletionRate
         self.streakConsistency = streakConsistency
         self.mostPlayedGame = mostPlayedGame
@@ -358,15 +329,8 @@ struct AnalyticsData: Sendable {
     }
 }
 
-// MARK: - Chart Data Point Protocol
-protocol ChartDataPoint: Identifiable, Sendable {
-    var date: Date { get }
-    var value: Double { get }
-    var label: String { get }
-}
-
 // MARK: - Streak Trend Chart Data Point
-struct StreakTrendChartPoint: ChartDataPoint {
+struct StreakTrendChartPoint: Identifiable, Sendable {
     let id = UUID()
     let date: Date
     let value: Double
@@ -378,25 +342,5 @@ struct StreakTrendChartPoint: ChartDataPoint {
         self.value = value
         self.label = label
         self.secondaryValue = secondaryValue
-    }
-}
-
-// MARK: - Game Performance Chart Data Point
-struct GamePerformanceChartPoint: ChartDataPoint {
-    let id = UUID()
-    let date: Date
-    let value: Double
-    let label: String
-    let gameName: String
-    let score: Int?
-    let completed: Bool
-    
-    init(date: Date, value: Double, label: String, gameName: String, score: Int? = nil, completed: Bool = false) {
-        self.date = date
-        self.value = value
-        self.label = label
-        self.gameName = gameName
-        self.score = score
-        self.completed = completed
     }
 }

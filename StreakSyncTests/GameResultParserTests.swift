@@ -15,15 +15,7 @@ final class GameResultParserTests: XCTestCase {
     
     override func setUpWithError() throws {
         parser = GameResultParser()
-        testGame = Game(
-            id: UUID(),
-            name: "linkedinpinpoint",
-            displayName: "LinkedIn Pinpoint",
-            category: .linkedin,
-            scoringType: .lowerAttempts,
-            maxAttempts: 5,
-            isActive: true
-        )
+        testGame = Game.linkedinPinpoint
     }
     
     override func tearDownWithError() throws {

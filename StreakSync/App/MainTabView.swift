@@ -25,65 +25,46 @@ struct MainTabView: View {
 
     @ViewBuilder
     private var tabContent: some View {
-        if #available(iOS 26.0, *) {
-            sharedTabView
-                .tabBarMinimizeBehavior(.onScrollDown)
-        } else {
-            sharedTabView
-        }
+        sharedTabView
+            .tabBarMinimizeBehavior(.onScrollDown)
     }
 
     private var sharedTabView: some View {
         TabView(selection: $coordinator.selectedTab) {
-            homeTab
-            awardsTab
-            friendsTab
-            settingsTab
-        }
-    }
-
-    // MARK: - Individual Tabs
-
-    private var homeTab: some View {
-        NavigationStack(path: $coordinator.homePath) {
-            ImprovedDashboardView()
-                .environmentObject(container.gameManagementState)
-                .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                    destinationView(for: destination)
+            Tab("Home", systemImage: "house.fill", value: MainTab.home) {
+                NavigationStack(path: $coordinator.homePath) {
+                    ImprovedDashboardView()
+                        .environmentObject(container.gameManagementState)
+                        .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
+                            destinationView(for: destination)
+                        }
                 }
-        }
-        .tabItem { Label("Home", systemImage: "house.fill") }
-        .tag(MainTab.home)
-    }
+            }
 
-    private var awardsTab: some View {
-        NavigationStack(path: $coordinator.awardsPath) {
-            LazyAwardsTabContent()
-                .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                    destinationView(for: destination)
+            Tab("Awards", systemImage: "trophy.fill", value: MainTab.awards) {
+                NavigationStack(path: $coordinator.awardsPath) {
+                    LazyAwardsTabContent()
+                        .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
+                            destinationView(for: destination)
+                        }
                 }
-        }
-        .tabItem { Label("Awards", systemImage: "trophy.fill") }
-        .tag(MainTab.awards)
-    }
+            }
 
-    private var friendsTab: some View {
-        NavigationStack(path: $coordinator.friendsPath) {
-            LazyFriendsTabContent(socialService: container.socialService)
-        }
-        .tabItem { Label("Friends", systemImage: "person.2.fill") }
-        .tag(MainTab.friends)
-    }
-
-    private var settingsTab: some View {
-        NavigationStack(path: $coordinator.settingsPath) {
-            LazySettingsTabContent()
-                .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
-                    destinationView(for: destination)
+            Tab("Friends", systemImage: "person.2.fill", value: MainTab.friends) {
+                NavigationStack(path: $coordinator.friendsPath) {
+                    LazyFriendsTabContent(socialService: container.socialService)
                 }
+            }
+
+            Tab("Settings", systemImage: "gearshape.fill", value: MainTab.settings) {
+                NavigationStack(path: $coordinator.settingsPath) {
+                    LazySettingsTabContent()
+                        .navigationDestination(for: NavigationCoordinator.Destination.self) { destination in
+                            destinationView(for: destination)
+                        }
+                }
+            }
         }
-        .tabItem { Label("Settings", systemImage: "gearshape.fill") }
-        .tag(MainTab.settings)
     }
 
     // MARK: - Destination Views (single implementation)
@@ -133,6 +114,10 @@ struct MainTabView: View {
             )
             .environment(container.appState)
             .environmentObject(container)
+
+        case .account:
+            AccountView(authManager: container.firebaseAuthManager)
+                .environmentObject(container)
         }
     }
 }

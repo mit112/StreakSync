@@ -1,0 +1,30 @@
+{
+  "configurations" : [
+    {
+      "id" : "882FC8F7-9508-4334-8A93-972D4E17EF00",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:StreakSync.xcodeproj",
+      "identifier" : "CCD1ECDA2E2DBF1100053DAC",
+      "name" : "StreakSync"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:StreakSync.xcodeproj",
+        "identifier" : "CC7C928D2F401C4F000EE9D1",
+        "name" : "StreakSyncTests"
+      }
+    }
+  ],
+  "version" : 1
+}

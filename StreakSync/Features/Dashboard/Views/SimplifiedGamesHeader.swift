@@ -209,7 +209,7 @@ struct ToolbarSortMenu: View {
                     showOnlyActive: $showOnlyActive,
                     selectedCategory: $selectedCategory,
                     navigateToGameManagement: {
-                        print("Navigate to browse games")
+                        // preview action
                     }
                 )
                 .padding()

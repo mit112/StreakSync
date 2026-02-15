@@ -34,7 +34,7 @@ extension AppState {
                     }
                     _tieredAchievements = deduplicated
                     if deduplicated.count != saved.count {
-                        logger.debug("🧹 Removed \(saved.count - deduplicated.count) duplicate achievements from persistence (expected during transition)")
+                        logger.debug("🧹 Removed \(saved.count - deduplicated.count) duplicate achievements from persistence")
                     }
                 } else {
                     // Create default achievements if none exist
@@ -55,7 +55,7 @@ extension AppState {
             }
             _tieredAchievements = deduplicated
             if deduplicated.count != newValue.count {
-                logger.debug("🧹 Removed \(newValue.count - deduplicated.count) duplicate achievements (expected during transition)")
+                logger.debug("🧹 Removed \(newValue.count - deduplicated.count) duplicate achievements")
             }
             // Save immediately
             Task {
@@ -105,13 +105,8 @@ extension AppState {
     private func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
         logger.info("🎉 Tiered Achievement Unlocked: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
         
-        // Post notification for UI with delay to prevent race conditions
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            NotificationCenter.default.post(
-                name: .appTieredAchievementUnlocked,
-                object: unlock
-            )
-        }
+        // Queue celebration directly (deterministic, no fire-and-forget)
+        celebrationCoordinator?.queueCelebration(unlock)
         
         // Trigger haptic feedback
         HapticManager.shared.trigger(.achievement)

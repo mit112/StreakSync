@@ -5,106 +5,6 @@
 //  Sophisticated earthy color system with vintage aesthetic
 //
 
-/*
- * STREAKSYNCCOLORS - VISUAL IDENTITY AND THEMING SYSTEM
- * 
- * WHAT THIS FILE DOES:
- * This file is the "paint palette" of the entire app. It defines all the colors used throughout
- * the application, ensuring a consistent and beautiful visual experience. Think of it as the
- * "style guide" that makes sure every button, text, and background looks cohesive and professional.
- * It automatically adapts to light and dark modes, providing the perfect colors for any situation.
- * 
- * WHY IT EXISTS:
- * Without a centralized color system, different parts of the app might use different shades of
- * green, or text might be hard to read in dark mode. This file ensures that all colors work
- * together harmoniously and that the app looks great in both light and dark themes. It also
- * makes it easy to update the entire app's color scheme by changing values in one place.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This defines the visual identity and user experience of the entire app
- * - Ensures consistent colors across all screens and components
- * - Automatically handles light/dark mode transitions
- * - Provides semantic color names (primary, secondary, success, error) for clarity
- * - Optimizes colors for accessibility and readability
- * - Caches colors for better performance
- * - Supports both system colors and custom brand colors
- * 
- * WHAT IT REFERENCES:
- * - SwiftUI: For Color types and color scheme detection
- * - UIKit: For system colors and accessibility features
- * - ColorScheme: For detecting light/dark mode
- * - PaletteColor: Enum defining the core color palette
- * 
- * WHAT REFERENCES IT:
- * - EVERYTHING: This is used by virtually every UI component in the app
- * - All SwiftUI views: Use these colors for consistent theming
- * - Design system components: Use these for standardized styling
- * - Theme manager: Coordinates with this for theme switching
- * - Accessibility features: Use these for high contrast and readability
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. COLOR SYSTEM ORGANIZATION:
- *    - The current system is well-organized but could be more modular
- *    - Consider separating into: BrandColors.swift, SemanticColors.swift, SystemColors.swift
- *    - Create color tokens for design system consistency
- *    - Add support for custom color themes and user preferences
- * 
- * 2. ACCESSIBILITY IMPROVEMENTS:
- *    - The current accessibility support is basic - could be enhanced
- *    - Add high contrast mode support
- *    - Implement color blindness-friendly alternatives
- *    - Add dynamic type support for color scaling
- *    - Consider adding color contrast validation
- * 
- * 3. PERFORMANCE OPTIMIZATIONS:
- *    - The current caching is good but could be more sophisticated
- *    - Consider using NSCache for better memory management
- *    - Add color preloading for better performance
- *    - Implement color compression for memory efficiency
- * 
- * 4. THEME MANAGEMENT:
- *    - The current theme system is basic - could be more flexible
- *    - Add support for multiple color themes
- *    - Implement theme switching animations
- *    - Add user-customizable accent colors
- *    - Consider adding seasonal or special event themes
- * 
- * 5. TESTING IMPROVEMENTS:
- *    - Add unit tests for color calculations
- *    - Test color accessibility and contrast ratios
- *    - Add visual regression tests for color changes
- *    - Test theme switching behavior
- * 
- * 6. DOCUMENTATION IMPROVEMENTS:
- *    - Add detailed documentation for each color
- *    - Document the color hierarchy and relationships
- *    - Add examples of how to use each color
- *    - Create color palette documentation
- * 
- * 7. EXTENSIBILITY IMPROVEMENTS:
- *    - Make it easier to add new colors
- *    - Add support for gradient colors
- *    - Implement color interpolation for smooth transitions
- *    - Add support for animated color changes
- * 
- * 8. DESIGN SYSTEM INTEGRATION:
- *    - Consider integrating with a design system tool
- *    - Add support for design tokens
- *    - Implement color versioning for design updates
- *    - Add support for design system validation
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - Color systems: Centralized approach to managing app colors
- * - Semantic colors: Colors with meaning (primary, secondary, success, error)
- * - Color schemes: Light and dark mode variations
- * - Color caching: Storing computed colors for better performance
- * - System colors: Colors provided by iOS that adapt to user preferences
- * - Accessibility: Ensuring colors work for all users, including those with visual impairments
- * - Design tokens: Standardized values for consistent design
- * - Color contrast: The difference between foreground and background colors for readability
- */
-
 import SwiftUI
 
 // MARK: - Core Palette Colors (Energetic Growth - Market Tested)
@@ -186,7 +86,9 @@ struct StreakSyncColors {
     }
 
     @MainActor static func cardBackground(for colorScheme: ColorScheme) -> Color {
-        Color(.systemBackground)
+        colorScheme == .dark ?
+            Color(.secondarySystemBackground) :
+            Color(.secondarySystemGroupedBackground)
     }
     
     // MARK: - Game List Item Background
@@ -196,48 +98,62 @@ struct StreakSyncColors {
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(
-                        colorScheme == .dark ? 
+                        colorScheme == .dark ?
                             Color(.separator) :
-                            Color(.separator).opacity(0.3),  // Subtle border
-                        lineWidth: 0.5
+                            Color(.separator).opacity(0.7),
+                        lineWidth: colorScheme == .dark ? 0.5 : 1
                     )
             }
             .shadow(
-                color: colorScheme == .dark ? 
-                    .black.opacity(0.2) : 
-                    .black.opacity(0.08),  // More pronounced shadow for polish
-                radius: colorScheme == .dark ? 12 : 8,
+                color: colorScheme == .dark ?
+                    .black.opacity(0.2) :
+                    .black.opacity(0.08),
+                radius: colorScheme == .dark ? 12 : 6,
                 x: 0,
-                y: colorScheme == .dark ? 6 : 4
+                y: colorScheme == .dark ? 6 : 2
+            )
+            .shadow(
+                color: colorScheme == .dark ?
+                    .clear :
+                    .black.opacity(0.05),
+                radius: 16,
+                x: 0,
+                y: 8
             )
     }
     
     // MARK: - Game List Item Background (iOS 26+)
-    @available(iOS 26.0, *)
     static func gameListItemBackgroundiOS26(for colorScheme: ColorScheme) -> some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
             .fill(Color(.systemBackground))
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(
-                        colorScheme == .dark ? 
+                        colorScheme == .dark ?
                             Color(.separator) :
-                            Color(.separator).opacity(0.2),  // Subtle border
-                        lineWidth: 0.5
+                            Color(.separator).opacity(0.7),
+                        lineWidth: colorScheme == .dark ? 0.5 : 1
                     )
             }
             .shadow(
-                color: colorScheme == .dark ? 
-                    .black.opacity(0.15) : 
-                    .black.opacity(0.06),  // Enhanced shadow for polish
+                color: colorScheme == .dark ?
+                    .black.opacity(0.15) :
+                    .black.opacity(0.08),
                 radius: colorScheme == .dark ? 10 : 6,
                 x: 0,
-                y: colorScheme == .dark ? 5 : 3
+                y: colorScheme == .dark ? 5 : 2
+            )
+            .shadow(
+                color: colorScheme == .dark ?
+                    .clear :
+                    .black.opacity(0.05),
+                radius: 14,
+                x: 0,
+                y: 6
             )
     }
     
     // MARK: - Enhanced Game Card Background (iOS 26+)
-    @available(iOS 26.0, *)
     static func enhancedGameCardBackground(
         for colorScheme: ColorScheme,
         gameColor: Color,
@@ -254,7 +170,7 @@ struct StreakSyncColors {
                 .fill(
                     LinearGradient(
                         stops: [
-                            .init(color: gameColor.opacity(0.03), location: 0),
+                            .init(color: gameColor.opacity(colorScheme == .dark ? 0.06 : 0.08), location: 0),
                             .init(color: .clear, location: 0.5)
                         ],
                         startPoint: .topLeading,
@@ -280,18 +196,24 @@ struct StreakSyncColors {
                 // Subtle border for inactive
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
-                        colorScheme == .dark ? 
+                        colorScheme == .dark ?
                             PaletteColor.textSecondary.color.opacity(0.3) :
-                            PaletteColor.textSecondary.color.opacity(0.2),  // Subtle border
-                        lineWidth: 0.5
+                            Color(.separator).opacity(0.6),
+                        lineWidth: colorScheme == .dark ? 0.5 : 1
                     )
             }
         }
         .shadow(
-            color: .black.opacity(0.08),
-            radius: isHovered ? 16 : 10,
+            color: colorScheme == .dark ? .black.opacity(0.08) : .black.opacity(0.08),
+            radius: isHovered ? 14 : 6,
             x: 0,
-            y: isHovered ? 8 : 4
+            y: isHovered ? 6 : 2
+        )
+        .shadow(
+            color: colorScheme == .dark ? .clear : .black.opacity(0.05),
+            radius: isHovered ? 20 : 14,
+            x: 0,
+            y: isHovered ? 10 : 6
         )
     }
 

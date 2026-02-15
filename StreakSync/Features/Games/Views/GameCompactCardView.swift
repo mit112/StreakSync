@@ -207,16 +207,10 @@ struct GameCompactCardView: View {
             // Border with consistent styling
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            colorScheme == .dark ? 
-                            Color(.separator).opacity(0.4) :
-                            Color(hex: "E8D5C7").opacity(0.8)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.5
+                    colorScheme == .dark ?
+                        Color(.separator).opacity(0.4) :
+                        Color(.separator).opacity(0.6),
+                    lineWidth: colorScheme == .dark ? 0.5 : 1
                 )
             
             // Active state overlay for games with current streaks
@@ -236,12 +230,18 @@ struct GameCompactCardView: View {
             }
         }
         .shadow(
-            color: isActive ? 
-            gameColor.opacity(0.2) :
-            (colorScheme == .dark ? .black.opacity(0.15) : .black.opacity(0.05)),
-            radius: isActive ? 8 : 4,
+            color: isActive ?
+            gameColor.opacity(0.15) :
+            (colorScheme == .dark ? .black.opacity(0.15) : .black.opacity(0.07)),
+            radius: isActive ? 8 : 6,
             x: 0,
-            y: isActive ? 4 : 2
+            y: isActive ? 3 : 2
+        )
+        .shadow(
+            color: colorScheme == .dark ? .clear : .black.opacity(0.04),
+            radius: 14,
+            x: 0,
+            y: 6
         )
     }
 }

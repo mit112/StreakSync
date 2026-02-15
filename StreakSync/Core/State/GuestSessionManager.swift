@@ -3,7 +3,7 @@
 //  StreakSync
 //
 //  Manages Guest Mode sessions so that a friend can use the app temporarily
-//  without syncing their data to iCloud or overwriting the host's data.
+//  without syncing their data to the cloud or overwriting the host's data.
 //
 
 import Foundation
@@ -20,7 +20,7 @@ final class GuestSessionManager: ObservableObject {
     // MARK: - Dependencies
     
     private let appState: AppState
-    private let syncService: UserDataSyncService
+    private let syncService: any GameResultSyncServiceProtocol
     private let logger = Logger(subsystem: "com.streaksync.app", category: "GuestSession")
     private let userDefaults: UserDefaults
     
@@ -41,7 +41,7 @@ final class GuestSessionManager: ObservableObject {
     
     // MARK: - Init
     
-    init(appState: AppState, syncService: UserDataSyncService, userDefaults: UserDefaults = .standard) {
+    init(appState: AppState, syncService: any GameResultSyncServiceProtocol, userDefaults: UserDefaults = .standard) {
         self.appState = appState
         self.syncService = syncService
         self.userDefaults = userDefaults
@@ -115,7 +115,7 @@ final class GuestSessionManager: ObservableObject {
         
         // Trigger a sync to reconcile any host-side changes while guest mode
         // was active (e.g., account status flips), unless the caller opts out
-        // (e.g., during an iCloud account change).
+        // (e.g., during an auth state change).
         if shouldSyncAfterExit {
             await syncService.syncIfNeeded()
         }

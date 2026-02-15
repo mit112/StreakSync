@@ -107,18 +107,9 @@ struct ImprovedDashboardView: View {
         let _ = refreshToken
 
         Group {
-            if #available(iOS 26.0, *) {
-                dashboardScrollView(spacing: 24)
-                    .background(StreakSyncColors.background(for: colorScheme))
-                    .scrollBounceBehavior(.automatic)
-                    .skeletonLoading(isLoading: appState.isLoading && !hasInitiallyAppeared, style: .card)
-            } else {
-                dashboardScrollView(spacing: 20)
-                    .background(
-                        StreakSyncColors.backgroundGradient(for: colorScheme)
-                            .ignoresSafeArea()
-                    )
-            }
+            dashboardScrollView(spacing: 24)
+                .scrollBounceBehavior(.automatic)
+                .skeletonLoading(isLoading: appState.isLoading && !hasInitiallyAppeared, style: .card)
         }
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("StreakSync")
@@ -145,16 +136,6 @@ struct ImprovedDashboardView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .appGameDataUpdated)) { _ in
-            Task { @MainActor in
-                withAnimation(.easeInOut(duration: 0.25)) { refreshToken = UUID() }
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .appGameResultAdded)) { _ in
-            Task { @MainActor in
-                withAnimation(.easeInOut(duration: 0.25)) { refreshToken = UUID() }
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .appRefreshGameData)) { _ in
             Task { @MainActor in
                 withAnimation(.easeInOut(duration: 0.25)) { refreshToken = UUID() }
             }
@@ -230,50 +211,54 @@ struct ImprovedDashboardView: View {
         )
         .id(refreshToken)
 
-        if #available(iOS 26.0, *) {
-            content.modifier(iOS26ContentTransitionModifier())
-        } else {
-            content
-        }
+        content.modifier(iOS26ContentTransitionModifier())
     }
 
     // MARK: - Recent Activity (with iOS 26 enhancements)
 
     @ViewBuilder
     private var recentActivitySection: some View {
-        if #available(iOS 26.0, *) {
-            RecentActivitySection(filteredStreaks: filteredStreaks)
-                .padding(.horizontal)
-                .padding(.vertical)
-                .background {
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(.regularMaterial)
-                        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
-                }
-                .padding(.horizontal)
-                .scrollTransition { content, phase in
-                    content
-                        .opacity(phase.isIdentity ? 1 : 0.8)
-                        .scaleEffect(phase.isIdentity ? 1 : 0.95)
-                }
-        } else {
-            RecentActivitySection(filteredStreaks: filteredStreaks)
-                .padding(.horizontal)
-                .padding(.top, 8)
-        }
+        RecentActivitySection(filteredStreaks: filteredStreaks)
+            .padding(.horizontal)
+            .padding(.vertical)
+            .background {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(.regularMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .strokeBorder(
+                                colorScheme == .dark ?
+                                    Color(.separator).opacity(0.3) :
+                                    Color(.separator).opacity(0.5),
+                                lineWidth: colorScheme == .dark ? 0.5 : 1
+                            )
+                    }
+                    .shadow(color: .black.opacity(0.07), radius: 6, x: 0, y: 2)
+                    .shadow(color: colorScheme == .dark ? .clear : .black.opacity(0.04), radius: 14, x: 0, y: 6)
+            }
+            .padding(.horizontal)
+            .scrollTransition { content, phase in
+                content
+                    .opacity(phase.isIdentity ? 1 : 0.8)
+                    .scaleEffect(phase.isIdentity ? 1 : 0.95)
+            }
     }
 
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
     private var dashboardToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .topBarTrailing) {
+        ToolbarItem(placement: .topBarTrailing) {
             ToolbarSortMenu(
                 selectedSort: $selectedSort,
                 sortDirection: $sortDirection,
                 showOnlyActive: $showOnlyActive
             )
+        }
 
+        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
+        ToolbarItem(placement: .topBarTrailing) {
             Button {
                 coordinator.navigateTo(.analyticsDashboard)
             } label: {
@@ -281,7 +266,6 @@ struct ImprovedDashboardView: View {
                     .font(.body)
                     .foregroundStyle(hasActiveStreaks ? .blue : .secondary)
             }
-            .buttonStyle(.plain)
             .accessibilityLabel("View Analytics")
         }
     }
@@ -292,19 +276,11 @@ struct ImprovedDashboardView: View {
     private func performRefresh() async {
         isRefreshing = true
 
-        if #available(iOS 26.0, *) {
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        } else {
-            HapticManager.shared.trigger(.pullToRefresh)
-        }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
         await appState.refreshData()
 
-        if #available(iOS 26.0, *) {
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-        } else {
-            HapticManager.shared.trigger(.achievement)
-        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
 
         AccessibilityAnnouncer.announceDataRefreshed()
         isRefreshing = false
@@ -334,7 +310,6 @@ struct ImprovedDashboardView: View {
 
 // MARK: - iOS 26 View Modifiers
 
-@available(iOS 26.0, *)
 struct iOS26ContentTransitionModifier: ViewModifier {
     func body(content: Content) -> some View {
         content

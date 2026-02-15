@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import OSLog
 
 // MARK: - Compact Progress Badge
 struct CompactProgressBadge: View {
@@ -26,17 +27,12 @@ struct CompactProgressBadge: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background {
-            if #available(iOS 26.0, *) {
-                Capsule()
-                    .fill(color.opacity(0.15))
-                    .overlay {
-                        Capsule()
-                            .stroke(.thinMaterial, lineWidth: 0.5)
-                    }
-            } else {
-                Capsule()
-                    .fill(color.opacity(0.15))
-            }
+            Capsule()
+                .fill(color.opacity(0.15))
+                .overlay {
+                    Capsule()
+                        .stroke(.thinMaterial, lineWidth: 0.5)
+                }
         }
         .animation(.smooth, value: value)
     }
@@ -114,16 +110,7 @@ struct MiniStreakCard: View {
             }
             .frame(width: 80)
             .padding(.vertical, 12)
-            .background {
-                if #available(iOS 26.0, *) {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(.thinMaterial)
-                        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
-                } else {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.systemGray6))
-                }
-            }
+            .cardStyle(cornerRadius: 12)
         }
         .buttonStyle(.plain)
         .scaleEffect(isHovered ? 1.05 : 1.0)
@@ -146,9 +133,6 @@ struct EnhancedStreakCard: View {
     
     @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) private var colorScheme
-    @State private var isPressed = false
-    @State private var isHovered = false
-    @State private var iconBounce = false
     
     private var game: Game? {
         appState.games.first { $0.id == streak.gameId }
@@ -159,174 +143,21 @@ struct EnhancedStreakCard: View {
     }
     
     var body: some View {
-        if #available(iOS 26.0, *) {
-            iOS26EnhancedStreakCard(
-                streak: streak,
-                game: game,
-                gameColor: gameColor,
-                isFavorite: isFavorite,
-                hasAppeared: hasAppeared,
-                animationIndex: animationIndex,
-                onFavoriteToggle: onFavoriteToggle,
-                action: action,
-            )
-        } else {
-            standardCard
-        }
-    }
-    
-    // MARK: - Standard Card (Pre-iOS 26)
-    private var standardCard: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                gameIconView
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(game?.displayName ?? streak.gameName)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        
-                        Spacer()
-                        
-                        if let onFavoriteToggle = onFavoriteToggle {
-                            Button(action: onFavoriteToggle) {
-                                Image(systemName: isFavorite ? "star.fill" : "star")
-                                    .font(.subheadline)
-                                    .foregroundStyle(isFavorite ? .yellow : .secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    
-                    statsRow
-                    progressBar
-                }
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                StreakSyncColors.gameListItemBackground(for: colorScheme)
-            }
-        }
-        .buttonStyle(.plain)
-        .scaleEffect(isPressed ? 0.96 : (isHovered ? 1.02 : 1.0))
-        .animation(.smooth(duration: 0.15), value: isPressed)
-        .animation(.smooth(duration: 0.2), value: isHovered)
-        .onLongPressGesture(
-            minimumDuration: 0,
-            maximumDistance: .infinity,
-            pressing: { pressing in
-                withAnimation(.smooth(duration: 0.1)) {
-                    isPressed = pressing
-                }
-                if pressing {
-                    HapticManager.shared.trigger(.buttonTap)
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        iconBounce = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        iconBounce = false
-                    }
-                }
-            },
-            perform: {}
-        )
-        .onHover { hovering in
-            isHovered = hovering
-        }
-        .modifier(InitialAnimationModifier(
+        iOS26EnhancedStreakCard(
+            streak: streak,
+            game: game,
+            gameColor: gameColor,
+            isFavorite: isFavorite,
             hasAppeared: hasAppeared,
-            index: animationIndex,
-            totalCount: 10
-        ))
-        .gameCardAccessibility(game: game ?? Game.sample, streak: streak)
+            animationIndex: animationIndex,
+            onFavoriteToggle: onFavoriteToggle,
+            action: action
+        )
     }
     
-    // MARK: - Helper Views
-    private var gameIconView: some View {
-        ZStack {
-            Circle()
-                .fill(gameColor.opacity(0.15))
-                .frame(width: 56, height: 56)
-            
-            Image.safeSystemName(safeIconName, fallback: "gamecontroller")
-                .font(.title2)
-                .foregroundStyle(gameColor)
-                .scaleEffect(iconBounce ? 1.2 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: iconBounce)
-        }
-    }
-    
-    private var safeIconName: String {
-        guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
-            print("⚠️ MiniStreakCard: Empty/nil icon for game '\(game?.displayName ?? "nil")'")
-            return "gamecontroller"
-        }
-        return iconName
-    }
-    
-    private var statsRow: some View {
-        HStack(spacing: 16) {
-            // Current streak
-            HStack(spacing: 4) {
-                Image(systemName: "flame.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                
-                Text("\(streak.currentStreak)")
-                    .font(.subheadline.weight(.semibold))
-                    .contentTransition(.numericText())
-                
-                Text("days")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            // Completion rate
-            HStack(spacing: 4) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                
-                Text("\(Int(streak.completionRate * 100))%")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .contentTransition(.numericText())
-            }
-            
-            Spacer()
-            
-            // Last played
-            if let lastPlayed = streak.lastPlayedDate {
-                Text(lastPlayed.isToday ? "Today" : lastPlayed.formatted(.relative(presentation: .named)))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-    
-    private var progressBar: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(gameColor.opacity(0.2))
-                    .frame(height: 4)
-                
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(gameColor)
-                    .frame(
-                        width: geometry.size.width * min(Double(streak.currentStreak) / 30.0, 1.0),
-                        height: 4
-                    )
-            }
-        }
-        .frame(height: 4)
-    }
 }
 
 // MARK: - iOS 26 Enhanced Streak Card (Improved Color Design)
-@available(iOS 26.0, *)
 private struct iOS26EnhancedStreakCard: View {
     let streak: GameStreak
     let game: Game?
@@ -356,7 +187,7 @@ private struct iOS26EnhancedStreakCard: View {
         if colorScheme == .dark {
             return Color.white.opacity(0.1)
         } else {
-            return Color.black.opacity(0.08)
+            return Color.black.opacity(0.12)
         }
     }
     
@@ -473,7 +304,7 @@ private struct iOS26EnhancedStreakCard: View {
     
     private var safeGameIconName: String {
         guard let iconName = game?.iconSystemName, !iconName.isEmpty else {
-            print("⚠️ [EnhancedStreakCard.safeGameIconName] Empty/nil icon for game '\(game?.displayName ?? "nil")' (streak: \(streak.gameName))")
+            Logger(subsystem: "com.streaksync.app", category: "Dashboard").warning("Empty/nil icon for game '\(game?.displayName ?? "nil")' (streak: \(streak.gameName))")
             return "gamecontroller"
         }
         return iconName
@@ -587,7 +418,7 @@ private struct iOS26EnhancedStreakCard: View {
                     .fill(
                         colorScheme == .dark ?
                         Color.white.opacity(0.1) :
-                        Color.black.opacity(0.06)
+                        Color.black.opacity(0.1)
                     )
                     .frame(height: 4)
                 

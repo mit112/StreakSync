@@ -14,7 +14,8 @@ final class SocialSettingsServiceTests: XCTestCase {
             gameName: Game.wordle.displayName,
             score: 3,
             maxAttempts: 6,
-            completed: false
+            completed: false,
+            currentStreak: nil
         )
         XCTAssertFalse(service.shouldShare(score: score, game: Game.wordle))
         service.updateShareIncompleteGames(true)
@@ -31,7 +32,8 @@ final class SocialSettingsServiceTests: XCTestCase {
             gameName: Game.wordle.displayName,
             score: 2,
             maxAttempts: 6,
-            completed: true
+            completed: true,
+            currentStreak: nil
         )
         XCTAssertFalse(service.shouldShare(score: score, game: Game.wordle))
         service.updateScope(.allFriends, for: Game.wordle.id)

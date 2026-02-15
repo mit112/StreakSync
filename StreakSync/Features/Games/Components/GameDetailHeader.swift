@@ -32,7 +32,12 @@ struct GameDetailHeader: View {
             StatsRow(streak: streak, isScrolling: isScrolling)
         }
         .padding(Spacing.xl)
-        .glassCard()
+        .background {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .strokeBorder(Color(.separator).opacity(0.4), lineWidth: 0.5)
+        }
+        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
     }
 }
 

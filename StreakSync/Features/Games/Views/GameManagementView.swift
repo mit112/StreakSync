@@ -75,7 +75,6 @@ struct GameManagementView: View {
             .listStyle(.plain)
             .environment(\.editMode, $editMode)
         }
-        .background(Color(.systemGroupedBackground))
         .navigationTitle(showingArchived ? "Archived Games" : "Manage Games")
         .navigationBarTitleDisplayMode(.inline)
         // Removed .navigationBarBackButtonHidden(true) to enable swipe back
@@ -254,14 +253,15 @@ struct GameManagementRow: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(.systemGray5), lineWidth: 0.5)
-        )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.07), radius: 6, x: 0, y: 2)
+                .shadow(color: .black.opacity(0.04), radius: 14, x: 0, y: 6)
+        }
     }
 }

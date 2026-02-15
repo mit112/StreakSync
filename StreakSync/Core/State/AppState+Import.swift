@@ -110,25 +110,18 @@ extension AppState {
     /// Fix existing Connections results with updated completion logic
     @MainActor
     public func fixExistingConnectionsResults() async {
-        // Gate: only run if new Connections results exist since last run
+        // One-time migration — skip entirely once completed for this user
         let defaults = UserDefaults.standard
-        let lastRun = defaults.object(forKey: "connectionsFixLastRunAt") as? Date
+        if defaults.bool(forKey: "connectionsFixV2Complete") { return }
         
         // Find all Connections results
         let connectionsResults = recentResults.filter { $0.gameName.lowercased() == "connections" }
         
-        if let lastRun, connectionsResults.allSatisfy({ $0.date <= lastRun }) {
-            logger.debug("⏭️ Skipping Connections fix - no new results since last run")
-            return
-        }
-        
         logger.info("🔧 Fixing existing Connections results with updated completion logic")
-        logger.info("🔍 Found \(connectionsResults.count) Connections results to check")
         
         guard !connectionsResults.isEmpty else {
             logger.info("ℹ️ No Connections results found to fix")
-            // Record run to prevent repeated checks logging
-            defaults.set(Date(), forKey: "connectionsFixLastRunAt")
+            defaults.set(true, forKey: "connectionsFixV2Complete")
             return
         }
         
@@ -186,8 +179,8 @@ extension AppState {
             logger.debug("ℹ️ No Connections results needed fixing")
         }
         
-        // Persist last run time to gate future runs
-        defaults.set(Date(), forKey: "connectionsFixLastRunAt")
+        // Mark migration as permanently complete
+        defaults.set(true, forKey: "connectionsFixV2Complete")
     }
     
     /// Force fix all Connections results (for debugging/manual trigger)

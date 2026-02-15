@@ -132,18 +132,29 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
     @MainActor private func handleSnooze(days: Int) async {
         logger.info("😴 Snoozing reminder for \(days) days")
         
-        // Cancel the repeating daily reminder and schedule a one-off for +days
-        await NotificationScheduler.shared.cancelDailyStreakReminder()
-        
         // Compute user's preferred time
         let hour = UserDefaults.standard.object(forKey: "streakReminderHour") as? Int ?? 19
         let minute = UserDefaults.standard.object(forKey: "streakReminderMinute") as? Int ?? 0
         
         // Build content from today's at-risk games if available
         let gamesAtRisk = appState?.getGamesAtRisk() ?? []
+        
+        // Clean up existing reminders before rescheduling
+        await NotificationScheduler.shared.cleanupAndRescheduleNotifications()
+        
+        // Schedule a one-off snooze reminder for the requested day
         await NotificationScheduler.shared.scheduleOneOffSnoozeReminder(
             games: gamesAtRisk,
             daysFromNow: days,
+            hour: hour,
+            minute: minute
+        )
+        
+        // Re-schedule the daily repeating reminder so it resumes automatically.
+        // Without this, the daily reminder would be permanently cancelled after a snooze
+        // since there's no callback when the one-off fires.
+        await NotificationScheduler.shared.scheduleDailyStreakReminder(
+            games: gamesAtRisk,
             hour: hour,
             minute: minute
         )
@@ -174,66 +185,4 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
         // Navigate to achievements tab and highlight the specific achievement
         navigationCoordinator?.navigateToAchievements(highlightId: achievementId)
     }
-}
-
-// MARK: - In-App Notification Banner
-struct InAppNotificationBanner: View {
-    let title: String
-    let message: String
-    let action: (() -> Void)?
-    @Binding var isPresented: Bool
-    
-    var body: some View {
-        VStack {
-            HStack(spacing: 12) {
-                Image(systemName: "bell.fill")
-                    .foregroundColor(.accentColor)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    
-                    Text(message)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                if let action = action {
-                    Button("View") {
-                        action()
-                        isPresented = false
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-                
-                Button {
-                    isPresented = false
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal)
-            
-            Spacer()
-        }
-        .transition(.move(edge: .top).combined(with: .opacity))
-        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isPresented)
-    }
-}
-
-#Preview {
-    InAppNotificationBanner(
-        title: "Streak Reminder",
-        message: "Keep your Wordle streak alive!",
-        action: { print("View tapped") },
-        isPresented: .constant(true)
-    )
 }

@@ -3,82 +3,11 @@
 //  Main app entry point with dependency injection
 //
 
-/*
- * STREAKSYNC APP ENTRY POINT - MAIN APPLICATION BOOTSTRAP
- * 
- * WHAT THIS FILE DOES:
- * This is the main entry point of the StreakSync iOS app. It's the first file that runs when the app launches.
- * It sets up the entire application by creating an AppContainer (dependency injection system) and managing
- * the app's initialization process.
- * 
- * WHY IT EXISTS:
- * Every iOS app needs a main entry point. This file serves as the "front door" of the application,
- * responsible for bootstrapping all the core services and setting up the app's architecture before
- * the user sees any content.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This is the foundation of the entire app - without it, nothing else works
- * - Manages app lifecycle and initialization state
- * - Sets up dependency injection (AppContainer) that all other parts of the app depend on
- * - Handles deep links and URL schemes
- * - Manages error states and recovery
- * 
- * WHAT IT REFERENCES:
- * - AppContainer: The dependency injection system that manages all app services
- * - ContentView: The main UI that users see after initialization
- * - NotificationDelegate: Handles push notifications
- * - InitializationView/InitializationErrorView: Loading and error screens
- * 
- * WHAT REFERENCES IT:
- * - Nothing directly references this file (it's the entry point)
- * - The iOS system calls this when the app launches
- * - Xcode uses this as the main target entry point
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. ERROR HANDLING IMPROVEMENTS:
- *    - The current error handling is basic (just shows a string)
- *    - Consider creating an AppError enum with specific error types
- *    - Add more detailed error logging for debugging
- *    - Implement different recovery strategies for different error types
- * 
- * 2. INITIALIZATION OPTIMIZATION:
- *    - The initialization is currently sequential - could be parallelized
- *    - Consider showing progress indicators for different initialization steps
- *    - Add timeout handling for initialization that takes too long
- * 
- * 3. DEPENDENCY INJECTION ENHANCEMENT:
- *    - The current setup injects many dependencies manually
- *    - Consider using a more sophisticated DI framework for larger apps
- *    - Could implement lazy loading of services that aren't immediately needed
- * 
- * 4. TESTING IMPROVEMENTS:
- *    - Add unit tests for initialization logic
- *    - Mock the AppContainer for testing different initialization scenarios
- *    - Test error recovery paths
- * 
- * 5. ACCESSIBILITY ENHANCEMENTS:
- *    - The loading views have basic accessibility but could be more descriptive
- *    - Add VoiceOver announcements for initialization progress
- *    - Consider different accessibility needs during loading states
- * 
- * 6. PERFORMANCE CONSIDERATIONS:
- *    - Consider preloading critical data in the background
- *    - Implement app state restoration for faster subsequent launches
- *    - Add memory pressure monitoring during initialization
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - @main tells Swift this is the app's entry point
- * - @StateObject creates and manages the AppContainer's lifecycle
- * - The Group with conditional views is a common SwiftUI pattern for different app states
- * - .task is a SwiftUI modifier that runs async code when the view appears
- * - Dependency injection (AppContainer) is a design pattern that makes code more testable and modular
- */
-
 import SwiftUI
 import OSLog
 import UserNotifications
 import UIKit
+import GoogleSignIn
 
 // MARK: - Main App
 @main
@@ -90,9 +19,6 @@ struct StreakSyncApp: App {
     
     private let logger = Logger(subsystem: "com.streaksync.app", category: "StreakSyncApp")
     
-    // Note: Firebase is configured in AppDelegate.didFinishLaunchingWithOptions
-    // to ensure it's ready before any services try to use it.
-    
     var body: some Scene {
         WindowGroup {
             Group {
@@ -102,11 +28,10 @@ struct StreakSyncApp: App {
                         .environment(container.appState)
                         .environmentObject(container.navigationCoordinator)
                         .environmentObject(container.guestSessionManager)
-                        .environmentObject(container.userDataSyncService)
-                        .environmentObject(BetaFeatureFlags.shared)
                         .environment(container.gameCatalog)
                         .applyAppearanceMode()
                         .onOpenURL { url in
+                            if GIDSignIn.sharedInstance.handle(url) { return }
                             _ = container.handleURLScheme(url)
                         }
                         .onAppear {
@@ -134,43 +59,55 @@ struct StreakSyncApp: App {
     private func initializeApp() async {
         logger.info("🚀 Starting app initialization")
         
-        // Initialize notification delegate dependencies early
-        NotificationDelegate.shared.appState = container.appState
-        NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
-        
-        // Ensure Firebase Anonymous Auth for social backend
-        // Uses the AuthStateManager which also handles re-authentication on sign-out
-        await container.firebaseAuthManager.ensureAuthenticated()
-        
-        // Register categories on launch if already authorized
-        let authStatus = await NotificationScheduler.shared.checkPermissionStatus()
-        if authStatus == .authorized {
-            await NotificationScheduler.shared.registerCategories()
-        }
-        
-        // Load app data from local persistence first (instant UX)
-        await container.appState.loadPersistedData()
-        
-        // Perform CloudKit user data sync (if iCloud available)
-        await container.userDataSyncService.syncIfNeeded()
-        
-        // Rebuild streaks from any newly-synced results
-        await container.appState.rebuildStreaksFromResults()
-        
-        // Normalize streaks again after rebuild to check for gaps up to today
-        // (rebuildStreaksFromResults only checks gaps between results, not gaps to today)
-        await container.appState.normalizeStreaksForMissedDays()
-        
-        // Check for streak reminders on app launch
-        await container.appState.checkAndScheduleStreakReminders()
-        
-        // Start network monitoring to flush offline queue when network returns
-        container.networkMonitor.startMonitoring()
-        
-        // Mark as initialized
-        await MainActor.run {
-            isInitialized = true
-            logger.info("✅ App initialization completed")
+        do {
+            // Initialize notification delegate dependencies early
+            NotificationDelegate.shared.appState = container.appState
+            NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
+            
+            // Ensure Firebase Anonymous Auth for social backend
+            // Uses the AuthStateManager which also handles re-authentication on sign-out
+            await container.firebaseAuthManager.ensureAuthenticated()
+            
+            // Register categories on launch if already authorized
+            let authStatus = await NotificationScheduler.shared.checkPermissionStatus()
+            if authStatus == .authorized {
+                await NotificationScheduler.shared.registerCategories()
+            }
+            
+            // Load app data from local persistence first (instant UX)
+            await container.appState.loadPersistedData()
+            
+            // Sync game results via Firestore
+            await container.gameResultSyncService.syncIfNeeded()
+            
+            // Rebuild streaks from any newly-synced results
+            await container.appState.rebuildStreaksFromResults()
+            
+            // Normalize streaks again after rebuild to check for gaps up to today
+            // (rebuildStreaksFromResults only checks gaps between results, not gaps to today)
+            await container.appState.normalizeStreaksForMissedDays()
+            
+            // Check for streak reminders on app launch
+            await container.appState.checkAndScheduleStreakReminders()
+            
+            // Reconcile today's scores — republishes any that were dropped by previous failures
+            if let socialService = container.socialService as? FirebaseSocialService {
+                await socialService.reconcileTodaysScores(
+                    results: container.appState.recentResults,
+                    streaks: container.appState.streaks
+                )
+            }
+            
+            // Mark as initialized
+            await MainActor.run {
+                isInitialized = true
+                logger.info("✅ App initialization completed")
+            }
+        } catch {
+            logger.error("❌ App initialization failed: \(error.localizedDescription)")
+            await MainActor.run {
+                initializationError = "Failed to initialize: \(error.localizedDescription)"
+            }
         }
     }
     
@@ -247,11 +184,9 @@ struct InitializationErrorView: View {
                 .background(.blue, in: RoundedRectangle(cornerRadius: 12))
                 
                 Button("Reset App Data") {
-                    // Clear all data and restart
-                    Task { @MainActor in
-                        UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier!)
-                        exit(0) // Force app restart
-                    }
+                    // Clear all persisted data then re-initialize
+                    UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier!)
+                    onRetry()
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

@@ -33,7 +33,6 @@ final class AppState {
     // MARK: - Core Data (Persisted)
     var games: [Game] = []
     var streaks: [GameStreak] = []
-    var achievements: [Achievement] = []
     var recentResults: [GameResult] = []
 
     // MARK: - UI State (Not Persisted)
@@ -51,6 +50,9 @@ final class AppState {
 
     // MARK: - Social & Analytics
     var socialService: SocialService?
+    
+    /// Celebration coordinator for achievement unlocks. Set by AppContainer after init.
+    @ObservationIgnored weak var celebrationCoordinator: AchievementCelebrationCoordinator?
     var analyticsService: AnalyticsService?
 
     // MARK: - Persistence State
@@ -70,6 +72,15 @@ final class AppState {
 
     // MARK: - Duplicate Prevention Cache
     internal var gameResultsCache: [UUID: Set<String>] = [:]
+    
+    // MARK: - Score Publish Throttle
+    internal var lastScorePublishByGame: [UUID: Date] = [:]
+
+    // MARK: - Observer Tokens
+    @ObservationIgnored
+    nonisolated(unsafe) private var dayChangeObserver: (any NSObjectProtocol)?
+    @ObservationIgnored
+    nonisolated(unsafe) var shareExtensionObserver: (any NSObjectProtocol)?
 
     // MARK: - Initialization
     init(persistenceService: PersistenceServiceProtocol = UserDefaultsPersistenceService()) {
@@ -91,7 +102,7 @@ final class AppState {
     }
 
     private func setupDayChangeListener() {
-        NotificationCenter.default.addObserver(
+        dayChangeObserver = NotificationCenter.default.addObserver(
             forName: .dayDidChange,
             object: nil,
             queue: .main
@@ -101,6 +112,15 @@ final class AppState {
             }
         }
         logger.debug("Day change listener setup complete")
+    }
+
+    deinit {
+        if let observer = dayChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = shareExtensionObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     private func handleDayChange() {
@@ -144,10 +164,6 @@ final class AppState {
 
     var favoriteGameIds: Set<UUID> {
         GameCatalog.shared.favoriteGameIDs
-    }
-
-    internal func createDefaultAchievements() -> [Achievement] {
-        [.firstGame(), .weekWarrior(), .dedication(), .multitasker()]
     }
 
     // MARK: - Computed Properties
@@ -302,10 +318,6 @@ final class AppState {
 
     internal func setRecentResults(_ results: [GameResult]) {
         self.recentResults = results
-    }
-
-    internal func setAchievements(_ achievements: [Achievement]) {
-        self.achievements = achievements
     }
 
     internal func setStreaks(_ streaks: [GameStreak]) {

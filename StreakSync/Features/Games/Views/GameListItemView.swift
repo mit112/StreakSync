@@ -68,11 +68,7 @@ struct GameListItemView: View {
             }
             .padding()
             .background {
-                if #available(iOS 26.0, *) {
-                    StreakSyncColors.gameListItemBackgroundiOS26(for: colorScheme)
-                } else {
-                    StreakSyncColors.gameListItemBackground(for: colorScheme)
-                }
+                StreakSyncColors.gameListItemBackgroundiOS26(for: colorScheme)
             }
         }
         .buttonStyle(.plain)

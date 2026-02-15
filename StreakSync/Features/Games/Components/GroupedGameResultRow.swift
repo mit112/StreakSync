@@ -6,6 +6,9 @@
 //
 
 import SwiftUI
+import OSLog
+
+private let groupedRowLogger = Logger(subsystem: "com.streaksync.app", category: "GroupedGameResultRow")
 
 struct GroupedGameResultRow: View {
     let groupedResult: GroupedGameResult
@@ -90,10 +93,9 @@ struct GroupedGameResultRow: View {
                         .fill(Color(.tertiarySystemBackground))
                 )
                 .onAppear {
-                    print("🔍 GroupedGameResultRow: Expanded with \(groupedResult.results.count) results")
-                    for (index, result) in groupedResult.results.enumerated() {
-                        print("   \(index + 1). \(result.parsedData["difficulty"] ?? "?") - \(result.parsedData["time"] ?? "?")")
-                    }
+                    #if DEBUG
+                    groupedRowLogger.debug("Expanded with \(groupedResult.results.count) results")
+                    #endif
                 }
             }
         }

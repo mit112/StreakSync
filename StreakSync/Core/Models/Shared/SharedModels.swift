@@ -5,106 +5,6 @@
 //  FIXED: All force unwrapping removed with safe alternatives
 //
 
-/*
- * SHAREDMODELS - CORE DATA STRUCTURES
- * 
- * WHAT THIS FILE DOES:
- * This is the "data dictionary" of the entire app. It defines all the core data structures that represent
- * games, game results, scoring systems, and other fundamental concepts. Think of it as the "vocabulary"
- * that the entire app uses to understand and work with data. It's shared between the main app and the
- * Share Extension, ensuring consistency across both.
- * 
- * WHY IT EXISTS:
- * Every app needs to define what its data looks like. This file centralizes all the core data models
- * so that every part of the app speaks the same "language" when it comes to data. Without this file,
- * different parts of the app might represent the same information differently, leading to bugs and
- * confusion.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This defines the fundamental data structures that the entire app depends on
- * - Ensures data consistency between the main app and Share Extension
- * - Provides type safety and validation for all game-related data
- * - Defines how games are scored and displayed
- * - Handles complex game-specific logic (like Quordle's multi-puzzle scoring)
- * - Provides thread-safe data structures for Swift 6.0 concurrency
- * 
- * WHAT IT REFERENCES:
- * - Foundation: For basic data types and date handling
- * - UIKit: For color handling and UI integration
- * - SwiftUI: For Color integration
- * - OSLog: For logging and debugging
- * 
- * WHAT REFERENCES IT:
- * - EVERYTHING: This file is imported by virtually every other file in the app
- * - AppState: Uses these models to store and manage data
- * - GameResultParser: Creates GameResult objects using these models
- * - Share Extension: Uses these models to parse and save results
- * - All UI views: Display data using these models
- * - Analytics: Computes statistics using these models
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. FILE ORGANIZATION:
- *    - This file is very large (1600+ lines) - should be split into multiple files
- *    - Consider separating into: GameModels.swift, GameResultModels.swift, ColorModels.swift
- *    - Move game-specific display logic to separate files
- *    - Create a GameDisplayLogic protocol for better organization
- * 
- * 2. GAME-SPECIFIC LOGIC IMPROVEMENTS:
- *    - The displayScore logic is repetitive - could use a strategy pattern
- *    - Create a GameDisplayStrategy protocol for each game type
- *    - Move game-specific validation to separate validators
- *    - Consider using a factory pattern for game-specific logic
- * 
- * 3. DATA VALIDATION ENHANCEMENTS:
- *    - The current validation is basic - could be more comprehensive
- *    - Add validation for URL formats and game patterns
- *    - Implement data sanitization for user input
- *    - Add validation for edge cases and malformed data
- * 
- * 4. PERFORMANCE OPTIMIZATIONS:
- *    - The displayScore computed properties are called frequently - could be cached
- *    - Consider lazy loading for expensive computations
- *    - Optimize the large static game arrays
- *    - Add memory-efficient data structures for large datasets
- * 
- * 5. ACCESSIBILITY IMPROVEMENTS:
- *    - The accessibility descriptions could be more detailed
- *    - Add support for different accessibility needs
- *    - Implement dynamic type support for all text
- *    - Add VoiceOver navigation improvements
- * 
- * 6. TESTING IMPROVEMENTS:
- *    - Add comprehensive unit tests for all data models
- *    - Test edge cases and validation logic
- *    - Add property-based testing for data generation
- *    - Test thread safety of all data structures
- * 
- * 7. DOCUMENTATION IMPROVEMENTS:
- *    - Add detailed documentation for each model
- *    - Document the relationships between models
- *    - Add examples of how to use each model
- *    - Create data flow diagrams
- * 
- * 8. ERROR HANDLING:
- *    - The current error handling is basic - could be more robust
- *    - Add proper error types for different failure scenarios
- *    - Implement recovery strategies for data corruption
- *    - Add logging for data validation failures
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - struct vs class: These are all structs because they're value types (safer for concurrency)
- * - Codable: Allows these models to be saved to and loaded from files
- * - Sendable: Ensures these models are safe to use across different threads
- * - Identifiable: Required by SwiftUI for lists and navigation
- * - Computed properties: These are calculated on-demand (like displayScore)
- * - Static properties: These belong to the type itself, not individual instances
- * - Enums: Used for categories and scoring models to ensure type safety
- * - Extensions: Add functionality to existing types (like Date and URL)
- * - Preconditions: Check that data is valid when creating objects
- * - Thread safety: All models are designed to work safely with Swift 6.0 concurrency
- */
-
 import Foundation
 import UIKit
 import OSLog
@@ -192,13 +92,6 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         )
     }
     
-    // MARK: - Computed Properties for Results
-    var recentResults: [GameResult] {
-        // This would be populated from your app state
-        // For now, return empty array
-        []
-    }
-    
     var accessibilityDescription: String {
         "\(displayName) game, \(category.displayName) category"
     }
@@ -261,6 +154,7 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
     let completed: Bool
     let sharedText: String
     let parsedData: [String: String]
+    let lastModified: Date
     
     // MARK: - Public Initializer (Auto‑generated ID)
     init(
@@ -271,7 +165,8 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
         maxAttempts: Int,
         completed: Bool,
         sharedText: String,
-        parsedData: [String: String] = [:]
+        parsedData: [String: String] = [:],
+        lastModified: Date? = nil
     ) {
         // Delegate to the designated initializer with a fresh UUID.
         self.init(
@@ -283,12 +178,13 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
             maxAttempts: maxAttempts,
             completed: completed,
             sharedText: sharedText,
-            parsedData: parsedData
+            parsedData: parsedData,
+            lastModified: lastModified
         )
     }
     
     // MARK: - Designated Initializer (Injectable ID)
-    /// Designated initializer that allows callers (including CloudKit sync) to provide a stable ID.
+    /// Designated initializer that allows callers (including Firestore sync) to provide a stable ID.
     /// All validation rules mirror the convenience initializer above.
     init(
         id: UUID,
@@ -299,29 +195,31 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
         maxAttempts: Int,
         completed: Bool,
         sharedText: String,
-        parsedData: [String: String] = [:]
+        parsedData: [String: String] = [:],
+        lastModified: Date? = nil
     ) {
-        // Input validation
-        precondition(!gameName.isEmpty, "Game name cannot be empty")
-        precondition(maxAttempts >= 0, "Max attempts must be non-negative")
-        precondition(!sharedText.isEmpty, "Shared text cannot be empty")
+        // Input validation — assert catches bugs in Debug; in Release, invalid
+        // results pass through and are rejected by the `isValid` check in addGameResult().
+        assert(!gameName.isEmpty, "Game name cannot be empty")
+        assert(maxAttempts >= 0, "Max attempts must be non-negative")
+        assert(!sharedText.isEmpty, "Shared text cannot be empty")
         
         if let score = score {
             // Special handling for time-based games like Zip, Tango, Queens, and Crossclimb
             if gameName.lowercased() == "linkedinzip" {
-                precondition(score >= 0, "Score (time) must be non-negative for Zip")
+                assert(score >= 0, "Score (time) must be non-negative for Zip")
             } else if gameName.lowercased() == "linkedintango" {
-                precondition(score >= 0, "Score (time) must be non-negative for Tango")
+                assert(score >= 0, "Score (time) must be non-negative for Tango")
             } else if gameName.lowercased() == "linkedinqueens" {
-                precondition(score >= 0, "Score (time) must be non-negative for Queens")
+                assert(score >= 0, "Score (time) must be non-negative for Queens")
             } else if gameName.lowercased() == "linkedincrossclimb" {
-                precondition(score >= 0, "Score (time) must be non-negative for Crossclimb")
+                assert(score >= 0, "Score (time) must be non-negative for Crossclimb")
             } else if gameName.lowercased() == "linkedinpinpoint" {
-                precondition(score >= 1 && score <= maxAttempts, "Score (guesses) must be between 1 and maxAttempts for Pinpoint")
+                assert(score >= 1 && score <= maxAttempts, "Score (guesses) must be between 1 and maxAttempts for Pinpoint")
             } else if gameName.lowercased() == "strands" {
-                precondition(score >= 0 && score <= maxAttempts, "Score (hints) must be between 0 and maxAttempts for Strands")
+                assert(score >= 0 && score <= maxAttempts, "Score (hints) must be between 0 and maxAttempts for Strands")
             } else {
-                precondition(score >= 1 && score <= maxAttempts, "Score must be between 1 and maxAttempts")
+                assert(score >= 1 && score <= maxAttempts, "Score must be between 1 and maxAttempts")
             }
         }
         
@@ -334,8 +232,29 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
         self.completed = completed
         self.sharedText = sharedText
         self.parsedData = parsedData
+        self.lastModified = lastModified ?? date
     }
     
+    // MARK: - Codable (backward compatible — lastModified may be absent in old data)
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        gameId = try container.decode(UUID.self, forKey: .gameId)
+        gameName = try container.decode(String.self, forKey: .gameName)
+        date = try container.decode(Date.self, forKey: .date)
+        score = try container.decodeIfPresent(Int.self, forKey: .score)
+        maxAttempts = try container.decode(Int.self, forKey: .maxAttempts)
+        completed = try container.decode(Bool.self, forKey: .completed)
+        sharedText = try container.decode(String.self, forKey: .sharedText)
+        parsedData = try container.decodeIfPresent([String: String].self, forKey: .parsedData) ?? [:]
+        lastModified = try container.decodeIfPresent(Date.self, forKey: .lastModified) ?? date
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, gameId, gameName, date, score, maxAttempts, completed, sharedText, parsedData, lastModified
+    }
+
     // MARK: - Computed Properties
     var isSuccess: Bool {
         completed && score != nil
@@ -351,40 +270,27 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
     private func isValidScoreForGame() -> Bool {
         guard let score = score else { return true }
         
-        // Special handling for time-based games like Zip, Tango, Queens, and Crossclimb
-        if gameName.lowercased() == "linkedinzip" {
-            // For Zip, score is time in seconds, maxAttempts is backtrack count
-            // Time can be any positive value, backtracks can be 0 or more
-            return score >= 0
-        } else if gameName.lowercased() == "linkedintango" {
-            // For Tango, score is time in seconds, maxAttempts is 0 (no attempts/backtracks)
-            // Time can be any positive value
-            return score >= 0
-        } else if gameName.lowercased() == "linkedinqueens" {
-            // For Queens, score is time in seconds, maxAttempts is 0 (no attempts/backtracks)
-            // Time can be any positive value
-            return score >= 0
-        } else if gameName.lowercased() == "linkedincrossclimb" {
-            // For Crossclimb, score is time in seconds, maxAttempts is 0 (no attempts/backtracks)
-            // Time can be any positive value
-            return score >= 0
-        } else if gameName.lowercased() == "linkedinpinpoint" {
-            // For Pinpoint, score is number of guesses (1-5), maxAttempts is 5
-            // Standard validation applies
-            return score >= 1 && score <= maxAttempts
-        } else if gameName.lowercased() == "strands" {
-            // For Strands, score is number of hints (0-10), maxAttempts is 10
-            // Hints can be 0 or more, up to reasonable limit
-            return score >= 0 && score <= maxAttempts
-        } else if gameName.lowercased() == "octordle" {
-            // For Octordle, score is the actual score from "Score: XX" line
-            // maxAttempts = score, so score should equal maxAttempts
-            // Score can be 0 (if Score line not found) or any positive value (8 is perfect, higher is worse)
-            return score >= 0 && score == maxAttempts
-        }
+        // Look up the game's scoring model for type-safe validation
+        let game = Game.allAvailableGames.first { $0.id == gameId }
+        let scoringModel = game?.scoringModel ?? .lowerAttempts
         
-        // Standard validation for other games
-        return score >= 1 && score <= maxAttempts
+        switch scoringModel {
+        case .lowerTimeSeconds:
+            // Time-based games (Zip, Tango, Queens, Crossclimb, etc.): any non-negative time
+            return score >= 0
+        case .lowerGuesses:
+            // Guess-based games (Pinpoint): 1 to maxAttempts
+            return score >= 1 && score <= maxAttempts
+        case .lowerHints:
+            // Hint-based games (Strands): 0 to maxAttempts
+            return score >= 0 && score <= maxAttempts
+        case .higherIsBetter:
+            // Score-based games (Octordle, etc.): non-negative
+            return score >= 0
+        case .lowerAttempts:
+            // Attempt-based games (Wordle, Nerdle, etc.): 1 to maxAttempts
+            return score >= 1 && score <= maxAttempts
+        }
     }
 }
 

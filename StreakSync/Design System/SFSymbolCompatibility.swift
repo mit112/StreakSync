@@ -7,6 +7,9 @@
 
 import SwiftUI
 import UIKit
+import OSLog
+
+private let symbolLogger = Logger(subsystem: "com.streaksync.app", category: "SFSymbolCompatibility")
 
 /// SF Symbol compatibility system that provides fallbacks for symbols not available in older iOS versions
 struct SFSymbolCompatibility {
@@ -25,7 +28,7 @@ struct SFSymbolCompatibility {
         // Handle empty strings first
         if symbolName.isEmpty {
             #if DEBUG
-            print("🚨 [SFSymbolCompatibility.compatibleSymbol] Empty symbol name detected, using fallback: '\(fallback)'")
+            symbolLogger.warning("Empty symbol name detected, using fallback: '\(fallback)'")
             #endif
             return fallback
         }
@@ -34,7 +37,7 @@ struct SFSymbolCompatibility {
             return symbolName
         } else {
             #if DEBUG
-            print("⚠️ [SFSymbolCompatibility] Symbol '\(symbolName)' not available, using fallback: '\(fallback)'")
+            symbolLogger.warning("Symbol '\(symbolName)' not available, using fallback: '\(fallback)'")
             #endif
             return fallback
         }
@@ -67,7 +70,7 @@ struct SFSymbolCompatibility {
         // Handle empty strings first
         if symbolName.isEmpty {
             #if DEBUG
-            print("🚨 [SFSymbolCompatibility.getSymbol] Empty symbol name detected, using fallback: questionmark.circle")
+            symbolLogger.warning("Empty symbol name detected, using fallback: questionmark.circle")
             #endif
             return "questionmark.circle"
         }
@@ -87,14 +90,10 @@ extension Image {
         
         #if DEBUG
         if name.isEmpty {
-            print("🚨🚨🚨 [Image.compatibleSystemName] EMPTY SYMBOL NAME DETECTED!")
-            print("🚨 Original name: '\(name)'")
-            print("🚨 Safe name: '\(safeName)'")
-            print("🚨 Stack trace:")
-            Thread.callStackSymbols.prefix(10).forEach { print("  \($0)") }
+            symbolLogger.error("EMPTY SYMBOL NAME in Image.compatibleSystemName — safe: '\(safeName)'")
         }
         if name != safeName {
-            print("🔄 [Image.compatibleSystemName] '\(name)' → '\(safeName)' (compatibility fallback)")
+            symbolLogger.debug("Image symbol fallback: '\(name)' → '\(safeName)'")
         }
         #endif
         
@@ -110,14 +109,10 @@ extension UIImage {
         
         #if DEBUG
         if name.isEmpty {
-            print("🚨🚨🚨 [UIImage.compatibleSystemName] EMPTY SYMBOL NAME DETECTED!")
-            print("🚨 Original name: '\(name)'")
-            print("🚨 Safe name: '\(safeName)'")
-            print("🚨 Stack trace:")
-            Thread.callStackSymbols.prefix(10).forEach { print("  \($0)") }
+            symbolLogger.error("EMPTY SYMBOL NAME in UIImage.compatibleSystemName — safe: '\(safeName)'")
         }
         if name != safeName {
-            print("🔄 [UIImage.compatibleSystemName] '\(name)' → '\(safeName)' (compatibility fallback)")
+            symbolLogger.debug("UIImage symbol fallback: '\(name)' → '\(safeName)'")
         }
         #endif
         

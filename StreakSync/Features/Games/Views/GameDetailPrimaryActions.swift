@@ -70,8 +70,8 @@ private struct ManualEntryButton: View {
                 .font(.subheadline.weight(.medium))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
-                .glassCard()
         }
+        .buttonStyle(.glass)
         .pressable(hapticType: .buttonTap)
         .hoverable()
     }

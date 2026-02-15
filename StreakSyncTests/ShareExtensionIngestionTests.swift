@@ -1,6 +1,7 @@
 import XCTest
 @testable import StreakSync
 
+@MainActor
 final class ShareExtensionIngestionTests: XCTestCase {
     
     func testAddGameResult_UniqueThenDuplicateByID() {

@@ -5,109 +5,6 @@
 //  Simple daily notification scheduling system
 //
 
-/*
- * NOTIFICATIONSCHEDULER - SMART REMINDER AND NOTIFICATION SYSTEM
- * 
- * WHAT THIS FILE DOES:
- * This file is the "reminder system" of the app. It schedules notifications to remind users
- * to play their games and maintain their streaks. Think of it as a "smart alarm clock" that
- * learns when users typically play games and sends reminders at the optimal times. It also
- * handles achievement notifications and other important app events, making sure users don't
- * miss out on their progress or lose their streaks.
- * 
- * WHY IT EXISTS:
- * Users need gentle reminders to maintain their gaming streaks, especially when life gets busy.
- * This scheduler uses smart algorithms to determine the best times to send reminders based on
- * the user's playing patterns. It also celebrates achievements and provides quick actions
- * directly from notifications, making the app more engaging and helpful.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This helps users maintain their streaks and stay engaged
- * - Schedules smart reminders based on user behavior patterns
- * - Handles achievement notifications and celebrations
- * - Provides quick actions directly from notifications
- * - Manages notification permissions and user preferences
- * - Integrates with the smart reminder engine for optimal timing
- * - Supports different notification types and categories
- * 
- * WHAT IT REFERENCES:
- * - UserNotifications: iOS framework for local and push notifications
- * - UNUserNotificationCenter: The system notification center
- * - NotificationCategory: Different types of notifications
- * - NotificationAction: Quick actions users can take from notifications
- * - AppState: Access to user data and playing patterns
- * - Smart reminder algorithms: For determining optimal notification times
- * 
- * WHAT REFERENCES IT:
- * - AppContainer: Creates and manages the NotificationScheduler
- * - AppState: Uses this to schedule notifications when needed
- * - Settings: Users can configure notification preferences
- * - Achievement system: Triggers notifications when achievements are unlocked
- * - Smart reminder engine: Provides optimal timing for notifications
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. NOTIFICATION STRATEGY IMPROVEMENTS:
- *    - The current scheduling is basic - could be more sophisticated
- *    - Consider using machine learning for better timing predictions
- *    - Add support for different reminder frequencies and patterns
- *    - Implement smart notification grouping to avoid spam
- * 
- * 2. USER EXPERIENCE IMPROVEMENTS:
- *    - The current notifications could be more personalized
- *    - Add support for custom notification messages
- *    - Implement notification preferences and customization
- *    - Add support for different notification styles and sounds
- * 
- * 3. PERFORMANCE OPTIMIZATIONS:
- *    - The current scheduling could be more efficient
- *    - Consider batching notification requests
- *    - Add support for notification queuing and prioritization
- *    - Implement smart notification cleanup and management
- * 
- * 4. TESTING IMPROVEMENTS:
- *    - Add comprehensive unit tests for notification logic
- *    - Test different notification scenarios and edge cases
- *    - Add integration tests with the notification system
- *    - Test notification permissions and error handling
- * 
- * 5. DOCUMENTATION IMPROVEMENTS:
- *    - Add detailed documentation for notification types
- *    - Document the scheduling algorithms and timing logic
- *    - Add examples of how to use different notification features
- *    - Create notification flow diagrams
- * 
- * 6. ACCESSIBILITY IMPROVEMENTS:
- *    - Add support for accessibility features in notifications
- *    - Implement VoiceOver-friendly notification content
- *    - Add support for different accessibility needs
- *    - Consider adding haptic feedback for notifications
- * 
- * 7. ANALYTICS INTEGRATION:
- *    - Add analytics for notification effectiveness
- *    - Track user engagement with notification actions
- *    - Monitor notification delivery and interaction rates
- *    - Add A/B testing support for notification content
- * 
- * 8. EXTENSIBILITY IMPROVEMENTS:
- *    - Make it easier to add new notification types
- *    - Add support for custom notification actions
- *    - Implement notification templates and themes
- *    - Add support for third-party notification integrations
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - Notifications: Messages that appear on the user's device
- * - Scheduling: Setting up notifications to appear at specific times
- * - UserNotifications: Apple's framework for handling notifications
- * - Notification categories: Different types of notifications with different actions
- * - Notification actions: Quick actions users can take directly from notifications
- * - Smart algorithms: Computer programs that learn and adapt to user behavior
- * - Permissions: User consent required for sending notifications
- * - Local notifications: Notifications sent by the app itself (not from a server)
- * - Push notifications: Notifications sent from a server to the user's device
- * - Notification center: The system component that manages all notifications
- */
-
 import Foundation
 import UserNotifications
 import OSLog
@@ -216,6 +113,41 @@ final class NotificationScheduler: ObservableObject {
         logger.info("✅ Notification categories registered")
     }
     
+    // MARK: - Shared Content Builder
+    
+    /// Builds notification content for streak reminder notifications.
+    /// Used by daily reminders, snooze reminders, and digest previews.
+    /// Internal for @testable import in unit tests.
+    func buildStreakReminderContent(games: [Game]) -> UNMutableNotificationContent {
+        let content = UNMutableNotificationContent()
+        
+        if games.count == 1 {
+            let game = games[0]
+            content.title = "Streak Reminder"
+            content.body = "Don't lose your \(game.name) streak"
+            content.userInfo = ["gameId": game.id.uuidString, "type": "daily_streak_reminder"]
+        } else if games.count <= 3 && games.count > 0 {
+            let gameNames = games.map { $0.name }.joined(separator: ", ")
+            content.title = "Streak Reminders"
+            content.body = "Don't lose your streaks in \(gameNames)"
+            content.userInfo = ["type": "daily_streak_reminder"]
+        } else if games.count > 3 {
+            let firstTwo = games.prefix(2).map { $0.name }.joined(separator: ", ")
+            let remaining = games.count - 2
+            content.title = "Streak Reminders"
+            content.body = "Don't lose your streaks in \(firstTwo), and \(remaining) other game\(remaining > 1 ? "s" : "")"
+            content.userInfo = ["type": "daily_streak_reminder"]
+        } else {
+            content.title = "Streak Reminder"
+            content.body = "No streaks at risk today."
+            content.userInfo = ["type": "daily_streak_reminder"]
+        }
+        
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.streakReminder.identifier
+        return content
+    }
+    
     // MARK: - Permission Check
     func checkPermissionStatus() async -> UNAuthorizationStatus {
         let settings = await center.notificationSettings()
@@ -232,32 +164,7 @@ final class NotificationScheduler: ObservableObject {
         // Cancel any existing daily reminder first
         await cancelDailyStreakReminder()
         
-        let content = UNMutableNotificationContent()
-        
-        // Create notification content based on number of games
-        if games.count == 1 {
-            let game = games[0]
-            content.title = "Streak Reminder"
-            content.body = "Don't lose your \(game.name) streak"
-            content.userInfo = [
-                "gameId": game.id.uuidString,
-                "type": "daily_streak_reminder"
-            ]
-        } else if games.count <= 3 {
-            let gameNames = games.map { $0.name }.joined(separator: ", ")
-            content.title = "Streak Reminders"
-            content.body = "Don't lose your streaks in \(gameNames)"
-            content.userInfo = ["type": "daily_streak_reminder"]
-        } else {
-            let firstTwo = games.prefix(2).map { $0.name }.joined(separator: ", ")
-            let remaining = games.count - 2
-            content.title = "Streak Reminders"
-            content.body = "Don't lose your streaks in \(firstTwo), and \(remaining) other game\(remaining > 1 ? "s" : "")"
-            content.userInfo = ["type": "daily_streak_reminder"]
-        }
-        
-        content.sound = .default
-        content.categoryIdentifier = NotificationCategory.streakReminder.identifier
+        let content = buildStreakReminderContent(games: games)
         
         // Schedule for user's preferred time
         var dateComponents = DateComponents()
@@ -290,36 +197,7 @@ final class NotificationScheduler: ObservableObject {
             return
         }
         
-        let content = UNMutableNotificationContent()
-        
-        // Create notification content similar to daily reminder
-        if games.count == 1 {
-            let game = games[0]
-            content.title = "Streak Reminder"
-            content.body = "Don't lose your \(game.name) streak"
-            content.userInfo = [
-                "gameId": game.id.uuidString,
-                "type": "daily_streak_reminder"
-            ]
-        } else if games.count <= 3 && games.count > 0 {
-            let gameNames = games.map { $0.name }.joined(separator: ", ")
-            content.title = "Streak Reminders"
-            content.body = "Don't lose your streaks in \(gameNames)"
-            content.userInfo = ["type": "daily_streak_reminder"]
-        } else if games.count > 3 {
-            let firstTwo = games.prefix(2).map { $0.name }.joined(separator: ", ")
-            let remaining = games.count - 2
-            content.title = "Streak Reminders"
-            content.body = "Don't lose your streaks in \(firstTwo), and \(remaining) other game\(remaining > 1 ? "s" : "")"
-            content.userInfo = ["type": "daily_streak_reminder"]
-        } else {
-            content.title = "Streak Reminder"
-            content.body = "No streaks at risk today."
-            content.userInfo = ["type": "daily_streak_reminder"]
-        }
-        
-        content.sound = .default
-        content.categoryIdentifier = NotificationCategory.streakReminder.identifier
+        let content = buildStreakReminderContent(games: games)
         
         // Compute the specific date (daysFromNow) at user's preferred hour/minute
         let calendar = Calendar.current

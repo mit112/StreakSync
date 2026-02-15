@@ -5,116 +5,19 @@
 //  Provider-agnostic social layer for friends and leaderboards.
 //
 
-/*
- * SOCIALSERVICE - SOCIAL FEATURES PROTOCOL AND DATA MODELS
- * 
- * WHAT THIS FILE DOES:
- * This file defines the protocol and data models for social features like friends,
- * leaderboards, and competitive gaming. It's like a "social contract" that defines
- * how different social services (CloudKit, local storage, etc.) should behave.
- * Think of it as the "social architecture blueprint" that ensures all social
- * implementations provide consistent functionality for friends, leaderboards,
- * and competitive features.
- * 
- * WHY IT EXISTS:
- * The app needs social features but should work with different backends (CloudKit,
- * local storage, etc.). This protocol defines a common interface that all social
- * services must implement, ensuring consistent behavior regardless of the underlying
- * technology. It also defines the data models that represent users, scores, and
- * leaderboards.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This defines the social features architecture
- * - Provides consistent interface for all social service implementations
- * - Defines data models for users, scores, and leaderboards
- * - Enables flexible social backend switching (CloudKit, local, etc.)
- * - Ensures social features work consistently across different implementations
- * - Supports competitive gaming and social engagement
- * - Provides foundation for friends and leaderboard systems
- * 
- * WHAT IT REFERENCES:
- * - Foundation: For basic data types and protocols
- * - Codable: For data serialization and persistence
- * - Hashable: For data comparison and storage
- * - Identifiable: For SwiftUI list management
- * - Sendable: For thread safety in concurrent environments
- * 
- * WHAT REFERENCES IT:
- * - CloudKitSocialService: Implements this protocol with CloudKit + local caching
- * - MockSocialService: Implements this protocol with local storage
- * - Social features: Use these models and protocols for social functionality
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. PROTOCOL ENHANCEMENTS:
- *    - The current protocol is good but could be more comprehensive
- *    - Consider adding more social features (messaging, achievements sharing, etc.)
- *    - Add support for real-time updates and notifications
- *    - Implement more sophisticated social interactions
- * 
- * 2. DATA MODEL IMPROVEMENTS:
- *    - The current models are good but could be more sophisticated
- *    - Consider adding more user profile information
- *    - Add support for social statistics and analytics
- *    - Implement more detailed leaderboard metrics
- * 
- * 3. PERFORMANCE OPTIMIZATIONS:
- *    - The current implementation could be optimized
- *    - Consider implementing efficient data serialization
- *    - Add support for data compression and caching
- *    - Implement smart data synchronization
- * 
- * 4. TESTING IMPROVEMENTS:
- *    - Add comprehensive tests for social protocol compliance
- *    - Test different social service implementations
- *    - Add integration tests with real social backends
- *    - Test data model serialization and deserialization
- * 
- * 5. DOCUMENTATION IMPROVEMENTS:
- *    - Add detailed documentation for social protocol
- *    - Document the different social service implementations
- *    - Add examples of how to use social features
- *    - Create social features usage guidelines
- * 
- * 6. EXTENSIBILITY IMPROVEMENTS:
- *    - Make it easier to add new social features
- *    - Add support for custom social service implementations
- *    - Implement social feature plugins
- *    - Add support for third-party social integrations
- * 
- * 7. SECURITY IMPROVEMENTS:
- *    - The current security could be enhanced
- *    - Add support for user authentication and authorization
- *    - Implement data encryption and privacy protection
- *    - Add support for secure social interactions
- * 
- * 8. MONITORING AND OBSERVABILITY:
- *    - Add detailed logging for social interactions
- *    - Implement metrics for social feature usage
- *    - Add support for social debugging
- *    - Monitor social performance and reliability
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - Protocols: Define contracts that types must follow
- * - Data models: Structures that represent information in the app
- * - Social features: Features that involve multiple users and interaction
- * - Competitive gaming: Features that let users compete with each other
- * - Leaderboards: Lists that show user rankings and scores
- * - Friends systems: Features that let users connect with each other
- * - Backend services: Services that handle data storage and processing
- * - Thread safety: Making sure code works correctly with multiple threads
- * - Data serialization: Converting data to and from storage formats
- * - Architecture patterns: Ways of organizing code for flexibility and maintainability
- */
-
 import Foundation
 
 // MARK: - Social Models
 struct UserProfile: Identifiable, Codable, Hashable {
     let id: String            // Stable user identifier
     var displayName: String
+    var authProvider: String? // "anonymous", "apple", "google" — nil for legacy profiles
+    var photoURL: String?     // Profile photo URL (from auth provider)
+    var friendCode: String?   // 6-char friend code for invites
     var createdAt: Date
     var updatedAt: Date
+
+    var isAnonymous: Bool { authProvider == nil || authProvider == "anonymous" }
 }
 
 struct DailyGameScore: Identifiable, Codable, Hashable {
@@ -126,6 +29,7 @@ struct DailyGameScore: Identifiable, Codable, Hashable {
     let score: Int?
     let maxAttempts: Int
     let completed: Bool
+    let currentStreak: Int?   // User's streak for this game at time of publishing
 }
 
 struct LeaderboardRow: Identifiable, Codable, Hashable {
@@ -134,84 +38,62 @@ struct LeaderboardRow: Identifiable, Codable, Hashable {
     let displayName: String
     let totalPoints: Int
     let perGameBreakdown: [UUID: Int]
+    let perGameStreak: [UUID: Int]  // currentStreak per game (from most recent score)
 }
 
-struct DiscoveredFriend: Identifiable, Codable, Hashable {
-    let id: String
-    let displayName: String
-    let detail: String
+// MARK: - Friendship Model
+
+enum FriendshipStatus: String, Codable {
+    case pending   // Request sent, awaiting acceptance
+    case accepted  // Both users are friends
 }
 
-struct SocialCircle: Identifiable, Codable, Hashable {
-    let id: UUID
-    var name: String
-    var createdBy: String
-    var members: [String]
-    var createdAt: Date
-    var joinCode: String?
-}
-
-enum ReactionType: String, Codable, CaseIterable, Identifiable {
-    case clap
-    case fire
-    case star
+struct Friendship: Identifiable, Codable, Hashable {
+    let id: String            // Firestore document ID
+    let userId1: String       // The user who sent the request
+    let userId2: String       // The user who received the request
+    let status: FriendshipStatus
+    let createdAt: Date
+    let senderDisplayName: String? // Display name of userId1 (sender), stored on the doc for pending request UI
     
-    var id: String { rawValue }
-    
-    var emoji: String {
-        switch self {
-        case .clap: return "👏"
-        case .fire: return "🔥"
-        case .star: return "⭐️"
-        }
-    }
-    
-    var description: String {
-        switch self {
-        case .clap: return "celebrated"
-        case .fire: return "sent fire to"
-        case .star: return "highlighted"
-        }
+    /// Returns the other user's ID given the current user
+    func otherUserId(me: String) -> String {
+        userId1 == me ? userId2 : userId1
     }
 }
 
-struct Reaction: Identifiable, Codable, Hashable {
-    let id: UUID
-    let targetUserId: String
-    let targetGameId: UUID
-    let senderName: String
-    let date: Date
-    let type: ReactionType
-}
 
-// MARK: - Service Status
-enum ServiceStatus {
-    case cloudKit
-    case local
-    
-    var displayName: String {
-        switch self {
-        case .cloudKit: return "Real-time Sync"
-        case .local: return "Local Storage"
-        }
-    }
-    
-    var description: String {
-        switch self {
-        case .cloudKit: return "Scores sync automatically across devices"
-        case .local: return "Scores stored locally on this device"
-        }
-    }
+// MARK: - Listener Handle
+
+/// Opaque handle for cancelling a real-time Firestore listener.
+protocol SocialServiceListenerHandle: AnyObject, Sendable {
+    func cancel()
 }
 
 // MARK: - Social Service Protocol
 protocol SocialService: Sendable {
+    // Identity — synchronous accessor for the authenticated user ID
+    nonisolated var currentUserId: String? { get }
+    
     // Profile
     func ensureProfile(displayName: String?) async throws -> UserProfile
     func myProfile() async throws -> UserProfile
+    func lookupUser(byId userId: String) async throws -> UserProfile?
+    func updateProfile(displayName: String?, authProvider: String?) async throws
     
     // Friends
     func listFriends() async throws -> [UserProfile]
+    func sendFriendRequest(toUserId: String) async throws
+    func acceptFriendRequest(friendshipId: String) async throws
+    func removeFriend(friendshipId: String) async throws
+    /// Remove a friend by their user ID (looks up the friendship document automatically)
+    func removeFriend(userId: String) async throws
+    func pendingRequests() async throws -> [Friendship]
+    
+    /// Generate a friend code for the current user (stored on their profile)
+    func generateFriendCode() async throws -> String
+    /// Look up a user by their friend code
+    func lookupByFriendCode(_ code: String) async throws -> UserProfile?
     
     // Scores
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws
@@ -219,23 +101,14 @@ protocol SocialService: Sendable {
     
     // Sync status (nonisolated for Sendable conformance)
     nonisolated var pendingScoreCount: Int { get }
+    
+    // Real-time listeners (optional — returns nil if not supported, caller falls back to polling)
+    /// Listens for score changes among the given user IDs in the date range. Calls onChange when data changes.
+    nonisolated func addScoreListener(userIds: [String], startDateInt: Int, endDateInt: Int, onChange: @escaping @MainActor @Sendable () -> Void) -> SocialServiceListenerHandle?
+    /// Listens for friendship changes involving the current user. Calls onChange when friends are added/removed.
+    nonisolated func addFriendshipListener(onChange: @escaping @MainActor @Sendable () -> Void) -> SocialServiceListenerHandle?
 }
 
-@MainActor
-protocol FriendDiscoveryProviding: AnyObject {
-    func discoverFriends(forceRefresh: Bool) async throws -> [DiscoveredFriend]
-    func addFriend(usingUsername username: String) async throws
-}
-
-@MainActor
-protocol CircleManaging: AnyObject {
-    var activeCircleId: UUID? { get }
-    func listCircles() async throws -> [SocialCircle]
-    func createCircle(name: String) async throws -> SocialCircle
-    func joinCircle(using code: String) async throws -> SocialCircle
-    func leaveCircle(id: UUID) async throws
-    func selectCircle(id: UUID?) async
-}
 
 // MARK: - Helpers
 extension Date {

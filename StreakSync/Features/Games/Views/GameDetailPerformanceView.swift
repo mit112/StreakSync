@@ -154,15 +154,13 @@ private struct PerformanceChart: View {
             SimpleChartHeader(stats: stats)
             
             // Chart
-            if #available(iOS 16.0, *), !dailyResults.isEmpty {
+            if !dailyResults.isEmpty {
                 ModernChart(
                     dailyResults: dailyResults,
                     maxValue: maxValue,
                     selectedBar: $selectedBar,
                     animateChart: animateChart
                 )
-            } else {
-                LegacyPerformanceIndicators(dailyResults: dailyResults)
             }
             
             // Selected bar detail
@@ -191,7 +189,6 @@ private struct PerformanceChart: View {
 }
 
 // MARK: - Modern Chart with Dynamic Scale
-@available(iOS 16.0, *)
 private struct ModernChart: View {
     let dailyResults: [DailyResult]
     let maxValue: Int
@@ -405,8 +402,7 @@ private struct SimpleStats {
     }
 }
 
-// MARK: - Modern Performance Chart (iOS 16+)
-@available(iOS 16.0, *)
+// MARK: - Performance Chart
 private struct ModernPerformanceChart: View {
     let dailyResults: [DailyResult]
     
@@ -462,44 +458,6 @@ private struct ModernPerformanceChart: View {
             }
         }
         .frame(height: 100)
-    }
-}
-
-// MARK: - Legacy Performance Indicators
-private struct LegacyPerformanceIndicators: View {
-    let dailyResults: [DailyResult]
-    
-    private var dayFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "E"
-        return formatter
-    }
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(Array(dailyResults.enumerated()), id: \.offset) { index, daily in
-                VStack(spacing: 4) {
-                    Circle()
-                        .fill(circleColor(for: daily.result))
-                        .frame(width: 12, height: 12)
-                        .overlay(
-                            Circle()
-                                .stroke(Color(.systemBackground), lineWidth: 1)
-                        )
-                    
-                    Text(dayFormatter.string(from: daily.date))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            
-            Spacer()
-        }
-    }
-    
-    private func circleColor(for result: GameResult?) -> Color {
-        guard let result = result else { return .clear }
-        return result.completed ? .green : .red
     }
 }
 

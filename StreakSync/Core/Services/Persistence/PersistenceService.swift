@@ -5,104 +5,6 @@
 //  UPDATED: Using centralized AppError instead of local PersistenceError
 //
 
-/*
- * PERSISTENCESERVICE - DATA STORAGE AND RETRIEVAL SYSTEM
- * 
- * WHAT THIS FILE DOES:
- * This file is the "filing cabinet" of the app. It handles saving and loading all the important
- * data (game results, achievements, streaks) so that when users close and reopen the app, their
- * progress is preserved. Think of it as the "memory keeper" that makes sure nothing gets lost
- * when the app is closed or the phone is restarted.
- * 
- * WHY IT EXISTS:
- * Apps need to remember data between sessions. Without this service, every time users opened
- * the app, they would lose all their game results, streaks, and achievements. This service
- * uses UserDefaults (iOS's built-in storage system) to save data as JSON, making it easy
- * to store complex data structures and retrieve them later.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This is how the app remembers all user data between sessions
- * - Handles saving and loading of game results, achievements, and streaks
- * - Uses JSON encoding/decoding for complex data structures
- * - Provides error handling for storage failures
- * - Includes logging for debugging storage issues
- * - Supports App Groups for sharing data with extensions
- * - Validates data integrity after saving and loading
- * 
- * WHAT IT REFERENCES:
- * - UserDefaults: iOS's built-in storage system
- * - JSONEncoder/JSONDecoder: For converting data to/from JSON format
- * - AppError: Centralized error handling system
- * - Logger: For debugging and monitoring storage operations
- * - Codable: Protocol for data that can be saved/loaded
- * 
- * WHAT REFERENCES IT:
- * - AppState: Uses this to save and load all app data
- * - AppContainer: Creates and manages the PersistenceService
- * - Share Extension: Uses this to save shared game results
- * - All data models: Must conform to Codable to be saved
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. STORAGE STRATEGY IMPROVEMENTS:
- *    - The current approach uses UserDefaults for everything - could be more sophisticated
- *    - Consider using Core Data for complex relationships
- *    - Add support for different storage backends (CloudKit, local files)
- *    - Implement data migration strategies for schema changes
- * 
- * 2. ERROR HANDLING ENHANCEMENTS:
- *    - The current error handling is good but could be more specific
- *    - Add retry mechanisms for failed operations
- *    - Implement data corruption detection and recovery
- *    - Add user-friendly error messages for storage failures
- * 
- * 3. PERFORMANCE OPTIMIZATIONS:
- *    - The current implementation loads all data at once - could be optimized
- *    - Consider lazy loading for large datasets
- *    - Add data compression for better storage efficiency
- *    - Implement background saving for better user experience
- * 
- * 4. DATA VALIDATION:
- *    - The current validation is basic - could be more comprehensive
- *    - Add schema validation for saved data
- *    - Implement data integrity checks
- *    - Add versioning support for data format changes
- * 
- * 5. TESTING IMPROVEMENTS:
- *    - Add comprehensive unit tests for all storage operations
- *    - Test error handling and edge cases
- *    - Add integration tests with real data
- *    - Test data migration scenarios
- * 
- * 6. DOCUMENTATION IMPROVEMENTS:
- *    - Add detailed documentation for each storage method
- *    - Document the data format and schema
- *    - Add examples of how to use each method
- *    - Create data flow diagrams
- * 
- * 7. SECURITY IMPROVEMENTS:
- *    - Add data encryption for sensitive information
- *    - Implement access controls for different data types
- *    - Add audit logging for data access
- *    - Consider adding data backup and restore features
- * 
- * 8. EXTENSIBILITY IMPROVEMENTS:
- *    - Make it easier to add new data types
- *    - Add support for custom storage backends
- *    - Implement plugin system for storage providers
- *    - Add support for data synchronization
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - Persistence: Saving data so it survives app restarts
- * - UserDefaults: iOS's built-in storage system for app preferences and data
- * - JSON: A text format for storing structured data
- * - Codable: A Swift protocol that makes data easy to save and load
- * - Error handling: What to do when saving or loading fails
- * - Logging: Recording what the app is doing for debugging purposes
- * - Data validation: Making sure saved data is correct and complete
- * - App Groups: Shared storage between the main app and extensions
- */
-
 import Foundation
 import OSLog
 
@@ -115,6 +17,9 @@ protocol PersistenceServiceProtocol {
 }
 
 // MARK: - UserDefaults Persistence Service (Using AppError)
+// Game results use file-based storage (not UserDefaults) to avoid loading
+// large datasets into memory at launch. Streaks and achievements remain in
+// UserDefaults since they're small (<10KB each).
 final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
     private let logger = Logger(subsystem: "com.streaksync.app", category: "PersistenceService")
     private let userDefaults: UserDefaults
@@ -123,7 +28,6 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = .prettyPrinted
         return encoder
     }()
     
@@ -139,25 +43,28 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
         static let streaks = "streaksync_streaks"
     }
     
+    /// File URL for game results (Documents directory, backed up by iCloud)
+    private var gameResultsFileURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("game_results.json")
+    }
+    
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
     }
     
     func save<T: Codable>(_ object: T, forKey key: String) throws {
-        logger.info("💾 Saving data for key: \(key)")
+        // Route game results to file storage
+        if key == Keys.gameResults {
+            try saveToFile(object, url: gameResultsFileURL)
+            return
+        }
         
+        logger.debug("💾 Saving data for key: \(key)")
         do {
             let data = try encoder.encode(object)
             userDefaults.set(data, forKey: key)
-            // synchronize() is unnecessary on modern iOS; let the system flush
-            
-            // CRITICAL: Verify the save worked immediately
-            if let _ = userDefaults.data(forKey: key) {
-                logger.info("✅ Successfully saved data for key: \(key) (\(data.count) bytes)")
-            } else {
-                logger.error("❌ Failed to verify save for key: \(key)")
-                throw AppError.persistence(.saveFailed(dataType: key, underlying: nil))
-            }
+            logger.debug("✅ Successfully saved data for key: \(key) (\(data.count) bytes)")
         } catch let error as AppError {
             throw error
         } catch {
@@ -166,23 +73,19 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
     }
     
     func load<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
-        logger.info("📖 Loading data for key: \(key)")
+        // Route game results to file storage (with UserDefaults migration)
+        if key == Keys.gameResults {
+            return loadFromFile(type, url: gameResultsFileURL) ?? migrateGameResultsFromUserDefaults(type)
+        }
         
+        logger.debug("📖 Loading data for key: \(key)")
         guard let data = userDefaults.data(forKey: key) else {
             logger.debug("No data found for key: \(key)")
             return nil
         }
-        
         do {
             let object = try decoder.decode(type, from: data)
-            logger.info("✅ Successfully loaded data for key: \(key)")
-            
-            // CRITICAL: Log date verification for GameResult arrays
-            if let results = object as? [GameResult], let firstResult = results.first {
-                logger.info("🕐 LOADED RESULT DATE: \(firstResult.date)")
-                logger.info("📅 YEAR VERIFICATION: \(Calendar.current.component(.year, from: firstResult.date))")
-            }
-            
+            logger.debug("✅ Successfully loaded data for key: \(key)")
             return object
         } catch {
             logger.error("❌ Failed to decode data for key: \(key) - \(error.localizedDescription)")
@@ -191,8 +94,10 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
     }
     
     func remove(forKey key: String) {
+        if key == Keys.gameResults {
+            try? FileManager.default.removeItem(at: gameResultsFileURL)
+        }
         userDefaults.removeObject(forKey: key)
-        // synchronize() is unnecessary on modern iOS; let the system flush
         logger.info("🗑️ Removed data for key: \(key)")
     }
     
@@ -202,6 +107,52 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
             remove(forKey: key)
         }
         logger.info("🗑️ Cleared all persistence data")
+    }
+    
+    // MARK: - File-Based Storage (for large datasets like game results)
+    
+    private func saveToFile<T: Codable>(_ object: T, url: URL) throws {
+        do {
+            let data = try encoder.encode(object)
+            try data.write(to: url, options: .atomic)
+            logger.debug("💾 Saved \(data.count) bytes to \(url.lastPathComponent)")
+        } catch {
+            logger.error("❌ Failed to save to file \(url.lastPathComponent): \(error.localizedDescription)")
+            throw AppError.persistence(.saveFailed(dataType: url.lastPathComponent, underlying: error))
+        }
+    }
+    
+    private func loadFromFile<T: Codable>(_ type: T.Type, url: URL) -> T? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        do {
+            let data = try Data(contentsOf: url)
+            let object = try decoder.decode(type, from: data)
+            logger.debug("📖 Loaded \(data.count) bytes from \(url.lastPathComponent)")
+            return object
+        } catch {
+            logger.error("❌ Failed to load from file \(url.lastPathComponent): \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    /// One-time migration: moves game results from UserDefaults to file storage.
+    /// Returns the migrated data (or nil if nothing to migrate).
+    private func migrateGameResultsFromUserDefaults<T: Codable>(_ type: T.Type) -> T? {
+        guard let data = userDefaults.data(forKey: Keys.gameResults) else { return nil }
+        do {
+            let object = try decoder.decode(type, from: data)
+            // Write to file
+            let encoded = try encoder.encode(object)
+            try encoded.write(to: gameResultsFileURL, options: .atomic)
+            // Remove from UserDefaults
+            userDefaults.removeObject(forKey: Keys.gameResults)
+            logger.info("✅ Migrated game results from UserDefaults to file storage (\(encoded.count) bytes)")
+            return object
+        } catch {
+            logger.error("❌ Game results migration failed: \(error.localizedDescription)")
+            // Fall through — data stays in UserDefaults until next successful migration
+            return try? decoder.decode(type, from: data)
+        }
     }
 }
 
@@ -232,14 +183,14 @@ final class AppGroupPersistenceService {
             throw AppError.sync(.appGroupCommunicationFailed)
         }
         
-        logger.info("💾 Saving to App Group for key: \(key)")
+        logger.debug("💾 Saving to App Group for key: \(key)")
         
         do {
             let data = try encoder.encode(object)
             userDefaults.set(data, forKey: key)
             // synchronize() is unnecessary on modern iOS; let the system flush
             
-            logger.info("✅ Successfully saved to App Group for key: \(key)")
+            logger.debug("✅ Successfully saved to App Group for key: \(key)")
         } catch let error as AppError {
             throw error
         } catch {
@@ -260,12 +211,12 @@ final class AppGroupPersistenceService {
         
         do {
             let object = try decoder.decode(type, from: data)
-            logger.info("✅ Successfully loaded from App Group for key: \(key)")
+            logger.debug("✅ Successfully loaded from App Group for key: \(key)")
             
             // CRITICAL: Log date verification for GameResult
             if let result = object as? GameResult {
-                logger.info("🕐 LOADED APP GROUP RESULT DATE: \(result.date)")
-                logger.info("📅 YEAR VERIFICATION: \(Calendar.current.component(.year, from: result.date))")
+                logger.debug("🕐 LOADED APP GROUP RESULT DATE: \(result.date)")
+                logger.debug("📅 YEAR VERIFICATION: \(Calendar.current.component(.year, from: result.date))")
             }
             
             return object

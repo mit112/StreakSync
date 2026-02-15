@@ -110,7 +110,7 @@ struct EmptyStateGuidanceCard: View {
 #Preview("New User") {
     VStack(spacing: 20) {
         EmptyStateGuidanceCard(isReturningUser: false) {
-            print("Dismissed")
+            // preview action
         }
         .padding()
         
@@ -122,7 +122,7 @@ struct EmptyStateGuidanceCard: View {
 #Preview("Returning User") {
     VStack(spacing: 20) {
         EmptyStateGuidanceCard(isReturningUser: true) {
-            print("Dismissed")
+            // preview action
         }
         .padding()
         

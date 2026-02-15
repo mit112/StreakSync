@@ -5,110 +5,6 @@
 //  Enhanced skeleton loading with shimmer effect
 //
 
-/*
- * SKELETONLOADINGVIEW - ELEGANT LOADING STATES WITH SHIMMER ANIMATIONS
- * 
- * WHAT THIS FILE DOES:
- * This file provides beautiful skeleton loading animations that show placeholder content
- * while data is being loaded. It's like a "loading placeholder system" that displays
- * animated, shimmering shapes that mimic the final content layout. Think of it as the
- * "loading state manager" that makes waiting feel shorter and more engaging by showing
- * users what's coming instead of blank screens or spinners.
- * 
- * WHY IT EXISTS:
- * Loading states are crucial for good user experience - they help users understand that
- * content is being loaded and provide visual feedback about what to expect. Instead of
- * showing blank screens or generic spinners, this component provides animated skeleton
- * placeholders that match the final content layout, making the app feel more responsive
- * and professional.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This provides essential loading state feedback throughout the app
- * - Creates beautiful, animated skeleton loading states
- * - Supports different skeleton styles (card, list, grid, text) for different content types
- * - Uses shimmer animations to make loading feel more engaging
- * - Provides consistent loading experience across all features
- * - Makes the app feel more responsive and professional
- * - Reduces perceived loading time with engaging animations
- * 
- * WHAT IT REFERENCES:
- * - SwiftUI: For UI components and animations
- * - SkeletonStyle: Enum defining different skeleton loading styles
- * - LinearGradient: For creating shimmer effects
- * - Animation: For smooth loading animations
- * - Color: For consistent skeleton colors and theming
- * - RoundedRectangle: For creating skeleton shapes
- * 
- * WHAT REFERENCES IT:
- * - Dashboard views: Use this while loading game data
- * - Achievement views: Use this while loading achievement data
- * - Game lists: Use this while loading game information
- * - Search results: Use this while loading search data
- * - Various feature views: Use this for consistent loading states
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. SKELETON STYLE IMPROVEMENTS:
- *    - The current styles are good but could be more sophisticated
- *    - Consider adding more skeleton variations and layouts
- *    - Add support for custom skeleton configurations
- *    - Implement smart skeleton selection based on content type
- * 
- * 2. ANIMATION IMPROVEMENTS:
- *    - The current animations are good but could be enhanced
- *    - Consider adding more sophisticated shimmer effects
- *    - Add support for custom animation configurations
- *    - Implement smart animation selection based on context
- * 
- * 3. PERFORMANCE OPTIMIZATIONS:
- *    - The current implementation could be optimized
- *    - Consider implementing efficient skeleton rendering
- *    - Add support for skeleton caching and reuse
- *    - Implement smart skeleton management
- * 
- * 4. USER EXPERIENCE IMPROVEMENTS:
- *    - The current skeleton system could be more user-friendly
- *    - Add support for skeleton customization and preferences
- *    - Implement smart skeleton recommendations
- *    - Add support for skeleton tutorials and guidance
- * 
- * 5. ACCESSIBILITY IMPROVEMENTS:
- *    - The current accessibility support could be enhanced
- *    - Add better VoiceOver navigation and descriptions
- *    - Implement accessibility shortcuts
- *    - Add support for different accessibility needs
- * 
- * 6. TESTING IMPROVEMENTS:
- *    - Add comprehensive unit tests for skeleton logic
- *    - Test different skeleton styles and configurations
- *    - Add UI tests for skeleton animations
- *    - Test accessibility features
- * 
- * 7. DOCUMENTATION IMPROVEMENTS:
- *    - Add detailed documentation for skeleton features
- *    - Document the different skeleton styles and usage patterns
- *    - Add examples of how to use different skeletons
- *    - Create skeleton usage guidelines
- * 
- * 8. EXTENSIBILITY IMPROVEMENTS:
- *    - Make it easier to add new skeleton types
- *    - Add support for custom skeleton configurations
- *    - Implement skeleton plugins
- *    - Add support for third-party skeleton integrations
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - Skeleton loading: Animated placeholders that show while content is loading
- * - Shimmer effects: Animated gradients that create a shimmering appearance
- * - Loading states: UI components that show when data is being fetched
- * - User experience: Making sure the app feels responsive and engaging
- * - Animations: Visual effects that make loading feel more dynamic
- * - Placeholder content: Temporary content that shows the expected layout
- * - Performance: Making sure loading states don't slow down the app
- * - Accessibility: Making sure loading states work for all users
- * - Visual feedback: Providing users with information about app state
- * - Design systems: Standardized approaches to creating consistent experiences
- */
-
 import SwiftUI
 
 // MARK: - Skeleton Loading View
@@ -170,11 +66,7 @@ struct SkeletonLoadingView: View {
                 .frame(height: 8)
         }
         .padding()
-        .background {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-        }
+        .cardStyle(cornerRadius: 12)
     }
     
     // MARK: - List Skeleton

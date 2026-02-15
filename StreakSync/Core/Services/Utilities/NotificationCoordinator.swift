@@ -5,112 +5,6 @@
 //  Centralized notification handling and app communication
 //
 
-/*
- * NOTIFICATIONCOORDINATOR - CENTRALIZED NOTIFICATION HANDLING AND APP COMMUNICATION
- * 
- * WHAT THIS FILE DOES:
- * This file provides centralized notification handling that coordinates communication
- * between different parts of the app and external systems. It's like a "notification
- * traffic controller" that manages incoming notifications, deep links, and app
- * lifecycle events. Think of it as the "communication hub" that ensures all
- * notifications are handled properly and the app responds correctly to external
- * events like share extension results, deep links, and app state changes.
- * 
- * WHY IT EXISTS:
- * Modern apps need to handle various types of notifications and communication
- * from external sources. This coordinator provides a centralized way to manage
- * all notification handling, ensuring that game results from the share extension,
- * deep links from other apps, and app lifecycle events are all handled consistently
- * and reliably. It prevents notification handling from being scattered throughout
- * the codebase.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This handles all external communication and notifications
- * - Manages game results from the share extension
- * - Handles deep links for navigation to specific games and achievements
- * - Coordinates app lifecycle events and state changes
- * - Ensures proper notification handling and routing
- * - Provides centralized communication management
- * - Makes the app responsive to external events
- * 
- * WHAT IT REFERENCES:
- * - SwiftUI: For UI state management
- * - OSLog: For logging and debugging
- * - NotificationCenter: For system notification handling
- * - AppState: For app state management
- * - NavigationCoordinator: For navigation management
- * - AppGroupBridge: For inter-app communication
- * - GameResult: For game result data
- * 
- * WHAT REFERENCES IT:
- * - AppContainer: Sets up and manages this coordinator
- * - Share Extension: Sends notifications through this coordinator
- * - Deep link handling: Uses this for navigation
- * - App lifecycle: Uses this for state management
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. NOTIFICATION HANDLING IMPROVEMENTS:
- *    - The current handling is good but could be more sophisticated
- *    - Consider adding more notification types and scenarios
- *    - Add support for notification queuing and prioritization
- *    - Implement smart notification routing
- * 
- * 2. ERROR HANDLING IMPROVEMENTS:
- *    - The current error handling could be enhanced
- *    - Add support for notification failure recovery
- *    - Implement smart error handling and retry logic
- *    - Add support for notification validation
- * 
- * 3. PERFORMANCE OPTIMIZATIONS:
- *    - The current implementation could be optimized
- *    - Consider implementing efficient notification processing
- *    - Add support for notification batching
- *    - Implement smart notification management
- * 
- * 4. TESTING IMPROVEMENTS:
- *    - Add comprehensive unit tests for notification handling
- *    - Test different notification scenarios and edge cases
- *    - Add integration tests with real notifications
- *    - Test error handling and recovery
- * 
- * 5. DOCUMENTATION IMPROVEMENTS:
- *    - Add detailed documentation for notification handling
- *    - Document the different notification types and scenarios
- *    - Add examples of how to handle different notifications
- *    - Create notification handling guidelines
- * 
- * 6. EXTENSIBILITY IMPROVEMENTS:
- *    - Make it easier to add new notification types
- *    - Add support for custom notification configurations
- *    - Implement notification plugins
- *    - Add support for third-party notification integrations
- * 
- * 7. MONITORING AND OBSERVABILITY:
- *    - Add detailed logging for notification handling
- *    - Implement metrics for notification effectiveness
- *    - Add support for notification debugging
- *    - Monitor notification performance and reliability
- * 
- * 8. SECURITY IMPROVEMENTS:
- *    - The current security could be enhanced
- *    - Add support for notification validation and sanitization
- *    - Implement secure notification handling
- *    - Add support for notification encryption
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - Notification handling: Managing incoming messages and events
- * - Deep links: URLs that open specific parts of an app
- * - App lifecycle: The different states an app goes through
- * - Communication: How different parts of an app talk to each other
- * - Event-driven architecture: Designing systems that respond to events
- * - Error handling: Managing what happens when things go wrong
- * - Performance: Making sure notification handling is efficient
- * - Testing: Ensuring notification handling works correctly
- * - Security: Making sure notifications are handled safely
- * - Code organization: Keeping related functionality together
- */
-
 import SwiftUI
 import UIKit
 import OSLog
@@ -161,7 +55,7 @@ final class NotificationCoordinator: ObservableObject {
                 // Extract object before using it to avoid Sendable issues
                 guard let result = notification.object as? GameResult else { return }
                 Task { @MainActor [weak self] in
-                    self?.handleGameResult(result)
+                    self?.handleGameResult(result, quiet: false)
                 }
             }
         )
@@ -269,10 +163,6 @@ final class NotificationCoordinator: ObservableObject {
     
     // MARK: - Notification Handlers
     
-    private func handleGameResult(_ result: GameResult) {
-        handleGameResult(result, quiet: false)
-    }
-    
     private func handleGameResult(_ result: GameResult, quiet: Bool) {
         logger.info("✅ Handling game result: \(result.gameName) - \(result.displayScore)")
         
@@ -295,73 +185,10 @@ final class NotificationCoordinator: ObservableObject {
             if isActive && added && !quiet {
                 HapticManager.shared.trigger(.streakUpdate)
             } else {
-                if !isActive {
-                    self.logger.info("🔇 Haptics suppressed: app not active")
-                }
-                if !added {
-                    self.logger.info("🔇 Haptics suppressed: duplicate/invalid result")
-                }
-                if quiet {
-                    self.logger.info("🔇 Haptics suppressed: quiet batch processing")
-                }
+                let reason = !isActive ? "app not active" : !added ? "duplicate/invalid result" : "quiet batch"
+                self.logger.debug("🔇 Haptics suppressed: \(reason)")
             }
         }
-    }
-    
-    private func handleGameResultNotification(_ notification: Notification) {
-        guard let result = notification.object as? GameResult else {
-            logger.error("❌ Invalid game result in notification")
-            return
-        }
-        
-        logger.info("✅ Handling game result: \(result.gameName) - \(result.displayScore)")
-        
-        let quiet = (notification.userInfo?["quiet"] as? Bool) ?? false
-        Task { @MainActor [weak self] in
-            guard let self = self else { return }
-            let added: Bool
-            if let ingest = self.resultIngestion {
-                added = await ingest(result)
-            } else {
-                added = self.appState?.addGameResult(result) ?? false
-            }
-            self.triggerUIRefresh()
-            let isActive = UIApplication.shared.applicationState == .active
-            if isActive && added && !quiet {
-                HapticManager.shared.trigger(.streakUpdate)
-            } else {
-                if !isActive {
-                    self.logger.info("🔇 Haptics suppressed: app not active")
-                }
-                if !added {
-                    self.logger.info("🔇 Haptics suppressed: duplicate/invalid result")
-                }
-                if quiet {
-                    self.logger.info("🔇 Haptics suppressed: quiet batch processing")
-                }
-            }
-        }
-    }
-    
-    private func handleGameDeepLink(_ notification: Notification) {
-        guard let payload = notification.object as? [String: Any] else {
-            logger.error("❌ Invalid game deep link payload")
-            return
-        }
-        // Prefer id; fallback to name
-        if let gameId = payload[AppConstants.DeepLinkKeys.gameId] as? UUID,
-           let game = appState?.games.first(where: { $0.id == gameId }) {
-            logger.info("🔗 Handling game deep link by id: \(gameId)")
-            navigationCoordinator?.navigateTo(.gameDetail(game))
-            return
-        }
-        if let name = payload[AppConstants.DeepLinkKeys.name] as? String,
-           let game = appState?.games.first(where: { $0.name.lowercased() == name.lowercased() || $0.displayName.lowercased() == name.lowercased() }) {
-            logger.info("🔗 Handling game deep link by name: \(name)")
-            navigationCoordinator?.navigateTo(.gameDetail(game))
-            return
-        }
-        logger.error("❌ Game not found for deep link payload: \(payload)")
     }
     
     private func handleGameDeepLinkWithId(_ gameId: UUID) {
@@ -370,24 +197,6 @@ final class NotificationCoordinator: ObservableObject {
             navigationCoordinator?.navigateTo(.gameDetail(game))
         } else {
             logger.error("❌ Game not found for id: \(gameId)")
-        }
-    }
-    
-    private func handleAchievementDeepLink(_ notification: Notification) {
-        guard let payload = notification.object as? [String: Any],
-              let achievementId = payload[AppConstants.DeepLinkKeys.achievementId] as? UUID else {
-            logger.error("❌ Invalid achievement deep link payload")
-            return
-        }
-        
-        logger.info("🔗 Handling achievement deep link: \(achievementId)")
-        
-        // Navigate to achievements
-        navigationCoordinator?.navigateTo(.achievements)
-        
-        // Present tiered achievement detail if found
-        if let tiered = appState?.tieredAchievements.first(where: { $0.id == achievementId }) {
-            navigationCoordinator?.presentSheet(.tieredAchievementDetail(tiered))
         }
     }
     

@@ -5,170 +5,39 @@
 //  Manages the presentation of achievement unlock celebrations
 //
 
-/*
- * ACHIEVEMENTCELEBRATIONCOORDINATOR - ACHIEVEMENT UNLOCK CELEBRATION MANAGER
- * 
- * WHAT THIS FILE DOES:
- * This file manages the presentation of achievement unlock celebrations, ensuring
- * that users get proper recognition and feedback when they unlock achievements.
- * It's like a "celebration manager" that handles the timing, queuing, and display
- * of achievement celebrations. Think of it as the "achievement celebration system"
- * that makes unlocking achievements feel rewarding and engaging for users.
- * 
- * WHY IT EXISTS:
- * Users need to feel rewarded and recognized when they unlock achievements. This
- * coordinator ensures that achievement celebrations are shown at the right time,
- * in the right order, and with proper visual and audio feedback. It prevents
- * celebration spam and ensures a smooth, engaging user experience.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: This makes achievements feel rewarding and engaging
- * - Manages achievement celebration timing and queuing
- * - Prevents celebration spam and overlapping celebrations
- * - Provides proper visual and audio feedback for achievements
- * - Ensures celebrations are shown at appropriate times
- * - Handles celebration persistence and caching
- * - Coordinates with the achievement system for seamless integration
- * 
- * WHAT IT REFERENCES:
- * - SwiftUI: For UI presentation and state management
- * - OSLog: For logging and debugging
- * - NotificationCenter: For listening to achievement unlock notifications
- * - AchievementUnlock: Achievement unlock data and information
- * - AppConstants: For notification names and constants
- * 
- * WHAT REFERENCES IT:
- * - Achievement system: Posts notifications that this coordinator listens to
- * - AppContainer: Creates and manages this coordinator
- * - Achievement views: Use this for celebration display
- * - Various feature views: Can trigger achievement celebrations
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. CELEBRATION MANAGEMENT IMPROVEMENTS:
- *    - The current celebration system is good but could be more sophisticated
- *    - Consider adding more celebration types and animations
- *    - Add support for custom celebration configurations
- *    - Implement smart celebration timing based on user behavior
- * 
- * 2. USER EXPERIENCE IMPROVEMENTS:
- *    - The current celebrations could be more engaging
- *    - Add support for celebration customization and preferences
- *    - Implement smart celebration recommendations
- *    - Add support for celebration tutorials and guidance
- * 
- * 3. PERFORMANCE OPTIMIZATIONS:
- *    - The current implementation could be optimized
- *    - Consider implementing efficient celebration rendering
- *    - Add support for celebration caching and reuse
- *    - Implement smart celebration management
- * 
- * 4. TESTING IMPROVEMENTS:
- *    - Add comprehensive tests for celebration logic
- *    - Test different celebration scenarios and edge cases
- *    - Add UI tests for celebration interactions
- *    - Test celebration timing and queuing
- * 
- * 5. DOCUMENTATION IMPROVEMENTS:
- *    - Add detailed documentation for celebration features
- *    - Document the different celebration types and usage patterns
- *    - Add examples of how to use different celebrations
- *    - Create celebration usage guidelines
- * 
- * 6. EXTENSIBILITY IMPROVEMENTS:
- *    - Make it easier to add new celebration types
- *    - Add support for custom celebration configurations
- *    - Implement celebration plugins
- *    - Add support for third-party celebration integrations
- * 
- * 7. ACCESSIBILITY IMPROVEMENTS:
- *    - The current accessibility support could be enhanced
- *    - Add support for accessibility-enhanced celebrations
- *    - Implement accessibility shortcuts
- *    - Add support for different accessibility needs
- * 
- * 8. MONITORING AND OBSERVABILITY:
- *    - Add detailed logging for celebration interactions
- *    - Implement metrics for celebration effectiveness
- *    - Add support for celebration debugging
- *    - Monitor celebration performance and reliability
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - Celebration systems: Making achievements feel rewarding and engaging
- * - User experience: Making sure users feel recognized and motivated
- * - Notification handling: Listening for events and responding appropriately
- * - Queue management: Handling multiple events in the right order
- * - State management: Managing celebration state and presentation
- * - User engagement: Keeping users interested and motivated
- * - Visual feedback: Providing clear information about user actions
- * - Audio feedback: Using sound to enhance user experience
- * - Performance: Making sure celebrations don't slow down the app
- * - Accessibility: Making sure celebrations work for all users
- */
-
 import SwiftUI
 import UIKit
 import OSLog
 
 // MARK: - Achievement Celebration Coordinator
 @MainActor
-final class AchievementCelebrationCoordinator: ObservableObject {
+@Observable
+final class AchievementCelebrationCoordinator {
     
-    // MARK: - Published Properties
-    @Published var currentCelebration: AchievementUnlock?
-    @Published var isShowingCelebration = false
+    // MARK: - Observable Properties
+    var currentCelebration: AchievementUnlock?
+    var isShowingCelebration = false
     
     // MARK: - Private Properties
-    private var celebrationQueue: [AchievementUnlock] = []
-    private var notificationObserver: NSObjectProtocol?
-    private let logger = Logger(subsystem: "com.streaksync.app", category: "AchievementCelebration")
+    @ObservationIgnored private var celebrationQueue: [AchievementUnlock] = []
+    @ObservationIgnored private let logger = Logger(subsystem: "com.streaksync.app", category: "AchievementCelebration")
     
     // MARK: - Queue Management Properties
-    private var processedAchievements: Set<String> = []
-    private let processedKey = "processedTieredAchievementsCache"
-    private let processedExpiryHours: Double = 24
-    private var isProcessingQueue = false
-    private var resumeObserver: NSObjectProtocol?
+    @ObservationIgnored private var processedAchievements: Set<String> = []
+    @ObservationIgnored private let processedKey = "processedTieredAchievementsCache"
+    @ObservationIgnored private let processedExpiryHours: Double = 24
+    @ObservationIgnored private var isProcessingQueue = false
+    @ObservationIgnored private var resumeObserver: NSObjectProtocol?
     
     // MARK: - Initialization
     init() {
-        logger.info("🏗️ Initializing AchievementCelebrationCoordinator")
         loadProcessedCache()
-        setupObserver()
-        logger.info("✅ AchievementCelebrationCoordinator ready")
-    }
-    
-    deinit {
-        // Note: notificationObserver cleanup happens automatically
-        // Cannot access mutable state in deinit under strict concurrency
-    }
-    
-    // MARK: - Setup
-    private func setupObserver() {
-        notificationObserver = NotificationCenter.default.addObserver(
-            forName: .appTieredAchievementUnlocked,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let unlock = notification.object as? AchievementUnlock else { 
-                self?.logger.warning("⚠️ Received invalid achievement unlock notification")
-                return 
-            }
-            self?.logger.info("📨 Received achievement unlock notification: \(unlock.achievement.displayName)")
-            Task { @MainActor in
-                self?.queueCelebration(unlock)
-            }
-        }
-        
-        logger.info("✅ Achievement celebration coordinator initialized")
     }
     
     // MARK: - Queue Management
-    private func queueCelebration(_ unlock: AchievementUnlock) {
-        // Create unique identifier for this achievement unlock
+    func queueCelebration(_ unlock: AchievementUnlock) {
         let achievementId = "\(unlock.achievement.id)-\(unlock.tier.rawValue)"
 
-        // Prevent duplicate celebrations
         if processedAchievements.contains(achievementId) {
             logger.info("🚫 Skipping duplicate celebration: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
             return
@@ -176,12 +45,8 @@ final class AchievementCelebrationCoordinator: ObservableObject {
 
         logger.info("🎊 Queueing celebration for \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
 
-        // NOTE: Do NOT mark as processed here. We only mark as processed once the
-        // celebration actually begins showing to avoid losing celebrations when
-        // the app backgrounds between queueing and presentation.
         celebrationQueue.append(unlock)
         
-        // If not currently showing, start showing celebrations
         if !isShowingCelebration && !isProcessingQueue {
             processCelebrationQueue()
         }
@@ -193,7 +58,6 @@ final class AchievementCelebrationCoordinator: ObservableObject {
         if let data = defaults.array(forKey: processedKey) as? [String] {
             processedAchievements = Set(data)
         }
-        // Clear cache if older than expiry
         if let last = defaults.object(forKey: processedKey+"_ts") as? Date, Date().timeIntervalSince(last) > processedExpiryHours*3600 {
             processedAchievements.removeAll()
             defaults.removeObject(forKey: processedKey)
@@ -226,14 +90,11 @@ final class AchievementCelebrationCoordinator: ObservableObject {
         
         let nextUnlock = celebrationQueue.removeFirst()
         
-        // Gate celebrations to foreground only
         if UIApplication.shared.applicationState != .active {
             logger.info("🔇 Suppressing celebrations while app not active; will resume on activation")
-            // Put it back at the front of the queue
             celebrationQueue.insert(nextUnlock, at: 0)
             isProcessingQueue = false
             
-            // Register one-time observer to resume when app becomes active
             if resumeObserver == nil {
                 resumeObserver = NotificationCenter.default.addObserver(
                     forName: UIApplication.didBecomeActiveNotification,
@@ -255,7 +116,6 @@ final class AchievementCelebrationCoordinator: ObservableObject {
         
         logger.info("🎉 Showing celebration for \(nextUnlock.achievement.displayName) - \(nextUnlock.tier.displayName)")
         
-        // Mark as processed now that we're actually showing it
         let achievementId = "\(nextUnlock.achievement.id)-\(nextUnlock.tier.rawValue)"
         processedAchievements.insert(achievementId)
         persistProcessedCache()
@@ -270,7 +130,6 @@ final class AchievementCelebrationCoordinator: ObservableObject {
         isShowingCelebration = false
         currentCelebration = nil
         
-        // Show next celebration if any
         if !self.celebrationQueue.isEmpty {
             logger.info("⏭️ Showing next celebration in queue (\(self.celebrationQueue.count) remaining)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -282,7 +141,7 @@ final class AchievementCelebrationCoordinator: ObservableObject {
         }
     }
     
-    // MARK: - Public Methods
+    // MARK: - Binding Helper
     func celebrationBinding() -> Binding<AchievementUnlock?> {
         Binding(
             get: { self.currentCelebration },
@@ -297,7 +156,7 @@ final class AchievementCelebrationCoordinator: ObservableObject {
 
 // MARK: - View Modifier
 struct AchievementCelebrationModifier: ViewModifier {
-    @ObservedObject var coordinator: AchievementCelebrationCoordinator
+    @Bindable var coordinator: AchievementCelebrationCoordinator
     
     func body(content: Content) -> some View {
         content

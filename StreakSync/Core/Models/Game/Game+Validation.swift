@@ -7,6 +7,9 @@
 //
 
 import Foundation
+import OSLog
+
+private let validationLogger = Logger(subsystem: "com.streaksync.app", category: "GameValidation")
 
 extension Game {
     /// Validated icon system name that always returns a valid SF Symbol
@@ -21,13 +24,13 @@ extension Game {
         #if DEBUG
         let invalidGames = allAvailableGames.filter { $0.iconSystemName.isEmpty }
         if !invalidGames.isEmpty {
-            print("🚨 [Game.validateGameCatalog] Games with missing icons:")
+            validationLogger.warning("🚨 Games with missing icons:")
             for game in invalidGames {
-                print("  - \(game.displayName) (\(game.name)): Missing icon")
+                validationLogger.warning("  - \(game.displayName) (\(game.name)): Missing icon")
             }
-            print("🚨 [Game.validateGameCatalog] Consider adding default icons to prevent SF Symbol errors")
+            validationLogger.warning("🚨 Consider adding default icons to prevent SF Symbol errors")
         } else {
-            print("✅ [Game.validateGameCatalog] All games have valid icons")
+            validationLogger.debug("✅ All games have valid icons")
         }
         #endif
     }
@@ -50,7 +53,7 @@ extension Game {
         
         #if DEBUG
         if iconSystemName.isEmpty {
-            print("⚠️ [Game.createValidatedGame] Empty icon provided for '\(displayName)', using fallback: gamecontroller")
+            validationLogger.warning("⚠️ Empty icon provided for '\(displayName)', using fallback: gamecontroller")
         }
         #endif
         
@@ -66,14 +69,6 @@ extension Game {
             isPopular: isPopular,
             isCustom: isCustom
         )
-    }
-}
-
-// MARK: - Achievement Extensions
-extension Achievement {
-    /// Validated icon system name that always returns a valid SF Symbol
-    var safeIconSystemName: String {
-        iconSystemName.isEmpty ? "star.fill" : iconSystemName
     }
 }
 

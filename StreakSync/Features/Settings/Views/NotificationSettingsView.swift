@@ -106,9 +106,6 @@ struct NotificationSettingsView: View {
                     permissionSection
                 } else {
                 settingsSection
-//                #if DEBUG
-//                        debugSection
-//                #endif
                 }
         }
         .navigationTitle("Notifications")
@@ -260,22 +257,6 @@ struct NotificationSettingsView: View {
         }
     }
     
-    // MARK: - Debug Section
-//    private var debugSection: some View {
-//        Section("Debug") {
-//            Button("Test Notification") {
-//                Task {
-//                    await viewModel.testNotification()
-//                }
-//            }
-//            
-//            Button("Check Current State") {
-//                Task {
-//                    await NotificationScheduler.shared.logCurrentNotificationState()
-//                }
-//            }
-//        }
-//    }
 }
 
 #Preview {

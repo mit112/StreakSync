@@ -2,12 +2,15 @@
 //  AppDelegate.swift
 //  StreakSync
 //
-//  Handles remote notification registration and CloudKit subscription pushes.
+//  Handles remote notification registration.
 //
 
 import UIKit
 import OSLog
-import CloudKit
+import GoogleSignIn
+import FirebaseCore
+import FirebaseFirestore
+import FirebaseAppCheck
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     weak var container: AppContainer?
@@ -15,10 +18,23 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        // Note: Firebase is configured in AppContainer.init() which runs before this
-        // due to SwiftUI's @StateObject initialization order
+        // Configure Firebase App Check before FirebaseApp.configure().
+        // This must happen first so all Firebase services are protected.
+        AppCheck.setAppCheckProviderFactory(StreakSyncAppCheckProviderFactory())
         
-        // Register for remote notifications (required for silent CloudKit pushes)
+        // Configure Firebase before any other services initialize.
+        // This is the officially recommended location per Firebase docs.
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+            
+            let settings = FirestoreSettings()
+            settings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: 100 * 1024 * 1024))
+            Firestore.firestore().settings = settings
+            
+            logger.info("🔥 Firebase configured in AppDelegate")
+        }
+        
+        // Register for remote notifications
         UIApplication.shared.registerForRemoteNotifications()
         logger.info("📬 Requested remote notification registration")
         return true
@@ -37,16 +53,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didReceiveRemoteNotification userInfo: [AnyHashable : Any],
                      fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-        guard let container = container else {
-            logger.warning("⚠️ Received remote notification before container initialization")
-            completionHandler(.noData)
-            return
+        // Firebase handles sync via Firestore listeners
+        completionHandler(.noData)
+    }
+
+    func application(_ app: UIApplication,
+                     open url: URL,
+                     options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        if GIDSignIn.sharedInstance.handle(url) {
+            return true
         }
-        
-        Task { @MainActor in
-            await CloudKitSubscriptionManager.handleRemoteNotification(userInfo, container: container)
-            completionHandler(.newData)
-        }
+        return false
     }
 }
 

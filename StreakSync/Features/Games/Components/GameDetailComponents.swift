@@ -34,7 +34,7 @@ struct AnimatedStatPill: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.sm)
-        .glassCard(depth: .subtle)
+        .cardStyle(cornerRadius: 20)
         .pressable(hapticType: .buttonTap, scaleAmount: 0.95)
     }
 }
@@ -109,7 +109,12 @@ struct EmptyResultsCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
-        .glassCard()
+        .background {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .strokeBorder(Color(.separator).opacity(0.4), lineWidth: 0.5)
+        }
+        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
     }
 }
 

@@ -45,7 +45,6 @@ extension AppState {
         
         // Use parallel loading for better performance
         await loadAllData()
-        await migrateLegacyAchievementsIfNeeded()
         
         // Fix existing Connections results with updated completion logic
         await fixExistingConnectionsResults()
@@ -73,16 +72,12 @@ extension AppState {
     private func loadAllData() async {
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.loadGameResults() }
-            // Legacy achievements no longer loaded; tiered only
             group.addTask { await self.loadStreaks() }
         }
     }
-
-
     
-    // MARK: - Individual Loaders (Focused)
     private func loadGameResults() async {
-        logger.info("Loading game results...")
+        logger.debug("Loading game results...")
         
         if let results = persistenceService.load(
             [GameResult].self,
@@ -97,10 +92,8 @@ extension AppState {
         }
     }
     
-    // Legacy achievements loader removed (tiered achievements only)
-    
     private func loadStreaks() async {
-        logger.info("Loading streaks...")
+        logger.debug("Loading streaks...")
         
         if let persisted = persistenceService.load(
             [GameStreak].self,
@@ -118,66 +111,21 @@ extension AppState {
         }
     }
 
-    // MARK: - Migration: Legacy -> Tiered
-    private func migrateLegacyAchievementsIfNeeded() async {
-        // If we already have tiered achievements saved, skip
-        if persistenceService.load([TieredAchievement].self, forKey: Self.tieredAchievementsKey) != nil {
-            return
-        }
-        // If there are legacy achievements saved, attempt a best-effort migration
-        if let legacy = persistenceService.load([Achievement].self, forKey: UserDefaultsPersistenceService.Keys.achievements), !legacy.isEmpty {
-            logger.info("🧭 Migrating legacy achievements -> tiered achievements")
-            var migrated = AchievementFactory.createDefaultAchievements()
-            // Seed progress based on legacy unlocks
-            for a in legacy where a.isUnlocked {
-                switch a.requirement {
-                case .streakLength(let days):
-                    if let idx = migrated.firstIndex(where: { $0.category == .streakMaster }) {
-                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, days))
-                    }
-                case .totalGames(let count):
-                    if let idx = migrated.firstIndex(where: { $0.category == .gameCollector }) {
-                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, count))
-                    }
-                case .firstGame:
-                    if let idx = migrated.firstIndex(where: { $0.category == .gameCollector }) {
-                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, 1))
-                    }
-                case .multipleGames(let distinct):
-                    if let idx = migrated.firstIndex(where: { $0.category == .varietyPlayer }) {
-                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, distinct))
-                    }
-                case .perfectWeek:
-                    if let idx = migrated.firstIndex(where: { $0.category == .dailyDevotee }) {
-                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, 7))
-                    }
-                case .perfectMonth:
-                    if let idx = migrated.firstIndex(where: { $0.category == .dailyDevotee }) {
-                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, 30))
-                    }
-                case .consecutiveDays(let days):
-                    if let idx = migrated.firstIndex(where: { $0.category == .dailyDevotee }) {
-                        migrated[idx].updateProgress(value: max(migrated[idx].progress.currentValue, days))
-                    }
-                case .specificScore:
-                    // No direct mapping; ignore
-                    break
-                }
-            }
-            _tieredAchievements = migrated
-            await saveTieredAchievements()
-            // Clear legacy to avoid re-migration
-            persistenceService.remove(forKey: UserDefaultsPersistenceService.Keys.achievements)
-            logger.info("✅ Legacy achievements migrated: \(migrated.count) tiered items")
-        }
-    }
-
     // MARK: - Streak Normalization
     /// Resets streaks that are no longer active (missed a full day)
     /// FIXED: Only reset streaks if they were actually broken by missing a day,
     /// not just because time has passed since the last play
     @MainActor
     func normalizeStreaksForMissedDays(referenceDate: Date = Date()) async {
+        let calendar = Calendar.current
+        
+        // Pre-index: build a set of days with completed results per game (O(n) once)
+        var completedDaysByGame: [UUID: Set<Date>] = [:]
+        for result in recentResults where result.completed {
+            let day = calendar.startOfDay(for: result.date)
+            completedDaysByGame[result.gameId, default: []].insert(day)
+        }
+        
         var updated: [GameStreak] = []
         var didChange = false
         
@@ -187,11 +135,15 @@ extension AppState {
                 continue
             }
             
-            // Check if the streak should be broken based on actual game results
-            let shouldBreakStreak = shouldBreakStreakForGame(streak.gameId, lastPlayedDate: lastPlayed, referenceDate: referenceDate)
+            let completedDays = completedDaysByGame[streak.gameId] ?? []
+            let shouldBreak = hasGapInStreak(
+                completedDays: completedDays,
+                lastPlayedDate: lastPlayed,
+                referenceDate: referenceDate,
+                calendar: calendar
+            )
             
-            if shouldBreakStreak {
-                // Break the streak if it should be broken
+            if shouldBreak {
                 let reset = GameStreak(
                     id: streak.id,
                     gameId: streak.gameId,
@@ -219,43 +171,24 @@ extension AppState {
         }
     }
     
-    /// Determines if a streak should be broken based on actual game results
-    /// A streak should only be broken if there's a gap in completed games
-    private func shouldBreakStreakForGame(_ gameId: UUID, lastPlayedDate: Date, referenceDate: Date) -> Bool {
-        let calendar = Calendar.current
+    /// O(days) check using pre-indexed set of completed days.
+    private func hasGapInStreak(
+        completedDays: Set<Date>,
+        lastPlayedDate: Date,
+        referenceDate: Date,
+        calendar: Calendar
+    ) -> Bool {
         let startOfLastPlayed = calendar.startOfDay(for: lastPlayedDate)
         let startOfReference = calendar.startOfDay(for: referenceDate)
+        guard completedDays.isEmpty == false else { return false }
         
-        // Get all results for this game, sorted by date
-        let gameResults = recentResults
-            .filter { $0.gameId == gameId && $0.completed }
-            .sorted { $0.date < $1.date }
-        
-        // If no completed results, don't break the streak
-        guard !gameResults.isEmpty else { return false }
-        
-        // Check if there's a gap in completed games
         var currentDate = startOfLastPlayed
-        let endDate = startOfReference
-        
-        while currentDate < endDate {
-            let nextDay = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
-            
-            // Check if there's a completed game result for this day
-            let hasCompletedGameOnDay = gameResults.contains { result in
-                calendar.isDate(result.date, inSameDayAs: currentDate)
-            }
-            
-            // If there's no completed game on this day, and it's not the reference day,
-            // then the streak should be broken
-            if !hasCompletedGameOnDay && currentDate < endDate {
-                logger.info("📅 No completed game found for \(gameId) on \(currentDate) - breaking streak")
+        while currentDate < startOfReference {
+            if !completedDays.contains(currentDate) {
                 return true
             }
-            
-            currentDate = nextDay
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
         }
-        
         return false
     }
     
@@ -297,7 +230,7 @@ extension AppState {
     
     // MARK: - Share Extension Listener
     private func setupShareExtensionListener() {
-        NotificationCenter.default.addObserver(
+        shareExtensionObserver = NotificationCenter.default.addObserver(
             forName: .init(AppConstants.Notification.shareExtensionResultAvailable),
             object: nil,
             queue: .main
@@ -331,8 +264,6 @@ extension AppState {
             handleSaveError(error, dataType: "game results")
         }
     }
-    
-    // Legacy achievements saver removed
     
     func saveStreaks() async {
         // In Guest Mode we never persist streaks – host streaks are preserved
@@ -374,8 +305,6 @@ extension AppState {
         
         return result
     }
-    
-    // Legacy achievements merge removed
     
     // MARK: - Data Management
     func clearAllData() async {

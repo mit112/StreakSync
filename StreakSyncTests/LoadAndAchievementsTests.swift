@@ -8,6 +8,7 @@
 import XCTest
 @testable import StreakSync
 
+@MainActor
 final class LoadAndAchievementsTests: XCTestCase {
     
     // Minimal persistence double to count saves per key

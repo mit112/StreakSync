@@ -1,190 +1,306 @@
-/*
- * ACHIEVEMENTCHECKERTESTS - ACHIEVEMENT SYSTEM VALIDATION
- * 
- * WHAT THIS FILE DOES:
- * This file tests the achievement system to make sure it works correctly. It's like a "quality
- * control inspector" that checks if achievements unlock at the right times and with the right
- * conditions. Think of it as automated testing that ensures the achievement system is fair,
- * consistent, and bug-free. It tests specific scenarios like streak milestones and consecutive
- * day tracking to make sure users get the rewards they deserve.
- * 
- * WHY IT EXISTS:
- * Testing is crucial for any app feature, especially something as important as achievements.
- * Without tests, bugs in the achievement system could cause users to miss rewards or get
- * achievements they didn't earn. This file ensures that the achievement logic works correctly
- * and that changes to the code don't break existing functionality.
- * 
- * IMPORTANCE TO APPLICATION:
- * - CRITICAL: Ensures the achievement system works correctly and fairly
- * - Validates that achievements unlock at the right milestones
- * - Tests edge cases and boundary conditions
- * - Prevents regressions when code is changed
- * - Provides confidence in the achievement system's reliability
- * - Documents expected behavior through test cases
- * 
- * WHAT IT REFERENCES:
- * - XCTest: iOS testing framework for unit tests
- * - StreakSync: The main app module being tested
- * - AppState: For creating test data and app state
- * - TieredAchievementChecker: The main component being tested
- * - AchievementFactory: For creating test achievements
- * - GameResult, GameStreak: Test data models
- * 
- * WHAT REFERENCES IT:
- * - Xcode: Runs these tests during development and CI/CD
- * - Test runners: Execute these tests to validate the app
- * - Developers: Use these tests to understand expected behavior
- * - CI/CD systems: Run these tests automatically before deployment
- * 
- * CODE IMPROVEMENTS & REFACTORING SUGGESTIONS:
- * 
- * 1. TEST COVERAGE IMPROVEMENTS:
- *    - The current tests are basic - could be more comprehensive
- *    - Add tests for all achievement types and edge cases
- *    - Test achievement progress tracking and tier upgrades
- *    - Add tests for achievement unlock timing and conditions
- * 
- * 2. TEST DATA IMPROVEMENTS:
- *    - The current test data is minimal - could be more realistic
- *    - Create comprehensive test data sets
- *    - Add helper methods for creating test scenarios
- *    - Implement test data factories for different achievement types
- * 
- * 3. TEST ORGANIZATION:
- *    - The current tests are in one file - could be better organized
- *    - Consider separating into: StreakTests.swift, GameTests.swift, SpeedTests.swift
- *    - Group related tests together
- *    - Add descriptive test names and documentation
- * 
- * 4. ASSERTION IMPROVEMENTS:
- *    - The current assertions are basic - could be more specific
- *    - Add more detailed assertions for achievement progress
- *    - Test achievement metadata and unlock timestamps
- *    - Validate achievement tier progression
- * 
- * 5. TESTING STRATEGIES:
- *    - Add property-based testing for achievement logic
- *    - Implement integration tests with real data
- *    - Add performance tests for large datasets
- *    - Test achievement system under stress conditions
- * 
- * 6. DOCUMENTATION IMPROVEMENTS:
- *    - Add detailed documentation for each test
- *    - Document the test scenarios and expected outcomes
- *    - Add examples of how to run and interpret tests
- *    - Create test coverage reports
- * 
- * 7. TESTING TOOLS:
- *    - Consider using additional testing frameworks
- *    - Add mocking for external dependencies
- *    - Implement test data builders
- *    - Add test utilities for common scenarios
- * 
- * 8. CONTINUOUS INTEGRATION:
- *    - Add automated test running
- *    - Implement test result reporting
- *    - Add test coverage monitoring
- *    - Set up test failure notifications
- * 
- * LEARNING NOTES FOR BEGINNERS:
- * - Unit testing: Testing individual components in isolation
- * - XCTest: Apple's testing framework for iOS apps
- * - Test cases: Individual test scenarios that validate specific behavior
- * - Assertions: Statements that check if expected conditions are met
- * - Test data: Sample data used to test functionality
- * - Edge cases: Unusual or boundary conditions that might cause problems
- * - Regression testing: Ensuring changes don't break existing functionality
- * - Test coverage: How much of the code is tested by the test suite
- */
-
 import XCTest
 @testable import StreakSync
 
+@MainActor
 final class AchievementCheckerTests: XCTestCase {
-    func testStreakMasterUnlocks() throws {
-        let app = AppState()
-        var ach = AchievementFactory.createStreakMasterAchievement()
-        var tiered = [ach]
-        let streaks = [GameStreak.empty(for: app.games.first!)]
-        var s = streaks[0]
-        s.currentStreak = 7
-        let checker = TieredAchievementChecker()
-        let result = GameResult(id: UUID(), gameId: app.games.first!.id, gameName: app.games.first!.name, score: 1, maxAttempts: 6, completed: true, date: Date(), sharedText: "", parsedData: [:])
-        var current = tiered
-        let _ = checker.checkAllAchievements(for: result, allResults: [result], streaks: [s], games: app.games, currentAchievements: &current)
-        XCTAssertEqual(current[0].progress.currentTier, .silver)
+    
+    // MARK: - Test Helpers
+    
+    private let checker = TieredAchievementChecker()
+    
+    private func makeResult(
+        gameId: UUID = UUID(),
+        gameName: String = "Test",
+        date: Date = Date(),
+        score: Int = 1,
+        maxAttempts: Int = 6,
+        completed: Bool = true
+    ) -> GameResult {
+        GameResult(id: UUID(), gameId: gameId, gameName: gameName, date: date, score: score, maxAttempts: maxAttempts, completed: completed, sharedText: "Test result", parsedData: [:])
     }
     
-    func testDailyDevoteeCountsConsecutiveDays() throws {
+    private func dayOffset(_ days: Int, from base: Date = Date()) -> Date {
+        Calendar.current.date(byAdding: .day, value: days, to: base)!
+    }
+    
+    private func hourOffset(_ hour: Int) -> Date {
+        Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date())!
+    }
+    
+    private func makeStreak(for game: Game, currentStreak: Int) -> GameStreak {
+        GameStreak(
+            gameId: game.id,
+            gameName: game.name,
+            currentStreak: currentStreak,
+            maxStreak: currentStreak,
+            totalGamesPlayed: currentStreak,
+            totalGamesCompleted: currentStreak,
+            lastPlayedDate: Date(),
+            streakStartDate: Date()
+        )
+    }
+    
+    // MARK: - Streak Master
+    
+    func testStreakMasterUnlocksSilverAt7() {
         let app = AppState()
-        var ach = AchievementFactory.createDailyDevoteeAchievement()
-        var tiered = [ach]
-        let checker = TieredAchievementChecker()
+        let game = app.games.first!
+        let streak = makeStreak(for: game, currentStreak: 7)
+        var achievements = [AchievementFactory.createStreakMasterAchievement()]
+        let result = makeResult(gameId: game.id, gameName: game.name)
+        
+        let unlocks = checker.checkAllAchievements(for: result, allResults: [result], streaks: [streak], games: app.games, currentAchievements: &achievements)
+        
+        XCTAssertEqual(achievements[0].progress.currentTier, .silver)
+        XCTAssertEqual(unlocks.count, 1)
+        XCTAssertEqual(unlocks.first?.tier, .silver)
+    }
+    
+    func testStreakMasterNoUnlockBelow3() {
+        let app = AppState()
+        let game = app.games.first!
+        let streak = makeStreak(for: game, currentStreak: 2)
+        var achievements = [AchievementFactory.createStreakMasterAchievement()]
+        let result = makeResult(gameId: game.id, gameName: game.name)
+        
+        let unlocks = checker.checkAllAchievements(for: result, allResults: [result], streaks: [streak], games: app.games, currentAchievements: &achievements)
+        
+        XCTAssertNil(achievements[0].progress.currentTier)
+        XCTAssertTrue(unlocks.isEmpty)
+    }
+    
+    func testStreakMasterProgressiveTiers() {
+        let app = AppState()
+        let game = app.games.first!
+        var achievements = [AchievementFactory.createStreakMasterAchievement()]
+        let result = makeResult(gameId: game.id, gameName: game.name)
+        
+        // Bronze at 3
+        var streak = makeStreak(for: game, currentStreak: 3)
+        _ = checker.checkAllAchievements(for: result, allResults: [result], streaks: [streak], games: app.games, currentAchievements: &achievements)
+        XCTAssertEqual(achievements[0].progress.currentTier, .bronze)
+        
+        // Gold at 14
+        streak = makeStreak(for: game, currentStreak: 14)
+        _ = checker.checkAllAchievements(for: result, allResults: [result], streaks: [streak], games: app.games, currentAchievements: &achievements)
+        XCTAssertEqual(achievements[0].progress.currentTier, .gold)
+        
+        // Legendary at 100
+        streak = makeStreak(for: game, currentStreak: 100)
+        _ = checker.checkAllAchievements(for: result, allResults: [result], streaks: [streak], games: app.games, currentAchievements: &achievements)
+        XCTAssertEqual(achievements[0].progress.currentTier, .legendary)
+    }
+    
+    // MARK: - Game Collector
+    
+    func testGameCollectorCountsAllResults() {
+        var achievements = [AchievementFactory.createGameCollectorAchievement()]
+        let results = (0..<10).map { _ in makeResult() }
+        let result = results.last!
+        
+        let unlocks = checker.checkAllAchievements(for: result, allResults: results, streaks: [], games: [], currentAchievements: &achievements)
+        
+        XCTAssertEqual(achievements[0].progress.currentValue, 10)
+        XCTAssertEqual(achievements[0].progress.currentTier, .bronze)
+        XCTAssertFalse(unlocks.isEmpty)
+    }
+    
+    // MARK: - Daily Devotee
+    
+    func testDailyDevoteeCountsConsecutiveDays() {
+        let app = AppState()
         let gid = app.games.first!.id
         let now = Date()
-        let cal = Calendar.current
-        let r0 = GameResult(id: UUID(), gameId: gid, gameName: "Test", score: 1, maxAttempts: 6, completed: true, date: now, sharedText: "", parsedData: [:])
-        let r1 = GameResult(id: UUID(), gameId: gid, gameName: "Test", score: 1, maxAttempts: 6, completed: true, date: cal.date(byAdding: .day, value: -1, to: now)!, sharedText: "", parsedData: [:])
-        var current = tiered
-        let _ = checker.checkAllAchievements(for: r0, allResults: [r1, r0], streaks: [], games: app.games, currentAchievements: &current)
-        XCTAssertNotNil(current.first!.progress.currentTier)
+        var achievements = [AchievementFactory.createDailyDevoteeAchievement()]
+        let results = [
+            makeResult(gameId: gid, date: dayOffset(-2, from: now)),
+            makeResult(gameId: gid, date: dayOffset(-1, from: now)),
+            makeResult(gameId: gid, date: now),
+        ]
+        
+        _ = checker.checkAllAchievements(for: results.last!, allResults: results, streaks: [], games: app.games, currentAchievements: &achievements)
+        
+        XCTAssertEqual(achievements[0].progress.currentTier, .bronze)
     }
     
-    func testVarietyPlayerCountsAllTimeUniqueAcrossDays() throws {
+    func testDailyDevoteeResetsByGap() {
         let app = AppState()
-        var ach = AchievementFactory.createVarietyPlayerAchievement()
-        var tiered = [ach]
-        let checker = TieredAchievementChecker()
-        let cal = Calendar.current
+        let gid = app.games.first!.id
+        let now = Date()
+        var achievements = [AchievementFactory.createDailyDevoteeAchievement()]
+        let results = [
+            makeResult(gameId: gid, date: dayOffset(-5, from: now)),
+            makeResult(gameId: gid, date: dayOffset(-4, from: now)),
+            makeResult(gameId: gid, date: dayOffset(-1, from: now)),
+            makeResult(gameId: gid, date: now),
+        ]
+        
+        _ = checker.checkAllAchievements(for: results.last!, allResults: results, streaks: [], games: app.games, currentAchievements: &achievements)
+        
+        XCTAssertNil(achievements[0].progress.currentTier)
+    }
+    
+    // MARK: - Variety Player
+    
+    func testVarietyPlayerCountsUniqueGames() {
+        let app = AppState()
         let now = Date()
         let g1 = app.games[0]; let g2 = app.games[1]; let g3 = app.games[2]
-        let r1 = GameResult(id: UUID(), gameId: g1.id, gameName: g1.name, score: 1, maxAttempts: 6, completed: true, date: cal.date(byAdding: .day, value: -2, to: now)!, sharedText: "r1", parsedData: [:])
-        let r2 = GameResult(id: UUID(), gameId: g2.id, gameName: g2.name, score: 1, maxAttempts: 6, completed: true, date: cal.date(byAdding: .day, value: -1, to: now)!, sharedText: "r2", parsedData: [:])
-        let r3 = GameResult(id: UUID(), gameId: g3.id, gameName: g3.name, score: 1, maxAttempts: 6, completed: true, date: now, sharedText: "r3", parsedData: [:])
-        var current = tiered
-        let _ = checker.checkAllAchievements(for: r3, allResults: [r1, r2, r3], streaks: [], games: app.games, currentAchievements: &current)
-        XCTAssertEqual(current[0].progress.currentValue, 3)
+        var achievements = [AchievementFactory.createVarietyPlayerAchievement()]
+        let results = [
+            makeResult(gameId: g1.id, gameName: g1.name, date: dayOffset(-2, from: now)),
+            makeResult(gameId: g2.id, gameName: g2.name, date: dayOffset(-1, from: now)),
+            makeResult(gameId: g3.id, gameName: g3.name, date: now),
+        ]
+        
+        _ = checker.checkAllAchievements(for: results.last!, allResults: results, streaks: [], games: app.games, currentAchievements: &achievements)
+        
+        XCTAssertEqual(achievements[0].progress.currentValue, 3)
+        XCTAssertEqual(achievements[0].progress.currentTier, .bronze)
     }
     
-    func testVarietyPlayerMonotonicDoesNotDecrease() throws {
+    func testVarietyPlayerMonotonicDoesNotDecrease() {
         let app = AppState()
-        var ach = AchievementFactory.createVarietyPlayerAchievement()
-        var tiered = [ach]
-        let checker = TieredAchievementChecker()
-        let cal = Calendar.current
         let now = Date()
         let g1 = app.games[0]; let g2 = app.games[1]; let g3 = app.games[2]
-        let r1 = GameResult(id: UUID(), gameId: g1.id, gameName: g1.name, score: 1, maxAttempts: 6, completed: true, date: cal.date(byAdding: .day, value: -2, to: now)!, sharedText: "r1", parsedData: [:])
-        let r2 = GameResult(id: UUID(), gameId: g2.id, gameName: g2.name, score: 1, maxAttempts: 6, completed: true, date: cal.date(byAdding: .day, value: -1, to: now)!, sharedText: "r2", parsedData: [:])
-        var current = tiered
-        // First compute with three unique games
-        let r3 = GameResult(id: UUID(), gameId: g3.id, gameName: g3.name, score: 1, maxAttempts: 6, completed: true, date: now, sharedText: "r3", parsedData: [:])
-        let _ = checker.checkAllAchievements(for: r3, allResults: [r1, r2, r3], streaks: [], games: app.games, currentAchievements: &current)
-        XCTAssertEqual(current[0].progress.currentValue, 3)
-        // Next day only one game (should not decrease progress)
-        let nextDay = cal.date(byAdding: .day, value: 1, to: now)!
-        let r4 = GameResult(id: UUID(), gameId: g1.id, gameName: g1.name, score: 1, maxAttempts: 6, completed: true, date: nextDay, sharedText: "r4", parsedData: [:])
-        let _ = checker.checkAllAchievements(for: r4, allResults: [r1, r2, r3, r4], streaks: [], games: app.games, currentAchievements: &current)
-        XCTAssertEqual(current[0].progress.currentValue, 3)
+        var achievements = [AchievementFactory.createVarietyPlayerAchievement()]
+        let results3 = [
+            makeResult(gameId: g1.id, date: dayOffset(-2, from: now)),
+            makeResult(gameId: g2.id, date: dayOffset(-1, from: now)),
+            makeResult(gameId: g3.id, date: now),
+        ]
+        _ = checker.checkAllAchievements(for: results3.last!, allResults: results3, streaks: [], games: app.games, currentAchievements: &achievements)
+        XCTAssertEqual(achievements[0].progress.currentValue, 3)
+        
+        let r4 = makeResult(gameId: g1.id, date: dayOffset(1, from: now))
+        _ = checker.checkAllAchievements(for: r4, allResults: results3 + [r4], streaks: [], games: app.games, currentAchievements: &achievements)
+        XCTAssertEqual(achievements[0].progress.currentValue, 3)
     }
     
-    func testVarietyPlayerUsesUnionWithCachedSetOnRecalc() throws {
+    // MARK: - Perfectionist
+    
+    func testPerfectionistCountsSuccessfulOnly() {
+        var achievements = [AchievementFactory.createPerfectionistAchievement()]
+        let results = (0..<5).map { _ in makeResult(completed: true) } +
+                      (0..<3).map { _ in makeResult(completed: false) }
+        
+        _ = checker.checkAllAchievements(for: results.first!, allResults: results, streaks: [], games: [], currentAchievements: &achievements)
+        
+        XCTAssertEqual(achievements[0].progress.currentValue, 5)
+        XCTAssertEqual(achievements[0].progress.currentTier, .bronze)
+    }
+    
+    // MARK: - Time-Based Achievements
+    
+    func testEarlyBirdCountsMorningPlays() {
+        var achievements = [AchievementFactory.createEarlyBirdAchievement()]
+        let earlyResults = (0..<3).map { _ in makeResult(date: hourOffset(6)) }
+        let lateResults = [makeResult(date: hourOffset(14))]
+        let all = earlyResults + lateResults
+        
+        _ = checker.checkAllAchievements(for: all.first!, allResults: all, streaks: [], games: [], currentAchievements: &achievements)
+        
+        XCTAssertEqual(achievements[0].progress.currentValue, 3)
+    }
+    
+    func testNightOwlCountsLateNightPlays() {
+        var achievements = [AchievementFactory.createNightOwlAchievement()]
+        let lateResults = (0..<2).map { _ in makeResult(date: hourOffset(2)) }
+        let dayResults = [makeResult(date: hourOffset(12))]
+        let all = lateResults + dayResults
+        
+        _ = checker.checkAllAchievements(for: all.first!, allResults: all, streaks: [], games: [], currentAchievements: &achievements)
+        
+        XCTAssertEqual(achievements[0].progress.currentValue, 2)
+    }
+    
+    func testEarlyBirdExcludesBoundary() {
+        var achievements = [AchievementFactory.createEarlyBirdAchievement()]
+        let result = makeResult(date: hourOffset(9))
+        
+        _ = checker.checkAllAchievements(for: result, allResults: [result], streaks: [], games: [], currentAchievements: &achievements)
+        
+        XCTAssertEqual(achievements[0].progress.currentValue, 0)
+    }
+    
+    // MARK: - Marathon Runner
+    
+    func testMarathonRunnerCountsUniqueDays() {
+        var achievements = [AchievementFactory.createMarathonRunnerAchievement()]
+        let now = Date()
+        let results = (0..<5).flatMap { dayIdx in
+            (0..<2).map { _ in makeResult(date: dayOffset(-dayIdx, from: now)) }
+        }
+        
+        _ = checker.checkAllAchievements(for: results.first!, allResults: results, streaks: [], games: [], currentAchievements: &achievements)
+        
+        XCTAssertEqual(achievements[0].progress.currentValue, 5)
+    }
+    
+    // MARK: - Comeback Champion
+    
+    func testComebackChampionCountsGaps() {
+        let gameId = UUID()
+        let now = Date()
+        var achievements = [AchievementFactory.createComebackChampionAchievement()]
+        let results = [
+            makeResult(gameId: gameId, date: dayOffset(-6, from: now)),
+            makeResult(gameId: gameId, date: dayOffset(-5, from: now)),
+            makeResult(gameId: gameId, date: dayOffset(-1, from: now)),
+            makeResult(gameId: gameId, date: now),
+        ]
+        
+        _ = checker.checkAllAchievements(for: results.last!, allResults: results, streaks: [], games: [], currentAchievements: &achievements)
+        
+        XCTAssertEqual(achievements[0].progress.currentValue, 1)
+        XCTAssertEqual(achievements[0].progress.currentTier, .bronze)
+    }
+    
+    // MARK: - Progress Percentage
+    
+    func testPercentageToNextTierFromZero() {
+        let requirements = [
+            TierRequirement(tier: .bronze, threshold: 10),
+            TierRequirement(tier: .silver, threshold: 20),
+        ]
+        let progress = AchievementProgress(currentValue: 5, currentTier: nil)
+        
+        XCTAssertEqual(progress.percentageToNextTier(requirements: requirements), 0.5, accuracy: 0.01)
+    }
+    
+    func testPercentageToNextTierFromBronze() {
+        let requirements = [
+            TierRequirement(tier: .bronze, threshold: 10),
+            TierRequirement(tier: .silver, threshold: 20),
+        ]
+        let progress = AchievementProgress(currentValue: 15, currentTier: .bronze)
+        
+        XCTAssertEqual(progress.percentageToNextTier(requirements: requirements), 0.5, accuracy: 0.01)
+    }
+    
+    func testPercentageMaxTierReturns1() {
+        let requirements = [TierRequirement(tier: .bronze, threshold: 10)]
+        let progress = AchievementProgress(currentValue: 10, currentTier: .bronze)
+        
+        // No next tier → 0.0 (nothing to progress toward)
+        XCTAssertEqual(progress.percentageToNextTier(requirements: requirements), 0.0)
+    }
+    
+    // MARK: - Recalculation with cached unique games
+    
+    func testVarietyPlayerUsesUnionWithCachedSetOnRecalc() {
         let app = AppState()
-        // Prepare results for 2 unique games
         let g1 = app.games[0]; let g2 = app.games[1]; let gExtra = app.games[3]
         let now = Date()
-        let r1 = GameResult(id: UUID(), gameId: g1.id, gameName: g1.name, score: 1, maxAttempts: 6, completed: true, date: now, sharedText: "r1", parsedData: [:])
-        let r2 = GameResult(id: UUID(), gameId: g2.id, gameName: g2.name, score: 1, maxAttempts: 6, completed: true, date: now, sharedText: "r2", parsedData: [:])
-        app.recentResults = [r1, r2]
-        // Simulate cached unique set containing an extra historical game
+        app.recentResults = [
+            makeResult(gameId: g1.id, gameName: g1.name, date: now),
+            makeResult(gameId: g2.id, gameName: g2.name, date: now),
+        ]
         app._uniqueGamesEver = [g1.id, g2.id, gExtra.id]
-        // Recompute achievements
+        
         app.recalculateAllTieredAchievementProgress()
-        // Find variety player and ensure union count (3) is applied
+        
         let varAch = app.tieredAchievements.first { $0.category == .varietyPlayer }
-        XCTAssertNotNil(varAch)
         XCTAssertEqual(varAch?.progress.currentValue, 3)
     }
 }
-
-

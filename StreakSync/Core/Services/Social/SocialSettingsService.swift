@@ -7,7 +7,6 @@ import Foundation
 
 enum SocialSharingScope: String, Codable, CaseIterable, Identifiable {
     case allFriends
-    case circlesOnly
     case privateScope
     
     var id: String { rawValue }
@@ -15,9 +14,14 @@ enum SocialSharingScope: String, Codable, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .allFriends: return "All friends"
-        case .circlesOnly: return "Circles only"
         case .privateScope: return "Private"
         }
+    }
+    
+    // Migrate legacy "circlesOnly" values to allFriends
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = SocialSharingScope(rawValue: raw) ?? .allFriends
     }
 }
 
@@ -78,7 +82,7 @@ final class SocialSettingsService: ObservableObject {
             if points <= 0 { return false }
         }
         switch scope(for: score.gameId) {
-        case .allFriends, .circlesOnly:
+        case .allFriends:
             return true
         case .privateScope:
             return false

@@ -22,7 +22,7 @@ extension AppState {
 
         // Enhanced duplicate check
         guard !isDuplicateResult(result) else {
-            logger.info("Skipping duplicate result: \(result.gameName) - \(result.displayScore)")
+            logger.debug("Skipping duplicate result: \(result.gameName) - \(result.displayScore)")
             return false
         }
 
@@ -71,7 +71,15 @@ extension AppState {
         Task {
             await saveGameResults()
             await saveStreaks()
-            logger.info("✅ SAVED ALL: Game result, streaks, and tiered achievements for \(result.gameName)")
+            
+            // Prune oldest results if over limit (keeps UserDefaults manageable)
+            if !self.isGuestMode && self.recentResults.count > AppConstants.Storage.maxResults {
+                let overflow = self.recentResults.count - AppConstants.Storage.maxResults
+                self.recentResults.removeLast(overflow)
+                self.buildResultsCache()
+                await self.saveGameResults()
+                self.logger.info("🗑️ Pruned \(overflow) oldest results (limit: \(AppConstants.Storage.maxResults))")
+            }
         }
 
         logger.info("Added game result for \(result.gameName)")
@@ -96,48 +104,36 @@ extension AppState {
     // MARK: - Notification Posting
 
     private func postResultAddedNotifications(for result: GameResult) {
-        logger.info("📢 Posting notifications for new result: \(result.gameName) - \(result.displayScore)")
-
-        NotificationCenter.default.post(
-            name: .appGameResultAdded,
-            object: nil
-        )
-
-        NotificationCenter.default.post(
-            name: .appGameDataUpdated,
-            object: nil
-        )
-
-        if self.games.first(where: { $0.id == result.gameId }) != nil {
-            NotificationCenter.default.post(
-                name: .appRefreshGameData,
-                object: nil
-            )
-        }
-
-        logger.info("✅ All notifications posted successfully")
+        // Single notification for all data changes — views observe this one event
+        NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
     }
 
     // MARK: - Social Publishing
 
     private func publishScoreToSocial(_ result: GameResult) {
+        // Throttle: skip if same game was published within 5 seconds
+        if let lastPublish = lastScorePublishByGame[result.gameId],
+           Date().timeIntervalSince(lastPublish) < 5.0 {
+            logger.debug("⏭️ Throttled score publish for \(result.gameName) (< 5s since last)")
+            return
+        }
+        lastScorePublishByGame[result.gameId] = Date()
+        
         let logger = self.logger
-        logger.info("🎯 Publishing score - isGuestMode: \(self.isGuestMode)")
-        logger.info("🎯 socialService exists: \(self.socialService != nil)")
 
         Task { [weak self] in
-            guard let self else {
-                logger.error("❌ CRITICAL: self is nil in publish task")
-                return
-            }
+            guard let self else { return }
             guard let social = self.socialService else {
-                logger.error("❌ CRITICAL: socialService is nil!")
+                logger.warning("⚠️ socialService is nil — score not published")
                 return
             }
-            let userId = "local_user"
+            guard let userId = social.currentUserId else {
+                logger.warning("⚠️ No authenticated user — score not published")
+                return
+            }
             let dateInt = result.date.utcYYYYMMDD
-            logger.info("📅 Score dateInt: \(dateInt), date: \(result.date)")
-            logger.info("📅 Score details: game=\(result.gameName), score=\(result.score?.description ?? "nil"), completed=\(result.completed), maxAttempts=\(result.maxAttempts)")
+            // Look up current streak for this game
+            let streak = self.streaks.first(where: { $0.gameId == result.gameId })
             let compositeId = "\(userId)|\(dateInt)|\(result.gameId.uuidString)"
             let score = DailyGameScore(
                 id: compositeId,
@@ -147,13 +143,14 @@ extension AppState {
                 gameName: result.gameName,
                 score: result.score,
                 maxAttempts: result.maxAttempts,
-                completed: result.completed
+                completed: result.completed,
+                currentStreak: streak?.currentStreak
             )
             do {
                 try await social.publishDailyScores(dateUTC: result.date, scores: [score])
-                logger.info("✅ Score published successfully")
+                logger.info("✅ Score published for \(result.gameName)")
             } catch {
-                logger.error("❌ PUBLISH FAILED: \(error.localizedDescription)")
+                logger.error("❌ Score publish failed: \(error.localizedDescription)")
             }
         }
     }

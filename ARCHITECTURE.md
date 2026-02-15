@@ -23,22 +23,15 @@ Decisions
 
 ## Account & Identity Model
 
-- One StreakSync account per **iCloud Apple ID**:
-  - All CloudKit-backed data (game results, streaks, tiered achievements, leaderboard scores) is scoped to the Apple ID signed into iOS.
-  - There is no in-app login/logout; to use a different account, the user changes the iCloud account in iOS Settings.
-- Private database:
-  - Container: `iCloud.com.mitsheth.StreakSync2` as configured in `CloudKitConfiguration` and the app entitlements.
-  - Custom zones:
-    - `AchievementsZone` for the single `UserAchievements` record (tiered achievements sync via `AchievementSyncService`).
-    - `UserDataZone` for per-result `GameResult` records (synced via `UserDataSyncService`).
-- Shared database:
-  - CKShare-based leaderboard groups using `LeaderboardGroup` and `DailyScore` records per friend group.
-- Account changes & privacy:
-  - The app listens for `CKAccountChanged` and compares the current `userRecordID.recordName` with the last seen value.
-  - On a real Apple ID change, local data is cleared, sync tokens/queues are reset, and data for the new account is fetched from CloudKit.
-  - This ensures data from one Apple ID is never shown when another Apple ID is signed in.
+- **Local data (streaks, results, achievements)**: Persisted in UserDefaults + App Group, synced to CloudKit private database.
+  - Container: `iCloud.com.mitsheth.StreakSync2`
+  - Custom zones: `AchievementsZone` (tiered achievements via `AchievementSyncService`), `UserDataZone` (game results via `UserDataSyncService`).
+- **Social identity (friends, leaderboards)**: Firebase Auth + Firestore.
+  - `FirebaseAuthStateManager` handles anonymous auth (auto-created) and Apple Sign-In with credential linking (anonymous → Apple, preserves UID).
+  - `AccountView` in Settings provides sign-in/sign-out UI.
+  - Google Sign-In deferred (needs separate SPM dep + OAuth client).
 - Guest Mode:
-  - A local-only mode that lets someone temporarily use StreakSync without syncing their data to iCloud.
+  - A local-only mode that lets someone temporarily use StreakSync without syncing.
   - While Guest Mode is active, CloudKit sync and leaderboard publishing are disabled and host data is kept isolated.
 
 ## Achievements (Tiered-Only)
@@ -97,25 +90,36 @@ Refresh Model
 Developer (DEBUG)
 - Lightweight analytics self-tests live in `Core/Services/Analytics/AnalyticsSelfTests.swift` and can be called at startup in DEBUG to verify overview, trends, per-game stats, and achievements analytics.
 
-## Social: Friends & Leaderboard (Updated)
+## Social: Friends & Leaderboard
+
+Model
+- Flat friends list (no circles). Friendships stored in Firestore `friendships` collection (bidirectional, pending/accepted).
+- Friend codes for invites: generate a 6-char code, share it, friend enters it to connect.
+- All 17 games appear on the leaderboard. Scores use authenticated Firebase UID.
+- `currentStreak` field published to Firestore on score writes, displayed as 🔥 badge on leaderboard rows.
+- "Hasn't played yet" section shows dimmed friends who haven't scored for a game.
+
+Real-time Updates
+- Firestore snapshot listeners (`addScoreListener`, `addFriendshipListener`) provide live updates.
+- `FriendsViewModel` uses listeners with polling fallback for `MockSocialService`.
+- Listener methods are `nonisolated` for Sendable conformance.
 
 UX & UI
-- Friends header includes status chip (Local Storage / Real-time Sync), segmented range (Today / 7 Days), and an inline date pager with long-press to calendar.
-- Game-aware leaderboard metrics and rank delta chips. Sticky "You" bar summarises current rank and metric for the selected game.
-- Game carousel uses native SwiftUI snapping with `.scrollPosition(id:)`, `.scrollTargetLayout()`, `.scrollTargetBehavior(.viewAligned)`, and horizontal `contentMargins` to naturally center edges.
-- Empty state shows an Invite Friends CTA; inline error banner with dismiss; local-only ribbon explains offline/local mode.
+- Friends header with segmented range (Today / 7 Days) and inline date pager.
+- Game carousel with native SwiftUI snapping. Per-game leaderboard pages.
+- Rank delta chips (optional, flag-gated). Sticky "You" bar for current rank.
+- `FriendManagementView`: generate/copy friend code, add by code, accept pending requests, swipe-to-delete friends with confirmation.
+- `FriendsView` decomposed to ~250 lines. `GradientAvatar` and `GameIconCarousel` extracted as shared components.
 
 Architecture
-- `FriendsViewModel` in `Features/Friends/ViewModels` orchestrates profile, friends, leaderboard, rank deltas, date paging, and debounced refresh.
-- Scoring is centralized in `Core/Models/Social/LeaderboardScoring.swift` and respects each `Game.scoringModel`.
-- `HybridSocialService` is hardwired to local in development (no CloudKit APIs invoked) and will flip to CloudKit when entitlements are added later.
-
-Performance & Accessibility
-- Lazy stacks for lists; minimal overlays. Motion is subtle and honors Reduce Motion. VoiceOver labels summarise rank, name, metric, and delta.
-- Debounced refresh helper avoids rapid reloads during quick UI changes; periodic timer is only used if CloudKit is enabled.
+- `SocialService` protocol with `FirebaseSocialService` (production) and `MockSocialService` (dev).
+- `FriendsViewModel` orchestrates profile, friends, leaderboard, rank deltas, date paging, listeners, and debounced refresh.
+- Scoring centralized in `LeaderboardScoring.swift`, respects each `Game.scoringModel`.
+- `PendingScoreStore` handles offline score queue with retry logic.
 
 Files
 - `Features/Shared/Views/FriendsView.swift`, `Features/Friends/ViewModels/FriendsViewModel.swift`
 - `Features/Shared/Components/GameLeaderboardPage.swift`, `Features/Friends/Views/FriendManagementView.swift`
+- `Features/Shared/Components/GradientAvatar.swift`, `Features/Shared/Components/GameIconCarousel.swift`
 - `Core/Models/Social/LeaderboardScoring.swift`, `Core/Services/Social/*`
 

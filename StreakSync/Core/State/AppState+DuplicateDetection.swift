@@ -20,10 +20,10 @@ extension AppState {
             .replacingOccurrences(of: " ", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        logger.info("🔍 Checking duplicate for \(result.gameName) puzzle: \(cleanPuzzleNumber)")
-        logger.info("📊 Current results count: \(self.recentResults.count)")
-        logger.info("🆔 Result ID: \(result.id)")
-        logger.info("📅 Result date: \(result.date)")
+        logger.debug("🔍 Checking duplicate for \(result.gameName) puzzle: \(cleanPuzzleNumber)")
+        logger.debug("📊 Current results count: \(self.recentResults.count)")
+        logger.debug("🆔 Result ID: \(result.id)")
+        logger.debug("📅 Result date: \(result.date)")
 
         // Log existing results for debugging
         for existingResult in self.recentResults.prefix(5) {
@@ -33,7 +33,7 @@ extension AppState {
 
         // Build cache if needed - ensure it's always up to date
         if self.gameResultsCache.isEmpty {
-            logger.info("🔄 Building results cache (was empty)")
+            logger.debug("🔄 Building results cache (was empty)")
             buildResultsCache()
         } else {
             // Double-check that the cache is current
@@ -48,14 +48,14 @@ extension AppState {
 
             let actualCacheSize = self.gameResultsCache.values.flatMap { $0 }.count
             if expectedCacheSize != actualCacheSize {
-                logger.info("🔄 Rebuilding results cache (size mismatch: expected \(expectedCacheSize), actual \(actualCacheSize))")
+                logger.debug("🔄 Rebuilding results cache (size mismatch: expected \(expectedCacheSize), actual \(actualCacheSize))")
                 buildResultsCache()
             }
         }
 
         // Method 1: Check exact ID match
         if self.recentResults.contains(where: { $0.id == result.id }) {
-            logger.info("❌ Duplicate detected: Exact ID match")
+            logger.debug("❌ Duplicate detected: Exact ID match")
             return true
         }
 
@@ -68,14 +68,14 @@ extension AppState {
 
                 if let cachedPuzzles = self.gameResultsCache[result.gameId],
                    cachedPuzzles.contains(puzzleDifficultyKey) {
-                    logger.info("❌ Duplicate detected: Puzzle #\(cleanPuzzleNumber) \(difficulty) already exists for \(result.gameName)")
+                    logger.debug("❌ Duplicate detected: Puzzle #\(cleanPuzzleNumber) \(difficulty) already exists for \(result.gameName)")
                     return true
                 }
             } else {
                 // Standard puzzle number check for other games
                 if let cachedPuzzles = self.gameResultsCache[result.gameId],
                    cachedPuzzles.contains(cleanPuzzleNumber) {
-                    logger.info("❌ Duplicate detected: Puzzle #\(cleanPuzzleNumber) already exists for \(result.gameName)")
+                    logger.debug("❌ Duplicate detected: Puzzle #\(cleanPuzzleNumber) already exists for \(result.gameName)")
                     return true
                 }
             }
@@ -94,12 +94,12 @@ extension AppState {
             }
 
             if existingOnSameDay != nil {
-                logger.info("❌ Same-day duplicate detected for \(result.gameName)")
+                logger.debug("❌ Same-day duplicate detected for \(result.gameName)")
                 return true
             }
         }
 
-        logger.info("✅ No duplicate found - result is unique")
+        logger.debug("✅ No duplicate found - result is unique")
         return false
     }
 

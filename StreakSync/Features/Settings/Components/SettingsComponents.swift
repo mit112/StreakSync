@@ -163,7 +163,6 @@ private struct FeatureRow: View {
 struct DataManagementView: View {
     @Environment(AppState.self) private var appState
     @EnvironmentObject private var container: AppContainer  // App-wide services
-    @EnvironmentObject private var syncService: UserDataSyncService
     @EnvironmentObject private var guestSessionManager: GuestSessionManager
     @State private var showExportSheet = false
     @State private var showImportPicker = false
@@ -185,9 +184,9 @@ struct DataManagementView: View {
             // Cloud Sync Section
             Section("Cloud Sync") {
                 Toggle(isOn: Binding(
-                    get: { AppConstants.Flags.cloudSyncEnabled },
+                    get: { container.achievementSyncService.isSyncEnabled },
                     set: {
-                        AppConstants.Flags.cloudSyncEnabled = $0
+                        container.achievementSyncService.enableSync($0)
                         if $0 {
                             Task { @MainActor in
                                 await container.achievementSyncService.syncIfEnabled()
@@ -195,14 +194,15 @@ struct DataManagementView: View {
                         }
                     }
                 )) {
-                    Label("iCloud Sync (Private)", systemImage: "icloud")
+                    Label("Cloud Sync", systemImage: "arrow.triangle.2.circlepath.icloud")
                 }
-                Text("Sync tiered achievements privately via iCloud across your devices. Requires iCloud account; safe to leave off.")
+                Text("Sync tiered achievements across your devices. Requires sign-in; safe to leave off.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 
                 // Status
-                if let svc = container.achievementSyncService as AchievementSyncService? {
+                do {
+                    let svc = container.achievementSyncService
                     let statusText: String = {
                         switch svc.status {
                         case .idle:
@@ -249,9 +249,9 @@ struct DataManagementView: View {
                     
                     // User data (GameResult) sync status – automatic, no toggle
                     HStack {
-                        Label("Game Results Sync", systemImage: "icloud.and.arrow.up")
+                        Label("Game Results Sync", systemImage: "arrow.up.arrow.down.circle")
                         Spacer()
-                        switch syncService.syncState {
+                        switch container.gameResultSyncService.syncState {
                         case .syncing:
                             ProgressView()
                                 .scaleEffect(0.8)
@@ -274,7 +274,7 @@ struct DataManagementView: View {
                         }
                     }
                     
-                    Text("Game results and streaks are tied to the iCloud account currently signed in on this device. To use a different account, change the iCloud account in iOS Settings. Data is never shared between iCloud accounts. Game results sync automatically via your private iCloud database—no manual backup or restore needed.")
+                    Text("Game results sync automatically across your devices. Data is private to your account.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -358,7 +358,7 @@ struct DataManagementView: View {
                     DisclosureGroup("How Guest Mode Works") {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("• Your data is hidden while Guest Mode is active and restored when you exit.")
-                            Text("• Guest results stay local only – they never sync to iCloud or other devices.")
+                            Text("• Guest results stay local only – they never sync to the cloud or other devices.")
                             Text("• When exiting, you can discard guest data or export it as a JSON file.")
                         }
                         .font(.caption2)
@@ -436,7 +436,7 @@ struct DataManagementView: View {
                 guestSessionManager.enterGuestMode()
             }
         } message: {
-            Text("Your data will be hidden until you exit Guest Mode. The guest's data will not be saved to iCloud.")
+            Text("Your data will be hidden until you exit Guest Mode. The guest's data will not be synced to the cloud.")
         }
         .alert("Exit Guest Mode?", isPresented: $showExitGuestModeConfirmation) {
             Button("Discard Guest Data", role: .destructive) {
@@ -453,33 +453,12 @@ struct DataManagementView: View {
         } message: {
             Text("What would you like to do with the guest's data?")
         }
-        .alert("CloudKit Connection", isPresented: $showTestAlert) {
+        .alert("Connection Test", isPresented: $showTestAlert) {
             Button("OK") { }
         } message: {
             Text(testMessage)
         }
-        #if DEBUG
-        // Debug-only CloudKit sync info
-        Section("CloudKit Debug") {
-            HStack {
-                Text("UserData Sync Token")
-                Spacer()
-                Text(syncService.hasSyncToken ? "Present" : "None")
-                    .foregroundStyle(.secondary)
-            }
-            
-            Button {
-                Task { @MainActor in
-                    await syncService.forceFullSync()
-                }
-            } label: {
-                HStack {
-                    Image(systemName: "arrow.clockwise.circle")
-                    Text("Force Full Sync")
-                }
-            }
-        }
-        #endif
+
     }
     
     private func exportData() {
@@ -499,7 +478,7 @@ struct DataManagementView: View {
                     exportDate: Date(),
                     appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
                     gameResults: appState.recentResults,  // Fixed: recentResults
-                    achievements: [],
+                    achievements: appState.tieredAchievements,
                     streaks: appState.streaks,
                     favoriteGameIds: Array(container.gameCatalog.favoriteGameIDs),  // Fixed: use container
                     customGames: [] // For future use
@@ -570,7 +549,7 @@ struct DataManagementView: View {
             if let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
                let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: .prettyPrinted),
                let jsonString = String(data: prettyData, encoding: .utf8) {
-                print("JSON Preview: \(String(jsonString.prefix(500)))")
+                Logger(subsystem: "com.streaksync.app", category: "Settings").debug("JSON Preview: \(String(jsonString.prefix(500)))")
             }
             
             // Decode the data
@@ -708,7 +687,7 @@ struct ExportData: Codable {
     let exportDate: Date
     let appVersion: String
     let gameResults: [GameResult]
-    let achievements: [Achievement]
+    let achievements: [TieredAchievement]
     let streaks: [GameStreak]
     let favoriteGameIds: [UUID]
     let customGames: [Game] // For future use

@@ -6,21 +6,9 @@
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
-
 import OSLog
 
 // MARK: - Errors
-enum CircleError: LocalizedError {
-    case invalidName
-    case invalidInviteCode
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidName: return "Please enter a group name."
-        case .invalidInviteCode: return "That join code is invalid."
-        }
-    }
-}
 
 /// Represents Firebase social service errors with user-friendly messages and recovery options
 enum FirebaseSocialError: LocalizedError {
@@ -31,7 +19,7 @@ enum FirebaseSocialError: LocalizedError {
     case serverError(underlying: Error)
     case documentNotFound
     case invalidData(reason: String)
-    
+
     var errorDescription: String? {
         switch self {
         case .notAuthenticated:
@@ -50,8 +38,7 @@ enum FirebaseSocialError: LocalizedError {
             return "Invalid data: \(reason)"
         }
     }
-    
-    /// Whether this error indicates the operation should be retried later
+
     var isRetryable: Bool {
         switch self {
         case .networkUnavailable, .quotaExceeded, .serverError:
@@ -60,20 +47,15 @@ enum FirebaseSocialError: LocalizedError {
             return false
         }
     }
-    
-    /// Creates a FirebaseSocialError from a Firestore error
+
     static func from(_ error: Error) -> FirebaseSocialError {
         let nsError = error as NSError
-        
-        // Check for Firestore error codes
         guard nsError.domain == FirestoreErrorDomain else {
             return .serverError(underlying: error)
         }
-        
         guard let errorCode = FirestoreErrorCode(_bridgedNSError: nsError) else {
             return .serverError(underlying: error)
         }
-        
         switch errorCode.code {
         case .unavailable, .cancelled, .deadlineExceeded:
             return .networkUnavailable
@@ -93,21 +75,30 @@ enum FirebaseSocialError: LocalizedError {
     }
 }
 
+// MARK: - Firebase Social Service
+
 @MainActor
-final class FirebaseSocialService: SocialService, FriendDiscoveryProviding, CircleManaging {
+final class FirebaseSocialService: SocialService {
     private let db: Firestore
     private let auth: Auth
     private let privacyService: SocialSettingsService
-    private let circleStore = SocialCircleStore()
     private let pendingScoreStore = PendingScoreStore()
     private var pendingScores: [DailyGameScore]
-    private let selectionStore = GroupSelectionStore()
     private let logger = Logger(subsystem: "com.streaksync.app", category: "FirebaseSocialService")
     private var authStateListener: AuthStateDidChangeListenerHandle?
-    
-    /// Number of scores waiting to be synced to Firebase (thread-safe via UserDefaults)
+
+    // MARK: - Friends Cache (TTL-based, invalidated on friendship mutations)
+    private var cachedFriends: [UserProfile]?
+    private var friendsCacheTimestamp: Date?
+    private let friendsCacheTTL: TimeInterval = 60 // seconds
+
     nonisolated var pendingScoreCount: Int { PendingScoreStore().load().count }
-    
+
+    /// The current authenticated user ID, safe to read from any isolation context.
+    nonisolated var currentUserId: String? {
+        Auth.auth().currentUser?.uid
+    }
+
     init(
         privacyService: SocialSettingsService = .shared,
         db: Firestore = Firestore.firestore(),
@@ -117,39 +108,26 @@ final class FirebaseSocialService: SocialService, FriendDiscoveryProviding, Circ
         self.auth = auth
         self.privacyService = privacyService
         self.pendingScores = pendingScoreStore.load()
-        
-        // Listen for auth state changes to flush pending scores when user becomes authenticated
         setupAuthStateListener()
-        
         Task { await flushPendingScoresIfNeeded() }
     }
-    
-    // Note: No deinit needed - this service lives for the app's entire lifecycle.
-    // The auth listener will be cleaned up automatically when the app terminates.
-    
-    /// Sets up a listener to react to auth state changes
+
     private func setupAuthStateListener() {
         authStateListener = auth.addStateDidChangeListener { [weak self] _, user in
             guard let self = self else { return }
-            
             if user != nil {
-                // User just became authenticated - try to flush any pending scores
                 Task { @MainActor in
-                    self.logger.info("🔐 Auth state changed - user authenticated, flushing pending scores")
+                    self.logger.info("🔐 Auth state changed — user authenticated, flushing pending scores")
                     await self.flushPendingScoresIfNeeded()
                 }
             }
         }
     }
-    
+
     // MARK: - Helpers
-    
-    /// The current user's UID, or nil if not authenticated
-    private var uid: String? {
-        auth.currentUser?.uid
-    }
-    
-    /// Returns the current user's UID or throws if not authenticated
+
+    private var uid: String? { auth.currentUser?.uid }
+
     private func requireUID() throws -> String {
         guard let uid = uid else {
             logger.warning("⚠️ Attempted Firebase operation without authentication")
@@ -157,113 +135,404 @@ final class FirebaseSocialService: SocialService, FriendDiscoveryProviding, Circ
         }
         return uid
     }
-    
-    private func requireActiveCircle() throws -> UUID {
-        guard let id = selectionStore.selectedGroupId else { throw CircleError.invalidInviteCode }
-        return id
-    }
-    
-    private func generateJoinCode() -> String {
-        let letters = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
-        return String((0..<6).compactMap { _ in letters.randomElement() })
-    }
-    
-    private func persistCircles(_ circles: [SocialCircle]) {
-        circleStore.save(circles)
-    }
-    
-    // MARK: - SocialService
+
+    // MARK: - Profile
+
     func ensureProfile(displayName: String?) async throws -> UserProfile {
         let currentUID = try requireUID()
-        let name = displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty ?? "Player"
         let now = Date()
         let doc = db.collection("users").document(currentUID)
-        
         do {
             let snapshot = try await doc.getDocument()
             if let data = snapshot.data(),
                let existingName = data["displayName"] as? String,
                let createdAt = (data["createdAt"] as? Timestamp)?.dateValue() {
-                return UserProfile(id: currentUID, displayName: existingName, createdAt: createdAt, updatedAt: now)
+                // Backfill friends array if missing (migration for pre-existing profiles)
+                if data["friends"] == nil {
+                    await backfillFriendsArray(for: currentUID)
+                }
+                return UserProfile(
+                    id: currentUID,
+                    displayName: existingName,
+                    authProvider: data["authProvider"] as? String,
+                    photoURL: data["photoURL"] as? String,
+                    friendCode: data["friendCode"] as? String,
+                    createdAt: createdAt,
+                    updatedAt: (data["updatedAt"] as? Timestamp)?.dateValue() ?? now
+                )
             }
+            // New profile — determine display name from auth or fallback
+            let authUser = auth.currentUser
+            let resolvedName = displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
+                ?? authUser?.displayName?.nonEmpty
+                ?? "Player"
+            let provider = authUser?.isAnonymous == true ? "anonymous" : "apple"
             try await doc.setData([
-                "displayName": name,
+                "displayName": resolvedName,
+                "authProvider": provider,
+                "friends": [String](),
                 "createdAt": Timestamp(date: now),
                 "updatedAt": Timestamp(date: now)
             ], merge: true)
-            return UserProfile(id: currentUID, displayName: name, createdAt: now, updatedAt: now)
+            return UserProfile(id: currentUID, displayName: resolvedName, authProvider: provider, createdAt: now, updatedAt: now)
         } catch {
             logger.error("❌ Failed to ensure profile: \(error.localizedDescription)")
             throw FirebaseSocialError.from(error)
         }
     }
-    
+
     func myProfile() async throws -> UserProfile {
         let currentUID = try requireUID()
-        
         do {
             let doc = try await db.collection("users").document(currentUID).getDocument()
             let data = doc.data() ?? [:]
-            let name = (data["displayName"] as? String)?.nonEmpty ?? "Player"
-            let created = (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
-            let updated = (data["updatedAt"] as? Timestamp)?.dateValue() ?? Date()
-            return UserProfile(id: currentUID, displayName: name, createdAt: created, updatedAt: updated)
+            return Self.parseUserProfile(id: currentUID, data: data)
         } catch {
             logger.error("❌ Failed to fetch profile: \(error.localizedDescription)")
             throw FirebaseSocialError.from(error)
         }
     }
-    
+
+    func updateProfile(displayName: String?, authProvider: String?) async throws {
+        let currentUID = try requireUID()
+        var fields: [String: Any] = [
+            "updatedAt": Timestamp(date: Date())
+        ]
+        if let name = displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty {
+            fields["displayName"] = name
+        }
+        if let provider = authProvider {
+            fields["authProvider"] = provider
+        }
+        if let photoURL = auth.currentUser?.photoURL?.absoluteString {
+            fields["photoURL"] = photoURL
+        }
+        try await db.collection("users").document(currentUID).setData(fields, merge: true)
+        logger.info("✅ Updated profile (provider: \(authProvider ?? "unchanged"))")
+    }
+
+    func lookupUser(byId userId: String) async throws -> UserProfile? {
+        let profiles = await fetchProfiles(for: [userId])
+        return profiles.first
+    }
+
+    // MARK: - Friends
+
     func listFriends() async throws -> [UserProfile] {
-        guard let activeId = selectionStore.selectedGroupId else { return [] }
-        let circle = try await fetchCircleDocument(id: activeId)
-        let memberIds = circle.memberIds
-        guard !memberIds.isEmpty else { return [] }
+        // Return cached result if fresh
+        if let cached = cachedFriends,
+           let ts = friendsCacheTimestamp,
+           Date().timeIntervalSince(ts) < friendsCacheTTL {
+            return cached
+        }
         
+        let currentUID = try requireUID()
+        let friendIds = try await acceptedFriendIds(for: currentUID)
+        guard !friendIds.isEmpty else {
+            cachedFriends = []
+            friendsCacheTimestamp = Date()
+            return []
+        }
+        let profiles = await fetchProfiles(for: friendIds)
+        cachedFriends = profiles
+        friendsCacheTimestamp = Date()
+        return profiles
+    }
+    
+    private func invalidateFriendsCache() {
+        cachedFriends = nil
+        friendsCacheTimestamp = nil
+    }
+
+    func sendFriendRequest(toUserId targetId: String) async throws {
+        let currentUID = try requireUID()
+        guard currentUID != targetId else { return }
+        // Check if friendship already exists
+        let existing = try await db.collection("friendships")
+            .whereField("userId1", in: [currentUID, targetId])
+            .getDocuments()
+        let alreadyExists = existing.documents.contains { doc in
+            let d = doc.data()
+            let u1 = d["userId1"] as? String ?? ""
+            let u2 = d["userId2"] as? String ?? ""
+            return (u1 == currentUID && u2 == targetId) || (u1 == targetId && u2 == currentUID)
+        }
+        guard !alreadyExists else {
+            logger.info("Friendship already exists between \(currentUID) and \(targetId)")
+            return
+        }
+        // Resolve sender's display name for pending request UI
+        let senderName = auth.currentUser?.displayName ?? "Player"
+        let docId = [currentUID, targetId].sorted().joined(separator: "_")
+        try await db.collection("friendships").document(docId).setData([
+            "userId1": currentUID,
+            "userId2": targetId,
+            "status": FriendshipStatus.pending.rawValue,
+            "senderDisplayName": senderName,
+            "createdAt": Timestamp(date: Date())
+        ])
+        logger.info("✅ Sent friend request to \(targetId)")
+    }
+
+    func acceptFriendRequest(friendshipId: String) async throws {
+        let docRef = db.collection("friendships").document(friendshipId)
+        
+        // Read the friendship to get both user IDs
+        let snapshot = try await docRef.getDocument()
+        guard let data = snapshot.data(),
+              let u1 = data["userId1"] as? String,
+              let u2 = data["userId2"] as? String else {
+            throw FirebaseSocialError.documentNotFound
+        }
+        
+        // Update status to accepted
+        try await docRef.updateData([
+            "status": FriendshipStatus.accepted.rawValue
+        ])
+        
+        // Add each user to the other's friends array (for security rules)
+        let batch = db.batch()
+        batch.updateData(["friends": FieldValue.arrayUnion([u2])], forDocument: db.collection("users").document(u1))
+        batch.updateData(["friends": FieldValue.arrayUnion([u1])], forDocument: db.collection("users").document(u2))
+        try await batch.commit()
+        
+        logger.info("✅ Accepted friendship \(friendshipId) — updated friends arrays for \(u1) and \(u2)")
+        invalidateFriendsCache()
+    }
+
+    func removeFriend(friendshipId: String) async throws {
+        // Read the friendship to get both user IDs for friends array cleanup
+        let docRef = db.collection("friendships").document(friendshipId)
+        let snapshot = try await docRef.getDocument()
+        if let data = snapshot.data(),
+           let u1 = data["userId1"] as? String,
+           let u2 = data["userId2"] as? String {
+            // Remove each user from the other's friends array
+            let batch = db.batch()
+            batch.updateData(["friends": FieldValue.arrayRemove([u2])], forDocument: db.collection("users").document(u1))
+            batch.updateData(["friends": FieldValue.arrayRemove([u1])], forDocument: db.collection("users").document(u2))
+            batch.deleteDocument(docRef)
+            try await batch.commit()
+        } else {
+            try await docRef.delete()
+        }
+        logger.info("✅ Removed friendship \(friendshipId)")
+        invalidateFriendsCache()
+    }
+
+    func removeFriend(userId targetId: String) async throws {
+        let currentUID = try requireUID()
+        let docId = [currentUID, targetId].sorted().joined(separator: "_")
+        let doc = db.collection("friendships").document(docId)
+        let snapshot = try await doc.getDocument()
+        guard snapshot.exists else {
+            logger.warning("⚠️ No friendship found between \(currentUID) and \(targetId)")
+            return
+        }
+        // Remove from friends arrays and delete friendship in one batch
+        let batch = db.batch()
+        batch.updateData(["friends": FieldValue.arrayRemove([targetId])], forDocument: db.collection("users").document(currentUID))
+        batch.updateData(["friends": FieldValue.arrayRemove([currentUID])], forDocument: db.collection("users").document(targetId))
+        batch.deleteDocument(doc)
+        try await batch.commit()
+        logger.info("✅ Removed friendship with user \(targetId)")
+        invalidateFriendsCache()
+    }
+
+    func pendingRequests() async throws -> [Friendship] {
+        let currentUID = try requireUID()
+        let snap = try await db.collection("friendships")
+            .whereField("userId2", isEqualTo: currentUID)
+            .whereField("status", isEqualTo: FriendshipStatus.pending.rawValue)
+            .getDocuments()
+        return snap.documents.compactMap { parseFriendship($0) }
+    }
+
+    func generateFriendCode() async throws -> String {
+        let currentUID = try requireUID()
+        let userDoc = db.collection("users").document(currentUID)
+        let snapshot = try await userDoc.getDocument()
+        if let existing = snapshot.data()?["friendCode"] as? String, !existing.isEmpty {
+            // Ensure friendCodes collection entry exists (migration for pre-existing codes)
+            let codeDoc = db.collection("friendCodes").document(existing)
+            let codeSnap = try? await codeDoc.getDocument()
+            if codeSnap?.exists != true {
+                let displayName = snapshot.data()?["displayName"] as? String ?? "Player"
+                try? await codeDoc.setData([
+                    "userId": currentUID,
+                    "displayName": displayName
+                ])
+            }
+            return existing
+        }
+        let code = Self.randomFriendCode()
+        let displayName = auth.currentUser?.displayName ?? "Player"
+        // Write to both user profile and friendCodes collection
+        let batch = db.batch()
+        batch.updateData(["friendCode": code], forDocument: userDoc)
+        batch.setData([
+            "userId": currentUID,
+            "displayName": displayName
+        ], forDocument: db.collection("friendCodes").document(code))
+        try await batch.commit()
+        logger.info("✅ Generated friend code: \(code)")
+        return code
+    }
+
+    func lookupByFriendCode(_ code: String) async throws -> UserProfile? {
+        let sanitized = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !sanitized.isEmpty else { return nil }
+        // Read from the friendCodes collection (readable by any authenticated user)
+        let doc = try await db.collection("friendCodes").document(sanitized).getDocument()
+        guard doc.exists,
+              let data = doc.data(),
+              let userId = data["userId"] as? String else {
+            return nil
+        }
+        let displayName = (data["displayName"] as? String)?.nonEmpty ?? "Player"
+        // Return a minimal profile (full profile readable only after becoming friends)
+        return UserProfile(
+            id: userId,
+            displayName: displayName,
+            friendCode: sanitized,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+
+    // MARK: - Friendship Helpers
+
+    /// One-time migration: reads accepted friendships and writes the friends array
+    /// to the user's profile document so Firestore security rules can gate profile reads.
+    private func backfillFriendsArray(for userId: String) async {
+        do {
+            let friendIds = try await acceptedFriendIds(for: userId)
+            try await db.collection("users").document(userId).updateData([
+                "friends": friendIds
+            ])
+            logger.info("✅ Backfilled friends array for \(userId) with \(friendIds.count) friends")
+        } catch {
+            logger.warning("⚠️ Failed to backfill friends array: \(error.localizedDescription)")
+            // Non-fatal — the array will be populated when the next friendship is accepted
+        }
+    }
+
+    /// Returns accepted friend user IDs for a given user
+    private func acceptedFriendIds(for userId: String) async throws -> [String] {
+        // Query both directions: userId1 == me OR userId2 == me, status == accepted
+        let snap1 = try await db.collection("friendships")
+            .whereField("userId1", isEqualTo: userId)
+            .whereField("status", isEqualTo: FriendshipStatus.accepted.rawValue)
+            .getDocuments()
+        let snap2 = try await db.collection("friendships")
+            .whereField("userId2", isEqualTo: userId)
+            .whereField("status", isEqualTo: FriendshipStatus.accepted.rawValue)
+            .getDocuments()
+        var ids: Set<String> = []
+        for doc in snap1.documents {
+            if let u2 = doc.data()["userId2"] as? String { ids.insert(u2) }
+        }
+        for doc in snap2.documents {
+            if let u1 = doc.data()["userId1"] as? String { ids.insert(u1) }
+        }
+        return Array(ids)
+    }
+
+    private func fetchProfiles(for userIds: [String]) async -> [UserProfile] {
         var profiles: [UserProfile] = []
-        let chunks = memberIds.chunked(into: 10)
-        for chunk in chunks {
-            let snap = try await db.collection("users")
-                .whereField(FieldPath.documentID(), in: chunk)
-                .getDocuments()
-            for doc in snap.documents {
-                let data = doc.data()
-                let name = (data["displayName"] as? String)?.nonEmpty ?? "Player"
-                let created = (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
-                let updated = (data["updatedAt"] as? Timestamp)?.dateValue() ?? Date()
-                profiles.append(UserProfile(id: doc.documentID, displayName: name, createdAt: created, updatedAt: updated))
+        for chunk in userIds.chunked(into: 10) {
+            do {
+                let snap = try await db.collection("users")
+                    .whereField(FieldPath.documentID(), in: chunk)
+                    .getDocuments()
+                for doc in snap.documents {
+                    profiles.append(Self.parseUserProfile(id: doc.documentID, data: doc.data()))
+                }
+            } catch {
+                logger.warning("⚠️ Failed to fetch profiles: \(error.localizedDescription)")
             }
         }
         return profiles
     }
-    
+
+    /// Shared helper to parse a Firestore user document into a UserProfile.
+    private static func parseUserProfile(id: String, data: [String: Any]) -> UserProfile {
+        UserProfile(
+            id: id,
+            displayName: (data["displayName"] as? String)?.nonEmpty ?? "Player",
+            authProvider: data["authProvider"] as? String,
+            photoURL: data["photoURL"] as? String,
+            friendCode: data["friendCode"] as? String,
+            createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
+            updatedAt: (data["updatedAt"] as? Timestamp)?.dateValue() ?? Date()
+        )
+    }
+
+    private func parseFriendship(_ doc: QueryDocumentSnapshot) -> Friendship? {
+        let data = doc.data()
+        guard let u1 = data["userId1"] as? String,
+              let u2 = data["userId2"] as? String,
+              let statusRaw = data["status"] as? String,
+              let status = FriendshipStatus(rawValue: statusRaw) else { return nil }
+        return Friendship(
+            id: doc.documentID,
+            userId1: u1,
+            userId2: u2,
+            status: status,
+            createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
+            senderDisplayName: data["senderDisplayName"] as? String
+        )
+    }
+
+    private static func randomFriendCode() -> String {
+        let letters = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+        return String((0..<6).compactMap { _ in letters.randomElement() })
+    }
+
+    // MARK: - Allowed Readers
+
+    /// Returns [self] + [accepted friend IDs] for the `allowedReaders` field on score documents.
+    /// Falls back to [self] if friends can't be fetched (e.g., offline).
+    private func currentAllowedReaders() async -> [String] {
+        guard let uid = uid else { return [] }
+        do {
+            let friendIds = try await acceptedFriendIds(for: uid)
+            return [uid] + friendIds
+        } catch {
+            logger.warning("⚠️ Failed to fetch friends for allowedReaders, using self only")
+            return [uid]
+        }
+    }
+
+    // MARK: - Scores
+
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws {
         let currentUID = try requireUID()
-        
         let filtered = scores.filter { score in
             let game = Game.allAvailableGames.first(where: { $0.id == score.gameId })
             return privacyService.shouldShare(score: score, game: game)
         }
         guard !filtered.isEmpty else { return }
-        let groupId = try requireActiveCircle()
+
+        let allowedReaders = await currentAllowedReaders()
+
         let batch = db.batch()
-        
         for score in filtered {
             let docId = "\(currentUID)|\(score.dateInt)|\(score.gameId.uuidString)"
             let ref = db.collection("scores").document(docId)
             batch.setData([
                 "userId": currentUID,
-                "groupId": groupId.uuidString,
                 "gameId": score.gameId.uuidString,
                 "gameName": score.gameName,
                 "dateInt": score.dateInt,
                 "score": score.score as Any,
                 "maxAttempts": score.maxAttempts,
                 "completed": score.completed,
+                "currentStreak": score.currentStreak as Any,
+                "allowedReaders": allowedReaders,
                 "publishedAt": FieldValue.serverTimestamp()
             ], forDocument: ref, merge: true)
         }
-        
         do {
             try await batch.commit()
             pendingScores.removeAll()
@@ -271,80 +540,131 @@ final class FirebaseSocialService: SocialService, FriendDiscoveryProviding, Circ
             logger.info("✅ Published \(filtered.count) scores to Firebase")
         } catch {
             let socialError = FirebaseSocialError.from(error)
-            
-            // Queue for retry if it's a retryable error
-            if socialError.isRetryable {
-                pendingScores.append(contentsOf: filtered)
-                pendingScoreStore.save(pendingScores)
-                logger.warning("⚠️ Queued \(filtered.count) scores for retry: \(socialError.localizedDescription)")
-            } else {
-                logger.error("❌ Failed to publish scores (non-retryable): \(error.localizedDescription)")
-            }
-            
+            // Always queue for retry — even "non-retryable" errors like permissionDenied
+            // can be transient (e.g., App Check enforcement misconfiguration).
+            pendingScores.append(contentsOf: filtered)
+            pendingScoreStore.save(pendingScores)
+            logger.warning("⚠️ Queued \(filtered.count) scores for retry (error: \(error.localizedDescription))")
             throw socialError
         }
     }
-    
-    private func flushPendingScoresIfNeeded() async {
+
+    func flushPendingScoresIfNeeded() async {
         guard !pendingScores.isEmpty else { return }
-        guard let active = selectionStore.selectedGroupId else { return }
-        
-        // Silently skip if not authenticated - will retry when auth is established
         guard let currentUID = uid else {
-            logger.debug("⏳ Skipping pending score flush - not authenticated")
+            logger.debug("⏳ Skipping pending score flush — not authenticated")
             return
         }
-        
-        let filtered = pendingScores
+        let toFlush = pendingScores
         pendingScores.removeAll()
         pendingScoreStore.save(pendingScores)
-        
+
+        let allowedReaders = await currentAllowedReaders()
+
         let batch = db.batch()
-        for score in filtered {
+        for score in toFlush {
             let docId = "\(currentUID)|\(score.dateInt)|\(score.gameId.uuidString)"
             let ref = db.collection("scores").document(docId)
             batch.setData([
                 "userId": currentUID,
-                "groupId": active.uuidString,
                 "gameId": score.gameId.uuidString,
                 "gameName": score.gameName,
                 "dateInt": score.dateInt,
                 "score": score.score as Any,
                 "maxAttempts": score.maxAttempts,
                 "completed": score.completed,
+                "currentStreak": score.currentStreak as Any,
+                "allowedReaders": allowedReaders,
                 "publishedAt": FieldValue.serverTimestamp()
             ], forDocument: ref, merge: true)
         }
-        
         do {
             try await batch.commit()
-            logger.info("✅ Flushed \(filtered.count) pending scores")
+            logger.info("✅ Flushed \(toFlush.count) pending scores")
         } catch {
-            let socialError = FirebaseSocialError.from(error)
-            
-            // Re-queue if retryable
-            if socialError.isRetryable {
-                pendingScores.append(contentsOf: filtered)
-                pendingScoreStore.save(pendingScores)
-                logger.warning("⚠️ Re-queued \(filtered.count) scores after flush failure")
-            } else {
-                logger.error("❌ Lost \(filtered.count) scores due to non-retryable error: \(error.localizedDescription)")
-            }
+            // Always re-queue — scores are too valuable to drop
+            pendingScores.append(contentsOf: toFlush)
+            pendingScoreStore.save(pendingScores)
+            logger.warning("⚠️ Re-queued \(toFlush.count) scores after flush failure: \(error.localizedDescription)")
         }
     }
-    
+
+    // MARK: - Score Reconciliation
+
+    /// Republishes today's local results to the scores collection.
+    /// Uses `setData(merge: true)` so already-published scores are harmlessly overwritten.
+    /// Call on app launch to catch any scores dropped by previous publish failures.
+    func reconcileTodaysScores(results: [GameResult], streaks: [GameStreak]) async {
+        guard let currentUID = uid else { return }
+        let todayInt = Date().utcYYYYMMDD
+        let todaysResults = results.filter { $0.date.utcYYYYMMDD == todayInt && $0.completed }
+        guard !todaysResults.isEmpty else { return }
+
+        var scores: [DailyGameScore] = []
+        for result in todaysResults {
+            let streak = streaks.first(where: { $0.gameId == result.gameId })
+            let compositeId = "\(currentUID)|\(todayInt)|\(result.gameId.uuidString)"
+            scores.append(DailyGameScore(
+                id: compositeId,
+                userId: currentUID,
+                dateInt: todayInt,
+                gameId: result.gameId,
+                gameName: result.gameName,
+                score: result.score,
+                maxAttempts: result.maxAttempts,
+                completed: result.completed,
+                currentStreak: streak?.currentStreak
+            ))
+        }
+
+        let filtered = scores.filter { score in
+            let game = Game.allAvailableGames.first(where: { $0.id == score.gameId })
+            return privacyService.shouldShare(score: score, game: game)
+        }
+        guard !filtered.isEmpty else { return }
+
+        let allowedReaders = await currentAllowedReaders()
+
+        let batch = db.batch()
+        for score in filtered {
+            let docId = "\(currentUID)|\(score.dateInt)|\(score.gameId.uuidString)"
+            let ref = db.collection("scores").document(docId)
+            batch.setData([
+                "userId": currentUID,
+                "gameId": score.gameId.uuidString,
+                "gameName": score.gameName,
+                "dateInt": score.dateInt,
+                "score": score.score as Any,
+                "maxAttempts": score.maxAttempts,
+                "completed": score.completed,
+                "currentStreak": score.currentStreak as Any,
+                "allowedReaders": allowedReaders,
+                "publishedAt": FieldValue.serverTimestamp()
+            ], forDocument: ref, merge: true)
+        }
+        do {
+            try await batch.commit()
+            logger.info("✅ Reconciled \(filtered.count) scores for today")
+        } catch {
+            logger.warning("⚠️ Score reconciliation failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Leaderboard
+
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
-        let groupId = try requireActiveCircle()
+        let currentUID = try requireUID()
         let startInt = startDateUTC.utcYYYYMMDD
         let endInt = endDateUTC.utcYYYYMMDD
-        
+
+        // Single query: allowedReaders contains currentUID returns scores
+        // from self + friends (set at publish time).
         let snapshot = try await db.collection("scores")
-            .whereField("groupId", isEqualTo: groupId.uuidString)
+            .whereField("allowedReaders", arrayContains: currentUID)
             .whereField("dateInt", isGreaterThanOrEqualTo: startInt)
             .whereField("dateInt", isLessThanOrEqualTo: endInt)
             .getDocuments()
-        
-        let scores: [DailyGameScore] = snapshot.documents.compactMap { doc in
+        let allScores: [DailyGameScore] = snapshot.documents.compactMap { doc in
             let data = doc.data()
             guard
                 let userId = data["userId"] as? String,
@@ -352,252 +672,147 @@ final class FirebaseSocialService: SocialService, FriendDiscoveryProviding, Circ
                 let gameId = UUID(uuidString: gameIdStr),
                 let dateInt = data["dateInt"] as? Int
             else { return nil }
-            let score = data["score"] as? Int
-            let maxAttempts = data["maxAttempts"] as? Int ?? 6
-            let completed = data["completed"] as? Bool ?? false
-            let gameName = data["gameName"] as? String ?? "Game"
             return DailyGameScore(
                 id: doc.documentID,
                 userId: userId,
                 dateInt: dateInt,
                 gameId: gameId,
-                gameName: gameName,
-                score: score,
-                maxAttempts: maxAttempts,
-                completed: completed
+                gameName: data["gameName"] as? String ?? "Game",
+                score: data["score"] as? Int,
+                maxAttempts: data["maxAttempts"] as? Int ?? 6,
+                completed: data["completed"] as? Bool ?? false,
+                currentStreak: data["currentStreak"] as? Int
             )
         }
-        
-        // Collect unique user IDs and fetch their display names
-        let uniqueUserIds = Array(Set(scores.map { $0.userId }))
+
+        // Fetch display names for all users in the results
+        let uniqueUserIds = Array(Set(allScores.map { $0.userId }))
         let userNames = await fetchDisplayNames(for: uniqueUserIds)
-        
-        var perUser: [String: (name: String, total: Int, perGame: [UUID: Int])] = [:]
-        for s in scores {
+
+        // Aggregate per-user
+        var perUser: [String: (name: String, total: Int, perGame: [UUID: Int], perGameStreak: [UUID: Int])] = [:]
+        for s in allScores {
             let game = Game.allAvailableGames.first(where: { $0.id == s.gameId })
             let points = LeaderboardScoring.points(for: s, game: game)
             let displayName = userNames[s.userId] ?? "Player"
-            var entry = perUser[s.userId] ?? (name: displayName, total: 0, perGame: [:])
+            var entry = perUser[s.userId] ?? (name: displayName, total: 0, perGame: [:], perGameStreak: [:])
             entry.total += points
             entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + points
+            if let streak = s.currentStreak, streak > 0 {
+                entry.perGameStreak[s.gameId] = max(entry.perGameStreak[s.gameId] ?? 0, streak)
+            }
             perUser[s.userId] = entry
         }
-        
+
         return perUser.map { (userId, agg) in
-            LeaderboardRow(id: userId, userId: userId, displayName: agg.name, totalPoints: agg.total, perGameBreakdown: agg.perGame)
-        }
-        .sorted { $0.totalPoints > $1.totalPoints }
+            LeaderboardRow(id: userId, userId: userId, displayName: agg.name,
+                           totalPoints: agg.total, perGameBreakdown: agg.perGame,
+                           perGameStreak: agg.perGameStreak)
+        }.sorted { $0.totalPoints > $1.totalPoints }
     }
-    
-    /// Fetches display names for a list of user IDs (batched for Firestore limits)
+
     private func fetchDisplayNames(for userIds: [String]) async -> [String: String] {
         guard !userIds.isEmpty else { return [:] }
-        
         var names: [String: String] = [:]
-        let chunks = userIds.chunked(into: 10) // Firestore 'in' query limit
-        
-        for chunk in chunks {
+        for chunk in userIds.chunked(into: 10) {
             do {
                 let snap = try await db.collection("users")
                     .whereField(FieldPath.documentID(), in: chunk)
                     .getDocuments()
                 for doc in snap.documents {
-                    let data = doc.data()
-                    let name = (data["displayName"] as? String)?.nonEmpty ?? "Player"
+                    let name = (doc.data()["displayName"] as? String)?.nonEmpty ?? "Player"
                     names[doc.documentID] = name
                 }
             } catch {
                 logger.warning("⚠️ Failed to fetch display names: \(error.localizedDescription)")
-                // Continue with partial results
             }
         }
-        
         return names
     }
-    
-    // MARK: - Friend Discovery
-    func discoverFriends(forceRefresh: Bool) async throws -> [DiscoveredFriend] {
-        let profiles = try await listFriends()
-        return profiles.map { DiscoveredFriend(id: $0.id, displayName: $0.displayName, detail: "Friend") }
-    }
-    
-    func addFriend(usingUsername username: String) async throws {
-        _ = username
-    }
-    
-    // MARK: - CircleManaging
-    var activeCircleId: UUID? {
-        selectionStore.selectedGroupId
-    }
-    
-    func listCircles() async throws -> [SocialCircle] {
-        let currentUID = try requireUID()
-        
-        do {
-            let snap = try await db.collection("groups")
-                .whereField("memberIds", arrayContains: currentUID)
-                .getDocuments()
-            let circles: [SocialCircle] = snap.documents.compactMap { doc in
-                let data = doc.data()
-                guard let name = data["name"] as? String else { return nil }
-                let createdBy = data["ownerId"] as? String ?? ""
-                let createdAt = (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
-                let members = data["memberIds"] as? [String] ?? []
-                let joinCode = data["joinCode"] as? String
-                guard let uuid = UUID(uuidString: doc.documentID) else { return nil }
-                return SocialCircle(id: uuid, name: name, createdBy: createdBy, members: members, createdAt: createdAt, joinCode: joinCode)
-            }
-            persistCircles(circles)
-            logger.debug("📋 Fetched \(circles.count) circles")
-            return circles
-        } catch {
-            logger.error("❌ Failed to list circles: \(error.localizedDescription)")
-            throw FirebaseSocialError.from(error)
-        }
-    }
-    
-    func createCircle(name: String) async throws -> SocialCircle {
-        let currentUID = try requireUID()
-        
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { throw CircleError.invalidName }
-        
-        let id = UUID()
-        let joinCode = generateJoinCode()
-        let now = Date()
-        
-        do {
-            try await db.collection("groups").document(id.uuidString).setData([
-                "name": trimmed,
-                "ownerId": currentUID,
-                "joinCode": joinCode,
-                "memberIds": [currentUID],
-                "createdAt": Timestamp(date: now),
-                "isPublic": false
-            ])
-            
-            let circle = SocialCircle(id: id, name: trimmed, createdBy: currentUID, members: [currentUID], createdAt: now, joinCode: joinCode)
-            selectionStore.setSelectedGroup(id: id, title: trimmed, joinCode: joinCode)
-            var cached = circleStore.load()
-            cached.append(circle)
-            persistCircles(cached)
-            
-            logger.info("✅ Created circle '\(trimmed)' with join code \(joinCode)")
-            
-            Task { await flushPendingScoresIfNeeded() }
-            return circle
-        } catch {
-            logger.error("❌ Failed to create circle: \(error.localizedDescription)")
-            throw FirebaseSocialError.from(error)
-        }
-    }
-    
-    func joinCircle(using code: String) async throws -> SocialCircle {
-        let currentUID = try requireUID()
-        
-        let sanitized = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard !sanitized.isEmpty else { throw CircleError.invalidInviteCode }
-        
-        do {
-            let snap = try await db.collection("groups")
-                .whereField("joinCode", isEqualTo: sanitized)
-                .limit(to: 1)
-                .getDocuments()
-            guard let doc = snap.documents.first else { throw CircleError.invalidInviteCode }
-            
-            try await doc.reference.updateData([
-                "memberIds": FieldValue.arrayUnion([currentUID])
-            ])
-            
-            let data = doc.data()
-            let name = data["name"] as? String ?? "Friends"
-            let owner = data["ownerId"] as? String ?? ""
-            let createdAt = (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
-            let joinCode = data["joinCode"] as? String ?? sanitized
-            guard let uuid = UUID(uuidString: doc.documentID) else { throw CircleError.invalidInviteCode }
-            let members = data["memberIds"] as? [String] ?? []
-            let circle = SocialCircle(id: uuid, name: name, createdBy: owner, members: members, createdAt: createdAt, joinCode: joinCode)
-            selectionStore.setSelectedGroup(id: uuid, title: name, joinCode: joinCode)
-            var cached = circleStore.load()
-            if !cached.contains(where: { $0.id == uuid }) { cached.append(circle) }
-            persistCircles(cached)
-            
-            logger.info("✅ Joined circle '\(name)'")
-            
-            Task { await flushPendingScoresIfNeeded() }
-            return circle
-        } catch let error as CircleError {
-            throw error
-        } catch {
-            logger.error("❌ Failed to join circle: \(error.localizedDescription)")
-            throw FirebaseSocialError.from(error)
-        }
-    }
-    
-    func leaveCircle(id: UUID) async throws {
-        let currentUID = try requireUID()
-        
-        do {
-            try await db.collection("groups").document(id.uuidString).updateData([
-                "memberIds": FieldValue.arrayRemove([currentUID])
-            ])
-            selectionStore.clearSelectedGroup()
-            var cached = circleStore.load()
-            cached.removeAll { $0.id == id }
-            persistCircles(cached)
-            
-            logger.info("✅ Left circle \(id.uuidString)")
-        } catch {
-            logger.error("❌ Failed to leave circle: \(error.localizedDescription)")
-            throw FirebaseSocialError.from(error)
-        }
-    }
-    
-    func selectCircle(id: UUID?) async {
-        if let id {
-            selectionStore.setSelectedGroup(id: id, title: nil, joinCode: nil)
-        } else {
-            selectionStore.clearSelectedGroup()
-        }
-    }
-    
-    // MARK: - Private Helpers
-    private func fetchCircleDocument(id: UUID) async throws -> (joinCode: String, memberIds: [String]) {
-        let doc = try await db.collection("groups").document(id.uuidString).getDocument()
-        let data = doc.data() ?? [:]
-        let code = data["joinCode"] as? String ?? ""
-        let members = data["memberIds"] as? [String] ?? []
-        return (code, members)
-    }
-}
 
-// MARK: - Group selection persistence
-private struct GroupSelectionStore {
-    private let groupIdKey = "selected_firebase_group_id"
-    private let groupTitleKey = "selected_firebase_group_title"
-    private let joinCodeKey = "selected_firebase_join_code"
-    
-    var selectedGroupId: UUID? {
-        if let raw = UserDefaults.standard.string(forKey: groupIdKey) {
-            return UUID(uuidString: raw)
-        }
-        return nil
+    // MARK: - Real-time Listeners
+
+    nonisolated func addScoreListener(
+        userIds: [String],
+        startDateInt: Int,
+        endDateInt: Int,
+        onChange: @escaping @MainActor @Sendable () -> Void
+    ) -> SocialServiceListenerHandle? {
+        guard let currentUID = Auth.auth().currentUser?.uid else { return nil }
+        let db = Firestore.firestore()
+        let log = Logger(subsystem: "com.streaksync.app", category: "FirebaseSocialService")
+        var isFirstSnapshot = true // Skip initial snapshot (we already fetched on load)
+
+        // Single listener: allowedReaders contains currentUID returns all visible scores
+        let registration = db.collection("scores")
+            .whereField("allowedReaders", arrayContains: currentUID)
+            .whereField("dateInt", isGreaterThanOrEqualTo: startDateInt)
+            .whereField("dateInt", isLessThanOrEqualTo: endDateInt)
+            .addSnapshotListener { snapshot, error in
+                if let error {
+                    log.warning("⚠️ Score listener error: \(error.localizedDescription)")
+                    return
+                }
+                // Skip the initial snapshot — we already have the data from load()
+                if isFirstSnapshot {
+                    isFirstSnapshot = false
+                    return
+                }
+                // Only notify if there are actual document changes
+                guard let snapshot, !snapshot.documentChanges.isEmpty else { return }
+                log.debug("📡 Score listener: \(snapshot.documentChanges.count) changes")
+                Task { @MainActor in onChange() }
+            }
+
+        log.info("📡 Started score listener (dates \(startDateInt)–\(endDateInt))")
+        return FirestoreListenerHandle(registration)
     }
-    
-    func setSelectedGroup(id: UUID, title: String?, joinCode: String?) {
-        UserDefaults.standard.set(id.uuidString, forKey: groupIdKey)
-        if let title { UserDefaults.standard.set(title, forKey: groupTitleKey) }
-        if let joinCode { UserDefaults.standard.set(joinCode, forKey: joinCodeKey) }
+
+    nonisolated func addFriendshipListener(
+        onChange: @escaping @MainActor @Sendable () -> Void
+    ) -> SocialServiceListenerHandle? {
+        guard let currentUID = Auth.auth().currentUser?.uid else { return nil }
+        let db = Firestore.firestore()
+        let log = Logger(subsystem: "com.streaksync.app", category: "FirebaseSocialService")
+        var isFirstSnapshot1 = true
+        var isFirstSnapshot2 = true
+        
+        // Listen for friendships where I'm userId1
+        let reg1 = db.collection("friendships")
+            .whereField("userId1", isEqualTo: currentUID)
+            .addSnapshotListener { snapshot, error in
+                if let error {
+                    log.warning("⚠️ Friendship listener (u1) error: \(error.localizedDescription)")
+                    return
+                }
+                if isFirstSnapshot1 { isFirstSnapshot1 = false; return }
+                guard let snapshot, !snapshot.documentChanges.isEmpty else { return }
+                log.debug("📡 Friendship listener (u1): \(snapshot.documentChanges.count) changes")
+                Task { @MainActor in onChange() }
+            }
+        
+        // Listen for friendships where I'm userId2
+        let reg2 = db.collection("friendships")
+            .whereField("userId2", isEqualTo: currentUID)
+            .addSnapshotListener { snapshot, error in
+                if let error {
+                    log.warning("⚠️ Friendship listener (u2) error: \(error.localizedDescription)")
+                    return
+                }
+                if isFirstSnapshot2 { isFirstSnapshot2 = false; return }
+                guard let snapshot, !snapshot.documentChanges.isEmpty else { return }
+                log.debug("📡 Friendship listener (u2): \(snapshot.documentChanges.count) changes")
+                Task { @MainActor in onChange() }
+            }
+        
+        log.info("📡 Started friendship listener for user \(currentUID)")
+        return FirestoreListenerHandle([reg1, reg2])
     }
-    
-    func clearSelectedGroup() {
-        UserDefaults.standard.removeObject(forKey: groupIdKey)
-        UserDefaults.standard.removeObject(forKey: groupTitleKey)
-        UserDefaults.standard.removeObject(forKey: joinCodeKey)
-    }
+
 }
 
 // MARK: - Helpers
+
 private extension Array {
     func chunked(into size: Int) -> [[Element]] {
         guard size > 0 else { return [] }
@@ -620,3 +835,26 @@ private extension String {
     var nonEmpty: String? { isEmpty ? nil : self }
 }
 
+// MARK: - Firestore Listener Handle
+
+/// Wraps a Firestore `ListenerRegistration` to conform to `SocialServiceListenerHandle`.
+final class FirestoreListenerHandle: SocialServiceListenerHandle, @unchecked Sendable {
+    private var registrations: [ListenerRegistration]
+    private let lock = NSLock()
+    
+    init(_ registration: ListenerRegistration) {
+        self.registrations = [registration]
+    }
+    
+    init(_ registrations: [ListenerRegistration]) {
+        self.registrations = registrations
+    }
+    
+    func cancel() {
+        lock.lock()
+        let regs = registrations
+        registrations.removeAll()
+        lock.unlock()
+        for reg in regs { reg.remove() }
+    }
+}
