@@ -481,10 +481,13 @@ final class AnalyticsComputerTests: XCTestCase {
         let summaries = AnalyticsComputer.computeWeeklySummaries(
             timeRange: .week, games: [game], results: results, streaks: []
         )
-        guard let summary = summaries.first else {
+        guard !summaries.isEmpty else {
             XCTFail("Expected at least one weekly summary")
             return
         }
-        XCTAssertEqual(summary.completionRate, 2.0 / 3.0, accuracy: 0.001)
+        let totalPlayed = summaries.reduce(0) { $0 + $1.totalGamesPlayed }
+        let totalCompleted = summaries.reduce(0) { $0 + $1.totalGamesCompleted }
+        let completionRate = totalPlayed > 0 ? Double(totalCompleted) / Double(totalPlayed) : 0
+        XCTAssertEqual(completionRate, 2.0 / 3.0, accuracy: 0.001)
     }
 }

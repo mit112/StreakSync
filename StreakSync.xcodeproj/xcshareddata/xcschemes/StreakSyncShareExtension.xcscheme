@@ -56,6 +56,17 @@
                ReferencedContainer = "container:StreakSync.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CCEDD3412F447023000914AD"
+               BuildableName = "StreakSyncUITests.xctest"
+               BlueprintName = "StreakSyncUITests"
+               ReferencedContainer = "container:StreakSync.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

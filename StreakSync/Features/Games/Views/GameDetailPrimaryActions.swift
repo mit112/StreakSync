@@ -83,7 +83,7 @@ private struct ManualEntryButton: View {
         game: Game.wordle,
         showingManualEntry: .constant(false),
         isLoadingGame: .constant(false),
-        onPlayGame: { print("Play game") }
+        onPlayGame: {}
     )
     .padding()
 }

@@ -20,13 +20,24 @@
 
 StreakSync is a native iOS app for tracking daily puzzle game streaks across 17+ games including Wordle, Connections, Strands, LinkedIn Queens, and more. Share your game results using the iOS Share Extension, and StreakSync automatically parses scores, tracks streaks, unlocks achievements, and lets you compete with friends on real-time leaderboards.
 
-<!-- 
 ## Screenshots
+
+Add screenshots to `docs/screenshots/` with these filenames to render this section:
+- `dashboard.png`
+- `friends.png`
+- `achievements.png`
+- `analytics.png`
 
 | Dashboard | Friends Leaderboard | Achievements | Analytics |
 |:---------:|:-------------------:|:------------:|:---------:|
-| ![Dashboard](assets/screenshots/dashboard.png) | ![Friends](assets/screenshots/friends.png) | ![Achievements](assets/screenshots/achievements.png) | ![Analytics](assets/screenshots/analytics.png) |
--->
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Friends](docs/screenshots/friends.png) | ![Achievements](docs/screenshots/achievements.png) | ![Analytics](docs/screenshots/analytics.png) |
+
+## Why This Project
+
+- Demonstrates production-oriented iOS engineering: DI container, typed service boundaries, and strict linting.
+- Shows real product complexity: share extension ingestion, reminders, analytics, achievements, and social leaderboards.
+- Focuses on maintainability and scale with feature-based structure and testable pure-computation modules.
+- Includes CI and automated tests to support team workflows, not just solo experimentation.
 
 ## Features
 
@@ -70,6 +81,24 @@ StreakSyncApp (@main)
       ├─ NotificationCoordinator ── Share extension + deep link handling
       ├─ GameCatalog (@Observable)─ Game registry + favorites
       └─ ... (haptics, sound, persistence, sync)
+```
+
+```mermaid
+flowchart TD
+    StreakSyncApp --> AppContainer
+    AppContainer --> AppState
+    AppContainer --> FirebaseAuthStateManager
+    AppContainer --> FirebaseSocialService
+    AppContainer --> FirestoreGameResultSyncService
+    AppContainer --> FirestoreAchievementSyncService
+    AppContainer --> NotificationCoordinator
+    ShareExtension --> AppGroupBridge
+    AppGroupBridge --> NotificationCoordinator
+    NotificationCoordinator --> AppState
+    AppState --> DashboardAndFeatures
+    FirebaseSocialService --> Firestore
+    FirestoreGameResultSyncService --> Firestore
+    FirestoreAchievementSyncService --> Firestore
 ```
 
 **Key patterns:**
@@ -127,6 +156,8 @@ StreakSync/
 - Friendship rules prevent arbitrary modification (only sender creates, only recipient accepts)
 - Sensitive data stored in Keychain (not UserDefaults)
 - Firebase credentials excluded from version control
+- If credentials were ever exposed in a fork/history, rotate keys in Firebase Console before production release
+- Firestore migration/backfill checklist documented in `docs/FIRESTORE_RULES_BACKFILL.md`
 - Privacy manifest (`PrivacyInfo.xcprivacy`) declares all API usage
 
 ## Getting Started
@@ -149,7 +180,11 @@ StreakSync/
 2. Add your Firebase configuration
    - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
    - Enable **Firestore**, **Authentication** (Anonymous + Apple providers)
-   - Download `GoogleService-Info.plist` and place it in `StreakSync/`
+   - Copy the checked-in template and fill it with your Firebase project values:
+     ```bash
+     cp StreakSync/GoogleService-Info.example.plist StreakSync/GoogleService-Info.plist
+     ```
+   - Or download `GoogleService-Info.plist` from Firebase Console and place it in `StreakSync/`
 
 3. Deploy Firestore rules and indexes
    ```bash
@@ -172,7 +207,7 @@ xcodebuild test -project StreakSync.xcodeproj -scheme StreakSync -destination 'p
 
 ## Testing
 
-177 unit tests across 14 test files covering:
+180 unit tests across 14 test files covering:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|---------|
@@ -186,7 +221,10 @@ xcodebuild test -project StreakSync.xcodeproj -scheme StreakSync -destination 'p
 | SocialModelTests | 18 | UserProfile, Friendship, DailyGameScore, Date |
 | StreakLogicTests | 15 | Core streak logic |
 | SyncMergeTests | 13 | Sync merge scenarios |
+| SyncServiceConversionTests | 3 | Firestore GameResult conversion/roundtrip safety |
 | + 3 more suites | — | Ingestion, social settings, load |
+
+UI smoke coverage is in `StreakSyncUITests` (9 tests) for launch, tab navigation, and baseline accessibility hittability checks.
 
 ## License
 

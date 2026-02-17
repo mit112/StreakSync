@@ -60,7 +60,7 @@ extension GameResultParser {
                 "puzzleNumber": puzzleNumber,
                 "time": timeString ?? "",
                 "gameType": "logic_puzzle",
-                "displayScore": timeString != nil ? "\(timeString!)" : "Completed"
+                "displayScore": timeString ?? "Completed"
             ]
         )
     }
@@ -114,7 +114,7 @@ extension GameResultParser {
                 "puzzleNumber": puzzleNumber,
                 "time": timeString ?? "",
                 "gameType": "logic_puzzle",
-                "displayScore": timeString != nil ? "\(timeString!)" : "Completed"
+                "displayScore": timeString ?? "Completed"
             ]
         )
     }
@@ -168,7 +168,7 @@ extension GameResultParser {
                 "puzzleNumber": puzzleNumber,
                 "time": timeString ?? "",
                 "gameType": "word_association",
-                "displayScore": timeString != nil ? "\(timeString!)" : "Completed"
+                "displayScore": timeString ?? "Completed"
             ]
         )
     }
@@ -343,7 +343,7 @@ extension GameResultParser {
                 "time": timeString ?? "",
                 "backtrackCount": backtrackCount,
                 "gameType": "connectivity_puzzle",
-                "displayScore": timeString != nil ? "\(timeString!)" : "Completed"
+                "displayScore": timeString ?? "Completed"
             ]
         )
     }

@@ -1,0 +1,16 @@
+{
+  "name": "firestore-rules-tests",
+  "version": "1.0.0",
+  "main": "firestore.rules.test.mjs",
+  "scripts": {
+    "test": "node firestore.rules.test.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "firebase": "^12.9.0"
+  }
+}

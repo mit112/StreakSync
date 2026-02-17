@@ -12,6 +12,7 @@ xcuserdata/
 # Dev tools
 strip_comments.py
 generate_icon.swift
+node_modules/
 
 # Firebase local
 .firebase/

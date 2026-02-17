@@ -246,12 +246,12 @@ struct NotificationSettingsView: View {
         if gamesAtRisk.isEmpty {
             return "No games with active streaks at risk"
         } else if gamesAtRisk.count == 1 {
-            return "Don't lose your \(gamesAtRisk[0].name) streak"
+            return "Don't lose your \(gamesAtRisk[0].displayName) streak"
         } else if gamesAtRisk.count <= 3 {
-            let names = gamesAtRisk.map { $0.name }.joined(separator: ", ")
+            let names = gamesAtRisk.map { $0.displayName }.joined(separator: ", ")
             return "Don't lose your streaks in \(names)"
         } else {
-            let firstTwo = gamesAtRisk.prefix(2).map { $0.name }.joined(separator: ", ")
+            let firstTwo = gamesAtRisk.prefix(2).map { $0.displayName }.joined(separator: ", ")
             let remaining = gamesAtRisk.count - 2
             return "Don't lose your streaks in \(firstTwo), and \(remaining) other game\(remaining > 1 ? "s" : "")"
         }

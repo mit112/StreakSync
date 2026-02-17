@@ -7,10 +7,25 @@ import SwiftUI
 import UIKit
 
 struct FriendsView: View {
+    private enum ActiveFriendsSheet: Identifiable {
+        case manage
+        case join(initialCode: String?)
+
+        var id: String {
+            switch self {
+            case .manage:
+                return "manage"
+            case .join(let initialCode):
+                return "join:\(initialCode ?? "")"
+            }
+        }
+    }
+
     @StateObject private var viewModel: FriendsViewModel
     @EnvironmentObject private var container: AppContainer
     @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
     @ScaledMetric(relativeTo: .body) private var chevronSize: CGFloat = 36
+    @State private var activeSheet: ActiveFriendsSheet?
     
     init(socialService: SocialService) {
         _viewModel = StateObject(wrappedValue: FriendsViewModel(socialService: socialService))
@@ -21,21 +36,30 @@ struct FriendsView: View {
             header
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
+                .zIndex(10)
             SignInBanner(authManager: container.firebaseAuthManager)
                 .padding(.bottom, 12)
+                .zIndex(5)
             leaderboardStack
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .sheet(isPresented: Binding(get: { viewModel.isPresentingManageFriends }, set: { viewModel.isPresentingManageFriends = $0 })) {
-            FriendManagementView(socialService: viewModel.socialService)
-        }
-        .sheet(isPresented: $navigationCoordinator.shouldShowJoinSheet, onDismiss: {
+        .sheet(item: $activeSheet, onDismiss: {
+            navigationCoordinator.shouldShowJoinSheet = false
             navigationCoordinator.pendingJoinCode = nil
-        }) {
-            FriendManagementView(
-                socialService: viewModel.socialService,
-                initialJoinCode: navigationCoordinator.pendingJoinCode
-            )
+        }) { sheet in
+            switch sheet {
+            case .join(let initialCode):
+                FriendManagementView(
+                    socialService: viewModel.socialService,
+                    initialJoinCode: initialCode
+                )
+            case .manage:
+                FriendManagementView(socialService: viewModel.socialService)
+            }
+        }
+        .onChange(of: navigationCoordinator.shouldShowJoinSheet) { _, shouldShowJoinSheet in
+            guard shouldShowJoinSheet else { return }
+            activeSheet = .join(initialCode: navigationCoordinator.pendingJoinCode)
         }
         .overlay(alignment: .top) {
             if let message = viewModel.errorMessage {
@@ -71,10 +95,13 @@ private extension FriendsView {
                 Text("Friends").font(.largeTitle.bold())
                 Spacer()
                 Button { presentInviteFlow() } label: {
-                    Image(systemName: "person.badge.plus").font(.body)
+                    Label("Manage", systemImage: "person.badge.plus")
+                        .font(.subheadline.weight(.semibold))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
                 .accessibilityLabel(Text("Manage friends"))
+                .accessibilityIdentifier("friends.manage.button")
             }
             datePager
             Text(currentGameTitle)
@@ -231,7 +258,8 @@ private extension FriendsView {
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 16)
-        .padding(.top, 8)
+        // Keep banner below header controls so it doesn't steal taps from primary actions.
+        .padding(.top, 96)
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 
@@ -249,6 +277,6 @@ private extension FriendsView {
     }
 
     func presentInviteFlow() {
-        viewModel.isPresentingManageFriends = true
+        activeSheet = .manage
     }
 }

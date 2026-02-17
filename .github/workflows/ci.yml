@@ -37,22 +37,24 @@ jobs:
 
       - name: Build
         run: |
+          set -o pipefail
           xcodebuild build \
             -project StreakSync.xcodeproj \
             -scheme StreakSync \
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
             -skipPackagePluginValidation \
-            CODE_SIGNING_ALLOWED=NO | xcpretty || true
+            CODE_SIGNING_ALLOWED=NO | xcpretty
 
       - name: Test
         run: |
+          set -o pipefail
           xcodebuild test \
             -project StreakSync.xcodeproj \
             -scheme StreakSync \
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
             -skipPackagePluginValidation \
             -resultBundlePath TestResults \
-            CODE_SIGNING_ALLOWED=NO | xcpretty || true
+            CODE_SIGNING_ALLOWED=NO | xcpretty
 
       - name: Upload test results
         if: always()

@@ -123,15 +123,14 @@ final class FirestoreAchievementSyncService {
     func runConnectivityTest() async -> String {
         var lines: [String] = []
 
-        if let uid = currentUserId {
-            lines.append("Firebase UID: \(uid.prefix(8))…")
-        } else {
+        guard let uid = currentUserId else {
             lines.append("Firebase UID: Not authenticated")
             return lines.joined(separator: "\n")
         }
+        lines.append("Firebase UID: \(uid.prefix(8))…")
 
         do {
-            let docRef = db.collection("users").document(currentUserId!).collection("sync").document("achievements")
+            let docRef = db.collection("users").document(uid).collection("sync").document("achievements")
             let snapshot = try await docRef.getDocument()
             if snapshot.exists {
                 lines.append("Achievements doc: Found")

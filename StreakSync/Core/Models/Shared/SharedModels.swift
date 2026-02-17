@@ -204,23 +204,12 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
         assert(maxAttempts >= 0, "Max attempts must be non-negative")
         assert(!sharedText.isEmpty, "Shared text cannot be empty")
         
-        if let score = score {
-            // Special handling for time-based games like Zip, Tango, Queens, and Crossclimb
-            if gameName.lowercased() == "linkedinzip" {
-                assert(score >= 0, "Score (time) must be non-negative for Zip")
-            } else if gameName.lowercased() == "linkedintango" {
-                assert(score >= 0, "Score (time) must be non-negative for Tango")
-            } else if gameName.lowercased() == "linkedinqueens" {
-                assert(score >= 0, "Score (time) must be non-negative for Queens")
-            } else if gameName.lowercased() == "linkedincrossclimb" {
-                assert(score >= 0, "Score (time) must be non-negative for Crossclimb")
-            } else if gameName.lowercased() == "linkedinpinpoint" {
-                assert(score >= 1 && score <= maxAttempts, "Score (guesses) must be between 1 and maxAttempts for Pinpoint")
-            } else if gameName.lowercased() == "strands" {
-                assert(score >= 0 && score <= maxAttempts, "Score (hints) must be between 0 and maxAttempts for Strands")
-            } else {
-                assert(score >= 1 && score <= maxAttempts, "Score must be between 1 and maxAttempts")
-            }
+        if let score {
+            let scoringModel = Self.resolveScoringModel(gameId: gameId, gameName: gameName)
+            assert(
+                Self.isScoreValid(score, maxAttempts: maxAttempts, scoringModel: scoringModel),
+                "Score does not match expected scoring model \(scoringModel.rawValue)"
+            )
         }
         
         self.id = id
@@ -268,12 +257,12 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
     }
     
     private func isValidScoreForGame() -> Bool {
-        guard let score = score else { return true }
-        
-        // Look up the game's scoring model for type-safe validation
-        let game = Game.allAvailableGames.first { $0.id == gameId }
-        let scoringModel = game?.scoringModel ?? .lowerAttempts
-        
+        guard let score else { return true }
+        let scoringModel = Self.resolveScoringModel(gameId: gameId, gameName: gameName)
+        return Self.isScoreValid(score, maxAttempts: maxAttempts, scoringModel: scoringModel)
+    }
+
+    private static func isScoreValid(_ score: Int, maxAttempts: Int, scoringModel: ScoringModel) -> Bool {
         switch scoringModel {
         case .lowerTimeSeconds:
             // Time-based games (Zip, Tango, Queens, Crossclimb, etc.): any non-negative time
@@ -291,6 +280,23 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
             // Attempt-based games (Wordle, Nerdle, etc.): 1 to maxAttempts
             return score >= 1 && score <= maxAttempts
         }
+    }
+
+    private static func resolveScoringModel(gameId: UUID, gameName: String) -> ScoringModel {
+        if let game = Game.allAvailableGames.first(where: { $0.id == gameId }) {
+            return game.scoringModel
+        }
+
+        let normalizedName = gameName
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let gameByName = Game.allAvailableGames.first(where: {
+            $0.name.lowercased() == normalizedName || $0.displayName.lowercased() == normalizedName
+        }) {
+            return gameByName.scoringModel
+        }
+
+        return .lowerAttempts
     }
 }
 

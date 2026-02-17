@@ -270,6 +270,27 @@ extension GameResult {
         let parsedData = data["parsedData"] as? [String: String] ?? [:]
         let lastModified = (data["lastModified"] as? Timestamp)?.dateValue()
 
+        if let score {
+            let normalizedName = gameName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let scoringModel = Game.allAvailableGames.first(where: { $0.id == gameId })?.scoringModel
+                ?? Game.allAvailableGames.first(where: {
+                    $0.name.lowercased() == normalizedName || $0.displayName.lowercased() == normalizedName
+                })?.scoringModel
+                ?? .lowerAttempts
+
+            let isValidScore: Bool
+            switch scoringModel {
+            case .lowerTimeSeconds, .higherIsBetter:
+                isValidScore = score >= 0
+            case .lowerGuesses, .lowerAttempts:
+                isValidScore = score >= 1 && score <= maxAttempts
+            case .lowerHints:
+                isValidScore = score >= 0 && score <= maxAttempts
+            }
+
+            guard isValidScore else { return nil }
+        }
+
         self.init(
             id: id,
             gameId: gameId,

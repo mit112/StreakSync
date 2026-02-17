@@ -185,7 +185,9 @@ struct InitializationErrorView: View {
                 
                 Button("Reset App Data") {
                     // Clear all persisted data then re-initialize
-                    UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier!)
+                    if let bundleID = Bundle.main.bundleIdentifier {
+                        UserDefaults.standard.removePersistentDomain(forName: bundleID)
+                    }
                     onRetry()
                 }
                 .font(.subheadline)

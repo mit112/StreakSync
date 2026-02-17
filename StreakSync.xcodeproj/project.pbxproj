@@ -30,6 +30,13 @@
 			remoteGlobalIDString = CCD1ED0D2E2DCE4F00053DAC;
 			remoteInfo = StreakSyncShareExtension;
 		};
+		CCEDD3482F447023000914AD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCD1ECD32E2DBF1100053DAC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CCD1ECDA2E2DBF1100053DAC;
+			remoteInfo = StreakSync;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -52,6 +59,7 @@
 		CC7C928E2F401C4F000EE9D1 /* StreakSyncTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StreakSyncTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CCD1ECDB2E2DBF1100053DAC /* StreakSync.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StreakSync.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CCD1ED0E2E2DCE4F00053DAC /* StreakSyncShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StreakSyncShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CCEDD3422F447023000914AD /* StreakSyncUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StreakSyncUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -60,6 +68,9 @@
 			membershipExceptions = (
 				Core/Models/Game/GameDefinitions.swift,
 				Core/Models/Game/GameResultParser.swift,
+				"Core/Models/Game/GameResultParser+LinkedIn.swift",
+				"Core/Models/Game/GameResultParser+NYT.swift",
+				"Core/Models/Game/GameResultParser+Other.swift",
 				Core/Models/Shared/CodableColor.swift,
 				Core/Models/Shared/FoundationExtensions.swift,
 				Core/Models/Shared/SharedModels.swift,
@@ -105,6 +116,11 @@
 			path = StreakSyncShareExtension;
 			sourceTree = "<group>";
 		};
+		CCEDD3432F447023000914AD /* StreakSyncUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StreakSyncUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -133,6 +149,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CCEDD33F2F447023000914AD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -144,6 +167,7 @@
 				CCD1ECDD2E2DBF1100053DAC /* StreakSync */,
 				CCD1ED0F2E2DCE4F00053DAC /* StreakSyncShareExtension */,
 				CC7C928F2F401C4F000EE9D1 /* StreakSyncTests */,
+				CCEDD3432F447023000914AD /* StreakSyncUITests */,
 				CCE1A3D02F3F8D8C004D0FD8 /* Frameworks */,
 				CCD1ECDC2E2DBF1100053DAC /* Products */,
 			);
@@ -155,6 +179,7 @@
 				CCD1ECDB2E2DBF1100053DAC /* StreakSync.app */,
 				CCD1ED0E2E2DCE4F00053DAC /* StreakSyncShareExtension.appex */,
 				CC7C928E2F401C4F000EE9D1 /* StreakSyncTests.xctest */,
+				CCEDD3422F447023000914AD /* StreakSyncUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -243,6 +268,29 @@
 			productReference = CCD1ED0E2E2DCE4F00053DAC /* StreakSyncShareExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		CCEDD3412F447023000914AD /* StreakSyncUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CCEDD34C2F447023000914AD /* Build configuration list for PBXNativeTarget "StreakSyncUITests" */;
+			buildPhases = (
+				CCEDD33E2F447023000914AD /* Sources */,
+				CCEDD33F2F447023000914AD /* Frameworks */,
+				CCEDD3402F447023000914AD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CCEDD3492F447023000914AD /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CCEDD3432F447023000914AD /* StreakSyncUITests */,
+			);
+			name = StreakSyncUITests;
+			packageProductDependencies = (
+			);
+			productName = StreakSyncUITests;
+			productReference = CCEDD3422F447023000914AD /* StreakSyncUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -262,6 +310,10 @@
 					};
 					CCD1ED0D2E2DCE4F00053DAC = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					CCEDD3412F447023000914AD = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = CCD1ECDA2E2DBF1100053DAC;
 					};
 				};
 			};
@@ -286,6 +338,7 @@
 				CCD1ECDA2E2DBF1100053DAC /* StreakSync */,
 				CCD1ED0D2E2DCE4F00053DAC /* StreakSyncShareExtension */,
 				CC7C928D2F401C4F000EE9D1 /* StreakSyncTests */,
+				CCEDD3412F447023000914AD /* StreakSyncUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -307,6 +360,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		CCD1ED0C2E2DCE4F00053DAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCEDD3402F447023000914AD /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -361,6 +421,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CCEDD33E2F447023000914AD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -373,6 +440,11 @@
 			isa = PBXTargetDependency;
 			target = CCD1ED0D2E2DCE4F00053DAC /* StreakSyncShareExtension */;
 			targetProxy = CCD1ED162E2DCE4F00053DAC /* PBXContainerItemProxy */;
+		};
+		CCEDD3492F447023000914AD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CCD1ECDA2E2DBF1100053DAC /* StreakSync */;
+			targetProxy = CCEDD3482F447023000914AD /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -650,7 +722,7 @@
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -678,7 +750,55 @@
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		CCEDD34A2F447023000914AD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3P89U4WZAB;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mitsheth.StreakSyncUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = StreakSync;
+			};
+			name = Debug;
+		};
+		CCEDD34B2F447023000914AD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3P89U4WZAB;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mitsheth.StreakSyncUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = StreakSync;
 			};
 			name = Release;
 		};
@@ -717,6 +837,15 @@
 			buildConfigurations = (
 				CCD1ED1B2E2DCE4F00053DAC /* Debug */,
 				CCD1ED1C2E2DCE4F00053DAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CCEDD34C2F447023000914AD /* Build configuration list for PBXNativeTarget "StreakSyncUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CCEDD34A2F447023000914AD /* Debug */,
+				CCEDD34B2F447023000914AD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

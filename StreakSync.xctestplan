@@ -24,6 +24,14 @@
         "identifier" : "CC7C928D2F401C4F000EE9D1",
         "name" : "StreakSyncTests"
       }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:StreakSync.xcodeproj",
+        "identifier" : "CCEDD3412F447023000914AD",
+        "name" : "StreakSyncUITests"
+      }
     }
   ],
   "version" : 1

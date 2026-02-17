@@ -102,33 +102,39 @@ struct AboutView: View {
             
             // Links Section
             Section {
-                Link(destination: URL(string: "https://streaksync.app")!) {
-                    HStack {
-                        Label("Website", systemImage: "globe")
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                if let websiteURL = URL(string: "https://streaksync.app") {
+                    Link(destination: websiteURL) {
+                        HStack {
+                            Label("Website", systemImage: "globe")
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
-                
-                Link(destination: URL(string: "https://streaksync.app/privacy")!) {
-                    HStack {
-                        Label("Privacy Policy", systemImage: "hand.raised")
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+
+                if let privacyURL = URL(string: "https://streaksync.app/privacy") {
+                    Link(destination: privacyURL) {
+                        HStack {
+                            Label("Privacy Policy", systemImage: "hand.raised")
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
-                
-                Link(destination: URL(string: "mailto:support@streaksync.app")!) {
-                    HStack {
-                        Label("Contact Support", systemImage: "envelope")
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+
+                if let supportEmailURL = URL(string: "mailto:support@streaksync.app") {
+                    Link(destination: supportEmailURL) {
+                        HStack {
+                            Label("Contact Support", systemImage: "envelope")
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }

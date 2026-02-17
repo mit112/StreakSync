@@ -124,15 +124,15 @@ final class NotificationScheduler: ObservableObject {
         if games.count == 1 {
             let game = games[0]
             content.title = "Streak Reminder"
-            content.body = "Don't lose your \(game.name) streak"
+            content.body = "Don't lose your \(game.displayName) streak"
             content.userInfo = ["gameId": game.id.uuidString, "type": "daily_streak_reminder"]
         } else if games.count <= 3 && games.count > 0 {
-            let gameNames = games.map { $0.name }.joined(separator: ", ")
+            let gameNames = games.map { $0.displayName }.joined(separator: ", ")
             content.title = "Streak Reminders"
             content.body = "Don't lose your streaks in \(gameNames)"
             content.userInfo = ["type": "daily_streak_reminder"]
         } else if games.count > 3 {
-            let firstTwo = games.prefix(2).map { $0.name }.joined(separator: ", ")
+            let firstTwo = games.prefix(2).map { $0.displayName }.joined(separator: ", ")
             let remaining = games.count - 2
             content.title = "Streak Reminders"
             content.body = "Don't lose your streaks in \(firstTwo), and \(remaining) other game\(remaining > 1 ? "s" : "")"
@@ -252,7 +252,7 @@ final class NotificationScheduler: ObservableObject {
         guard await checkPermissionStatus() == .authorized else { return }
         
         let topGames = games.prefix(4)
-        let names = topGames.map { $0.name }
+        let names = topGames.map { $0.displayName }
         let body: String
         if names.isEmpty {
             body = "No streaks at risk today."
@@ -260,7 +260,8 @@ final class NotificationScheduler: ObservableObject {
             body = "Don't lose your streak in \(names[0])."
         } else {
             let list = names.dropLast().joined(separator: ", ")
-            body = "Don't lose your streaks in \(list) and \(names.last!)."
+            let trailingName = names.last ?? "your games"
+            body = "Don't lose your streaks in \(list) and \(trailingName)."
         }
         
         let content = UNMutableNotificationContent()
@@ -326,7 +327,7 @@ final class NotificationScheduler: ObservableObject {
         
         let content = UNMutableNotificationContent()
         content.title = "Result Imported"
-        content.body = "Your \(game.name) result has been added to your streak!"
+        content.body = "Your \(game.displayName) result has been added to your streak!"
         content.sound = .default
         content.categoryIdentifier = NotificationCategory.resultImported.identifier
         content.userInfo = [
@@ -343,7 +344,7 @@ final class NotificationScheduler: ObservableObject {
         
         do {
             try await center.add(request)
- logger.info("Scheduled result imported notification for \(game.name)")
+ logger.info("Scheduled result imported notification for \(game.displayName)")
         } catch {
  logger.error("Failed to schedule result imported notification: \(error.localizedDescription)")
         }
@@ -414,9 +415,9 @@ final class NotificationScheduler: ObservableObject {
         
         if games.count == 1 {
             content.title = "🧪 Test Streak Reminder"
-            content.body = "Don't lose your \(games[0].name) streak"
+            content.body = "Don't lose your \(games[0].displayName) streak"
         } else {
-            let names = games.map { $0.name }.joined(separator: ", ")
+            let names = games.map { $0.displayName }.joined(separator: ", ")
             content.title = "🧪 Test Streak Reminders"
             content.body = "Don't lose your streaks in \(names)"
         }
