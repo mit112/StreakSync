@@ -31,7 +31,7 @@ struct CompactProgressBadge: View {
                 .fill(color.opacity(0.15))
                 .overlay {
                     Capsule()
-                        .stroke(.thinMaterial, lineWidth: 0.5)
+                        .stroke(Color(.separator).opacity(0.3), lineWidth: 0.5)
                 }
         }
         .animation(.smooth, value: value)
@@ -220,12 +220,19 @@ private struct iOS26EnhancedStreakCard: View {
             }
             .padding(16)
             .background {
-                StreakSyncColors.enhancedGameCardBackground(
-                    for: colorScheme,
-                    gameColor: gameColor,
-                    isActive: streak.isActive && streak.currentStreak > 0,
-                    isHovered: isHovered
-                )
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(.secondarySystemGroupedBackground))
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(gameColor.opacity(colorScheme == .dark ? 0.06 : 0.08))
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(
+                            streak.isActive && streak.currentStreak > 0 ?
+                                gameColor.opacity(0.35) : Color(.separator),
+                            lineWidth: streak.isActive && streak.currentStreak > 0 ? 1.5 : 0.5
+                        )
+                }
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.2 : 0.08), radius: 6, x: 0, y: 2)
             }
         }
         .buttonStyle(.plain)

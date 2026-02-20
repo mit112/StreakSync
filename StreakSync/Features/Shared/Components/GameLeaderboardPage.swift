@@ -55,22 +55,36 @@ struct GameLeaderboardPage: View {
     private var contentView: some View {
         VStack(alignment: .leading, spacing: 0) {
             if rows.isEmpty {
-                VStack(spacing: 12) {
-                    Text("No scores for \(game.displayName)")
-                        .font(.headline)
-                    Text("Pick a different date or invite friends to compare.")
-                        .foregroundStyle(.secondary)
+                VStack(spacing: 16) {
+                    // Game icon as visual anchor
+                    ZStack {
+                        Circle()
+                            .fill(game.backgroundColor.color.opacity(0.12))
+                            .frame(width: 64, height: 64)
+                        Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
+                            .font(.system(size: 28, weight: .medium))
+                            .foregroundStyle(game.backgroundColor.color.opacity(0.5))
+                    }
+                    
+                    VStack(spacing: 6) {
+                        Text("No scores for \(game.displayName)")
+                            .font(.headline)
+                        Text("Pick a different date or invite friends to compare.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    
                     Button {
                         onManageFriends()
                     } label: {
                         Label("Invite friends", systemImage: "person.badge.plus")
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.accentColor.opacity(0.2), in: Capsule())
+                            .font(.subheadline.weight(.medium))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
                 }
-                .frame(maxWidth: .infinity, minHeight: 220)
+                .frame(maxWidth: .infinity, minHeight: 260)
                 .padding(.vertical, 8)
             } else {
                 ForEach(rows.indices, id: \.self) { index in

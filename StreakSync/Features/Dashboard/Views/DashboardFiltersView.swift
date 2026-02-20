@@ -28,7 +28,7 @@ struct DashboardFiltersView: View {
                         .padding(.vertical, 6)
                         .background(
                             Capsule()
-                                .fill(showOnlyActive ? .orange.opacity(0.15) : Color(.systemGray6))
+                                .fill(showOnlyActive ? .orange.opacity(0.15) : Color(.tertiarySystemFill))
                         )
                 }
                 .pressable(hapticType: .toggleSwitch, scaleAmount: 0.95)

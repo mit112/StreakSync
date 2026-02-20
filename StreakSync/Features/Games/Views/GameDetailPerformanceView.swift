@@ -172,7 +172,7 @@ private struct PerformanceChart: View {
         .padding()
         .background {
             RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
+                .fill(Color(.secondarySystemGroupedBackground))
         }
         .overlay {
             RoundedRectangle(cornerRadius: 12)
@@ -360,7 +360,7 @@ private struct SelectedBarDetail: View {
             Spacer()
         }
         .padding(8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 

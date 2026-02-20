@@ -75,7 +75,11 @@ struct TierRequirementRow: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isUnlocked ? requirement.tier.color.opacity(0.1) : Color(.systemGray6))
+                    .fill(isUnlocked ? requirement.tier.color.opacity(0.1) : Color(.secondarySystemGroupedBackground))
+                    .strokeBorder(
+                        isUnlocked ? requirement.tier.color.opacity(0.25) : Color(.separator).opacity(0.3),
+                        lineWidth: 0.5
+                    )
             )
             
             if isExpanded && !isUnlocked {

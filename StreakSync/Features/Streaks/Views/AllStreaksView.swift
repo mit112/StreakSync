@@ -21,7 +21,7 @@ struct AllStreaksView: View {
     var body: some View {
         allStreaksScrollView
             .background {
-                StreakSyncColors.backgroundGradient(for: colorScheme)
+                Color(.systemGroupedBackground)
                     .ignoresSafeArea()
             }
             .searchable(
@@ -199,7 +199,7 @@ struct StreakSummaryCard: View {
             let borderWidth: CGFloat = isHighlighted ? 1.5 : 0.5
             let shadowColor = isHighlighted ? color.opacity(0.2) : .black.opacity(0.1)
 
-            shape.fill(.ultraThinMaterial)
+            shape.fill(Color(.secondarySystemGroupedBackground))
                 .overlay { shape.strokeBorder(borderColor, lineWidth: borderWidth) }
                 .shadow(color: shadowColor, radius: isHighlighted ? 8 : 4, x: 0, y: isHighlighted ? 4 : 2)
         }
@@ -227,15 +227,15 @@ struct StreakFilterButton: View {
                     .font(.caption.weight(.medium))
                 Text(filter.displayName).font(.caption.weight(.medium))
             }
-            .foregroundStyle(isSelected ? AnyShapeStyle(StreakSyncColors.accentGradient(for: colorScheme)) : AnyShapeStyle(.secondary))
+            .foregroundStyle(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background {
                 let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
-                let selectedFill = AnyShapeStyle(StreakSyncColors.primary(for: colorScheme).opacity(0.15))
-                let borderColor = isSelected ? StreakSyncColors.primary(for: colorScheme).opacity(0.3) : Color(.separator).opacity(0.2)
+                let selectedFill = AnyShapeStyle(Color.accentColor.opacity(0.15))
+                let borderColor = isSelected ? Color.accentColor.opacity(0.3) : Color(.separator).opacity(0.2)
 
-                shape.fill(isSelected ? selectedFill : AnyShapeStyle(.ultraThinMaterial))
+                shape.fill(isSelected ? selectedFill : AnyShapeStyle(Color(.tertiarySystemFill)))
                     .overlay { shape.strokeBorder(borderColor, lineWidth: isSelected ? 1 : 0.5) }
             }
         }
@@ -347,8 +347,20 @@ struct StreakCardView: View {
             }
             .padding(20)
             .background {
-                StreakSyncColors.enhancedGameCardBackground(
-                    for: colorScheme, gameColor: gameColor, isActive: isActive, isHovered: isHovered)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(gameColor.opacity(colorScheme == .dark ? 0.06 : 0.08))
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(
+                                isActive ? gameColor.opacity(0.4) : Color(.separator),
+                                lineWidth: isActive ? 1.5 : 0.5
+                            )
+                    }
+                    .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
             }
         }
         .buttonStyle(.plain)
@@ -373,10 +385,10 @@ struct StreakEmptyStateView: View {
     var body: some View {
         VStack(spacing: 20) {
             ZStack {
-                Circle().fill(StreakSyncColors.primary(for: colorScheme).opacity(0.1)).frame(width: 80, height: 80)
+                Circle().fill(Color.accentColor.opacity(0.1)).frame(width: 80, height: 80)
                 Image(systemName: searchText.isEmpty ? "gamecontroller" : "magnifyingglass")
                     .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(StreakSyncColors.primary(for: colorScheme))
+                    .foregroundStyle(Color.accentColor)
                     .symbolEffect(.bounce, options: .nonRepeating)
             }
 
@@ -395,7 +407,7 @@ struct StreakEmptyStateView: View {
         .padding(.vertical, 40).padding(.horizontal, 20)
         .background {
             let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
-            shape.fill(.ultraThinMaterial)
+            shape.fill(Color(.secondarySystemGroupedBackground))
                 .overlay { shape.strokeBorder(Color(.separator).opacity(0.2), lineWidth: 0.5) }
         }
     }

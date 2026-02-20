@@ -15,7 +15,6 @@ struct MainTabView: View {
 
     var body: some View {
         tabContent
-            .tint(StreakSyncColors.primary(for: colorScheme))
             .onChange(of: coordinator.selectedTab) { _, _ in
                 Task { @MainActor in HapticManager.shared.trigger(.buttonTap) }
             }

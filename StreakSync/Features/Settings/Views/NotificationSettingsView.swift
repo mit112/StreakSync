@@ -229,7 +229,7 @@ struct NotificationSettingsView: View {
                     .lineLimit(2)
             }
             .padding(12)
-            .background(Color(.systemGray6))
+            .background(Color(.secondarySystemGroupedBackground))
             .cornerRadius(8)
         }
     }

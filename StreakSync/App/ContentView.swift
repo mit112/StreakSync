@@ -9,7 +9,6 @@ struct ContentView: View {
     @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
     @EnvironmentObject private var guestSessionManager: GuestSessionManager
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         VStack(spacing: 0) {
@@ -42,7 +41,7 @@ struct ContentView: View {
                 }
         }
         .background(
-            StreakSyncColors.backgroundGradient(for: colorScheme)
+            Color(.systemGroupedBackground)
                 .ignoresSafeArea()
         )
         .onChange(of: scenePhase) { _, newPhase in

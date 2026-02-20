@@ -75,7 +75,8 @@ struct StreakTrendsInsightsSection: View {
         .padding()
         .background {
             RoundedRectangle(cornerRadius: 12)
-                .fill(.regularMaterial)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .strokeBorder(Color(.separator), lineWidth: 0.5)
         }
     }
 

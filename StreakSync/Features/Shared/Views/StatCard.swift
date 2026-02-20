@@ -3,7 +3,6 @@
 //  StreakSync
 //
 //  Reusable stat card component for displaying metrics
-//  FIXED: Simplified gradient handling for StreakSyncColors
 //
 
 import SwiftUI
@@ -112,7 +111,7 @@ struct StatCard: View {
             .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(.ultraThinMaterial)
+                    .fill(Color(.secondarySystemGroupedBackground))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
                             .strokeBorder(
@@ -227,9 +226,9 @@ struct StatCardRow: View {
         // Using StatCardRow with palette colors
         StatCardRow(
             stats: [
-                ("flame.fill", "8", "Streak", StreakSyncColors.accentGradient(for: .light)),
+                ("flame.fill", "8", "Streak", LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing)),
                 ("trophy.fill", "15", "Awards", LinearGradient(
-                    colors: [PaletteColor.background.color, PaletteColor.textSecondary.color],
+                    colors: [.yellow, .orange],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ))

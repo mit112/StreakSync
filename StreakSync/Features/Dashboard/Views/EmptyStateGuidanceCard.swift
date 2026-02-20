@@ -79,9 +79,7 @@ struct EmptyStateGuidanceCard: View {
         .padding(16)
         .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(colorScheme == .dark ? 
-                      Color(.systemGray6).opacity(0.5) : 
-                      Color(.systemBackground))
+                .fill(Color(.secondarySystemGroupedBackground))
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .strokeBorder(

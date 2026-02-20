@@ -191,6 +191,51 @@ final class NotificationScheduler: ObservableObject {
     }
     
     // MARK: - One-off Snooze Reminder
+    /// Resolves a concrete local date for a one-off reminder with DST-safe behavior.
+    /// Internal for unit tests.
+    func resolveOneOffReminderDate(
+        daysFromNow: Int,
+        hour: Int,
+        minute: Int,
+        calendar: Calendar = .autoupdatingCurrent,
+        now: Date = Date()
+    ) -> Date? {
+        guard (0...23).contains(hour), (0...59).contains(minute) else { return nil }
+        guard let targetDay = calendar.date(byAdding: .day, value: daysFromNow, to: now) else { return nil }
+
+        let startOfTargetDay = calendar.startOfDay(for: targetDay)
+        return calendar.date(
+            bySettingHour: hour,
+            minute: minute,
+            second: 0,
+            of: startOfTargetDay,
+            matchingPolicy: .nextTime,
+            repeatedTimePolicy: .first,
+            direction: .forward
+        )
+    }
+
+    /// Builds calendar components for one-off reminders from a DST-safe resolved date.
+    /// Internal for unit tests.
+    func makeOneOffReminderDateComponents(
+        daysFromNow: Int,
+        hour: Int,
+        minute: Int,
+        calendar: Calendar = .autoupdatingCurrent,
+        now: Date = Date()
+    ) -> DateComponents? {
+        guard let date = resolveOneOffReminderDate(
+            daysFromNow: daysFromNow,
+            hour: hour,
+            minute: minute,
+            calendar: calendar,
+            now: now
+        ) else {
+            return nil
+        }
+        return calendar.dateComponents([.year, .month, .day, .hour, .minute, .second, .timeZone], from: date)
+    }
+
     func scheduleOneOffSnoozeReminder(games: [Game], daysFromNow: Int, hour: Int, minute: Int) async {
         guard await checkPermissionStatus() == .authorized else {
  logger.warning("Cannot schedule snooze: notifications not authorized")
@@ -199,13 +244,18 @@ final class NotificationScheduler: ObservableObject {
         
         let content = buildStreakReminderContent(games: games)
         
-        // Compute the specific date (daysFromNow) at user's preferred hour/minute
-        let calendar = Calendar.current
-        let now = Date()
-        guard let targetDay = calendar.date(byAdding: .day, value: daysFromNow, to: now) else { return }
-        var components = calendar.dateComponents([.year, .month, .day], from: targetDay)
-        components.hour = hour
-        components.minute = minute
+        // Compute the specific date (daysFromNow) at user's preferred hour/minute.
+        // Uses DST-safe resolution for nonexistent/repeated local times.
+        let calendar = Calendar.autoupdatingCurrent
+        guard let components = makeOneOffReminderDateComponents(
+            daysFromNow: daysFromNow,
+            hour: hour,
+            minute: minute,
+            calendar: calendar
+        ) else {
+ logger.error("Failed to resolve one-off snooze reminder date components")
+            return
+        }
         
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         let request = UNNotificationRequest(

@@ -63,7 +63,7 @@ struct StreakTrendsDailySection: View {
                 .padding(.vertical, 6)
                 .background {
                     Capsule()
-                        .fill(.regularMaterial)
+                        .fill(Color(.tertiarySystemFill))
                 }
             } else {
                 Text("No activity")

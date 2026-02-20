@@ -120,13 +120,20 @@ final class FirestoreGameResultSyncService {
             var merged = appState.recentResults
             let localIDs = Set(merged.map { $0.id })
 
+            // Build index for O(1) lookup by ID (avoids O(n²) firstIndex scans)
+            var indexById: [UUID: Int] = [:]
+            for (i, result) in merged.enumerated() {
+                indexById[result.id] = i
+            }
+
             // Update/add remote results (keep whichever version was modified more recently)
             for remote in remoteResults {
-                if let idx = merged.firstIndex(where: { $0.id == remote.id }) {
+                if let idx = indexById[remote.id] {
                     if remote.lastModified >= merged[idx].lastModified {
                         merged[idx] = remote
                     }
                 } else {
+                    indexById[remote.id] = merged.count
                     merged.append(remote)
                 }
             }
@@ -171,8 +178,6 @@ final class FirestoreGameResultSyncService {
             merged.sort { $0.date > $1.date }
             appState.setRecentResults(merged)
             await appState.saveGameResults()
-            await appState.rebuildStreaksFromResults()
-            await appState.normalizeStreaksForMissedDays()
 
             syncState = .synced(lastSyncDate: Date())
             saveLastSyncTimestamp(Date())

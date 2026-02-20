@@ -34,6 +34,8 @@ Goal: Break core flows intentionally and capture reproducible failures.
 | Friends root-cause verification | Isolated failing friends tests | Targeted reruns (`FriendsRootCause_OnlyManage_PostCompileFix`, `FriendsRootCause_Cross_PostCompileFix`) | PASS | Both previously failing cases now pass |
 | Friends root-cause regression check | Full UI phase-2 suite after overlay fix | `FriendsRootCause_UIFull_Cleaned.xcresult` | PASS | `10/10` UI tests passing |
 | Security rules (authenticated) | Friends/scores transition + malformed payload checks | Firestore rules unit harness (`firebase emulators:exec --only firestore "npm --prefix firestore-rules-tests test"`) | PASS | 9 targeted authenticated rules cases passed |
+| Notifications (DST/timezone unit) | One-off reminder date resolution across DST boundaries | `xcodebuild -only-testing:StreakSyncTests/NotificationSchedulingDateTests -only-testing:StreakSyncTests/NotificationContentTests` | PASS | `16/16` pass; spring/fall DST cases covered |
+| Notifications (runtime UI stability) | Notification settings runtime state rendering | 3x `xcodebuild -only-testing:StreakSyncUITests/StreakSyncUITests/testNotificationScreenStateRendersInAnyPermissionMode` | PASS | `1/1` each run across 3 reruns |
 
 ## Commands Run
 
@@ -63,6 +65,12 @@ Goal: Break core flows intentionally and capture reproducible failures.
   - `firebase emulators:exec --only firestore '<curl probes>'`
 - Firestore rules authenticated unit suite:
   - `firebase emulators:exec --only firestore "npm --prefix firestore-rules-tests test"`
+- Notification DST/timezone suite:
+  - `xcodebuild test -project "StreakSync.xcodeproj" -scheme "StreakSync" -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -only-testing:StreakSyncTests/NotificationSchedulingDateTests -only-testing:StreakSyncTests/NotificationContentTests -resultBundlePath "Shakedown_Notification_DST_Timezone.xcresult" CODE_SIGNING_ALLOWED=NO`
+- Notification runtime UI stability reruns:
+  - `xcodebuild test -project "StreakSync.xcodeproj" -scheme "StreakSync" -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -only-testing:StreakSyncUITests/StreakSyncUITests/testNotificationScreenStateRendersInAnyPermissionMode -resultBundlePath "Shakedown_NotificationRuntime_UI_Run1.xcresult" CODE_SIGNING_ALLOWED=NO`
+  - `... -resultBundlePath "Shakedown_NotificationRuntime_UI_Run2.xcresult" ...`
+  - `... -resultBundlePath "Shakedown_NotificationRuntime_UI_Run3.xcresult" ...`
 
 ## Key Raw Outcomes
 
@@ -79,6 +87,13 @@ Goal: Break core flows intentionally and capture reproducible failures.
 - Firestore authenticated rules-unit outcomes:
   - `firestore-rules-tests/firestore.rules.test.mjs`: `9/9` PASS
   - Negative-path create/update/read checks correctly returned `PERMISSION_DENIED`
+- Notification DST/timezone outcomes:
+  - `Shakedown_Notification_DST_Timezone.xcresult`: `total=16 failed=0`
+  - New `NotificationSchedulingDateTests` cases validated spring-forward and fall-back behavior.
+- Notification runtime UI stability outcomes:
+  - `Shakedown_NotificationRuntime_UI_Run1.xcresult`: `total=1 failed=0`
+  - `Shakedown_NotificationRuntime_UI_Run2.xcresult`: `total=1 failed=0`
+  - `Shakedown_NotificationRuntime_UI_Run3.xcresult`: `total=1 failed=0`
 - UI shakedown outcomes:
   - Run 1: `total=3 failed=0 skipped=0`
   - Run 2: `total=3 failed=0 skipped=0`
@@ -116,6 +131,7 @@ Goal: Break core flows intentionally and capture reproducible failures.
 
 ## Blocked / Not Fully Exercised
 
+- All CLI/simulator-only shakedown work is complete at this stage.
 - Real-device provider auth turbulence tests (Apple/Google) were not runnable from CLI-only harness.
-- Notification DST/timezone runtime delivery checks require clock/timezone mutation on device/simulator plus notification permission workflow scripting.
+- Notification DST/timezone runtime delivery checks on real device (permission prompts + background delivery timing) still require manual or scripted device-clock/timezone mutation.
 - UI stress now includes settings deep navigation and rapid traversal; friend-management entry path issue is fixed, while deeper flows (result import, notifications deep-linking) remain unautomated.

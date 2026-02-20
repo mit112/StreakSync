@@ -139,6 +139,39 @@ Evidence sources: `xcodebuild` result bundles, Firestore Emulator probes, target
 - Recommendation:
   - Keep this harness in CI or at least pre-release security checks to guard against rules regressions.
 
+## 9) Notification one-off DST/timezone scheduling hardened (unit-level)
+
+- Severity: Medium (risk reduction)
+- Area: Notifications / calendar scheduling
+- Evidence:
+  - Added DST/timezone-focused tests in `NotificationSchedulingDateTests`.
+  - Targeted execution:
+    - `Shakedown_Notification_DST_Timezone.xcresult` -> `total=16 failed=0`
+- Root cause / risk:
+  - One-off snooze scheduling previously relied on raw calendar components without explicit resolution for nonexistent/ambiguous local times around DST transitions.
+- Fix:
+  - Introduced `resolveOneOffReminderDate(...)` in `NotificationScheduler` using calendar matching policies:
+    - `.nextTime` for spring-forward gaps
+    - `.first` repeated-time policy for fall-back ambiguity
+  - Routed one-off snooze scheduling through a tested date-components builder.
+- Remaining risk:
+  - Real-world background delivery behavior under live timezone/device-clock changes still needs device-level shakedown.
+
+## 10) Notification runtime UI state path is stable on simulator
+
+- Severity: Informational
+- Area: Notifications settings runtime path
+- Evidence:
+  - Repeated runtime UI test execution:
+    - `Shakedown_NotificationRuntime_UI_Run1.xcresult`
+    - `Shakedown_NotificationRuntime_UI_Run2.xcresult`
+    - `Shakedown_NotificationRuntime_UI_Run3.xcresult`
+  - All reruns passed (`1/1` each).
+- Interpretation:
+  - The notification settings runtime rendering path (authorized/denied compatible state) is stable across repeated launches in simulator.
+- Remaining risk:
+  - This does not replace device-level delivery timing verification after timezone/clock mutation.
+
 ## Shakedown Coverage vs Plan
 
 - Completed:
@@ -149,18 +182,29 @@ Evidence sources: `xcodebuild` result bundles, Firestore Emulator probes, target
   - Authenticated Firestore rules unit coverage for friend/scores edge cases
   - Notification/analytics targeted break tests
   - Documentation artifacts
+- Automation status:
+  - All CLI/simulator-executable shakedown items are complete.
 - Partially blocked:
   - Real-device auth turbulence (Apple/Google interactive linking)
-  - Timezone/DST notification delivery validation
+  - Runtime notification delivery validation on real device across timezone/clock mutation
   - Full UI-flow chaos automation across auth/import/social flows (deeper UI checks now present; friends manage entry issue fixed)
+
+## Device Runtime Playbook
+
+- Added: `docs/notification-runtime-device-shakedown.md`
+- Purpose:
+  - Execute notification runtime validation on physical device for permission transitions, timezone/clock mutation behavior, snooze continuity, and deep-link action integrity.
+
+## Current Handoff
+
+- Remaining shakedown tasks now require user/device interaction and cannot be fully closed from CLI automation alone.
+- Once device-run evidence is captured, this report can be finalized with closure status for all remaining items.
 
 ## Immediate Fix Queue (Suggested Order)
 
-1. Prevent conversion assertion crash for remote payload handling.
-2. Fix notification reminder copy source (`displayName` vs slug).
-3. Stabilize weekly summary test fixture around explicit week boundaries.
-4. Extend UI smoke into action-heavy flows (import/share, social interactions, settings toggles with assertions).
-5. Continue extending automated UI chaos scenarios and keep rules suite in regular regression cadence.
+1. Execute real-device auth turbulence scenarios (Apple/Google interactive edge flows).
+2. Execute device-level notification delivery shakedown (timezone/clock mutation + permission states).
+3. Extend UI smoke into remaining action-heavy journeys (import/share, deep links, social lifecycle).
 
 ## Regression Tests To Add/Strengthen
 
@@ -169,6 +213,7 @@ Evidence sources: `xcodebuild` result bundles, Firestore Emulator probes, target
   - Legacy `lastModified` missing path should remain safe.
 - Notifications:
   - Content should use display labels for 1, 2, 3, >3 game paths.
+  - Keep DST/timezone scheduling regressions covered (spring-forward and fall-back).
 - Analytics:
   - Fixed-date weekly buckets across locale/week-start variants.
 - Rules:

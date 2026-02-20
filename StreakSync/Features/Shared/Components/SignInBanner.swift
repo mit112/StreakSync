@@ -78,12 +78,16 @@ struct SignInBanner: View {
                             )
                         Text("Google")
                             .font(.subheadline.weight(.medium))
-                            .foregroundStyle(colorScheme == .dark ? .black : .white)
+                            .foregroundStyle(.primary)
                     }
                     .frame(height: 44)
                     .frame(maxWidth: .infinity)
-                    .background(colorScheme == .dark ? Color.white : Color.black)
+                    .background(Color(.secondarySystemGroupedBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(.separator), lineWidth: 0.5)
+                    )
                 }
                 .buttonStyle(.plain)
             }
@@ -95,7 +99,11 @@ struct SignInBanner: View {
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .strokeBorder(Color(.separator), lineWidth: 0.5)
+        }
         .padding(.horizontal, 16)
     }
 

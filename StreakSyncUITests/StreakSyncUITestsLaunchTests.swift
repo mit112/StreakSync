@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class StreakSyncUITestsLaunchTests: XCTestCase {
+final class StreakSyncUITestsLaunchTests: XCTestCase {      
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

@@ -13,7 +13,6 @@ struct ImprovedDashboardView: View {
     @EnvironmentObject private var coordinator: NavigationCoordinator
     @Environment(GameCatalog.self) private var gameCatalog
     @EnvironmentObject private var gameManagementState: GameManagementState
-    @Environment(\.colorScheme) private var colorScheme
 
     @AppStorage("userName") private var userName: String = ""
     @AppStorage("gameDisplayMode") private var displayMode: GameDisplayMode = .card
@@ -44,6 +43,23 @@ struct ImprovedDashboardView: View {
 
     private var hasActiveStreaks: Bool {
         longestCurrentStreak > 0 || activeStreakCount > 0
+    }
+
+    private var atRiskCount: Int {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return appState.streaks.filter { streak in
+            streak.isActive &&
+            (streak.lastPlayedDate.map { !calendar.isDate($0, inSameDayAs: today) } ?? true)
+        }.count
+    }
+
+    private var completedTodayCount: Int {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return appState.streaks.filter { streak in
+            streak.lastPlayedDate.map { calendar.isDate($0, inSameDayAs: today) } ?? false
+        }.count
     }
 
     private var isReturningUser: Bool {
@@ -117,7 +133,7 @@ struct ImprovedDashboardView: View {
         .toolbar { dashboardToolbar }
         .searchable(
             text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
+            placement: .navigationBarDrawer(displayMode: .automatic),
             prompt: "Search games..."
         )
         .refreshable { await performRefresh() }
@@ -154,6 +170,15 @@ struct ImprovedDashboardView: View {
     private func dashboardScrollView(spacing: CGFloat) -> some View {
         ScrollView {
             VStack(spacing: spacing) {
+                // Streak summary hero
+                StreakSummaryHero(
+                    activeStreakCount: activeStreakCount,
+                    longestCurrentStreak: longestCurrentStreak,
+                    atRiskCount: atRiskCount,
+                    completedTodayCount: completedTodayCount
+                )
+                .padding(.horizontal)
+
                 // Empty state guidance card
                 if !hasActiveStreaks && !hasSeenGuidance && appState.games.count > 0 {
                     EmptyStateGuidanceCard(isReturningUser: isReturningUser) {
@@ -167,7 +192,6 @@ struct ImprovedDashboardView: View {
                 // Games section
                 VStack(alignment: .leading, spacing: 12) {
                     SimplifiedGamesHeader(
-                        displayMode: $displayMode,
                         selectedSort: $selectedSort,
                         sortDirection: $sortDirection,
                         showOnlyActive: $showOnlyActive,
@@ -221,21 +245,7 @@ struct ImprovedDashboardView: View {
         RecentActivitySection(filteredStreaks: filteredStreaks)
             .padding(.horizontal)
             .padding(.vertical)
-            .background {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.regularMaterial)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .strokeBorder(
-                                colorScheme == .dark ?
-                                    Color(.separator).opacity(0.3) :
-                                    Color(.separator).opacity(0.5),
-                                lineWidth: colorScheme == .dark ? 0.5 : 1
-                            )
-                    }
-                    .shadow(color: .black.opacity(0.07), radius: 6, x: 0, y: 2)
-                    .shadow(color: colorScheme == .dark ? .clear : .black.opacity(0.04), radius: 14, x: 0, y: 6)
-            }
+            .cardStyle(cornerRadius: 20)
             .padding(.horizontal)
             .scrollTransition { content, phase in
                 content
@@ -252,7 +262,8 @@ struct ImprovedDashboardView: View {
             ToolbarSortMenu(
                 selectedSort: $selectedSort,
                 sortDirection: $sortDirection,
-                showOnlyActive: $showOnlyActive
+                showOnlyActive: $showOnlyActive,
+                displayMode: $displayMode
             )
         }
 

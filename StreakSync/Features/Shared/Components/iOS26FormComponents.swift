@@ -14,10 +14,10 @@ struct iOS26TextFieldStyle: TextFieldStyle {
             .padding()
             .background {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(Color(.secondarySystemGroupedBackground))
                     .overlay {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(.quaternary, lineWidth: 0.5)
+                            .stroke(Color(.separator), lineWidth: 0.5)
                     }
             }
     }
@@ -66,7 +66,7 @@ struct iOS26CategoryPicker: View {
                             .fill(Color.accentColor)
                     } else {
                         Capsule()
-                            .fill(.ultraThinMaterial)
+                            .fill(Color(.tertiarySystemFill))
                     }
                 }
             }

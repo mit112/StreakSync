@@ -187,7 +187,6 @@ private extension FriendsView {
                 displayedComponents: .date
             )
             .datePickerStyle(.graphical)
-            .environment(\.timeZone, TimeZone(secondsFromGMT: 0) ?? .gmt)
             .padding(.horizontal, 12)
         }
         .presentationDetents([.medium])
@@ -255,8 +254,11 @@ private extension FriendsView {
         }
         .font(.caption)
         .padding(10)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .strokeBorder(Color(.separator), lineWidth: 0.5)
+        }
         .padding(.horizontal, 16)
         // Keep banner below header controls so it doesn't steal taps from primary actions.
         .padding(.top, 96)

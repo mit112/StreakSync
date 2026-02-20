@@ -25,7 +25,7 @@ struct AnimatedGameCard: View {
     
     // Get vibrant color for the game category
     private var gameColor: Color {
-        StreakSyncColors.gameColor(for: game.category, colorScheme: colorScheme)
+        game.backgroundColor.color
     }
     
     var body: some View {
@@ -68,7 +68,7 @@ struct AnimatedGameCard: View {
                     if let lastPlayed = streak?.lastPlayedDate, Calendar.current.isDateInToday(lastPlayed) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title2)
-                            .foregroundStyle(StreakSyncColors.success(for: colorScheme))
+                            .foregroundStyle(.green)
                             .transition(.scale.combined(with: .opacity))
                             .opacity(showCheckmark ? 1 : 0)
                             .scaleEffect(showCheckmark ? 1 : 0.5)
@@ -82,8 +82,8 @@ struct AnimatedGameCard: View {
                             value: "\(streak.currentStreak)",
                             label: "Current",
                             colors: [
-                                StreakSyncColors.primary(for: colorScheme),
-                                StreakSyncColors.secondary(for: colorScheme)
+                                .orange,
+                                .red
                             ]
                         )
                         
@@ -101,7 +101,7 @@ struct AnimatedGameCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(Color(.secondarySystemGroupedBackground))
                     .overlay {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .fill(gameColor.opacity(colorScheme == .dark ? 0.06 : 0.1))

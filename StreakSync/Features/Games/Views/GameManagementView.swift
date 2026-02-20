@@ -138,7 +138,7 @@ struct GameManagementView: View {
             }
         }
         .padding()
-        .background(Color(.systemGray6))
+        .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding()
     }
@@ -225,7 +225,7 @@ struct GameManagementRow: View {
                         .padding(.vertical, 2)
                         .background(
                             Capsule()
-                                .fill(Color(.systemGray5))
+                                .fill(Color(.tertiarySystemFill))
                         )
                     
                     if isArchived {

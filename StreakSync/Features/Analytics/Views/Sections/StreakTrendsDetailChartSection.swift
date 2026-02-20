@@ -56,7 +56,7 @@ struct StreakTrendsDetailChartSection: View {
                                 x: .value("Date", point.date),
                                 y: .value("Active Streaks", point.totalActiveStreaks)
                             )
-                            .foregroundStyle(.blue.opacity(0.1).gradient)
+                            .foregroundStyle(.blue.opacity(0.2).gradient)
                             .interpolationMethod(.catmullRom)
 
                             if let selected = selectedPoint, selected.date == point.date {
@@ -126,10 +126,10 @@ struct StreakTrendsDetailChartSection: View {
         .padding()
         .background {
             RoundedRectangle(cornerRadius: 12)
-                .fill(.regularMaterial)
+                .fill(Color(.secondarySystemGroupedBackground))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(.blue.opacity(0.3), lineWidth: 1)
+                        .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
                 )
         }
     }
@@ -253,7 +253,7 @@ struct StreakTrendsDetailChartSection: View {
         .padding(.vertical, 6)
         .background {
             Capsule()
-                .fill(.regularMaterial)
+                .fill(Color(.tertiarySystemFill))
                 .overlay(
                     Capsule()
                         .stroke(game.backgroundColor.color.opacity(0.3), lineWidth: 1)
@@ -274,7 +274,7 @@ struct StreakTrendsDetailChartSection: View {
         .padding(.vertical, 12)
         .background {
             RoundedRectangle(cornerRadius: 8)
-                .fill(.regularMaterial)
+                .fill(Color(.tertiarySystemFill))
         }
     }
 

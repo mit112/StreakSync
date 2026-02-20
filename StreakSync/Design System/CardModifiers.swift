@@ -15,23 +15,19 @@ struct CardBackgroundModifier: ViewModifier {
         content
             .background {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(Color(.secondarySystemGroupedBackground))
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .strokeBorder(
-                                colorScheme == .dark
-                                    ? Color(.separator).opacity(0.3)
-                                    : Color(.separator).opacity(0.6),
+                                Color(.separator),
                                 lineWidth: colorScheme == .dark ? 0.5 : 1
                             )
                     }
                     .shadow(
-                        color: .black.opacity(colorScheme == .dark ? 0.15 : 0.07),
-                        radius: 6, x: 0, y: 2
-                    )
-                    .shadow(
-                        color: colorScheme == .dark ? .clear : .black.opacity(0.04),
-                        radius: 14, x: 0, y: 6
+                        color: .black.opacity(colorScheme == .dark ? 0.2 : 0.08),
+                        radius: colorScheme == .dark ? 8 : 6,
+                        x: 0,
+                        y: colorScheme == .dark ? 4 : 2
                     )
             }
     }

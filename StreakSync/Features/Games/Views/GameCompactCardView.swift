@@ -29,6 +29,10 @@ struct GameCompactCardView: View {
         return GameDateHelper.isGameResultFromToday(lastPlayed)
     }
     
+    private var hasEverPlayed: Bool {
+        streak.totalGamesPlayed > 0
+    }
+    
     private var isActive: Bool {
         streak.currentStreak > 0
     }
@@ -101,11 +105,17 @@ struct GameCompactCardView: View {
                         // Background circle with gradient
                         Circle()
                             .fill(
+                                hasEverPlayed ?
                                 LinearGradient(
                                     colors: [
                                         gameColor.opacity(colorScheme == .dark ? 0.25 : 0.15),
                                         gameColor.opacity(colorScheme == .dark ? 0.15 : 0.08)
                                     ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ) :
+                                LinearGradient(
+                                    colors: [Color(.quaternarySystemFill), Color(.quaternarySystemFill)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
@@ -131,7 +141,7 @@ struct GameCompactCardView: View {
                         
                         Image.safeSystemName(safeIconName, fallback: "gamecontroller")
                             .font(.system(size: 26, weight: .medium))
-                            .foregroundStyle(gameColor)
+                            .foregroundStyle(hasEverPlayed ? gameColor : .secondary)
                             .symbolRenderingMode(.hierarchical)
                     }
                     
@@ -176,6 +186,7 @@ struct GameCompactCardView: View {
             }
         }
         .buttonStyle(EnhancedCardButtonStyle())
+        .opacity(hasEverPlayed ? 1.0 : 0.65)
         .scaleEffect(isPressed ? 0.96 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
     }
@@ -185,11 +196,7 @@ struct GameCompactCardView: View {
         ZStack {
             // Base card background
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    colorScheme == .dark ? 
-                    Color(hex: "1A1A1A") :
-                    Color(hex: "FFFDFB").opacity(0.95)
-                )
+                .fill(Color(.secondarySystemGroupedBackground))
             
             // Subtle gradient overlay
             RoundedRectangle(cornerRadius: 18, style: .continuous)

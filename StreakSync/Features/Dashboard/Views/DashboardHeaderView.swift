@@ -74,7 +74,7 @@ struct DashboardHeaderView: View {
                         .frame(width: 36, height: 36)
                         .background(
                             Circle()
-                                .fill(Color(.systemGray6))
+                                .fill(Color(.tertiarySystemFill))
                         )
                         .contentTransition(.symbolEffect(.replace))
                 }

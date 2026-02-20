@@ -89,7 +89,7 @@ struct StreakTrendsChart: View {
                 x: .value("Date", point.date),
                 y: .value("Active Streaks", point.value)
             )
-            .foregroundStyle(.orange.opacity(0.2).gradient)
+            .foregroundStyle(.orange.opacity(0.3).gradient)
         }
         .chartXAxis {
             AxisMarks { _ in

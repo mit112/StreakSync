@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct SimplifiedGamesHeader: View {
-    @Binding var displayMode: GameDisplayMode
     @Binding var selectedSort: GameSortOption
     @Binding var sortDirection: SortDirection
     @Binding var showOnlyActive: Bool
@@ -16,13 +15,8 @@ struct SimplifiedGamesHeader: View {
     
     let navigateToGameManagement: () -> Void
     
-    // Simplified display modes (just card and grid)
-    private var simplifiedDisplayModes: [GameDisplayMode] {
-        [.card, .grid]
-    }
-    
     var body: some View {
-        VStack(spacing: 12) { // Optimized spacing for better visual rhythm
+        VStack(spacing: 12) {
             // Row 1: Title and Browse button
             HStack {
                 Text("Your Games")
@@ -44,31 +38,16 @@ struct SimplifiedGamesHeader: View {
                 .controlSize(.small)
             }
             
-            // Row 2: View mode picker and filter controls
-            HStack(spacing: 12) {
-                // Native Segmented Control for view mode
-                Picker("View Mode", selection: $displayMode) {
-                    ForEach(simplifiedDisplayModes, id: \.self) { mode in
-                        Label(mode.displayName, systemImage: mode.iconName)
-                            .tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 150)
-                
-                Spacer()
-                
-                // Filter chips (appears when enabled)
-                // Sort state shown in toolbar menu itself
+            // Row 2: Active filter chips (only when filters applied)
+            let hasFilters = showOnlyActive || selectedCategory != nil
+            if hasFilters {
                 HStack(spacing: 8) {
                     if showOnlyActive {
                         FilterChip(
                             label: "Active",
                             icon: "flame.fill",
                             color: .orange,
-                            onRemove: {
-                                showOnlyActive = false
-                            }
+                            onRemove: { showOnlyActive = false }
                         )
                     }
                     
@@ -77,14 +56,17 @@ struct SimplifiedGamesHeader: View {
                             label: selectedCategory.displayName,
                             icon: selectedCategory.iconSystemName,
                             color: .blue,
-                            onRemove: {
-                                self.selectedCategory = nil
-                            }
+                            onRemove: { self.selectedCategory = nil }
                         )
                     }
+                    
+                    Spacer()
                 }
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .animation(.smooth(duration: 0.25), value: showOnlyActive)
+        .animation(.smooth(duration: 0.25), value: selectedCategory)
     }
 }
 
@@ -131,6 +113,7 @@ struct ToolbarSortMenu: View {
     @Binding var selectedSort: GameSortOption
     @Binding var sortDirection: SortDirection
     @Binding var showOnlyActive: Bool
+    @Binding var displayMode: GameDisplayMode
     
     var body: some View {
         Menu {
@@ -147,8 +130,18 @@ struct ToolbarSortMenu: View {
     
     @ViewBuilder
     private var menuContent: some View {
-        // Section 1: Active filter toggle
+        // Section 1: View mode + active filter
         Section {
+            Button {
+                displayMode = displayMode == .card ? .grid : .card
+                HapticManager.shared.trigger(.toggleSwitch)
+            } label: {
+                Label(
+                    displayMode == .card ? "Grid View" : "List View",
+                    systemImage: displayMode == .card ? "square.grid.2x2" : "list.bullet"
+                )
+            }
+            
             Button {
                 showOnlyActive.toggle()
                 HapticManager.shared.trigger(.toggleSwitch)
@@ -203,7 +196,6 @@ struct ToolbarSortMenu: View {
         var body: some View {
             VStack(spacing: 20) {
                 SimplifiedGamesHeader(
-                    displayMode: $displayMode,
                     selectedSort: $selectedSort,
                     sortDirection: $sortDirection,
                     showOnlyActive: $showOnlyActive,
@@ -252,7 +244,8 @@ struct ToolbarSortMenu: View {
         ToolbarSortMenu(
             selectedSort: .constant(.lastPlayed),
             sortDirection: .constant(.descending),
-            showOnlyActive: .constant(false)
+            showOnlyActive: .constant(false),
+            displayMode: .constant(.card)
         )
         
         Divider()

@@ -50,7 +50,7 @@ struct StreakTrendsDetailView: View {
         }
         .navigationTitle("Streak Trends")
         .navigationBarTitleDisplayMode(.large)
-        .background(StreakSyncColors.background(for: colorScheme))
+        .background(Color(.systemGroupedBackground))
         .task {
             await loadData()
         }

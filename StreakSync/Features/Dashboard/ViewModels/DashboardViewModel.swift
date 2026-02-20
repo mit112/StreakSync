@@ -3,7 +3,6 @@
 //  StreakSync
 //
 //  Business logic for the dashboard view
-//  FIXED: Updated to use new StreakSyncColors system
 //
 
 import SwiftUI

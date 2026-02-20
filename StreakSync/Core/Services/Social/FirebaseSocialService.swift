@@ -591,23 +591,26 @@ final class FirebaseSocialService: SocialService {
 
     // MARK: - Score Reconciliation
 
-    /// Republishes today's local results to the scores collection.
+    /// Republishes recent local results to the scores collection.
+    /// Covers the last 7 days to catch scores dropped by previous publish failures,
+    /// timezone bugs, or offline periods.
     /// Uses `setData(merge: true)` so already-published scores are harmlessly overwritten.
-    /// Call on app launch to catch any scores dropped by previous publish failures.
-    func reconcileTodaysScores(results: [GameResult], streaks: [GameStreak]) async {
+    func reconcileRecentScores(results: [GameResult], streaks: [GameStreak]) async {
         guard let currentUID = uid else { return }
-        let todayInt = Date().utcYYYYMMDD
-        let todaysResults = results.filter { $0.date.utcYYYYMMDD == todayInt && $0.completed }
-        guard !todaysResults.isEmpty else { return }
+        let cal = Calendar.current
+        let cutoff = cal.startOfDay(for: cal.date(byAdding: .day, value: -7, to: Date()) ?? Date())
+        let recentResults = results.filter { $0.date >= cutoff && $0.completed }
+        guard !recentResults.isEmpty else { return }
 
         var scores: [DailyGameScore] = []
-        for result in todaysResults {
+        for result in recentResults {
+            let dateInt = result.date.localDateInt
             let streak = streaks.first(where: { $0.gameId == result.gameId })
-            let compositeId = "\(currentUID)|\(todayInt)|\(result.gameId.uuidString)"
+            let compositeId = "\(currentUID)|\(dateInt)|\(result.gameId.uuidString)"
             scores.append(DailyGameScore(
                 id: compositeId,
                 userId: currentUID,
-                dateInt: todayInt,
+                dateInt: dateInt,
                 gameId: result.gameId,
                 gameName: result.gameName,
                 score: result.score,
@@ -644,7 +647,7 @@ final class FirebaseSocialService: SocialService {
         }
         do {
             try await batch.commit()
- logger.info("Reconciled \(filtered.count) scores for today")
+ logger.info("Reconciled \(filtered.count) scores from last 7 days")
         } catch {
  logger.warning("Score reconciliation failed: \(error.localizedDescription)")
         }

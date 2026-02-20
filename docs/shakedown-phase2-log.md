@@ -322,3 +322,73 @@ Purpose: Detailed running notes for deeper UI and cross-feature shakedown so fix
 ### Notes
 
 - Added `node_modules/` to root `.gitignore` to prevent dependency artifacts from polluting the repo.
+
+## Batch F1-08 - Notification DST/Timezone Date Resolution Hardening
+
+### Goal
+
+- Reduce notification-scheduling risk around DST transitions and timezone-sensitive one-off snooze reminders.
+
+### Implementation
+
+1. **DST-safe one-off reminder date resolution**
+   - Added `resolveOneOffReminderDate(...)` in `NotificationScheduler` to resolve a concrete target date using:
+     - `Calendar.date(bySettingHour:minute:second:of:matchingPolicy:repeatedTimePolicy:direction:)`
+     - `matchingPolicy: .nextTime` for nonexistent local times (spring-forward gaps)
+     - `repeatedTimePolicy: .first` for ambiguous repeated local times (fall-back overlap)
+2. **Date-components builder extracted for testability**
+   - Added `makeOneOffReminderDateComponents(...)` and routed `scheduleOneOffSnoozeReminder(...)` through it.
+3. **Focused unit tests added**
+   - New file: `StreakSyncTests/NotificationSchedulingDateTests.swift`
+   - Cases:
+     - regular-day time preservation
+     - spring-forward nonexistent local time handling
+     - fall-back ambiguous local time first-occurrence selection
+
+### Verification
+
+- Command:
+  - `xcodebuild test -project "StreakSync.xcodeproj" -scheme "StreakSync" -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -only-testing:StreakSyncTests/NotificationSchedulingDateTests -only-testing:StreakSyncTests/NotificationContentTests -resultBundlePath "Shakedown_Notification_DST_Timezone.xcresult" CODE_SIGNING_ALLOWED=NO`
+- Result:
+  - `total=16 failed=0`
+  - New DST/timezone tests passed and existing notification content tests remained green.
+
+### Status
+
+- Notification date-computation behavior is now covered and hardened at unit level.
+- End-to-end runtime delivery shakedown across device clock/timezone mutation remains a separate scenario (still pending).
+
+## Batch F1-09 - Notification Runtime Validation (Simulator + Device Runbook)
+
+### Simulator runtime stability pass
+
+- Executed the existing runtime notification settings state test 3 times:
+  - `Shakedown_NotificationRuntime_UI_Run1.xcresult`
+  - `Shakedown_NotificationRuntime_UI_Run2.xcresult`
+  - `Shakedown_NotificationRuntime_UI_Run3.xcresult`
+- Result:
+  - each run: `total=1 failed=0`
+  - validates runtime UI state rendering path remains stable across repeated launches.
+
+### Device-specific runtime gap closure prep
+
+- Added a dedicated operational runbook:
+  - `docs/notification-runtime-device-shakedown.md`
+- Runbook includes:
+  - permission-state matrix (`not determined`, `denied`, `authorized`)
+  - timezone matrix (`America/Los_Angeles`, `America/New_York`, `Asia/Kolkata`)
+  - snooze, deep-link action, and background delivery checks
+  - evidence template and exit criteria
+
+### Current status
+
+- Simulator runtime smoke path: verified stable.
+- Real-device timezone/clock mutation + background delivery behavior: still pending execution (requires physical-device run).
+
+## Phase 2 Handoff Status
+
+- All shakedown work that can be executed via CLI/simulator has been completed and documented.
+- Remaining open items are explicitly device/account interactive:
+  1. Apple/Google auth turbulence flows on real device
+  2. Notification runtime delivery under live timezone/clock mutation
+  3. Remaining deep end-to-end UI chaos journeys requiring interactive app/device orchestration

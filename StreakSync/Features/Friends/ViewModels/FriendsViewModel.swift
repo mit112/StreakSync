@@ -287,16 +287,6 @@ final class FriendsViewModel: ObservableObject {
 
 // MARK: - Date Helpers
 private extension FriendsViewModel {
-    var utcCalendar: Calendar {
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
-        return cal
-    }
-    
-    func utcStartOfDay(_ date: Date) -> Date {
-        utcCalendar.startOfDay(for: date)
-    }
-    
     func localStartOfDay(_ date: Date) -> Date {
         Calendar.current.startOfDay(for: date)
     }

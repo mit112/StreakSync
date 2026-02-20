@@ -59,7 +59,7 @@ struct AnalyticsDashboardView: View {
                     }
                 } header: {
                     timeRangeHeader
-                        .background(StreakSyncColors.background(for: colorScheme))
+                        .background(Color(.systemGroupedBackground))
                 }
             }
             .padding(.bottom, 20)
@@ -80,7 +80,7 @@ struct AnalyticsDashboardView: View {
 
     @ViewBuilder
     private var pageBackground: some View {
-        StreakSyncColors.background(for: colorScheme)
+        Color(.systemGroupedBackground)
     }
 
     // MARK: - Toolbar

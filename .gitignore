@@ -17,6 +17,9 @@ node_modules/
 # Firebase local
 .firebase/
 
+# Volume testing scripts
+volume-test/
+
 # Firebase credentials (keep out of version control)
 GoogleService-Info.plist
 *-firebase-adminsdk-*.json
@@ -31,6 +34,12 @@ ACHIEVEMENTS_MODULE_ANALYSIS.md
 ANALYTICS_MODULE_ANALYSIS.md
 FRIENDS_MODULE_ANALYSIS.md
 STREAKSYNC_AUDIT.md
+
+# Test result bundles
+*.xcresult/
+
+# Firebase local debug
+firestore-debug.log
 
 # Editor/AI tool artifacts
 .cursor/

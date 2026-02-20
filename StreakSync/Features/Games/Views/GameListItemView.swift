@@ -68,7 +68,13 @@ struct GameListItemView: View {
             }
             .padding()
             .background {
-                StreakSyncColors.gameListItemBackgroundiOS26(for: colorScheme)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(Color(.separator), lineWidth: 0.5)
+                    }
+                    .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
             }
         }
         .buttonStyle(.plain)

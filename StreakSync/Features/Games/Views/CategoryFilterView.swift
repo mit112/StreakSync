@@ -132,7 +132,7 @@ private struct CategoryChip: View {
     }
     
     private var chipBackgroundColor: Color {
-        colorScheme == .dark ? Color(.systemGray5) : Color(.systemGray6)
+        Color(.tertiarySystemFill)
     }
 }
 

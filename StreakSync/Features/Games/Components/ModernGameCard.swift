@@ -32,6 +32,10 @@ struct ModernGameCard: View {
         return GameDateHelper.getGamePlayedDescription(lastPlayed)
     }
     
+    private var hasEverPlayed: Bool {
+        streak.totalGamesPlayed > 0
+    }
+    
     private var completionRate: Int {
         guard streak.totalGamesPlayed > 0 else { return 0 }
         return Int((Double(streak.totalGamesCompleted) / Double(streak.totalGamesPlayed)) * 100)
@@ -68,15 +72,29 @@ struct ModernGameCard: View {
                     
                     // Single metadata line
                     HStack(spacing: 8) {
-                        // Streak indicator
-                        HStack(spacing: 3) {
-                            Image(systemName: "flame.fill")
-                                .font(.caption2)
-                                .foregroundStyle(streak.currentStreak > 0 ? .orange : .secondary)
-                            Text("\(streak.currentStreak)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .contentTransition(.numericText())
+                        // Streak indicator — prominent when active
+                        if streak.currentStreak > 0 {
+                            HStack(spacing: 3) {
+                                Image(systemName: "flame.fill")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.orange)
+                                Text("\(streak.currentStreak)")
+                                    .font(.caption.weight(.bold).monospacedDigit())
+                                    .foregroundStyle(.primary)
+                                    .contentTransition(.numericText())
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.12), in: Capsule())
+                        } else {
+                            HStack(spacing: 3) {
+                                Image(systemName: "flame")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text("0")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         
                         Text("•")
@@ -115,23 +133,25 @@ struct ModernGameCard: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(12)
-            .background {
-                StreakSyncColors.gameListItemBackground(for: colorScheme)
-            }
+            .cardStyle()
         }
         .buttonStyle(ModernCardButtonStyle())
+        .opacity(hasEverPlayed ? 1.0 : 0.65)
     }
     
     // MARK: - Game Icon
     private var gameIcon: some View {
         ZStack {
             Circle()
-                .fill(gameColor.opacity(colorScheme == .dark ? 0.2 : 0.12))
+                .fill(hasEverPlayed
+                    ? gameColor.opacity(colorScheme == .dark ? 0.2 : 0.12)
+                    : Color(.quaternarySystemFill)
+                )
                 .frame(width: 48, height: 48)
             
             Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
                 .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(gameColor)
+                .foregroundStyle(hasEverPlayed ? gameColor : .secondary)
                 .symbolRenderingMode(.hierarchical)
         }
     }

@@ -85,7 +85,8 @@ struct PersonalBestCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: 12)
-                .fill(.regularMaterial)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .strokeBorder(Color(.separator), lineWidth: 0.5)
         }
     }
 }

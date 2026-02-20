@@ -35,36 +35,32 @@ extension AppState {
             var maxStreak = 0
             var lastPlayedDate: Date?
             var streakStartDate: Date?
+            var lastCompletedDate: Date?
             
             // Process results to calculate streaks - only count completed games
-            for (index, result) in sortedResults.enumerated() {
+            for result in sortedResults {
                 if result.completed {
                     if currentStreak == 0 {
                         // Starting a new streak
                         currentStreak = 1
                         streakStartDate = result.date
-                    } else {
+                    } else if let previous = lastCompletedDate {
                         // Check if this continues the streak
-                        let previousCompletedResult = sortedResults.prefix(index).last { $0.completed }
-                        if let previous = previousCompletedResult {
-                            let daysBetween = Calendar.current.dateComponents([.day],
-                                                                             from: previous.date,
-                                                                             to: result.date).day ?? 0
-                            
-                            if daysBetween == 1 {
-                                currentStreak += 1
-                            } else if daysBetween > 1 {
-                                // Streak broken by gap
-                                maxStreak = max(maxStreak, currentStreak)
-                                currentStreak = 1
-                                streakStartDate = result.date
-                            }
-                        } else {
-                            // First completed game
+                        let daysBetween = Calendar.current.dateComponents([.day],
+                                                                         from: previous,
+                                                                         to: result.date).day ?? 0
+                        
+                        if daysBetween == 1 {
+                            currentStreak += 1
+                        } else if daysBetween > 1 {
+                            // Streak broken by gap
+                            maxStreak = max(maxStreak, currentStreak)
                             currentStreak = 1
                             streakStartDate = result.date
                         }
+                        // daysBetween == 0: same day, streak count unchanged
                     }
+                    lastCompletedDate = result.date
                 } else {
                     // Failed game - break current streak
                     if currentStreak > 0 {

@@ -32,7 +32,7 @@ struct DashboardSearchBar: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
+                .fill(Color(.tertiarySystemFill))
         )
         .padding(.horizontal)
     }

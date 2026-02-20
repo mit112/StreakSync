@@ -18,9 +18,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        // Configure Firebase App Check before FirebaseApp.configure().
-        // This must happen first so all Firebase services are protected.
-        AppCheck.setAppCheckProviderFactory(StreakSyncAppCheckProviderFactory())
+        // App Check is disabled until enforcement is enabled in Firestore rules.
+        // When ready: register debug token in Firebase Console → App Check → Manage debug tokens,
+        // then uncomment the line below.
+        // AppCheck.setAppCheckProviderFactory(StreakSyncAppCheckProviderFactory())
         
         // Configure Firebase before any other services initialize.
         // This is the officially recommended location per Firebase docs.

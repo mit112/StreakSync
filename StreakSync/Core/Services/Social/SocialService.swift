@@ -112,16 +112,18 @@ protocol SocialService: Sendable {
 
 // MARK: - Helpers
 extension Date {
-    /// Returns an Int in the form yyyyMMdd in UTC
-    var utcYYYYMMDD: Int {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
-        let comps = calendar.dateComponents([.year, .month, .day], from: self)
+    /// Returns an Int in the form yyyyMMdd using the user's local calendar.
+    /// "Today" is always the user's local date regardless of UTC offset.
+    var localDateInt: Int {
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: self)
         let y = comps.year ?? 1970
         let m = comps.month ?? 1
         let d = comps.day ?? 1
         return y * 10_000 + m * 100 + d
     }
+    
+    /// Legacy alias — prefer `localDateInt` going forward.
+    var utcYYYYMMDD: Int { localDateInt }
 }
 
 

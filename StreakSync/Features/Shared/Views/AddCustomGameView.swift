@@ -127,7 +127,7 @@ struct AddCustomGameView: View {
             }
             .padding()
         }
-        .background(.regularMaterial)
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Add Custom Game")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

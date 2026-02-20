@@ -16,7 +16,7 @@ struct AddCustomGameHeaderSection: View {
         VStack(spacing: 12) {
             Image(systemName: "plus.app")
                 .font(.system(size: 48))
-                .foregroundStyle(StreakSyncColors.primary(for: colorScheme))
+                .foregroundStyle(Color.accentColor)
                 .symbolEffect(.bounce, value: showingSuccessHaptic)
             
             Text("Add Your Favorite Puzzle")
@@ -75,7 +75,7 @@ struct AddCustomGameBasicInfoSection: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -103,7 +103,7 @@ struct AddCustomGameAppearanceSection: View {
                             .font(.title2)
                             .foregroundStyle(selectedColor)
                             .frame(width: 50, height: 50)
-                            .background(.ultraThinMaterial, in: Circle())
+                            .background(Color(.tertiarySystemFill), in: Circle())
                     }
                 }
                 
@@ -127,7 +127,7 @@ struct AddCustomGameAppearanceSection: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -177,7 +177,7 @@ struct AddCustomGameAdvancedSection: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -200,7 +200,7 @@ struct AddCustomGamePreviewSection: View {
                     .font(.title)
                     .foregroundStyle(selectedColor)
                     .frame(width: 50, height: 50)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(gameName.isEmpty ? "Game Name" : gameName)
@@ -215,7 +215,7 @@ struct AddCustomGamePreviewSection: View {
                 Spacer()
             }
             .padding()
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
         }
     }
 }

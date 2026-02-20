@@ -14,7 +14,6 @@ struct AchievementStatCard: View {
     let label: String
     let accentColor: Color
     
-    @Environment(\.colorScheme) private var colorScheme
     @State private var isHovered = false
     
     var body: some View {
@@ -37,16 +36,12 @@ struct AchievementStatCard: View {
         .padding(.vertical, 16)
         .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.thinMaterial)
+                .fill(Color(.secondarySystemGroupedBackground))
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(
-                            accentColor.opacity(colorScheme == .dark ? 0.2 : 0.35),
-                            lineWidth: 1
-                        )
+                        .stroke(accentColor.opacity(0.3), lineWidth: 1)
                 }
-                .shadow(color: accentColor.opacity(colorScheme == .dark ? 0.1 : 0.12), radius: 6, x: 0, y: 2)
-                .shadow(color: colorScheme == .dark ? .clear : .black.opacity(0.04), radius: 12, x: 0, y: 6)
+                .shadow(color: accentColor.opacity(0.1), radius: 6, x: 0, y: 2)
         }
         .hoverEffect(.lift)
         .onHover { hovering in
@@ -81,10 +76,10 @@ struct AchievementCategoryChip: View {
                         .shadow(color: .accentColor.opacity(0.3), radius: 4, x: 0, y: 2)
                 } else {
                     Capsule()
-                        .fill(.ultraThinMaterial)
+                        .fill(Color(.tertiarySystemFill))
                         .overlay {
                             Capsule()
-                                .stroke(.quaternary, lineWidth: 0.5)
+                                .stroke(Color(.separator), lineWidth: 0.5)
                         }
                 }
             }
@@ -123,32 +118,40 @@ struct AchievementCard: View {
                             .fill(
                                 RadialGradient(
                                     colors: [
-                                        achievement.displayColor.opacity(0.3),
-                                        achievement.displayColor.opacity(0)
+                                        achievement.displayColor.opacity(0.4),
+                                        achievement.displayColor.opacity(0.05)
                                     ],
                                     center: .center,
                                     startRadius: 0,
-                                    endRadius: 30
+                                    endRadius: 35
                                 )
                             )
-                            .frame(width: 60, height: 60)
-                            .blur(radius: isHovered ? 8 : 4)
+                            .frame(width: 64, height: 64)
                     }
                     
                     Circle()
-                        .fill(achievement.displayColor.opacity(0.15))
+                        .fill(
+                            achievement.isUnlocked
+                            ? achievement.displayColor.opacity(0.2)
+                            : Color(.quaternarySystemFill)
+                        )
                         .frame(width: 52, height: 52)
                         .overlay {
                             Circle()
-                                .stroke(achievement.displayColor.opacity(0.3), lineWidth: 1)
+                                .stroke(
+                                    achievement.isUnlocked
+                                    ? achievement.displayColor.opacity(0.5)
+                                    : Color(.separator).opacity(0.3),
+                                    lineWidth: 1
+                                )
                         }
                     
                     Image.safeSystemName(safeIconName, fallback: "star.fill")
                         .font(.title)
                         .foregroundStyle(
-                            achievement.isUnlocked ?
-                            achievement.displayColor :
-                            Color(.systemGray3)
+                            achievement.isUnlocked
+                            ? achievement.displayColor
+                            : Color(.systemGray3)
                         )
                         .symbolEffect(.bounce, value: showUnlockAnimation)
                 }
@@ -204,33 +207,42 @@ struct AchievementCard: View {
             .frame(maxWidth: .infinity)
             .background {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.regularMaterial)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .overlay {
+                        // Subtle tier-colored tint for unlocked achievements
+                        if achievement.isUnlocked {
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        stops: [
+                                            .init(color: achievement.displayColor.opacity(0.06), location: 0),
+                                            .init(color: .clear, location: 0.5)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        }
+                    }
                     .overlay {
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .stroke(
-                                achievement.isUnlocked ?
-                                    achievement.displayColor.opacity(0.3) :
-                                    Color(.separator).opacity(0.5),
-                                lineWidth: 1
+                                achievement.isUnlocked
+                                ? achievement.displayColor.opacity(0.35)
+                                : Color(.separator).opacity(0.5),
+                                lineWidth: achievement.isUnlocked ? 1 : 0.5
                             )
                     }
                     .shadow(
-                        color: achievement.isUnlocked ?
-                            achievement.displayColor.opacity(0.12) :
-                            .black.opacity(0.07),
-                        radius: isHovered ? 10 : 6,
-                        x: 0,
-                        y: isHovered ? 5 : 2
-                    )
-                    .shadow(
-                        color: .black.opacity(0.04),
-                        radius: 14,
-                        x: 0,
-                        y: 6
+                        color: achievement.isUnlocked
+                            ? achievement.displayColor.opacity(0.12)
+                            : .black.opacity(0.06),
+                        radius: 6, x: 0, y: 2
                     )
             }
         }
         .buttonStyle(.plain)
+        .opacity(achievement.isUnlocked ? 1.0 : 0.7)
         .scaleEffect(isHovered ? 1.03 : 1.0)
         .animation(.smooth(duration: 0.2), value: isHovered)
         .onHover { hovering in

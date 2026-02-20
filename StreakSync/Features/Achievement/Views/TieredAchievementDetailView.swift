@@ -33,13 +33,46 @@ struct TieredAchievementDetailView: View {
     private var achievementHeader: some View {
         VStack(spacing: 16) {
             ZStack {
+                if achievement.isUnlocked {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    achievement.displayColor.opacity(0.3),
+                                    achievement.displayColor.opacity(0.05)
+                                ],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 50
+                            )
+                        )
+                        .frame(width: 100, height: 100)
+                }
+                
                 Circle()
-                    .fill(achievement.displayColor.opacity(0.15))
+                    .fill(
+                        achievement.isUnlocked
+                        ? achievement.displayColor.opacity(0.18)
+                        : Color(.quaternarySystemFill)
+                    )
                     .frame(width: 80, height: 80)
+                    .overlay {
+                        Circle()
+                            .stroke(
+                                achievement.isUnlocked
+                                ? achievement.displayColor.opacity(0.4)
+                                : Color(.separator).opacity(0.3),
+                                lineWidth: 1
+                            )
+                    }
                 
                 Image.safeSystemName(achievement.iconSystemName, fallback: "star.fill")
                     .font(.system(size: 36))
-                    .foregroundStyle(achievement.displayColor)
+                    .foregroundStyle(
+                        achievement.isUnlocked
+                        ? achievement.displayColor
+                        : Color(.systemGray3)
+                    )
             }
             
             Text(achievement.description)
@@ -144,7 +177,8 @@ struct TieredAchievementDetailView: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemGray6))
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .strokeBorder(Color(.separator), lineWidth: 0.5)
             )
         }
     }

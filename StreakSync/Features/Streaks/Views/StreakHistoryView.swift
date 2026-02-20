@@ -187,7 +187,7 @@ struct StreakHistoryView: View {
         }
         .padding()
         .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(.secondarySystemGroupedBackground))
         }
         .scrollTransition { content, phase in
             content.scaleEffect(phase.isIdentity ? 1 : 0.98)
@@ -341,10 +341,10 @@ struct HistoryStatBox: View {
         .padding(.vertical, 16)
         .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.thinMaterial)
+                .fill(Color(.secondarySystemGroupedBackground))
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(color.opacity(0.2), lineWidth: 1)
+                        .stroke(Color(.separator), lineWidth: 0.5)
                 }
                 .shadow(color: isHovered ? color.opacity(0.15) : .black.opacity(0.1),
                         radius: isHovered ? 8 : 4, y: isHovered ? 4 : 2)
@@ -413,11 +413,11 @@ struct HistoryCalendarDayView: View {
 
     private var backgroundColor: Color {
         if let grouped = groupedResult {
-            return grouped.completionStatus.contains("Completed") ? gameColor.opacity(0.15) : Color(.systemGray6)
+            return grouped.completionStatus.contains("Completed") ? gameColor.opacity(0.15) : Color(.tertiarySystemFill)
         } else if let result = result {
             return result.completed ? gameColor.opacity(0.15) : Color.red.opacity(0.1)
         }
-        return Color(.systemGray6)
+        return Color(.tertiarySystemFill)
     }
 
     private var textColor: Color {
@@ -452,7 +452,7 @@ struct iOS26SelectedDateDetail: View {
             Text(result.displayScore).font(.title3.weight(.bold)).foregroundStyle(gameColor)
         }
         .padding()
-        .background { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.ultraThinMaterial) }
+        .background { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(.secondarySystemGroupedBackground)) }
     }
 }
 
@@ -501,11 +501,11 @@ struct iOS26SelectedDateGroupedDetail: View {
                     }
                 }
                 .padding(.horizontal, 16).padding(.vertical, 8)
-                .background(.ultraThinMaterial.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
+                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
             }
         }
         .padding()
-        .background { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.ultraThinMaterial) }
+        .background { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(.secondarySystemGroupedBackground)) }
     }
 
     private var completionIcon: String {
@@ -543,8 +543,8 @@ struct DifficultyResultRowView: View {
             Spacer()
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
-        .background(.ultraThinMaterial.opacity(0.8), in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary, lineWidth: 0.5))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(.separator), lineWidth: 0.5))
     }
 
     private var difficultyColor: Color {
@@ -581,7 +581,7 @@ struct iOS26PerformanceChart: View {
         .chartXAxis { AxisMarks(values: .stride(by: .day)) { _ in AxisGridLine(); AxisValueLabel(format: .dateTime.day()) } }
         .chartYAxis { AxisMarks { _ in AxisGridLine(); AxisValueLabel() } }
         .padding()
-        .background { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.ultraThinMaterial) }
+        .background { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(.secondarySystemGroupedBackground)) }
     }
 }
 
@@ -625,7 +625,7 @@ struct iOS26TimeBasedChart: View {
             .chartYScale(domain: 0...1)
         }
         .padding()
-        .background { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.ultraThinMaterial) }
+        .background { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(.secondarySystemGroupedBackground)) }
     }
 
     private func bestTime(for diff: String) -> String? {

@@ -90,9 +90,9 @@ struct StreakSyncApp: App {
             // Check for streak reminders on app launch
             await container.appState.checkAndScheduleStreakReminders()
             
-            // Reconcile today's scores — republishes any that were dropped by previous failures
+            // Reconcile recent scores — republishes any dropped by failures, timezone bugs, or offline periods
             if let socialService = container.socialService as? FirebaseSocialService {
-                await socialService.reconcileTodaysScores(
+                await socialService.reconcileRecentScores(
                     results: container.appState.recentResults,
                     streaks: container.appState.streaks
                 )
