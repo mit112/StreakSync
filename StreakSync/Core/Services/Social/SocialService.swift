@@ -99,6 +99,11 @@ protocol SocialService: Sendable {
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow]
     
+    // Account management
+    /// Deletes ALL Firestore data for the current user (scores, friendships, friendCodes, gameResults, sync, profile).
+    /// Call this before deleting the Firebase Auth account.
+    func deleteAllUserData() async throws
+    
     // Sync status (nonisolated for Sendable conformance)
     nonisolated var pendingScoreCount: Int { get }
     

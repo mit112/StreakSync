@@ -14,30 +14,25 @@
   <img src="https://img.shields.io/badge/UI-SwiftUI-purple" alt="SwiftUI">
   <img src="https://img.shields.io/badge/Backend-Firebase-yellow?logo=firebase" alt="Firebase">
   <img src="https://img.shields.io/badge/Architecture-MVVM-green" alt="MVVM">
+  <img src="https://img.shields.io/badge/Tests-193-brightgreen" alt="193 Tests">
 </p>
 
 ---
 
-StreakSync is a native iOS app for tracking daily puzzle game streaks across 17+ games including Wordle, Connections, Strands, LinkedIn Queens, and more. Share your game results using the iOS Share Extension, and StreakSync automatically parses scores, tracks streaks, unlocks achievements, and lets you compete with friends on real-time leaderboards.
-
-## Screenshots
-
-Add screenshots to `docs/screenshots/` with these filenames to render this section:
-- `dashboard.png`
-- `friends.png`
-- `achievements.png`
-- `analytics.png`
-
-| Dashboard | Friends Leaderboard | Achievements | Analytics |
-|:---------:|:-------------------:|:------------:|:---------:|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Friends](docs/screenshots/friends.png) | ![Achievements](docs/screenshots/achievements.png) | ![Analytics](docs/screenshots/analytics.png) |
+StreakSync is a native iOS app for tracking daily puzzle game streaks across 40+ games including Wordle, Connections, Strands, LinkedIn Queens, and more. Share your game results using the iOS Share Extension, and StreakSync automatically parses scores, tracks streaks, unlocks achievements, and lets you compete with friends on real-time leaderboards.
 
 ## Why This Project
 
-- Demonstrates production-oriented iOS engineering: DI container, typed service boundaries, and strict linting.
-- Shows real product complexity: share extension ingestion, reminders, analytics, achievements, and social leaderboards.
-- Focuses on maintainability and scale with feature-based structure and testable pure-computation modules.
-- Includes CI and automated tests to support team workflows, not just solo experimentation.
+This isn't a tutorial app — it's a production-grade iOS application built from scratch with real architectural complexity:
+
+- **Share Extension ingestion pipeline** that parses unstructured text from 40+ games into structured data
+- **Real-time social features** with Firestore snapshot listeners, friend codes, and daily leaderboards
+- **Tiered achievement system** (Bronze → Diamond) with particle effects and celebration animations
+- **Analytics engine** with interactive charts, trend analysis, and CSV export
+- **Smart notification scheduling** that learns when you play and reminds you at the right time
+- **Security-hardened Firestore rules** with field validation, ownership checks, and a 55-case penetration test suite
+- **193 unit and UI tests** covering streak logic, sync merge, game detection, analytics computation, and more
+- **CI pipeline** via GitHub Actions with automated build + test on every push
 
 ## Features
 
@@ -49,13 +44,17 @@ Add screenshots to `docs/screenshots/` with these filenames to render this secti
 
 **Tiered Achievements** — Bronze → Silver → Gold → Diamond progression across 10 achievement categories (Streak Master, Game Collector, Daily Devotee, Variety Player, and more). Unlock celebrations with particle effects and confetti.
 
-**Analytics Dashboard** — Completion rates, streak trends, personal bests, weekly summaries, and deep-dive stats for specific games (guess distributions, time breakdowns). Interactive charts with export to CSV.
+**Analytics Dashboard** — Completion rates, streak trends, personal bests, weekly summaries, and deep-dive stats for specific games. Interactive charts with export to CSV.
 
-**Smart Reminders** — Analyzes your play history to suggest the optimal reminder time. Learns when you typically play and nudges you 30 minutes before your usual window.
+**Smart Reminders** — Analyzes your play history to suggest the optimal reminder time. Learns when you typically play and nudges you before your usual window.
+
+**Account Management** — Sign in with Apple for identity, with full account deletion flow (App Store requirement). Anonymous auth for frictionless onboarding with credential linking when ready.
 
 **Guest Mode** — Let a friend try the app on your device without affecting your data. Snapshots and restores your state seamlessly.
 
 ## Supported Games
+
+16 built-in games with dedicated parsers, plus support for custom game tracking:
 
 | NYT Games | LinkedIn Games | Other |
 |-----------|---------------|-------|
@@ -83,32 +82,15 @@ StreakSyncApp (@main)
       └─ ... (haptics, sound, persistence, sync)
 ```
 
-```mermaid
-flowchart TD
-    StreakSyncApp --> AppContainer
-    AppContainer --> AppState
-    AppContainer --> FirebaseAuthStateManager
-    AppContainer --> FirebaseSocialService
-    AppContainer --> FirestoreGameResultSyncService
-    AppContainer --> FirestoreAchievementSyncService
-    AppContainer --> NotificationCoordinator
-    ShareExtension --> AppGroupBridge
-    AppGroupBridge --> NotificationCoordinator
-    NotificationCoordinator --> AppState
-    AppState --> DashboardAndFeatures
-    FirebaseSocialService --> Firestore
-    FirestoreGameResultSyncService --> Firestore
-    FirestoreAchievementSyncService --> Firestore
-```
-
 **Key patterns:**
 
-- **MVVM** with a centralized `AppContainer` for dependency injection
+- **MVVM** with a centralized `AppContainer` for dependency injection — no service locators, no singletons for business logic
 - **Protocol-oriented services** — `SocialService` protocol backed by `FirebaseSocialService` (production) and `MockSocialService` (testing)
 - **Swift Concurrency** — `async/await` throughout, `GameResultIngestionActor` for thread-safe share extension processing, structured concurrency with `async let` in analytics
-- **@Observable** (Swift 5.9 Observation) for `AppState` and `GameCatalog`, `ObservableObject` where `@EnvironmentObject` is needed
+- **@Observable** (Swift 5.9 Observation) for `AppState` and `GameCatalog`
 - **Extension-based decomposition** — `AppState` split into 7 focused files (GameLogic, Persistence, Achievements, Reminders, etc.)
 - **Pure computation extraction** — `AnalyticsComputer` and `TieredAchievementChecker` are testable structs with zero UI dependencies
+- **Security-first Firestore rules** — field validation, ownership enforcement, `allowedReaders` arrays for score privacy, with a 55-case penetration test suite
 
 ## Project Structure
 
@@ -132,8 +114,11 @@ StreakSync/
 │   ├── Streaks/                  # All streaks view, streak history
 │   └── Shared/                   # Reusable components (GradientAvatar, GameIconCarousel)
 ├── StreakSyncShareExtension/     # iOS Share Extension for result import
-└── StreakSyncTests/              # 133 tests across 13 files
+├── StreakSyncTests/              # 183 unit tests across 15 files
+└── StreakSyncUITests/            # 10 UI tests for launch + navigation
 ```
+
+**169 Swift source files · ~33k lines of production code · 17 test files**
 
 ## Tech Stack
 
@@ -147,18 +132,19 @@ StreakSync/
 | Auth | Sign in with Apple + anonymous auth linking |
 | Storage | UserDefaults + App Group + Keychain |
 | Notifications | UNUserNotificationCenter with smart scheduling |
-| Linting | SwiftLint (90+ rules, strict mode) |
-| Testing | XCTest (177 unit tests) |
+| Linting | SwiftLint (strict mode) |
+| Testing | XCTest (193 tests) |
+| CI | GitHub Actions |
 
 ## Security
 
-- Firestore security rules enforce ownership, field validation, and `allowedReaders` arrays for score privacy
-- Friendship rules prevent arbitrary modification (only sender creates, only recipient accepts)
-- Sensitive data stored in Keychain (not UserDefaults)
-- Firebase credentials excluded from version control
-- If credentials were ever exposed in a fork/history, rotate keys in Firebase Console before production release
-- Firestore migration/backfill checklist documented in `docs/FIRESTORE_RULES_BACKFILL.md`
-- Privacy manifest (`PrivacyInfo.xcprivacy`) declares all API usage
+- **Firestore security rules** enforce ownership, field validation, string size limits, and `allowedReaders` arrays for score privacy
+- **55-case penetration test suite** (`firestore-rules-tests/`) validates all rules against attack vectors including hijacking, spoofing, enumeration, and privilege escalation
+- **Friendship rules** prevent arbitrary modification — only sender creates, only recipient accepts, user IDs are immutable after creation
+- **Account deletion** flow removes all user data across 6 Firestore collections (App Store requirement)
+- **Sensitive data** stored in Keychain (not UserDefaults)
+- **Firebase credentials** excluded from version control via `.gitignore`
+- **Privacy manifest** (`PrivacyInfo.xcprivacy`) declares all API usage
 
 ## Getting Started
 
@@ -178,53 +164,50 @@ StreakSync/
    ```
 
 2. Add your Firebase configuration
-   - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-   - Enable **Firestore**, **Authentication** (Anonymous + Apple providers)
-   - Copy the checked-in template and fill it with your Firebase project values:
-     ```bash
-     cp StreakSync/GoogleService-Info.example.plist StreakSync/GoogleService-Info.plist
-     ```
-   - Or download `GoogleService-Info.plist` from Firebase Console and place it in `StreakSync/`
+   ```bash
+   cp StreakSync/GoogleService-Info.example.plist StreakSync/GoogleService-Info.plist
+   # Fill in your Firebase project values, or download from Firebase Console
+   ```
 
 3. Deploy Firestore rules and indexes
    ```bash
    firebase deploy --only firestore:rules,firestore:indexes
    ```
 
-4. Open `StreakSync.xcodeproj` in Xcode
-
-5. Build and run on a simulator or device (iOS 26+)
-
-### Running Tests
-
-```bash
-# Via Xcode
-⌘+U
-
-# Or via command line
-xcodebuild test -project StreakSync.xcodeproj -scheme StreakSync -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max'
-```
+4. Open `StreakSync.xcodeproj` in Xcode, build and run (iOS 26+)
 
 ## Testing
 
-180 unit tests across 14 test files covering:
+193 tests across 17 files:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|---------|
 | AnalyticsComputerTests | 34 | All pure analytics computation functions |
-| AchievementCheckerTests | 25 | All 10 achievement categories + sync merge |
-| GameDetectionTests | 17 | Share extension game detection |
-| NotificationContentTests | 13 | Notification content builder |
-| NormalizeStreaksTests | 10 | Streak normalization edge cases |
-| GameResultParserTests | 10 | Per-game result parsing |
 | LeaderboardScoringTests | 23 | All 5 scoring models + metric labels |
+| AchievementCheckerTests | 18 | All 10 achievement categories + sync merge |
 | SocialModelTests | 18 | UserProfile, Friendship, DailyGameScore, Date |
-| StreakLogicTests | 15 | Core streak logic |
-| SyncMergeTests | 13 | Sync merge scenarios |
-| SyncServiceConversionTests | 3 | Firestore GameResult conversion/roundtrip safety |
-| + 3 more suites | — | Ingestion, social settings, load |
+| GameDetectionTests | 18 | Share extension game detection |
+| StreakLogicTests | 15 | Core streak calculation edge cases |
+| NotificationContentTests | 13 | Notification content builder |
+| SyncMergeTests | 13 | Sync merge conflict resolution |
+| GameResultParserTests | 10 | Per-game result parsing |
+| NormalizeStreaksTests | 9 | Streak normalization edge cases |
+| + 5 more suites | 12 | Ingestion, social settings, scheduling, load |
+| **UI Tests** | **10** | Launch, tab navigation, accessibility |
 
-UI smoke coverage is in `StreakSyncUITests` (9 tests) for launch, tab navigation, and baseline accessibility hittability checks.
+```bash
+# Run tests via Xcode
+⌘+U
+
+# Or via command line
+xcodebuild test -project StreakSync.xcodeproj -scheme StreakSync \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max'
+
+# Run Firestore rules tests
+cd firestore-rules-tests
+firebase emulators:start --only firestore &
+node firestore.rules.test.mjs
+```
 
 ## License
 

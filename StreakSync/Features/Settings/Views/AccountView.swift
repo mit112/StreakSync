@@ -2,7 +2,7 @@
 //  AccountView.swift
 //  StreakSync
 //
-//  Account management — Apple Sign-In, Google Sign-In, profile display, sign out.
+//  Account management — Apple Sign-In, Google Sign-In, profile display, sign out, delete account.
 //
 
 import SwiftUI
@@ -19,6 +19,8 @@ struct AccountView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showSignOutConfirmation = false
+    @State private var showDeleteConfirmation = false
+    @State private var isDeletingAccount = false
     @State private var signInSuccess = false
 
     init(authManager: FirebaseAuthStateManager) {
@@ -32,6 +34,7 @@ struct AccountView: View {
             } else {
                 profileSection
                 signOutSection
+                deleteAccountSection
             }
             if let error = errorMessage {
                 Section {
@@ -43,6 +46,26 @@ struct AccountView: View {
         }
         .navigationTitle("Account")
         .task { await loadProfile() }
+        .overlay {
+            if isDeletingAccount {
+                ZStack {
+                    Color.black.opacity(0.4).ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .controlSize(.large)
+                        Text("Deleting account...")
+                            .font(.headline)
+                        Text("Removing all your data from StreakSync servers.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(32)
+                    .background(.regularMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
+        }
     }
 }
 
@@ -181,8 +204,32 @@ private extension AccountView {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("Your personal streaks and scores stay on this device, but your leaderboard scores, friends, and friend code won't be visible until you sign back in.")
+                Text("Your personal streaks and scores stay on this device, but your leaderboard scores, friends, and friend code won\u{2019}t be visible until you sign back in.")
             }
+        }
+    }
+
+    var deleteAccountSection: some View {
+        Section {
+            Button(role: .destructive) {
+                showDeleteConfirmation = true
+            } label: {
+                HStack {
+                    Spacer()
+                    Text("Delete Account")
+                    Spacer()
+                }
+            }
+            .confirmationDialog("Delete Account", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                Button("Delete Everything", role: .destructive) {
+                    Task { await handleDeleteAccount() }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This will permanently delete your account and all associated data: leaderboard scores, friends, friend code, game results, and achievements. This action cannot be undone.")
+            }
+        } footer: {
+            Text("Permanently removes your account and all data from StreakSync servers.")
         }
     }
 
@@ -262,8 +309,48 @@ private extension AccountView {
         }
     }
 
+    // MARK: - Sign Out (H2 fix: clear local data before creating new anonymous session)
+
     func handleSignOut() async {
+        // 1. Clear local data to prevent cross-user leakage
+        await container.appState.clearAllData()
+
+        // 2. Clear sync timestamps so next user gets a full sync
+        container.gameResultSyncService.clearLastSyncTimestamp()
+
+        // 3. Sign out and re-auth anonymously
         await authManager.signOutAndReauthAnonymously()
+
+        // 4. Reload fresh (empty) state
+        await container.appState.loadPersistedData()
         await loadProfile()
+    }
+
+    // MARK: - Delete Account (H1: App Store requirement)
+
+    func handleDeleteAccount() async {
+        isDeletingAccount = true
+        errorMessage = nil
+
+        do {
+            // 1. Delete all Firestore data (scores, friendships, friendCodes, gameResults, sync, profile)
+            try await container.socialService.deleteAllUserData()
+
+            // 2. Clear all local data
+            await container.appState.clearAllData()
+            container.gameResultSyncService.clearLastSyncTimestamp()
+
+            // 3. Delete the Firebase Auth account (requires recent authentication)
+            try await authManager.deleteAccount()
+
+            // 4. Sign in anonymously as a fresh user
+            await authManager.signInAnonymously()
+
+            isDeletingAccount = false
+            profile = nil
+        } catch {
+            isDeletingAccount = false
+            errorMessage = "Failed to delete account: \(error.localizedDescription)"
+        }
     }
 }

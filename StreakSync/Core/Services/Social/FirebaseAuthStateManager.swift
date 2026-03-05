@@ -273,6 +273,35 @@ final class FirebaseAuthStateManager: ObservableObject {
         await signInAnonymously()
     }
 
+    // MARK: - Account Deletion
+
+    /// Deletes the Firebase Auth account. Requires recent authentication.
+    /// Call `deleteAllUserData()` on the social service BEFORE calling this.
+    func deleteAccount() async throws {
+        guard let user = auth.currentUser else {
+            throw FirebaseAuthError.notAuthenticated
+        }
+        do {
+            try await user.delete()
+            logger.info("Firebase Auth account deleted")
+        } catch {
+            let nsError = error as NSError
+            // If the error is "requires recent login", surface it clearly
+            if nsError.domain == AuthErrorDomain,
+               let code = AuthErrorCode(_bridgedNSError: nsError),
+               code.code == .requiresRecentLogin {
+                throw FirebaseAuthError.unknown(
+                    underlying: NSError(
+                        domain: "FirebaseAuthStateManager",
+                        code: -2,
+                        userInfo: [NSLocalizedDescriptionKey: "Please sign out and sign back in, then try deleting your account again."]
+                    )
+                )
+            }
+            throw FirebaseAuthError.from(error)
+        }
+    }
+
     // MARK: - Private: Auth Listener
 
     private func setupAuthListener() {

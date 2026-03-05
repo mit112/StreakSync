@@ -35,6 +35,12 @@ ANALYTICS_MODULE_ANALYSIS.md
 FRIENDS_MODULE_ANALYSIS.md
 STREAKSYNC_AUDIT.md
 
+# Internal QA artifacts
+docs/shakedown-*.md
+docs/notification-runtime-*.md
+docs/ARCHITECTURE_REFACTOR_PLAN.md
+docs/FIRESTORE_RULES_BACKFILL.md
+
 # Test result bundles
 *.xcresult/
 

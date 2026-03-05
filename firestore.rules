@@ -2,6 +2,7 @@ rules_version = '2';
 
 // StreakSync Firestore Security Rules
 // Deploy: firebase deploy --only firestore:rules
+// Last security audit: 2026-02-26
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -15,6 +16,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Max string sizes to prevent document-size DoS
+    function isShortString(val) {
+      return val is string && val.size() > 0 && val.size() <= 200;
+    }
+
     // --- Users ---
     // Full profile readable by the user themselves or their accepted friends.
     // The 'friends' array on each user document is maintained by the app.
@@ -22,9 +28,29 @@ service cloud.firestore {
       allow read: if isSignedIn()
         && (request.auth.uid == userId
             || request.auth.uid in resource.data.friends);
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if false;
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && hasRequiredAndOnly(
+          ['displayName', 'friends', 'createdAt', 'updatedAt'],
+          ['authProvider', 'photoURL', 'friendCode']
+        )
+        && isShortString(request.resource.data.displayName)
+        && request.resource.data.friends is list
+        && request.resource.data.friends.size() <= 500;
+
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && hasRequiredAndOnly(
+          ['displayName', 'friends', 'createdAt', 'updatedAt'],
+          ['authProvider', 'photoURL', 'friendCode']
+        )
+        && isShortString(request.resource.data.displayName)
+        && request.resource.data.friends is list
+        && request.resource.data.friends.size() <= 500;
+
+      // Owner can delete their own profile (account deletion flow)
+      allow delete: if isSignedIn() && request.auth.uid == userId;
 
       // --- Game Results (private per-user) ---
       match /gameResults/{resultId} {
@@ -40,21 +66,34 @@ service cloud.firestore {
     // --- Friend Codes ---
     // Minimal lookup collection: { userId, displayName }
     // Readable by any authenticated user (needed for friend code entry).
-    // Only the code owner can write (via the app's generateFriendCode flow).
+    // Separated create/update/delete to prevent hijacking (C1 fix).
     match /friendCodes/{code} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn()
+
+      // Only creator can mint a new code
+      allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
         && hasRequiredAndOnly(['userId', 'displayName'], [])
         && request.resource.data.userId is string
-        && request.resource.data.displayName is string;
+        && isShortString(request.resource.data.displayName);
+
+      // Only the code owner can update their code's display name
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && hasRequiredAndOnly(['userId', 'displayName'], [])
+        && request.resource.data.userId is string
+        && isShortString(request.resource.data.displayName);
+
+      // Only the code owner can delete their code
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
     }
 
     // --- Scores ---
     // Leaderboard scores. Each score document includes an `allowedReaders`
     // array set at publish time to [publisher] + [publisher's friends].
     // Reads are restricted to users in that array.
-    //
     match /scores/{scoreId} {
       allow read: if isSignedIn()
         && request.auth.uid in resource.data.allowedReaders;
@@ -65,18 +104,21 @@ service cloud.firestore {
           ['userId', 'gameId', 'dateInt', 'gameName', 'completed', 'allowedReaders'],
           ['score', 'maxAttempts', 'currentStreak', 'publishedAt']
         )
-        && request.resource.data.userId is string
-        && request.resource.data.gameId is string
+        && isShortString(request.resource.data.userId)
+        && isShortString(request.resource.data.gameId)
         && request.resource.data.dateInt is int
         && request.resource.data.completed is bool
-        && request.resource.data.gameName is string
+        && isShortString(request.resource.data.gameName)
         && request.resource.data.allowedReaders is list
+        && request.resource.data.allowedReaders.size() <= 500
         && request.auth.uid in request.resource.data.allowedReaders
         && (!('score' in request.resource.data) || request.resource.data.score is int)
         && (!('maxAttempts' in request.resource.data) || request.resource.data.maxAttempts is int)
         && (!('currentStreak' in request.resource.data) || request.resource.data.currentStreak is int);
 
-      allow delete: if false;
+      // Owner can delete their own scores (account deletion flow)
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
     }
 
     // --- Friendships ---
@@ -87,14 +129,17 @@ service cloud.firestore {
             || resource.data.userId2 == request.auth.uid);
 
       // Create: sender must be userId1, status must start as pending,
-      // required fields present, sender != recipient
+      // required fields present, sender != recipient.
+      // senderDisplayName is size-limited.
       allow create: if isSignedIn()
         && request.resource.data.userId1 == request.auth.uid
         && request.resource.data.userId1 != request.resource.data.userId2
         && request.resource.data.status == 'pending'
         && hasRequiredAndOnly(['userId1', 'userId2', 'status', 'createdAt'], ['senderDisplayName'])
         && request.resource.data.userId1 is string
-        && request.resource.data.userId2 is string;
+        && request.resource.data.userId2 is string
+        && (!('senderDisplayName' in request.resource.data)
+            || isShortString(request.resource.data.senderDisplayName));
 
       // Update: ONLY the recipient (userId2) can accept,
       // and ONLY the status field may change (to 'accepted').

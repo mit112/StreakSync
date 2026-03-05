@@ -76,6 +76,15 @@ final class FirestoreGameResultSyncService {
         self.appState = appState
     }
 
+    /// Clears the per-user last sync timestamp. Call on sign-out to prevent
+    /// stale incremental sync when a different user signs in on the same device.
+    func clearLastSyncTimestamp() {
+        guard let key = lastSyncKey else { return }
+        UserDefaults.standard.removeObject(forKey: key)
+        syncState = .notStarted
+        logger.info("Cleared last sync timestamp")
+    }
+
     // MARK: - Sync Entry Point
 
     func syncIfNeeded() async {

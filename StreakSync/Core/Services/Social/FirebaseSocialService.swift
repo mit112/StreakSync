@@ -489,6 +489,79 @@ final class FirebaseSocialService: SocialService {
         return String((0..<6).compactMap { _ in letters.randomElement() })
     }
 
+    // MARK: - Account Deletion
+
+    func deleteAllUserData() async throws {
+        let uid = try requireUID()
+        logger.info("Starting full account data deletion for user \(uid)")
+
+        // 1. Delete all scores where userId == uid
+        let scoreDocs = try await db.collection("scores")
+            .whereField("userId", isEqualTo: uid)
+            .getDocuments()
+        for doc in scoreDocs.documents {
+            try await doc.reference.delete()
+        }
+        logger.info("Deleted \(scoreDocs.documents.count) score documents")
+
+        // 2. Delete all friendships and clean up friends arrays
+        let fs1 = try await db.collection("friendships")
+            .whereField("userId1", isEqualTo: uid)
+            .getDocuments()
+        let fs2 = try await db.collection("friendships")
+            .whereField("userId2", isEqualTo: uid)
+            .getDocuments()
+        let allFriendshipDocs = fs1.documents + fs2.documents
+        for doc in allFriendshipDocs {
+            let data = doc.data()
+            let u1 = data["userId1"] as? String
+            let u2 = data["userId2"] as? String
+            // Remove this user from the other party's friends array
+            let otherUID = (u1 == uid) ? u2 : u1
+            if let otherUID {
+                try? await db.collection("users").document(otherUID).updateData([
+                    "friends": FieldValue.arrayRemove([uid])
+                ])
+            }
+            try await doc.reference.delete()
+        }
+        logger.info("Deleted \(allFriendshipDocs.count) friendship documents")
+
+        // 3. Delete friend code if user has one
+        let userDoc = try await db.collection("users").document(uid).getDocument()
+        if let friendCode = userDoc.data()?["friendCode"] as? String, !friendCode.isEmpty {
+            try await db.collection("friendCodes").document(friendCode).delete()
+            logger.info("Deleted friend code \(friendCode)")
+        }
+
+        // 4. Delete all gameResults subcollection docs
+        let gameResultDocs = try await db.collection("users").document(uid)
+            .collection("gameResults").getDocuments()
+        for doc in gameResultDocs.documents {
+            try await doc.reference.delete()
+        }
+        logger.info("Deleted \(gameResultDocs.documents.count) game result documents")
+
+        // 5. Delete sync subcollection docs
+        let syncDocs = try await db.collection("users").document(uid)
+            .collection("sync").getDocuments()
+        for doc in syncDocs.documents {
+            try await doc.reference.delete()
+        }
+        logger.info("Deleted \(syncDocs.documents.count) sync documents")
+
+        // 6. Delete user profile document (last — other cleanup needs it)
+        try await db.collection("users").document(uid).delete()
+        logger.info("Deleted user profile document")
+
+        // 7. Clear local caches
+        invalidateFriendsCache()
+        pendingScores.removeAll()
+        pendingScoreStore.save(pendingScores)
+
+        logger.info("Account data deletion complete for user \(uid)")
+    }
+
     // MARK: - Allowed Readers
 
     /// Returns [self] + [accepted friend IDs] for the `allowedReaders` field on score documents.
