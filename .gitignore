@@ -49,3 +49,9 @@ firestore-debug.log
 
 # Editor/AI tool artifacts
 .cursor/
+
+.claude/
+.claudeignore
+
+# Git worktrees
+.worktrees/
