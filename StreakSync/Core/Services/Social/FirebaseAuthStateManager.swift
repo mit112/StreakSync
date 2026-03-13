@@ -402,7 +402,7 @@ enum FirebaseAuthError: LocalizedError {
         case .accountExistsWithDifferentCredential:
             return "An account already exists with a different sign-in method."
         case .notAuthenticated:
-            return "You are not signed in. Please sign in first."
+            return "No authenticated user found. Please sign in and try again."
         case .unknown(let error):
             return "Authentication failed: \(error.localizedDescription)"
         }

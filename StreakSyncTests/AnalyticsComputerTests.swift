@@ -271,9 +271,9 @@ final class AnalyticsComputerTests: XCTestCase {
     func test_computePersonalBest_returnsHighestScore_forHigherIsBetter() {
         let game = makeGame(scoringModel: .higherIsBetter)
         let results = [
-            makeResult(date: daysAgo(1), score: 4, completed: true),
-            makeResult(date: daysAgo(2), score: 8, completed: true),
-            makeResult(date: daysAgo(3), score: 5, completed: true),
+            makeResult(date: daysAgo(1), score: 4, maxAttempts: 10, completed: true),
+            makeResult(date: daysAgo(2), score: 8, maxAttempts: 10, completed: true),
+            makeResult(date: daysAgo(3), score: 5, maxAttempts: 10, completed: true),
         ]
         let best = AnalyticsComputer.computePersonalBest(
             for: Self.testGameId, games: [game], results: results
@@ -578,9 +578,9 @@ final class AnalyticsComputerTests: XCTestCase {
     func test_computePersonalBests_bestScore_higherIsBetter_returnsHighest() {
         let game = makeGame(scoringModel: .higherIsBetter)
         let results = [
-            makeResult(date: daysAgo(1), score: 50, completed: true),
-            makeResult(date: daysAgo(2), score: 80, completed: true),
-            makeResult(date: daysAgo(3), score: 30, completed: true),
+            makeResult(date: daysAgo(1), score: 50, maxAttempts: 100, completed: true),
+            makeResult(date: daysAgo(2), score: 80, maxAttempts: 100, completed: true),
+            makeResult(date: daysAgo(3), score: 30, maxAttempts: 100, completed: true),
         ]
         let bests = AnalyticsComputer.computePersonalBests(
             timeRange: .week, game: nil, games: [game], streaks: [], results: results
