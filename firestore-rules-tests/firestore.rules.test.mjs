@@ -161,13 +161,16 @@ async function main() {
     await assertSucceeds(getDoc(doc(authed("alice"), "users/alice")));
   });
 
-  await runCase("✅ accepted friend can read profile", async () => {
-    await seedDoc("users/alice", { ...VALID_USER, friends: ["bob"] });
+  await runCase("✅ accepted friend can read profile (via friendship doc)", async () => {
+    await seedDoc("users/alice", { ...VALID_USER });
+    await seedDoc("friendships/alice_bob", {
+      userId1: "alice", userId2: "bob", status: "accepted", createdAt: 1708128000,
+    });
     await assertSucceeds(getDoc(doc(authed("bob"), "users/alice")));
   });
 
   await runCase("✅ non-friend cannot read profile", async () => {
-    await seedDoc("users/alice", { ...VALID_USER, friends: ["bob"] });
+    await seedDoc("users/alice", { ...VALID_USER });
     await assertFails(getDoc(doc(authed("charlie"), "users/alice")));
   });
 
@@ -632,6 +635,74 @@ async function main() {
         ...VALID_FRIENDSHIP,
         senderDisplayName: "X".repeat(201),
       })
+    );
+  });
+
+  // ─── C1 FIX: Friendship-based profile reads ────────────────
+  console.log("\n── C1 FIX: Friendship-based Profile Reads ──");
+
+  await runCase("C1: friend reads profile via accepted friendship (no friends array needed)", async () => {
+    // Alice's profile has empty friends array, but an accepted friendship exists
+    await seedDoc("users/alice", { ...VALID_USER, friends: [] });
+    await seedDoc("friendships/alice_bob", {
+      userId1: "alice", userId2: "bob", status: "accepted", createdAt: 1708128000,
+    });
+    await assertSucceeds(getDoc(doc(authed("bob"), "users/alice")));
+  });
+
+  await runCase("C1: pending friendship does NOT grant profile read", async () => {
+    await seedDoc("users/alice", { ...VALID_USER, friends: [] });
+    await seedDoc("friendships/alice_bob", {
+      userId1: "alice", userId2: "bob", status: "pending", createdAt: 1708128000,
+    });
+    await assertFails(getDoc(doc(authed("bob"), "users/alice")));
+  });
+
+  await runCase("C1: reversed doc ID ordering still grants read", async () => {
+    await seedDoc("users/alice", { ...VALID_USER, friends: [] });
+    // Doc ID with bob first (unsorted) — tests the second exists() branch
+    await seedDoc("friendships/bob_alice", {
+      userId1: "bob", userId2: "alice", status: "accepted", createdAt: 1708128000,
+    });
+    await assertSucceeds(getDoc(doc(authed("bob"), "users/alice")));
+  });
+
+  await runCase("C1: non-friend without friendship doc cannot read profile", async () => {
+    await seedDoc("users/alice", { ...VALID_USER, friends: [] });
+    await assertFails(getDoc(doc(authed("charlie"), "users/alice")));
+  });
+
+  await runCase("C1: user can create profile without friends field", async () => {
+    const db = authed("alice");
+    await assertSucceeds(
+      setDoc(doc(db, "users/alice"), {
+        displayName: "Alice",
+        createdAt: 1708128000,
+        updatedAt: 1708128000,
+      })
+    );
+  });
+
+  await runCase("C1: user can update profile without friends field", async () => {
+    await seedDoc("users/alice", {
+      displayName: "Alice",
+      createdAt: 1708128000,
+      updatedAt: 1708128000,
+    });
+    const db = authed("alice");
+    await assertSucceeds(
+      setDoc(doc(db, "users/alice"), {
+        displayName: "Alice Updated",
+        createdAt: 1708128000,
+        updatedAt: 1708128000,
+      })
+    );
+  });
+
+  await runCase("C1: alice cannot update bob's profile", async () => {
+    await seedDoc("users/bob", { ...VALID_USER });
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/bob"), { ...VALID_USER, friends: ["alice"] })
     );
   });
 

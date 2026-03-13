@@ -108,8 +108,8 @@ protocol SocialService: Sendable {
     nonisolated var pendingScoreCount: Int { get }
     
     // Real-time listeners (optional — returns nil if not supported, caller falls back to polling)
-    /// Listens for score changes among the given user IDs in the date range. Calls onChange when data changes.
-    nonisolated func addScoreListener(userIds: [String], startDateInt: Int, endDateInt: Int, onChange: @escaping @MainActor @Sendable () -> Void) -> SocialServiceListenerHandle?
+    /// Listens for score changes visible to the current user in the date range. Calls onChange when data changes.
+    nonisolated func addScoreListener(startDateInt: Int, endDateInt: Int, onChange: @escaping @MainActor @Sendable () -> Void) -> SocialServiceListenerHandle?
     /// Listens for friendship changes involving the current user. Calls onChange when friends are added/removed.
     nonisolated func addFriendshipListener(onChange: @escaping @MainActor @Sendable () -> Void) -> SocialServiceListenerHandle?
 }

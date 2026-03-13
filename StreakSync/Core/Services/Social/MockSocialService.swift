@@ -137,7 +137,7 @@ final class MockSocialService: SocialService {
     func deleteAllUserData() async throws { }
 
     // MARK: - Real-time Listeners (not supported in mock — returns nil, caller falls back to polling)
-    nonisolated func addScoreListener(userIds: [String], startDateInt: Int, endDateInt: Int, onChange: @escaping @MainActor @Sendable () -> Void) -> SocialServiceListenerHandle? { nil }
+    nonisolated func addScoreListener(startDateInt: Int, endDateInt: Int, onChange: @escaping @MainActor @Sendable () -> Void) -> SocialServiceListenerHandle? { nil }
     nonisolated func addFriendshipListener(onChange: @escaping @MainActor @Sendable () -> Void) -> SocialServiceListenerHandle? { nil }
     
     nonisolated private static func deviceUserId() -> String {

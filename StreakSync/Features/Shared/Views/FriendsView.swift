@@ -267,15 +267,19 @@ private extension FriendsView {
 
     // MARK: Helpers
 
-    func formattedDate(_ date: Date) -> String {
+    private static let scoreDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        f.dateFormat = "EEE, MMM d, yyyy"
+        return f
+    }()
+
+    func formattedDate(_ date: Date) -> String {
         if Calendar.current.isDateInToday(date) {
             return "Today"
         }
-        f.dateFormat = "EEE, MMM d, yyyy"
-        return f.string(from: date)
+        return Self.scoreDateFormatter.string(from: date)
     }
 
     func presentInviteFlow() {

@@ -2,7 +2,7 @@ rules_version = '2';
 
 // StreakSync Firestore Security Rules
 // Deploy: firebase deploy --only firestore:rules
-// Last security audit: 2026-02-26
+// Last security audit: 2026-03-13
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -21,33 +21,46 @@ service cloud.firestore {
       return val is string && val.size() > 0 && val.size() <= 200;
     }
 
+    // Check if two users have an accepted friendship via the friendships collection.
+    // Replaces the old 'friends' array approach which required cross-user writes
+    // that violated security rules (only owner can update their own profile).
+    // Cost: 1 exists() + 1 get() per evaluation (within Firestore's 10-read budget).
+    function areFriends(uid1, uid2) {
+      let path1 = /databases/$(database)/documents/friendships/$(uid1 + '_' + uid2);
+      let path2 = /databases/$(database)/documents/friendships/$(uid2 + '_' + uid1);
+      return (exists(path1) && get(path1).data.status == 'accepted')
+          || (exists(path2) && get(path2).data.status == 'accepted');
+    }
+
     // --- Users ---
-    // Full profile readable by the user themselves or their accepted friends.
-    // The 'friends' array on each user document is maintained by the app.
+    // Full profile readable by the user themselves or accepted friends.
+    // Friend status is checked via the friendships collection (not a denormalized array).
     match /users/{userId} {
       allow read: if isSignedIn()
         && (request.auth.uid == userId
-            || request.auth.uid in resource.data.friends);
+            || areFriends(request.auth.uid, userId));
 
       allow create: if isSignedIn()
         && request.auth.uid == userId
         && hasRequiredAndOnly(
-          ['displayName', 'friends', 'createdAt', 'updatedAt'],
-          ['authProvider', 'photoURL', 'friendCode']
+          ['displayName', 'createdAt', 'updatedAt'],
+          ['authProvider', 'photoURL', 'friendCode', 'friends']
         )
         && isShortString(request.resource.data.displayName)
-        && request.resource.data.friends is list
-        && request.resource.data.friends.size() <= 500;
+        && (!('friends' in request.resource.data)
+            || (request.resource.data.friends is list
+                && request.resource.data.friends.size() <= 500));
 
       allow update: if isSignedIn()
         && request.auth.uid == userId
         && hasRequiredAndOnly(
-          ['displayName', 'friends', 'createdAt', 'updatedAt'],
-          ['authProvider', 'photoURL', 'friendCode']
+          ['displayName', 'createdAt', 'updatedAt'],
+          ['authProvider', 'photoURL', 'friendCode', 'friends']
         )
         && isShortString(request.resource.data.displayName)
-        && request.resource.data.friends is list
-        && request.resource.data.friends.size() <= 500;
+        && (!('friends' in request.resource.data)
+            || (request.resource.data.friends is list
+                && request.resource.data.friends.size() <= 500));
 
       // Owner can delete their own profile (account deletion flow)
       allow delete: if isSignedIn() && request.auth.uid == userId;

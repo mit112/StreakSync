@@ -1,10 +1,23 @@
+//
+//  SocialSettingsServiceTests.swift
+//  StreakSyncTests
+//
+
 import XCTest
 @testable import StreakSync
 
 @MainActor
 final class SocialSettingsServiceTests: XCTestCase {
+    private var service: SocialSettingsService { SocialSettingsService.shared }
+
+    override func setUp() async throws {
+        // Reset to defaults before each test to prevent cross-test contamination
+        service.updateShareIncompleteGames(true)
+        service.updateHideZeroPointScores(false)
+        service.updateScope(.allFriends, for: Game.wordle.id)
+    }
+
     func testShouldShareRespectsIncompleteToggle() {
-        let service = SocialSettingsService.shared
         service.updateShareIncompleteGames(false)
         let score = DailyGameScore(
             id: "user|20250101|game",
@@ -18,11 +31,9 @@ final class SocialSettingsServiceTests: XCTestCase {
             currentStreak: nil
         )
         XCTAssertFalse(service.shouldShare(score: score, game: Game.wordle))
-        service.updateShareIncompleteGames(true)
     }
-    
+
     func testShouldShareRespectsScope() {
-        let service = SocialSettingsService.shared
         service.updateScope(.privateScope, for: Game.wordle.id)
         let score = DailyGameScore(
             id: "user|20250101|game",
@@ -36,7 +47,5 @@ final class SocialSettingsServiceTests: XCTestCase {
             currentStreak: nil
         )
         XCTAssertFalse(service.shouldShare(score: score, game: Game.wordle))
-        service.updateScope(.allFriends, for: Game.wordle.id)
     }
 }
-

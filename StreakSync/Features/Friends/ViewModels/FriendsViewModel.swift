@@ -36,6 +36,9 @@ final class FriendsViewModel: ObservableObject {
     // Fallback polling timer (only used when listeners are nil, e.g. MockSocialService)
     private var refreshTimer: Timer?
     private var refreshDebounceTask: Task<Void, Never>?
+    // NotificationCenter observer tokens for proper cleanup
+    private var backgroundObserver: (any NSObjectProtocol)?
+    private var foregroundObserver: (any NSObjectProtocol)?
     
     init(socialService: SocialService) {
         self.socialService = socialService
@@ -155,18 +158,13 @@ final class FriendsViewModel: ObservableObject {
     /// Falls back to 30s polling if the service doesn't support listeners (e.g. MockSocialService).
     private func setupListeners() {
         tearDownListeners()
-        
-        // Build the user IDs to listen on: me + friends
-        var userIds = friends.map(\.id)
-        if let me = myUserId, !userIds.contains(me) { userIds.append(me) }
-        
+
         let (start, end) = dateRange()
         let startInt = start.utcYYYYMMDD
         let endInt = end.utcYYYYMMDD
-        
+
         // Score listener — triggers leaderboard refresh when any friend posts/updates a score
         scoreListenerHandle = socialService.addScoreListener(
-            userIds: userIds,
             startDateInt: startInt,
             endDateInt: endInt
         ) { [weak self] in
@@ -195,13 +193,9 @@ final class FriendsViewModel: ObservableObject {
         // Only listen for live score updates on today's date
         let today = localStartOfDay(Date())
         guard isSameLocalDay(selectedDateUTC, today) else { return }
-        
-        var userIds = friends.map(\.id)
-        if let me = myUserId, !userIds.contains(me) { userIds.append(me) }
-        
+
         let (start, end) = dateRange()
         scoreListenerHandle = socialService.addScoreListener(
-            userIds: userIds,
             startDateInt: start.utcYYYYMMDD,
             endDateInt: end.utcYYYYMMDD
         ) { [weak self] in
@@ -239,10 +233,16 @@ final class FriendsViewModel: ObservableObject {
     private func setupLifecycleObservers() {
         guard !hasLifecycleObservers else { return }
         hasLifecycleObservers = true
-        NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
             self?.stopPollingFallback()
         }
-        NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
             guard let self else { return }
             if self.scoreListenerHandle == nil {
                 self.startPollingFallback()
@@ -253,9 +253,16 @@ final class FriendsViewModel: ObservableObject {
     
     func cleanup() {
         tearDownListeners()
+        if let obs = backgroundObserver {
+            NotificationCenter.default.removeObserver(obs)
+            backgroundObserver = nil
+        }
+        if let obs = foregroundObserver {
+            NotificationCenter.default.removeObserver(obs)
+            foregroundObserver = nil
+        }
         hasSetupListeners = false
         hasLifecycleObservers = false
-        NotificationCenter.default.removeObserver(self)
     }
     
     // MARK: - Leaderboard projection for selected game

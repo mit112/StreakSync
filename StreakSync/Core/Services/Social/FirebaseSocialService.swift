@@ -147,10 +147,6 @@ final class FirebaseSocialService: SocialService {
             if let data = snapshot.data(),
                let existingName = data["displayName"] as? String,
                let createdAt = (data["createdAt"] as? Timestamp)?.dateValue() {
-                // Backfill friends array if missing (migration for pre-existing profiles)
-                if data["friends"] == nil {
-                    await backfillFriendsArray(for: currentUID)
-                }
                 return UserProfile(
                     id: currentUID,
                     displayName: existingName,
@@ -251,13 +247,23 @@ final class FirebaseSocialService: SocialService {
         let existing = try await db.collection("friendships")
             .whereField("userId1", in: [currentUID, targetId])
             .getDocuments()
-        let alreadyExists = existing.documents.contains { doc in
+        let matchingDoc = existing.documents.first { doc in
             let d = doc.data()
             let u1 = d["userId1"] as? String ?? ""
             let u2 = d["userId2"] as? String ?? ""
             return (u1 == currentUID && u2 == targetId) || (u1 == targetId && u2 == currentUID)
         }
-        guard !alreadyExists else {
+        if let matchingDoc {
+            let d = matchingDoc.data()
+            // If the other user sent us a pending request, auto-accept it
+            if d["userId1"] as? String == targetId,
+               d["userId2"] as? String == currentUID,
+               d["status"] as? String == FriendshipStatus.pending.rawValue {
+                try await acceptFriendRequest(friendshipId: matchingDoc.documentID)
+ logger.info("Auto-accepted mutual friend request from \(targetId)")
+                return
+            }
+            // Already friends or we already sent a pending request
  logger.info("Friendship already exists between \(currentUID) and \(targetId)")
             return
         }
@@ -276,67 +282,60 @@ final class FirebaseSocialService: SocialService {
 
     func acceptFriendRequest(friendshipId: String) async throws {
         let docRef = db.collection("friendships").document(friendshipId)
-        
-        // Read the friendship to get both user IDs
+
+        // Validate the friendship exists
         let snapshot = try await docRef.getDocument()
-        guard let data = snapshot.data(),
-              let u1 = data["userId1"] as? String,
-              let u2 = data["userId2"] as? String else {
+        guard snapshot.exists, snapshot.data() != nil else {
             throw FirebaseSocialError.documentNotFound
         }
-        
+
         // Update status to accepted
         try await docRef.updateData([
             "status": FriendshipStatus.accepted.rawValue
         ])
-        
-        // Add each user to the other's friends array (for security rules)
-        let batch = db.batch()
-        batch.updateData(["friends": FieldValue.arrayUnion([u2])], forDocument: db.collection("users").document(u1))
-        batch.updateData(["friends": FieldValue.arrayUnion([u1])], forDocument: db.collection("users").document(u2))
-        try await batch.commit()
-        
- logger.info("Accepted friendship \(friendshipId) — updated friends arrays for \(u1) and \(u2)")
+
+ logger.info("Accepted friendship \(friendshipId)")
         invalidateFriendsCache()
+
+        // Reconcile allowedReaders on recent scores so the new friend
+        // can see past scores and vice versa (best-effort, non-blocking)
+        Task { [weak self] in
+            guard let self else { return }
+            await self.reconcileAllowedReadersForFriendshipChange()
+        }
     }
 
     func removeFriend(friendshipId: String) async throws {
-        // Read the friendship to get both user IDs for friends array cleanup
         let docRef = db.collection("friendships").document(friendshipId)
-        let snapshot = try await docRef.getDocument()
-        if let data = snapshot.data(),
-           let u1 = data["userId1"] as? String,
-           let u2 = data["userId2"] as? String {
-            // Remove each user from the other's friends array
-            let batch = db.batch()
-            batch.updateData(["friends": FieldValue.arrayRemove([u2])], forDocument: db.collection("users").document(u1))
-            batch.updateData(["friends": FieldValue.arrayRemove([u1])], forDocument: db.collection("users").document(u2))
-            batch.deleteDocument(docRef)
-            try await batch.commit()
-        } else {
-            try await docRef.delete()
-        }
+        try await docRef.delete()
  logger.info("Removed friendship \(friendshipId)")
         invalidateFriendsCache()
+
+        // Update allowedReaders to revoke ex-friend's access to past scores
+        Task { [weak self] in
+            guard let self else { return }
+            await self.reconcileAllowedReadersForFriendshipChange()
+        }
     }
 
     func removeFriend(userId targetId: String) async throws {
         let currentUID = try requireUID()
         let docId = [currentUID, targetId].sorted().joined(separator: "_")
-        let doc = db.collection("friendships").document(docId)
-        let snapshot = try await doc.getDocument()
+        let friendshipDoc = db.collection("friendships").document(docId)
+        let snapshot = try await friendshipDoc.getDocument()
         guard snapshot.exists else {
  logger.warning("No friendship found between \(currentUID) and \(targetId)")
             return
         }
-        // Remove from friends arrays and delete friendship in one batch
-        let batch = db.batch()
-        batch.updateData(["friends": FieldValue.arrayRemove([targetId])], forDocument: db.collection("users").document(currentUID))
-        batch.updateData(["friends": FieldValue.arrayRemove([currentUID])], forDocument: db.collection("users").document(targetId))
-        batch.deleteDocument(doc)
-        try await batch.commit()
+        try await friendshipDoc.delete()
  logger.info("Removed friendship with user \(targetId)")
         invalidateFriendsCache()
+
+        // Update allowedReaders to revoke ex-friend's access to past scores
+        Task { [weak self] in
+            guard let self else { return }
+            await self.reconcileAllowedReadersForFriendshipChange()
+        }
     }
 
     func pendingRequests() async throws -> [Friendship] {
@@ -401,21 +400,6 @@ final class FirebaseSocialService: SocialService {
     }
 
     // MARK: - Friendship Helpers
-
-    /// One-time migration: reads accepted friendships and writes the friends array
-    /// to the user's profile document so Firestore security rules can gate profile reads.
-    private func backfillFriendsArray(for userId: String) async {
-        do {
-            let friendIds = try await acceptedFriendIds(for: userId)
-            try await db.collection("users").document(userId).updateData([
-                "friends": friendIds
-            ])
- logger.info("Backfilled friends array for \(userId) with \(friendIds.count) friends")
-        } catch {
- logger.warning("Failed to backfill friends array: \(error.localizedDescription)")
-            // Non-fatal — the array will be populated when the next friendship is accepted
-        }
-    }
 
     /// Returns accepted friend user IDs for a given user
     private func acceptedFriendIds(for userId: String) async throws -> [String] {
@@ -504,7 +488,7 @@ final class FirebaseSocialService: SocialService {
         }
         logger.info("Deleted \(scoreDocs.documents.count) score documents")
 
-        // 2. Delete all friendships and clean up friends arrays
+        // 2. Delete all friendships
         let fs1 = try await db.collection("friendships")
             .whereField("userId1", isEqualTo: uid)
             .getDocuments()
@@ -513,16 +497,6 @@ final class FirebaseSocialService: SocialService {
             .getDocuments()
         let allFriendshipDocs = fs1.documents + fs2.documents
         for doc in allFriendshipDocs {
-            let data = doc.data()
-            let u1 = data["userId1"] as? String
-            let u2 = data["userId2"] as? String
-            // Remove this user from the other party's friends array
-            let otherUID = (u1 == uid) ? u2 : u1
-            if let otherUID {
-                try? await db.collection("users").document(otherUID).updateData([
-                    "friends": FieldValue.arrayRemove([uid])
-                ])
-            }
             try await doc.reference.delete()
         }
         logger.info("Deleted \(allFriendshipDocs.count) friendship documents")
@@ -565,16 +539,44 @@ final class FirebaseSocialService: SocialService {
     // MARK: - Allowed Readers
 
     /// Returns [self] + [accepted friend IDs] for the `allowedReaders` field on score documents.
+    /// Uses the cached friends list (60s TTL) to avoid redundant Firestore reads.
     /// Falls back to [self] if friends can't be fetched (e.g., offline).
     private func currentAllowedReaders() async -> [String] {
         guard let uid = uid else { return [] }
         do {
-            let friendIds = try await acceptedFriendIds(for: uid)
-            return [uid] + friendIds
+            let friends = try await listFriends()
+            return [uid] + friends.map(\.id)
         } catch {
  logger.warning("Failed to fetch friends for allowedReaders, using self only")
             return [uid]
         }
+    }
+
+    /// Builds the Firestore data dictionary for a score document.
+    /// Conditionally includes `score` and `currentStreak` only when non-nil
+    /// to avoid writing NSNull which violates the security rules' `is int` check.
+    private func scoreDocData(
+        userId: String,
+        score: DailyGameScore,
+        allowedReaders: [String]
+    ) -> [String: Any] {
+        var data: [String: Any] = [
+            "userId": userId,
+            "gameId": score.gameId.uuidString,
+            "gameName": score.gameName,
+            "dateInt": score.dateInt,
+            "maxAttempts": score.maxAttempts,
+            "completed": score.completed,
+            "allowedReaders": allowedReaders,
+            "publishedAt": FieldValue.serverTimestamp()
+        ]
+        if let scoreValue = score.score {
+            data["score"] = scoreValue
+        }
+        if let streak = score.currentStreak {
+            data["currentStreak"] = streak
+        }
+        return data
     }
 
     // MARK: - Scores
@@ -593,18 +595,10 @@ final class FirebaseSocialService: SocialService {
         for score in filtered {
             let docId = "\(currentUID)|\(score.dateInt)|\(score.gameId.uuidString)"
             let ref = db.collection("scores").document(docId)
-            batch.setData([
-                "userId": currentUID,
-                "gameId": score.gameId.uuidString,
-                "gameName": score.gameName,
-                "dateInt": score.dateInt,
-                "score": score.score as Any,
-                "maxAttempts": score.maxAttempts,
-                "completed": score.completed,
-                "currentStreak": score.currentStreak as Any,
-                "allowedReaders": allowedReaders,
-                "publishedAt": FieldValue.serverTimestamp()
-            ], forDocument: ref, merge: true)
+            batch.setData(
+                scoreDocData(userId: currentUID, score: score, allowedReaders: allowedReaders),
+                forDocument: ref, merge: true
+            )
         }
         do {
             try await batch.commit()
@@ -628,9 +622,9 @@ final class FirebaseSocialService: SocialService {
  logger.debug("Skipping pending score flush — not authenticated")
             return
         }
+        // Snapshot scores to flush but do NOT clear from Keychain yet —
+        // if the app is killed before the batch commits, scores survive in Keychain.
         let toFlush = pendingScores
-        pendingScores.removeAll()
-        pendingScoreStore.save(pendingScores)
 
         let allowedReaders = await currentAllowedReaders()
 
@@ -638,24 +632,19 @@ final class FirebaseSocialService: SocialService {
         for score in toFlush {
             let docId = "\(currentUID)|\(score.dateInt)|\(score.gameId.uuidString)"
             let ref = db.collection("scores").document(docId)
-            batch.setData([
-                "userId": currentUID,
-                "gameId": score.gameId.uuidString,
-                "gameName": score.gameName,
-                "dateInt": score.dateInt,
-                "score": score.score as Any,
-                "maxAttempts": score.maxAttempts,
-                "completed": score.completed,
-                "currentStreak": score.currentStreak as Any,
-                "allowedReaders": allowedReaders,
-                "publishedAt": FieldValue.serverTimestamp()
-            ], forDocument: ref, merge: true)
+            batch.setData(
+                scoreDocData(userId: currentUID, score: score, allowedReaders: allowedReaders),
+                forDocument: ref, merge: true
+            )
         }
         do {
             try await batch.commit()
+            // Clear from Keychain only AFTER successful commit
+            pendingScores.removeAll()
+            pendingScoreStore.save(pendingScores)
  logger.info("Flushed \(toFlush.count) pending scores")
         } catch {
-            // Always re-queue — scores are too valuable to drop
+            // Re-queue on failure (scores are still in pendingScores, just re-save)
             pendingScores.append(contentsOf: toFlush)
             pendingScoreStore.save(pendingScores)
  logger.warning("Re-queued \(toFlush.count) scores after flush failure: \(error.localizedDescription)")
@@ -705,24 +694,51 @@ final class FirebaseSocialService: SocialService {
         for score in filtered {
             let docId = "\(currentUID)|\(score.dateInt)|\(score.gameId.uuidString)"
             let ref = db.collection("scores").document(docId)
-            batch.setData([
-                "userId": currentUID,
-                "gameId": score.gameId.uuidString,
-                "gameName": score.gameName,
-                "dateInt": score.dateInt,
-                "score": score.score as Any,
-                "maxAttempts": score.maxAttempts,
-                "completed": score.completed,
-                "currentStreak": score.currentStreak as Any,
-                "allowedReaders": allowedReaders,
-                "publishedAt": FieldValue.serverTimestamp()
-            ], forDocument: ref, merge: true)
+            batch.setData(
+                scoreDocData(userId: currentUID, score: score, allowedReaders: allowedReaders),
+                forDocument: ref, merge: true
+            )
         }
         do {
             try await batch.commit()
  logger.info("Reconciled \(filtered.count) scores from last 7 days")
         } catch {
  logger.warning("Score reconciliation failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Allowed Readers Reconciliation
+
+    /// Updates `allowedReaders` on the user's recent scores to reflect current friendships.
+    /// Called after accept/remove friend to ensure new friends see past scores and
+    /// removed friends lose access (privacy). Covers last 30 days.
+    private func reconcileAllowedReadersForFriendshipChange() async {
+        guard let currentUID = uid else { return }
+        let allowedReaders = await currentAllowedReaders()
+
+        let cal = Calendar.current
+        let cutoffDate = cal.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        let cutoffInt = cutoffDate.localDateInt
+
+        do {
+            let snapshot = try await db.collection("scores")
+                .whereField("userId", isEqualTo: currentUID)
+                .whereField("dateInt", isGreaterThanOrEqualTo: cutoffInt)
+                .getDocuments()
+
+            guard !snapshot.documents.isEmpty else { return }
+
+            for chunk in snapshot.documents.chunked(into: 500) {
+                let batch = db.batch()
+                for doc in chunk {
+                    batch.updateData(["allowedReaders": allowedReaders], forDocument: doc.reference)
+                }
+                try await batch.commit()
+            }
+
+ logger.info("Reconciled allowedReaders on \(snapshot.documents.count) scores after friendship change")
+        } catch {
+ logger.warning("Failed to reconcile allowedReaders: \(error.localizedDescription)")
         }
     }
 
@@ -809,7 +825,6 @@ final class FirebaseSocialService: SocialService {
     // MARK: - Real-time Listeners
 
     nonisolated func addScoreListener(
-        userIds: [String],
         startDateInt: Int,
         endDateInt: Int,
         onChange: @escaping @MainActor @Sendable () -> Void
