@@ -70,7 +70,12 @@ final class AnalyticsViewModel: ObservableObject {
         // Seed from saved scope
         self.selectedTimeRange = scope.timeRange
         if let gid = scope.gameId {
-            self.selectedGame = analyticsService.games.first { $0.id == gid }
+            let found = analyticsService.games.first { $0.id == gid }
+            self.selectedGame = found
+            if found == nil {
+                scope.gameId = nil
+                scope.save()
+            }
         }
     }
     
@@ -245,18 +250,31 @@ final class AnalyticsViewModel: ObservableObject {
     }
 
     // MARK: - Export
+
+    /// Cached CSV string, invalidated when analyticsData changes.
+    private var cachedCSV: String?
+    private var cachedCSVTimestamp: Date?
+
     func exportCSV() -> String {
+        let dataTimestamp = analyticsData?.lastUpdated
+        if let cached = cachedCSV, cachedCSVTimestamp == dataTimestamp {
+            return cached
+        }
         guard let data = analyticsData else { return "" }
+        let formatter = ISO8601DateFormatter()
         var rows: [String] = []
         rows.append("date,game,score,maxAttempts,completed")
         for ga in data.gameAnalytics {
             for r in ga.recentResults {
-                let dateStr = ISO8601DateFormatter().string(from: r.date)
+                let dateStr = formatter.string(from: r.date)
                 let scoreStr = r.score.map { String($0) } ?? ""
                 rows.append("\(dateStr),\(ga.game.displayName),\(scoreStr),\(r.maxAttempts),\(r.completed)")
             }
         }
-        return rows.joined(separator: "\n")
+        let csv = rows.joined(separator: "\n")
+        cachedCSV = csv
+        cachedCSVTimestamp = dataTimestamp
+        return csv
     }
 }
 

@@ -15,7 +15,11 @@ final class AnalyticsComputerTests: XCTestCase {
     private static let testGameId = UUID()
     private static let testGameId2 = UUID()
 
-    private func makeGame(id: UUID = AnalyticsComputerTests.testGameId, name: String = "TestWordle") -> Game {
+    private func makeGame(
+        id: UUID = AnalyticsComputerTests.testGameId,
+        name: String = "TestWordle",
+        scoringModel: ScoringModel = .lowerAttempts
+    ) -> Game {
         Game(
             id: id,
             name: name,
@@ -26,7 +30,8 @@ final class AnalyticsComputerTests: XCTestCase {
             iconSystemName: "textformat.abc",
             backgroundColor: CodableColor(.green),
             isPopular: true,
-            isCustom: false
+            isCustom: false,
+            scoringModel: scoringModel
         )
     }
 
@@ -250,25 +255,40 @@ final class AnalyticsComputerTests: XCTestCase {
         XCTAssertEqual(avg, 4.0, accuracy: 0.001)
     }
 
-    func test_computePersonalBest_returnsLowestScore() {
+    func test_computePersonalBest_returnsLowestScore_forLowerIsBetter() {
+        let game = makeGame(scoringModel: .lowerAttempts)
         let results = [
             makeResult(date: daysAgo(1), score: 4, completed: true),
             makeResult(date: daysAgo(2), score: 2, completed: true),
             makeResult(date: daysAgo(3), score: 5, completed: true),
         ]
         let best = AnalyticsComputer.computePersonalBest(
-            for: Self.testGameId, results: results
+            for: Self.testGameId, games: [game], results: results
         )
         XCTAssertEqual(best, 2)
     }
 
+    func test_computePersonalBest_returnsHighestScore_forHigherIsBetter() {
+        let game = makeGame(scoringModel: .higherIsBetter)
+        let results = [
+            makeResult(date: daysAgo(1), score: 4, completed: true),
+            makeResult(date: daysAgo(2), score: 8, completed: true),
+            makeResult(date: daysAgo(3), score: 5, completed: true),
+        ]
+        let best = AnalyticsComputer.computePersonalBest(
+            for: Self.testGameId, games: [game], results: results
+        )
+        XCTAssertEqual(best, 8)
+    }
+
     func test_computePersonalBest_ignoresIncomplete() {
+        let game = makeGame()
         let results = [
             makeResult(date: daysAgo(1), score: nil, completed: false),
             makeResult(date: daysAgo(2), score: 3, completed: true),
         ]
         let best = AnalyticsComputer.computePersonalBest(
-            for: Self.testGameId, results: results
+            for: Self.testGameId, games: [game], results: results
         )
         XCTAssertEqual(best, 3)
     }
@@ -489,5 +509,108 @@ final class AnalyticsComputerTests: XCTestCase {
         let totalCompleted = summaries.reduce(0) { $0 + $1.totalGamesCompleted }
         let completionRate = totalPlayed > 0 ? Double(totalCompleted) / Double(totalPlayed) : 0
         XCTAssertEqual(completionRate, 2.0 / 3.0, accuracy: 0.001)
+    }
+
+    // MARK: - Inactive Streak Exclusion
+
+    func test_computeOverview_inactiveStreaks_excludedFromCount() {
+        let game = makeGame()
+        let threeDaysAgo = Calendar.current.date(byAdding: .day, value: -3, to: Date()) ?? Date()
+        let inactiveStreak = GameStreak(
+            gameId: Self.testGameId,
+            gameName: "TestWordle",
+            currentStreak: 5,
+            maxStreak: 10,
+            totalGamesPlayed: 50,
+            totalGamesCompleted: 45,
+            lastPlayedDate: threeDaysAgo,
+            streakStartDate: threeDaysAgo
+        )
+        let overview = AnalyticsComputer.computeOverview(
+            timeRange: .week, game: nil, games: [game], streaks: [inactiveStreak], results: []
+        )
+        XCTAssertEqual(overview.totalActiveStreaks, 0, "Streak last played 3 days ago should not be active")
+    }
+
+    // MARK: - computeGameTrendData Tests
+
+    func test_computeGameTrendData_countsPerDay() {
+        let results = [
+            makeResult(date: daysAgo(1), completed: true),
+            makeResult(date: daysAgo(1), completed: false),
+            makeResult(date: daysAgo(3), completed: true),
+        ]
+        let trends = AnalyticsComputer.computeGameTrendData(
+            for: Self.testGameId, in: .week, results: results
+        )
+        let dayAgo1 = Calendar.current.startOfDay(for: daysAgo(1))
+        let point = trends.first { Calendar.current.isDate($0.date, inSameDayAs: dayAgo1) }
+        XCTAssertNotNil(point)
+        XCTAssertEqual(point?.gamesPlayed, 2)
+        XCTAssertEqual(point?.gamesCompleted, 1)
+    }
+
+    func test_computeGameTrendData_emptyDay_returnsZeros() {
+        let trends = AnalyticsComputer.computeGameTrendData(
+            for: Self.testGameId, in: .week, results: []
+        )
+        XCTAssertGreaterThan(trends.count, 0)
+        for point in trends {
+            XCTAssertEqual(point.gamesPlayed, 0)
+        }
+    }
+
+    func test_computeGameTrendData_onlyCountsMatchingGame() {
+        let results = [
+            makeResult(gameId: Self.testGameId, date: daysAgo(1)),
+            makeResult(gameId: Self.testGameId2, gameName: "Other", date: daysAgo(1)),
+        ]
+        let trends = AnalyticsComputer.computeGameTrendData(
+            for: Self.testGameId, in: .week, results: results
+        )
+        let dayAgo1 = Calendar.current.startOfDay(for: daysAgo(1))
+        let point = trends.first { Calendar.current.isDate($0.date, inSameDayAs: dayAgo1) }
+        XCTAssertEqual(point?.gamesPlayed, 1)
+    }
+
+    // MARK: - higherIsBetter in computePersonalBests
+
+    func test_computePersonalBests_bestScore_higherIsBetter_returnsHighest() {
+        let game = makeGame(scoringModel: .higherIsBetter)
+        let results = [
+            makeResult(date: daysAgo(1), score: 50, completed: true),
+            makeResult(date: daysAgo(2), score: 80, completed: true),
+            makeResult(date: daysAgo(3), score: 30, completed: true),
+        ]
+        let bests = AnalyticsComputer.computePersonalBests(
+            timeRange: .week, game: nil, games: [game], streaks: [], results: results
+        )
+        let scoreBest = bests.first { $0.type == .bestScore }
+        XCTAssertNotNil(scoreBest)
+        XCTAssertEqual(scoreBest?.value, 80)
+    }
+
+    // MARK: - Weekly Summary averageStreakLength
+
+    func test_computeWeeklySummaries_averageStreakLength_variesByWeek() {
+        let game = makeGame()
+        // Week 1: results on 3 consecutive days
+        let results = [
+            makeResult(date: daysAgo(1)),
+            makeResult(date: daysAgo(2)),
+            makeResult(date: daysAgo(3)),
+            // Week 2: results on 1 day only
+            makeResult(date: daysAgo(10)),
+        ]
+        let summaries = AnalyticsComputer.computeWeeklySummaries(
+            timeRange: .month, games: [game], results: results, streaks: []
+        )
+        guard summaries.count >= 2 else {
+            XCTFail("Expected at least 2 weekly summaries")
+            return
+        }
+        // The two weeks should have different averageStreakLength values
+        let streakLengths = Set(summaries.map { $0.averageStreakLength })
+        XCTAssertGreaterThan(streakLengths.count, 1, "averageStreakLength should vary between weeks")
     }
 }

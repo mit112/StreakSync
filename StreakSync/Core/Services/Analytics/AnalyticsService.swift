@@ -25,6 +25,7 @@ final class AnalyticsService {
     // Track freshness per cache key to avoid cross-key staleness
     private var lastCacheUpdateByKey: [String: Date] = [:]
     private let cacheValidityDuration: TimeInterval = 300 // 5 minutes
+    private let maxCacheEntries = 4 // One per time range to bound memory
     
     // MARK: - Initialization
     init(appState: AppState) {
@@ -36,9 +37,11 @@ final class AnalyticsService {
     /// Get comprehensive analytics data for a specific time range and optional game
     func getAnalyticsData(for timeRange: AnalyticsTimeRange, game: Game? = nil) async -> AnalyticsData {
         // Include data fingerprint in cache key so changes auto-invalidate
-        let resultCount = appState.recentResults.count
-        let lastResultDate = appState.recentResults.first?.date.timeIntervalSince1970 ?? 0
-        let cacheKey = "\(timeRange.rawValue)_\(game?.id.uuidString ?? "all")_\(resultCount)_\(Int(lastResultDate))"
+        // Hash result IDs to detect edits, deletions, and additions — not just count/date
+        let resultFingerprint = appState.recentResults.reduce(into: 0) { hash, result in
+            hash = hash &+ result.id.hashValue &+ (result.score ?? 0)
+        }
+        let cacheKey = "\(timeRange.rawValue)_\(game?.id.uuidString ?? "all")_\(resultFingerprint)"
         
         // Check cache first (per-key freshness)
         if let cached = cachedAnalytics[cacheKey],
@@ -66,6 +69,14 @@ final class AnalyticsService {
             tieredAchievements: snapshotTiered
         )
         
+        // Evict oldest entries if cache exceeds max size
+        if cachedAnalytics.count >= maxCacheEntries {
+            if let oldestKey = lastCacheUpdateByKey.min(by: { $0.value < $1.value })?.key {
+                cachedAnalytics.removeValue(forKey: oldestKey)
+                lastCacheUpdateByKey.removeValue(forKey: oldestKey)
+            }
+        }
+
         // Cache the result (per-key)
         cachedAnalytics[cacheKey] = analyticsData
         lastCacheUpdateByKey[cacheKey] = Date()

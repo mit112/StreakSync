@@ -382,6 +382,7 @@ enum FirebaseAuthError: LocalizedError {
     case invalidCredential
     case missingNonce
     case accountExistsWithDifferentCredential
+    case notAuthenticated
     case unknown(underlying: Error)
 
     var errorDescription: String? {
@@ -400,6 +401,8 @@ enum FirebaseAuthError: LocalizedError {
             return "Authentication session expired. Please try again."
         case .accountExistsWithDifferentCredential:
             return "An account already exists with a different sign-in method."
+        case .notAuthenticated:
+            return "You are not signed in. Please sign in first."
         case .unknown(let error):
             return "Authentication failed: \(error.localizedDescription)"
         }

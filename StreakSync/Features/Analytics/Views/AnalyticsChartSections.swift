@@ -84,12 +84,15 @@ struct StreakTrendsChart: View {
             )
             .foregroundStyle(.orange.gradient)
             .lineStyle(StrokeStyle(lineWidth: 3))
-            
+            .accessibilityLabel("\(point.date.formatted(.dateTime.month().day()))")
+            .accessibilityValue("\(Int(point.value)) active streaks")
+
             AreaMark(
                 x: .value("Date", point.date),
                 y: .value("Active Streaks", point.value)
             )
             .foregroundStyle(.orange.opacity(0.3).gradient)
+            .accessibilityHidden(true)
         }
         .chartXAxis {
             AxisMarks { _ in

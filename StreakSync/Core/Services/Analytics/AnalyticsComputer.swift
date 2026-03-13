@@ -11,7 +11,12 @@ import Foundation
 struct AnalyticsComputer {
     static func computeOverview(timeRange: AnalyticsTimeRange, game: Game?, games: [Game], streaks: [GameStreak], results: [GameResult]) -> AnalyticsOverview {
         // Filter streaks by game if specified
-        let relevantStreaks = game != nil ? streaks.filter { $0.gameId == game!.id } : streaks
+        let relevantStreaks: [GameStreak]
+        if let game {
+            relevantStreaks = streaks.filter { $0.gameId == game.id }
+        } else {
+            relevantStreaks = streaks
+        }
         let activeStreaks = relevantStreaks.filter { $0.isActive }
         let totalActiveStreaks = activeStreaks.count
         // Longest streak should respect the selected time range
@@ -164,7 +169,7 @@ struct AnalyticsComputer {
         let streak = streaks.first(where: { $0.gameId == game.id })
         let recentResults = getGameResults(for: gameId, in: timeRange, results: results)
         let trendData = computeGameTrendData(for: gameId, in: timeRange, results: results)
-        let personalBest = computePersonalBest(for: gameId, results: results)
+        let personalBest = computePersonalBest(for: gameId, games: games, results: results)
         let averageScore = computeAverageScore(for: gameId, in: timeRange, results: results)
         return GameAnalytics(game: game, streak: streak, recentResults: recentResults, trendData: trendData, personalBest: personalBest, averageScore: averageScore)
     }
@@ -249,15 +254,22 @@ struct AnalyticsComputer {
         for entry in longestEntries.sorted(by: { $0.value > $1.value }).prefix(2) {
             personalBests.append(PersonalBest(type: .longestStreak, value: entry.value, game: entry.game, date: endDate, description: "\(entry.value) day streak in \(entry.game.displayName)"))
         }
-        // Best score per game (completed only) within range
+        // Best score per game (completed only) within range, respecting scoring direction
         let completed = filteredResults.filter { $0.completed }
         let grouped = Dictionary(grouping: completed.compactMap { ($0.gameId, $0) }) { $0.0 }
         var bests: [(UUID, Int, GameResult)] = []
         for (gid, tuples) in grouped {
             let rs = tuples.map { $0.1 }.filter { $0.score != nil }
-            if let best = rs.min(by: { ($0.score ?? Int.max) < ($1.score ?? Int.max) }), let s = best.score { bests.append((gid, s, best)) }
+            let isLowerBetter = games.first(where: { $0.id == gid })?.scoringModel.isLowerBetter ?? true
+            let best: GameResult?
+            if isLowerBetter {
+                best = rs.min(by: { ($0.score ?? Int.max) < ($1.score ?? Int.max) })
+            } else {
+                best = rs.max(by: { ($0.score ?? Int.min) < ($1.score ?? Int.min) })
+            }
+            if let best, let s = best.score { bests.append((gid, s, best)) }
         }
-        for (gid, score, result) in bests.sorted(by: { $0.1 < $1.1 }).prefix(2) {
+        for (gid, score, result) in bests.prefix(2) {
             if let g = games.first(where: { $0.id == gid }) {
                 personalBests.append(PersonalBest(type: .bestScore, value: score, game: g, date: result.date, description: "\(result.displayScore) in \(g.displayName)"))
             }
@@ -284,8 +296,12 @@ struct AnalyticsComputer {
             let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
             let totalPlayed = weekResults.count
             let totalCompleted = weekResults.filter { $0.completed }.count
-            // Average streak length (approx): average of current streaks at end of week
-            let avgStreak = streaks.isEmpty ? 0.0 : Double(streaks.map { $0.currentStreak }.reduce(0, +)) / Double(streaks.count)
+            // Average streak length: compute per-game longest streak within this week from results
+            let weekGameIds = Set(weekResults.map { $0.gameId })
+            let perGameStreaks = weekGameIds.map { gid in
+                longestStreakInRange(startDate: weekStart, endDate: weekEnd, gameId: gid, results: weekResults)
+            }
+            let avgStreak = perGameStreaks.isEmpty ? 0.0 : Double(perGameStreaks.reduce(0, +)) / Double(perGameStreaks.count)
             // Longest streak within this week window (across all games)
             let longest = longestStreakInRange(startDate: weekStart, endDate: weekEnd, gameId: nil, results: weekResults)
             let mostPlayedGameId = Dictionary(grouping: weekResults, by: { $0.gameId }).mapValues { $0.count }.max(by: { $0.value < $1.value })?.key
@@ -307,19 +323,41 @@ struct AnalyticsComputer {
     static func computeGameTrendData(for gameId: UUID, in timeRange: AnalyticsTimeRange, results: [GameResult]) -> [StreakTrendPoint] {
         let (startDate, endDate) = timeRange.dateRange
         let calendar = Calendar.current
+
+        // Pre-filter for this game, then index by startOfDay — O(n) instead of O(n*d)
+        let gameResults = results.filter { $0.gameId == gameId }
+        var resultsByDay: [Date: [GameResult]] = [:]
+        for result in gameResults {
+            let day = calendar.startOfDay(for: result.date)
+            resultsByDay[day, default: []].append(result)
+        }
+
         var trends: [StreakTrendPoint] = []
         var currentDate = startDate
         while currentDate <= endDate {
-            let dayResults = results.filter { $0.gameId == gameId && calendar.isDate($0.date, inSameDayAs: currentDate) }
-            let trendPoint = StreakTrendPoint(date: currentDate, totalActiveStreaks: dayResults.isEmpty ? 0 : 1, longestStreak: 0, gamesPlayed: dayResults.count, gamesCompleted: dayResults.filter { $0.completed }.count)
+            let day = calendar.startOfDay(for: currentDate)
+            let dayResults = resultsByDay[day] ?? []
+            let trendPoint = StreakTrendPoint(
+                date: currentDate,
+                totalActiveStreaks: dayResults.isEmpty ? 0 : 1,
+                longestStreak: 0,
+                gamesPlayed: dayResults.count,
+                gamesCompleted: dayResults.filter { $0.completed }.count
+            )
             trends.append(trendPoint)
             currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
         }
         return trends
     }
     
-    static func computePersonalBest(for gameId: UUID, results: [GameResult]) -> Int {
-        return results.filter { $0.gameId == gameId && $0.completed }.compactMap { $0.score }.min() ?? 0
+    static func computePersonalBest(for gameId: UUID, games: [Game], results: [GameResult]) -> Int {
+        let scores = results.filter { $0.gameId == gameId && $0.completed }.compactMap { $0.score }
+        let isLowerBetter = games.first(where: { $0.id == gameId })?.scoringModel.isLowerBetter ?? true
+        if isLowerBetter {
+            return scores.min() ?? 0
+        } else {
+            return scores.max() ?? 0
+        }
     }
     
     static func computeAverageScore(for gameId: UUID, in timeRange: AnalyticsTimeRange, results: [GameResult]) -> Double {

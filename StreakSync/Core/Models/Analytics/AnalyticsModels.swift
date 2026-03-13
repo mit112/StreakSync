@@ -72,7 +72,8 @@ enum AnalyticsTimeRange: String, CaseIterable, Sendable, Codable {
             return (startOfDay, end)
         }
         
-        let start = calendar.date(byAdding: .day, value: -days, to: end) ?? end
+        // -(days - 1) so .week covers exactly 7 calendar days inclusive
+        let start = calendar.date(byAdding: .day, value: -(days - 1), to: calendar.startOfDay(for: end)) ?? end
         return (start, end)
     }
 }

@@ -17,15 +17,17 @@ struct GameDeepDiveSection: View {
                 .font(.headline)
                 .fontWeight(.semibold)
 
-            switch gameAnalytics.game.name.lowercased() {
-            case "wordle", "nerdle":
+            // Dispatch on scoringModel for robustness; name check needed
+            // for .lowerTimeSeconds since PipsDeepDive is Pips-specific.
+            switch gameAnalytics.game.scoringModel {
+            case .lowerAttempts:
                 WordleDeepDive(results: gameAnalytics.recentResults)
-            case "pips":
-                PipsDeepDive(results: gameAnalytics.recentResults)
-            case "linkedinpinpoint":
+            case .lowerGuesses:
                 PinpointDeepDive(results: gameAnalytics.recentResults)
-            case "strands":
+            case .lowerHints:
                 StrandsDeepDive(results: gameAnalytics.recentResults)
+            case .lowerTimeSeconds where gameAnalytics.game.name.lowercased() == "pips":
+                PipsDeepDive(results: gameAnalytics.recentResults)
             default:
                 EmptyView()
             }

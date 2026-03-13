@@ -50,14 +50,17 @@ struct StreakTrendsDetailChartSection: View {
                             )
                             .foregroundStyle(.blue.gradient)
                             .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                            .interpolationMethod(.catmullRom)
+                            .interpolationMethod(.monotone)
+                            .accessibilityLabel("\(point.date.formatted(.dateTime.month().day()))")
+                            .accessibilityValue("\(point.totalActiveStreaks) active, \(point.gamesPlayed) played")
 
                             AreaMark(
                                 x: .value("Date", point.date),
                                 y: .value("Active Streaks", point.totalActiveStreaks)
                             )
                             .foregroundStyle(.blue.opacity(0.2).gradient)
-                            .interpolationMethod(.catmullRom)
+                            .interpolationMethod(.monotone)
+                            .accessibilityHidden(true)
 
                             if let selected = selectedPoint, selected.date == point.date {
                                 PointMark(
