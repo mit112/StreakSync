@@ -79,11 +79,10 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
     
     // MARK: - Sample Data
     static var sample: Game {
-        // swiftlint:disable:next force_unwrapping
         Game(
             name: "Wordle",
             displayName: "Wordle",
-            url: URL(string: "https://www.nytimes.com/games/wordle") ?? URL(string: "https://www.nytimes.com")!,
+            url: URL(string: "https://www.nytimes.com/games/wordle") ?? URL(fileURLWithPath: "/"),
             category: .word,
             resultPattern: "Wordle \\d+ \\d+/6",
             iconSystemName: "textformat.abc",
