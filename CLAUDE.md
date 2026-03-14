@@ -107,7 +107,9 @@ Protocol-oriented with production and mock implementations:
 
 ### Share Extension Pipeline
 
-`StreakSyncShareExtension/` → saves result to App Group → `AppGroupBridge` detects on activation → `NotificationCoordinator` routes → `GameResultIngestionActor` (actor for thread safety) → `AppState.addGameResult` → UI refresh.
+`StreakSyncShareExtension/` → saves result to App Group (key-based queue with `synchronize()`) → Darwin notification wakes main app → `AppGroupBridge` detects via lifecycle + Darwin observers → `AppGroupResultMonitor` loads queue → `NotificationCoordinator` routes `.gameResultReceived` → `AppState.addGameResult` (on `@MainActor`) → UI refresh.
+
+Queue cleanup uses targeted key removal (only processed keys) to avoid cross-process TOCTOU races with the Share Extension.
 
 Deep links use `streaksync://` URL scheme. Payload keys centralized in `AppConstants.DeepLinkKeys`.
 
