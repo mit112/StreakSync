@@ -59,7 +59,7 @@ struct EnhancedParticleSystem: View {
                 scale: CGFloat.random(in: 0.5...1.5),
                 opacity: 1.0,
                 rotation: Double.random(in: 0...360),
-                shape: Particle.ParticleShape.allCases.randomElement()!
+                shape: Particle.ParticleShape.allCases.randomElement() ?? .circle
             ))
         }
     }
@@ -74,7 +74,8 @@ struct EnhancedParticleSystem: View {
                 particles[index].rotation += Double.random(in: -180...180)
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(2.0 * 1_000_000_000))
             isActive = false
         }
     }
@@ -160,8 +161,8 @@ struct ConfettiExplosion: View {
                 rotation: Double.random(in: 0...360),
                 scale: CGFloat.random(in: 0.8...1.2),
                 opacity: 1.0,
-                color: colors.randomElement()!,
-                shape: ConfettiPiece.ShapeType.allCases.randomElement()!
+                color: colors.randomElement() ?? tier.color,
+                shape: ConfettiPiece.ShapeType.allCases.randomElement() ?? .rectangle
             ))
         }
     }
@@ -180,7 +181,8 @@ struct ConfettiExplosion: View {
                 confettiPieces[index].opacity = 0.8
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(3.5 * 1_000_000_000))
             confettiPieces.removeAll()
         }
     }

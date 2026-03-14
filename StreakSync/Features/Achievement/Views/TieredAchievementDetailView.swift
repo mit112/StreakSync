@@ -224,13 +224,13 @@ struct TieredAchievementDetailView: View {
         case .earlyBird:
             return [
                 "Play games in the early morning hours",
-                "Before 8 AM counts as early bird time",
+                "Playing between 5 AM and 9 AM counts as early bird time",
                 "Earlier times unlock higher tiers faster"
             ]
         case .nightOwl:
             return [
                 "Play games late at night",
-                "After 10 PM counts as night owl time",
+                "Playing between midnight and 5 AM counts as night owl time",
                 "Later times unlock higher tiers faster"
             ]
         case .comebackChampion:

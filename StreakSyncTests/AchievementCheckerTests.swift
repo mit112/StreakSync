@@ -278,12 +278,20 @@ final class AchievementCheckerTests: XCTestCase {
         XCTAssertEqual(progress.percentageToNextTier(requirements: requirements), 0.5, accuracy: 0.01)
     }
     
-    func testPercentageMaxTierReturns1() {
+    func testPercentageNoRequirementForNextTierReturns0() {
         let requirements = [TierRequirement(tier: .bronze, threshold: 10)]
         let progress = AchievementProgress(currentValue: 10, currentTier: .bronze)
-        
-        // No next tier → 0.0 (nothing to progress toward)
+
+        // Next tier is silver but there's no silver requirement → 0.0
         XCTAssertEqual(progress.percentageToNextTier(requirements: requirements), 0.0)
+    }
+
+    func testPercentageMaxTierReturns1() {
+        let requirements = [TierRequirement(tier: .legendary, threshold: 100)]
+        let progress = AchievementProgress(currentValue: 100, currentTier: .legendary)
+
+        // Legendary is the highest tier → no next tier → 1.0 (fully complete)
+        XCTAssertEqual(progress.percentageToNextTier(requirements: requirements), 1.0, accuracy: 0.01)
     }
     
     // MARK: - Recalculation with cached unique games

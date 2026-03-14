@@ -99,8 +99,7 @@ struct AchievementCard: View {
     @State private var showUnlockAnimation = false
     
     private var progressPercentage: Double {
-        guard let nextRequirement = achievement.nextTierRequirement else { return 1.0 }
-        return min(Double(achievement.progress.currentValue) / Double(nextRequirement.threshold), 1.0)
+        achievement.progress.percentageToNextTier(requirements: achievement.requirements)
     }
     
     private var safeIconName: String {

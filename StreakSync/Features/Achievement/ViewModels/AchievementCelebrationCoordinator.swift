@@ -132,7 +132,8 @@ final class AchievementCelebrationCoordinator {
         
         if !self.celebrationQueue.isEmpty {
  logger.info("Showing next celebration in queue (\(self.celebrationQueue.count) remaining)")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(0.5 * 1_000_000_000))
                 self?.showNextCelebration()
             }
         } else {

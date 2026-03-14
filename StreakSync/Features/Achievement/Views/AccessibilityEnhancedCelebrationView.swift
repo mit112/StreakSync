@@ -12,7 +12,8 @@ struct AccessibilityEnhancedModifier: ViewModifier {
     @AccessibilityFocusState private var isAnnouncementFocused: Bool
     let unlock: AchievementUnlock
     let isVisible: Bool
-    
+    @Environment(\.dismiss) private var dismiss
+
     func body(content: Content) -> some View {
         content
             .accessibilityElement(children: .combine)
@@ -20,7 +21,7 @@ struct AccessibilityEnhancedModifier: ViewModifier {
             .accessibilityHint("Double tap to dismiss")
             .accessibilityAddTraits(.isModal)
             .accessibilityAction {
-                // Dismiss action
+                dismiss()
             }
             .onChange(of: isVisible) { _, visible in
                 if visible {
@@ -45,7 +46,8 @@ struct AccessibilityEnhancedModifier: ViewModifier {
         )
         
         // Focus on the announcement
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(0.5 * 1_000_000_000))
             isAnnouncementFocused = true
         }
     }
@@ -126,7 +128,8 @@ struct ReducedMotionCelebrationView: View {
             opacity = 0
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(0.3 * 1_000_000_000))
             // Check if we have a coordinator
             if let coordinator = celebrationCoordinator {
                 coordinator.dismissCurrentCelebration()

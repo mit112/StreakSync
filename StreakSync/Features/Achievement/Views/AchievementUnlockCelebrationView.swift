@@ -308,7 +308,10 @@ struct AchievementUnlockCelebrationView: View {
         \(unlock.achievement.description).
         Your current progress is \(unlock.achievement.progress.currentValue).
         """)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { isAnnouncementFocused = true }
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(0.5 * 1_000_000_000))
+            isAnnouncementFocused = true
+        }
     }
     
     private func announceCompletion() {
@@ -321,7 +324,8 @@ struct AchievementUnlockCelebrationView: View {
     // MARK: - Dismiss
     private func dismissCelebration() {
         withAnimation(.easeIn(duration: 0.3)) { isVisible = false }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(0.3 * 1_000_000_000))
             if let coordinator = celebrationCoordinator {
                 coordinator.dismissCurrentCelebration()
             } else {

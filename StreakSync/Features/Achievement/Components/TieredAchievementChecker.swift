@@ -27,7 +27,7 @@ struct TieredAchievementChecker {
         // Check each achievement category
         unlocks.append(contentsOf: checkStreakMaster(result: result, streaks: streaks, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkGameCollector(allResults: allResults, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkPerfectionist(result: result, allResults: allResults, achievements: &currentAchievements))
+        unlocks.append(contentsOf: checkPerfectionist(allResults: allResults, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkDailyDevotee(allResults: allResults, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkVarietyPlayer(result: result, allResults: allResults, games: games, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkSpeedDemon(
@@ -60,8 +60,9 @@ struct TieredAchievementChecker {
             $0.requirements.first?.specificGameId == nil
         }) {
             let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: gameStreak.currentStreak)
-            
+            let streakValue = max(gameStreak.currentStreak, gameStreak.maxStreak)
+            achievements[index].updateProgress(value: streakValue)
+
             if let newTier = achievements[index].progress.currentTier,
                oldTier != newTier {
                 unlocks.append(AchievementUnlock(
@@ -69,7 +70,7 @@ struct TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
- logger.info("Unlocked Streak Master \(newTier.displayName) - \(gameStreak.currentStreak) days")
+ logger.info("Unlocked Streak Master \(newTier.displayName) - \(streakValue) days")
             }
         }
         
@@ -109,7 +110,6 @@ struct TieredAchievementChecker {
     // MARK: - Perfectionist
     
     private func checkPerfectionist(
-        result: GameResult,
         allResults: [GameResult],
         achievements: inout [TieredAchievement]
     ) -> [AchievementUnlock] {
@@ -310,10 +310,10 @@ struct TieredAchievementChecker {
                 let day = calendar.startOfDay(for: r.date)
                 if dict[r.gameId] == nil {
                     dict[r.gameId] = [day]
-                } else {
-                    // Append only if this day isn't already recorded
-                    if dict[r.gameId]!.last != day && !(dict[r.gameId]!.contains(day)) {
-                        dict[r.gameId]!.append(day)
+                } else if var days = dict[r.gameId] {
+                    if days.last != day && !days.contains(day) {
+                        days.append(day)
+                        dict[r.gameId] = days
                     }
                 }
             }
@@ -391,18 +391,16 @@ struct TieredAchievementChecker {
             .sorted()
         
         var currentStreak = 1
-        var maxStreak = 1
-        
+
         for i in 1..<sortedDates.count {
             let daysBetween = calendar.dateComponents(
                 [.day],
                 from: sortedDates[i-1],
                 to: sortedDates[i]
             ).day ?? 0
-            
+
             if daysBetween == 1 {
                 currentStreak += 1
-                maxStreak = max(maxStreak, currentStreak)
             } else if daysBetween > 1 {
                 currentStreak = 1
             }
