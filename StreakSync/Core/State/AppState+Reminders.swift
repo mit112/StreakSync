@@ -13,7 +13,7 @@ extension AppState {
 
     func checkAndScheduleStreakReminders() async {
         // Check if reminders are enabled globally
-        let remindersEnabled = UserDefaults.standard.bool(forKey: "streakRemindersEnabled")
+        let remindersEnabled = UserDefaults.standard.bool(forKey: AppConstants.NotificationSettings.remindersEnabled)
         guard remindersEnabled else {
             await NotificationScheduler.shared.cancelAllStreakReminders()
  logger.info("Streak reminders disabled - cancelled all notifications")
@@ -21,8 +21,8 @@ extension AppState {
         }
 
         // Get user's preferred time
-        let preferredHour = UserDefaults.standard.object(forKey: "streakReminderHour") as? Int ?? 19
-        let preferredMinute = UserDefaults.standard.object(forKey: "streakReminderMinute") as? Int ?? 0
+        let preferredHour = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.reminderHour) as? Int ?? 19
+        let preferredMinute = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.reminderMinute) as? Int ?? 0
 
         // Find all games at risk (active streaks, not played today)
         let gamesAtRisk = getGamesAtRisk()
@@ -86,25 +86,23 @@ extension AppState {
 
     // MARK: - Migration Helper
 
-    func migrateNotificationSettings() {
-        let migrationKey = "notificationSystemMigrated_v2"
+    func migrateNotificationSettings() async {
+        let migrationKey = AppConstants.NotificationSettings.migrationCompleted
 
         guard !UserDefaults.standard.bool(forKey: migrationKey) else {
             return
         }
 
         // Clean up all old notification requests
-        Task {
-            await NotificationScheduler.shared.cancelAllNotifications()
-        }
+        await NotificationScheduler.shared.cancelAllNotifications()
 
         // Set default values for new system
-        UserDefaults.standard.set(true, forKey: "streakRemindersEnabled")
+        UserDefaults.standard.set(true, forKey: AppConstants.NotificationSettings.remindersEnabled)
 
         // Use smart default time based on user's play patterns
         let smartTime = calculateSmartDefaultTime()
-        UserDefaults.standard.set(smartTime.hour, forKey: "streakReminderHour")
-        UserDefaults.standard.set(smartTime.minute, forKey: "streakReminderMinute")
+        UserDefaults.standard.set(smartTime.hour, forKey: AppConstants.NotificationSettings.reminderHour)
+        UserDefaults.standard.set(smartTime.minute, forKey: AppConstants.NotificationSettings.reminderMinute)
 
         // Mark migration as complete
         UserDefaults.standard.set(true, forKey: migrationKey)
@@ -174,9 +172,9 @@ extension AppState {
     /// Updates smart reminders if enabled and last computation was over 2 days ago
     func updateSmartRemindersIfNeeded() async {
         let defaults = UserDefaults.standard
-        let smartOn = defaults.bool(forKey: "smartRemindersEnabled")
+        let smartOn = defaults.bool(forKey: AppConstants.NotificationSettings.smartRemindersEnabled)
         guard smartOn else { return }
-        let last = defaults.object(forKey: "smartRemindersLastComputed") as? Date
+        let last = defaults.object(forKey: AppConstants.NotificationSettings.smartRemindersLastComputed) as? Date
         let twoDays: TimeInterval = 60 * 60 * 24 * 2
         if let last, Date().timeIntervalSince(last) < twoDays { return }
         await applySmartReminderNow()
@@ -186,14 +184,14 @@ extension AppState {
     func applySmartReminderNow() async {
         let suggestion = computeSmartReminderSuggestion()
         let defaults = UserDefaults.standard
-        defaults.set(true, forKey: "streakRemindersEnabled")
-        defaults.set(true, forKey: "smartRemindersEnabled")
-        defaults.set(Date(), forKey: "smartRemindersLastComputed")
-        defaults.set(suggestion.hour, forKey: "streakReminderHour")
-        defaults.set(suggestion.minute, forKey: "streakReminderMinute")
-        defaults.set(suggestion.windowStart, forKey: "smartReminderWindowStartHour")
-        defaults.set(suggestion.windowEnd, forKey: "smartReminderWindowEndHour")
-        defaults.set(suggestion.coverage, forKey: "smartReminderCoveragePercent")
+        defaults.set(true, forKey: AppConstants.NotificationSettings.remindersEnabled)
+        defaults.set(true, forKey: AppConstants.NotificationSettings.smartRemindersEnabled)
+        defaults.set(Date(), forKey: AppConstants.NotificationSettings.smartRemindersLastComputed)
+        defaults.set(suggestion.hour, forKey: AppConstants.NotificationSettings.reminderHour)
+        defaults.set(suggestion.minute, forKey: AppConstants.NotificationSettings.reminderMinute)
+        defaults.set(suggestion.windowStart, forKey: AppConstants.NotificationSettings.smartReminderWindowStartHour)
+        defaults.set(suggestion.windowEnd, forKey: AppConstants.NotificationSettings.smartReminderWindowEndHour)
+        defaults.set(suggestion.coverage, forKey: AppConstants.NotificationSettings.smartReminderCoveragePercent)
         await checkAndScheduleStreakReminders()
  logger.info("Applied smart reminder: \(suggestion.hour):\(String(format: "%02d", suggestion.minute)) window \(suggestion.windowStart)-\(suggestion.windowEnd) coverage \(suggestion.coverage)%")
     }

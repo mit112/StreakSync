@@ -89,7 +89,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
             await handleSnooze(days: 3)
             
         case NotificationAction.markPlayed.identifier:
-            await handleMarkPlayed(gameIdString: gameIdString)
+            await handleDismissAndReschedule(gameIdString: gameIdString)
             
         case NotificationAction.viewAchievement.identifier:
             await handleViewAchievement(achievementIdString: achievementIdString)
@@ -133,8 +133,8 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
  logger.info("Snoozing reminder for \(days) days")
         
         // Compute user's preferred time
-        let hour = UserDefaults.standard.object(forKey: "streakReminderHour") as? Int ?? 19
-        let minute = UserDefaults.standard.object(forKey: "streakReminderMinute") as? Int ?? 0
+        let hour = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.reminderHour) as? Int ?? 19
+        let minute = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.reminderMinute) as? Int ?? 0
         
         // Build content from today's at-risk games if available
         let gamesAtRisk = appState?.getGamesAtRisk() ?? []
@@ -160,7 +160,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
         )
     }
     
-    @MainActor private func handleMarkPlayed(gameIdString: String?) async {
+    @MainActor private func handleDismissAndReschedule(gameIdString: String?) async {
         guard let gameIdString = gameIdString,
               let gameId = UUID(uuidString: gameIdString) else {
  logger.warning("Missing or invalid gameId in mark played action")

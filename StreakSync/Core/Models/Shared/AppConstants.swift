@@ -46,6 +46,19 @@ enum AppConstants {
         static let achievementId = "achievementId"
     }
     
+    // MARK: - Notification Settings Keys
+    enum NotificationSettings {
+        static let remindersEnabled = "streakRemindersEnabled"
+        static let reminderHour = "streakReminderHour"
+        static let reminderMinute = "streakReminderMinute"
+        static let smartRemindersEnabled = "smartRemindersEnabled"
+        static let smartRemindersLastComputed = "smartRemindersLastComputed"
+        static let smartReminderWindowStartHour = "smartReminderWindowStartHour"
+        static let smartReminderWindowEndHour = "smartReminderWindowEndHour"
+        static let smartReminderCoveragePercent = "smartReminderCoveragePercent"
+        static let migrationCompleted = "notificationSystemMigrated_v2"
+    }
+
     // MARK: - Animation Durations
     enum Animation {
         static let standardDuration = 0.3

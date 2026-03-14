@@ -10,19 +10,18 @@ import UserNotifications
 import OSLog
 
 // MARK: - Permission Flow View Model
+@MainActor
 final class NotificationPermissionFlowViewModel: ObservableObject {
     @Published var showingPermissionFlow = false
     @Published var permissionStatus: UNAuthorizationStatus = .notDetermined
     
     private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationPermission")
     
-    @MainActor
     func checkPermissionStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         permissionStatus = settings.authorizationStatus
     }
     
-    @MainActor
     func requestPermission() async -> Bool {
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(
@@ -46,7 +45,6 @@ final class NotificationPermissionFlowViewModel: ObservableObject {
         }
     }
     
-    @MainActor
     func openSystemSettings() {
         if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(settingsUrl)
@@ -66,7 +64,8 @@ struct NotificationPermissionFlowView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "bell.badge")
                         .font(.system(size: 60))
-                        .foregroundColor(.accentColor)
+                        .foregroundStyle(.accentColor)
+                        .accessibilityHidden(true)
                     
                     Text("Stay on Track")
                         .font(.largeTitle)
@@ -74,7 +73,7 @@ struct NotificationPermissionFlowView: View {
                     
                     Text("Get gentle reminders to keep your streaks alive")
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top, 40)
@@ -151,7 +150,7 @@ struct BenefitRow: View {
         HStack(spacing: 16) {
             Image.safeSystemName(icon, fallback: "bell")
                 .font(.title2)
-                .foregroundColor(.accentColor)
+                .foregroundStyle(.accentColor)
                 .frame(width: 24)
             
             VStack(alignment: .leading, spacing: 4) {
@@ -160,7 +159,7 @@ struct BenefitRow: View {
                 
                 Text(description)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             
             Spacer()
@@ -177,7 +176,7 @@ struct NotificationPermissionDeniedView: View {
         VStack(spacing: 20) {
             Image(systemName: "bell.slash")
                 .font(.system(size: 50))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             
             Text("Notifications Disabled")
                 .font(.title2)
@@ -185,7 +184,7 @@ struct NotificationPermissionDeniedView: View {
             
             Text("To enable reminders, please allow notifications in Settings")
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             
             Button("Open Settings") {

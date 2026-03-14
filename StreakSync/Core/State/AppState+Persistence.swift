@@ -41,7 +41,7 @@ extension AppState {
  logger.info("Loading persisted data...")
         
         // Migrate notification settings to simplified system
-        migrateNotificationSettings()
+        await migrateNotificationSettings()
         
         // Use parallel loading for better performance
         await loadAllData()
