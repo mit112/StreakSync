@@ -89,40 +89,9 @@ class ShareViewController: UIViewController {
         }
     }
     
-    /// Maps shared text to a Game by checking for known signature strings.
-    /// Order matters: more specific checks (e.g. "Daily Quordle") before
-    /// generic ones (e.g. "Wordle") to avoid false matches.
+    /// Maps shared text to a Game by delegating to the shared GameDetector.
     private func detectGame(from text: String) -> Game? {
-        let games = Game.allAvailableGames
-        
-        // Detection rules: (textContains, gameName)
-        let rules: [(String, String)] = [
-            ("Pips #", "pips"),
-            ("Daily Quordle", "quordle"),
-            ("Daily Octordle", "octordle"),
-            ("Wordle", "wordle"),
-            ("nerdlegame", "nerdle"),
-            ("Strands #", "strands"),
-            ("Mini Sudoku #", "linkedinminisudoku"),
-            ("Queens #", "linkedinqueens"),
-            ("Tango #", "linkedintango"),
-            ("Crossclimb #", "linkedincrossclimb"),
-            ("Pinpoint #", "linkedinpinpoint"),
-            ("Zip #", "linkedinzip"),
-        ]
-        
-        // Also check Connections separately (needs two markers)
-        if text.contains("Connections") && text.contains("Puzzle #") {
-            return games.first { $0.name.lowercased() == "connections" }
-        }
-        
-        for (marker, name) in rules {
-            if text.contains(marker) {
-                return games.first { $0.name.lowercased() == name }
-            }
-        }
-        
-        return nil
+        GameDetector.detect(from: text, in: Game.allAvailableGames)
     }
     
     // MARK: - Input Sanitization

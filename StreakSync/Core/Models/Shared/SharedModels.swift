@@ -361,4 +361,53 @@ struct GroupedGameResult: Identifiable, Codable {
     }
 }
 
+// MARK: - Game Detector
+
+/// Maps shared text to a Game by checking for known signature strings.
+/// Centralised here so both the main app and Share Extension use identical logic.
+struct GameDetector {
+    /// Detects which game a shared text snippet belongs to.
+    ///
+    /// Order matters: more specific checks (e.g. "Mini Crossword") must precede
+    /// any potentially overlapping generic checks (e.g. a bare "Crossword").
+    ///
+    /// - Parameters:
+    ///   - text: The raw shared text to inspect.
+    ///   - games: The game catalog to search. Typically `Game.allAvailableGames`.
+    /// - Returns: The matched `Game`, or `nil` if no rule fires.
+    static func detect(from text: String, in games: [Game]) -> Game? {
+        // Detection rules: (textContains, gameName)
+        let rules: [(String, String)] = [
+            ("Pips #", "pips"),
+            ("Daily Quordle", "quordle"),
+            ("Daily Octordle", "octordle"),
+            ("Wordle", "wordle"),
+            ("nerdlegame", "nerdle"),
+            ("Strands #", "strands"),
+            // Mini Crossword before any bare "Crossword" check
+            ("Mini Crossword", "minicrossword"),
+            ("Spelling Bee", "spellingbee"),
+            ("Mini Sudoku #", "linkedinminisudoku"),
+            ("Queens #", "linkedinqueens"),
+            ("Tango #", "linkedintango"),
+            ("Crossclimb #", "linkedincrossclimb"),
+            ("Pinpoint #", "linkedinpinpoint"),
+            ("Zip #", "linkedinzip"),
+        ]
+
+        // Connections needs two markers to avoid false positives
+        if text.contains("Connections") && text.contains("Puzzle #") {
+            return games.first { $0.name.lowercased() == "connections" }
+        }
+
+        for (marker, name) in rules {
+            if text.contains(marker) {
+                return games.first { $0.name.lowercased() == name }
+            }
+        }
+
+        return nil
+    }
+}
+
 
