@@ -46,10 +46,8 @@ extension AppState {
                         streakStartDate = result.date
                     } else if let previous = lastCompletedDate {
                         // Check if this continues the streak
-                        let daysBetween = Calendar.current.dateComponents([.day],
-                                                                         from: previous,
-                                                                         to: result.date).day ?? 0
-                        
+                        let daysBetween = GameDateHelper.daysBetween(from: previous, to: result.date)
+
                         if daysBetween == 1 {
                             currentStreak += 1
                         } else if daysBetween > 1 {

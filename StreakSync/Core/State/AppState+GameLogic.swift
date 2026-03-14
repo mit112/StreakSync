@@ -60,15 +60,12 @@ extension AppState {
             } else {
                 // Check if this extends the streak
                 if let lastPlayed = current.lastPlayedDate {
-                    let calendar = Calendar.current
-                    let lastPlayedDay = calendar.startOfDay(for: lastPlayed)
-                    let resultDay = calendar.startOfDay(for: result.date)
-                    let daysBetween = calendar.dateComponents([.day], from: lastPlayedDay, to: resultDay).day ?? 0
-                    
+                    let daysBetween = GameDateHelper.daysBetween(from: lastPlayed, to: result.date)
+
                     #if DEBUG
  logger.info("Days between plays: \(daysBetween)")
                     #endif
-                    
+
                     if daysBetween == 1 {
                         // Consecutive day - extend streak
                         newCurrentStreak += 1

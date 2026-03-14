@@ -70,6 +70,23 @@ struct GameDateHelper {
         }
     }
     
+    /// Returns the number of calendar days between two dates, normalising both to start-of-day
+    /// so that a 23-hour gap that spans midnight correctly counts as 1 day.
+    ///
+    /// This is the canonical helper used by both `calculateUpdatedStreak` and
+    /// `rebuildStreaksFromResults` to guarantee consistent streak arithmetic.
+    ///
+    /// - Parameters:
+    ///   - from: The earlier (reference) date.
+    ///   - to: The later date.
+    /// - Returns: Integer day count; 0 means same calendar day, 1 means consecutive days, etc.
+    static func daysBetween(from: Date, to: Date) -> Int {
+        let calendar = Calendar.current
+        let fromDay = calendar.startOfDay(for: from)
+        let toDay = calendar.startOfDay(for: to)
+        return calendar.dateComponents([.day], from: fromDay, to: toDay).day ?? 0
+    }
+
     /// Checks if a game result is recent enough to be considered "active"
     /// - Parameter importDate: The date when the game result was imported
     /// - Returns: True if the game was played within the last 2 days

@@ -10,24 +10,35 @@ import Foundation
 import UIKit
 
 extension Game {
+    // MARK: - Safe UUID Initializer
+    /// Returns a UUID from a known-valid string. Triggers assertionFailure in debug builds if the
+    /// string is malformed — catches typos at dev time rather than silently producing random IDs.
+    private static func safeUUID(_ string: String) -> UUID {
+        guard let uuid = UUID(uuidString: string) else {
+            assertionFailure("Invalid UUID string: \(string)")
+            return UUID()
+        }
+        return uuid
+    }
+
     // MARK: - Static Game IDs (Guaranteed Valid)
     private enum GameIDs {
-        static let wordle = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440000") ?? UUID()
-        static let quordle = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440001") ?? UUID()
-        static let nerdle = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440002") ?? UUID()
-        static let connections = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440003") ?? UUID()
-        static let spellingBee = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440004") ?? UUID()
-        static let miniCrossword = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440005") ?? UUID()
-        static let strands = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440007") ?? UUID()
+        static let wordle = Game.safeUUID("550e8400-e29b-41d4-a716-446655440000")
+        static let quordle = Game.safeUUID("550e8400-e29b-41d4-a716-446655440001")
+        static let nerdle = Game.safeUUID("550e8400-e29b-41d4-a716-446655440002")
+        static let connections = Game.safeUUID("550e8400-e29b-41d4-a716-446655440003")
+        static let spellingBee = Game.safeUUID("550e8400-e29b-41d4-a716-446655440004")
+        static let miniCrossword = Game.safeUUID("550e8400-e29b-41d4-a716-446655440005")
+        static let strands = Game.safeUUID("550e8400-e29b-41d4-a716-446655440007")
         // LinkedIn Games
-        static let linkedinQueens = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440100") ?? UUID()
-        static let linkedinTango = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440101") ?? UUID()
-        static let linkedinCrossclimb = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440102") ?? UUID()
-        static let linkedinPinpoint = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440103") ?? UUID()
-        static let linkedinZip = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440104") ?? UUID()
-        static let linkedinMiniSudoku = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440105") ?? UUID()
+        static let linkedinQueens = Game.safeUUID("550e8400-e29b-41d4-a716-446655440100")
+        static let linkedinTango = Game.safeUUID("550e8400-e29b-41d4-a716-446655440101")
+        static let linkedinCrossclimb = Game.safeUUID("550e8400-e29b-41d4-a716-446655440102")
+        static let linkedinPinpoint = Game.safeUUID("550e8400-e29b-41d4-a716-446655440103")
+        static let linkedinZip = Game.safeUUID("550e8400-e29b-41d4-a716-446655440104")
+        static let linkedinMiniSudoku = Game.safeUUID("550e8400-e29b-41d4-a716-446655440105")
         // Wordle Variants
-        static let octordle = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440200") ?? UUID()
+        static let octordle = Game.safeUUID("550e8400-e29b-41d4-a716-446655440200")
     }
     
     // MARK: - Static Game URLs (Guaranteed Valid)
@@ -98,7 +109,7 @@ extension Game {
     )
     
     static let pips = Game(
-        id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440006") ?? UUID(),
+        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440006"),
         name: "pips",
         displayName: "Pips",
         url: URL(string: "https://www.nytimes.com/games/pips")!,
@@ -270,7 +281,7 @@ extension Game {
     // Word Games (duplicates removed - using definitions above)
        
        static let letterboxed = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440006") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440300"),
            name: "letterboxed",
            displayName: "Letter Boxed",
            url: URL(string: "https://www.nytimes.com/puzzles/letter-boxed")!,
@@ -283,7 +294,7 @@ extension Game {
        )
        
        static let waffle = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440007") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440301"),
            name: "waffle",
            displayName: "Waffle",
            url: URL(string: "https://wafflegame.net")!,
@@ -297,7 +308,7 @@ extension Game {
        
        // Math Games
        static let mathle = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440008") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440008"),
            name: "mathle",
            displayName: "Mathle",
            url: URL(string: "https://www.mathle.com")!,
@@ -310,7 +321,7 @@ extension Game {
        )
        
        static let numberle = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440009") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440009"),
            name: "numberle",
            displayName: "Numberle",
            url: URL(string: "https://numberle.com")!,
@@ -324,7 +335,7 @@ extension Game {
        
        // Geography Games
        static let worldle = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000A") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000A"),
            name: "worldle",
            displayName: "Worldle",
            url: URL(string: "https://worldle.teuteuf.fr")!,
@@ -337,7 +348,7 @@ extension Game {
        )
        
        static let globle = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000B") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000B"),
            name: "globle",
            displayName: "Globle",
            url: URL(string: "https://globle-game.com")!,
@@ -351,7 +362,7 @@ extension Game {
        
        // Trivia Games
        static let contexto = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000C") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000C"),
            name: "contexto",
            displayName: "Contexto",
            url: URL(string: "https://contexto.me")!,
@@ -364,7 +375,7 @@ extension Game {
        )
        
        static let framed = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000D") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000D"),
            name: "framed",
            displayName: "Framed",
            url: URL(string: "https://framed.wtf")!,
@@ -378,7 +389,7 @@ extension Game {
        
        // Puzzle Games
        static let crosswordle = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000E") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000E"),
            name: "crosswordle",
            displayName: "Crosswordle",
            url: URL(string: "https://crosswordle.serializer.ca")!,
@@ -391,7 +402,7 @@ extension Game {
        )
        
        static let mini_crossword = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544000F") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000F"),
            name: "mini_crossword",
            displayName: "Mini Crossword",
            url: URL(string: "https://www.nytimes.com/crosswords/game/mini")!,
@@ -404,7 +415,7 @@ extension Game {
        )
        
        static let sudoku = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440010") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440010"),
            name: "sudoku",
            displayName: "Sudoku",
            url: URL(string: "https://www.nytimes.com/puzzles/sudoku")!,
@@ -418,7 +429,7 @@ extension Game {
        
        // Music Games
        static let lyricle = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440011") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440011"),
            name: "lyricle",
            displayName: "Lyricle",
            url: URL(string: "https://www.lyricle.app")!,
@@ -432,7 +443,7 @@ extension Game {
        
        // More Word Games
        static let absurdle = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440012") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440012"),
            name: "absurdle",
            displayName: "Absurdle",
            url: URL(string: "https://absurdle.online")!,
@@ -445,7 +456,7 @@ extension Game {
        )
        
        static let semantle = Game(
-           id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440013") ?? UUID(),
+           id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440013"),
            name: "semantle",
            displayName: "Semantle",
            url: URL(string: "https://semantle.com")!,
@@ -460,7 +471,7 @@ extension Game {
     // MARK: - More Word Games (21-30)
         
         static let dordle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440015") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440015"),
             name: "dordle",
             displayName: "Dordle",
             url: URL(string: "https://zaratustra.itch.io/dordle")!,
@@ -473,7 +484,7 @@ extension Game {
         )
         
         static let sedecordle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440016") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440016"),
             name: "sedecordle",
             displayName: "Sedecordle",
             url: URL(string: "https://sedecordle.com")!,
@@ -486,7 +497,7 @@ extension Game {
         )
         
     static let kilordle = Game(
-        id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440017") ?? UUID(),
+        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440017"),
         name: "kilordle",
         displayName: "Kilordle",
         url: URL(string: "https://kilordle.com")!,
@@ -499,7 +510,7 @@ extension Game {
     )
         
         static let antiwordle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440018") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440018"),
             name: "antiwordle",
             displayName: "Antiwordle",
             url: URL(string: "https://antiwordle.com")!,
@@ -512,7 +523,7 @@ extension Game {
         )
         
         static let wordscapes = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440019") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440019"),
             name: "wordscapes",
             displayName: "Wordscapes",
             url: URL(string: "https://wordscapes.com")!,
@@ -525,7 +536,7 @@ extension Game {
         )
         
         static let wordhurdle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001A") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001A"),
             name: "wordhurdle",
             displayName: "Word Hurdle",
             url: URL(string: "https://wordhurdle.com")!,
@@ -538,7 +549,7 @@ extension Game {
         )
         
         static let xordle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001B") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001B"),
             name: "xordle",
             displayName: "Xordle",
             url: URL(string: "https://xordle.xyz")!,
@@ -551,7 +562,7 @@ extension Game {
         )
         
         static let squareword = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001C") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001C"),
             name: "squareword",
             displayName: "Squareword",
             url: URL(string: "https://squareword.org")!,
@@ -564,7 +575,7 @@ extension Game {
         )
         
         static let phrazle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001D") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001D"),
             name: "phrazle",
             displayName: "Phrazle",
             url: URL(string: "https://phrazle.com")!,
@@ -578,7 +589,7 @@ extension Game {
         
         // MARK: - More Math/Logic Games (31-35)
         static let primel = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001E") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001E"),
             name: "primel",
             displayName: "Primel",
             url: URL(string: "https://converged.yt/primel")!,
@@ -591,7 +602,7 @@ extension Game {
         )
         
         static let ooodle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544001F") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001F"),
             name: "ooodle",
             displayName: "Ooodle",
             url: URL(string: "https://ooodle.live")!,
@@ -604,7 +615,7 @@ extension Game {
         )
         
         static let summle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440020") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440020"),
             name: "summle",
             displayName: "Summle",
             url: URL(string: "https://summle.com")!,
@@ -617,7 +628,7 @@ extension Game {
         )
         
         static let timeguessr = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440021") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440021"),
             name: "timeguessr",
             displayName: "TimeGuessr",
             url: URL(string: "https://timeguessr.com")!,
@@ -630,7 +641,7 @@ extension Game {
         )
         
         static let rankdle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440022") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440022"),
             name: "rankdle",
             displayName: "Rankdle",
             url: URL(string: "https://rankdle.com")!,
@@ -644,7 +655,7 @@ extension Game {
         
         // MARK: - More Music/Audio Games (36-40)
         static let songlio = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440023") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440023"),
             name: "songlio",
             displayName: "Songlio",
             url: URL(string: "https://songlio.com")!,
@@ -657,7 +668,7 @@ extension Game {
         )
         
         static let binb = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440024") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440024"),
             name: "binb",
             displayName: "BINB",
             url: URL(string: "https://binb.co")!,
@@ -670,7 +681,7 @@ extension Game {
         )
         
         static let songle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440025") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440025"),
             name: "songle",
             displayName: "Songle",
             url: URL(string: "https://songle.io")!,
@@ -683,7 +694,7 @@ extension Game {
         )
         
         static let bandle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440026") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440026"),
             name: "bandle",
             displayName: "Bandle",
             url: URL(string: "https://bandle.app")!,
@@ -696,7 +707,7 @@ extension Game {
         )
         
         static let musicle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440027") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440027"),
             name: "musicle",
             displayName: "Musicle",
             url: URL(string: "https://musicle.app")!,
@@ -710,7 +721,7 @@ extension Game {
         
         // MARK: - More Geography Games (41-45)
         static let countryle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440028") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440028"),
             name: "countryle",
             displayName: "Countryle",
             url: URL(string: "https://countryle.com")!,
@@ -723,7 +734,7 @@ extension Game {
         )
         
         static let flagle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440029") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440029"),
             name: "flagle",
             displayName: "Flagle",
             url: URL(string: "https://flagle.io")!,
@@ -736,7 +747,7 @@ extension Game {
         )
         
         static let statele = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002A") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002A"),
             name: "statele",
             displayName: "Statele",
             url: URL(string: "https://statele.com")!,
@@ -749,7 +760,7 @@ extension Game {
         )
         
         static let citydle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002B") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002B"),
             name: "citydle",
             displayName: "Citydle",
             url: URL(string: "https://citydle.com")!,
@@ -762,7 +773,7 @@ extension Game {
         )
         
         static let wheretaken = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002C") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002C"),
             name: "wheretaken",
             displayName: "WhereTaken",
             url: URL(string: "https://wheretaken.com")!,
@@ -776,7 +787,7 @@ extension Game {
         
         // MARK: - More Trivia/Visual Games (46-50)
         static let moviedle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002D") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002D"),
             name: "moviedle",
             displayName: "Moviedle",
             url: URL(string: "https://moviedle.app")!,
@@ -789,7 +800,7 @@ extension Game {
         )
         
         static let posterdle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002E") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002E"),
             name: "posterdle",
             displayName: "Posterdle",
             url: URL(string: "https://posterdle.com")!,
@@ -802,7 +813,7 @@ extension Game {
         )
         
         static let actorle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-44665544002F") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002F"),
             name: "actorle",
             displayName: "Actorle",
             url: URL(string: "https://actorle.com")!,
@@ -815,7 +826,7 @@ extension Game {
         )
         
         static let foodguessr = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440030") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440030"),
             name: "foodguessr",
             displayName: "FoodGuessr",
             url: URL(string: "https://foodguessr.com")!,
@@ -828,7 +839,7 @@ extension Game {
         )
         
         static let artdle = Game(
-            id: UUID(uuidString: "550e8400-e29b-41d4-a716-446655440031") ?? UUID(),
+            id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440031"),
             name: "artdle",
             displayName: "Artdle",
             url: URL(string: "https://artdle.com")!,
