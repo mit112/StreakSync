@@ -21,6 +21,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Workflow Rules
 - When writing or modifying SwiftUI views, consult the swiftui-pro skill references before generating code
+- **ALWAYS use XcodeBuildMCP tools** (`build_sim`, `test_sim`, `build_run_sim`) instead of raw `xcodebuild` bash commands for builds and tests. Set session defaults at the start of each session:
+  ```
+  mcp__XcodeBuildMCP__session_set_defaults(scheme: "StreakSync", simulatorName: "iPhone 17 Pro Max", projectPath: "StreakSync.xcodeproj")
+  ```
 
 ## Build & Test Commands
 
@@ -28,8 +32,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (no code signing needed for simulator)
 xcodebuild build \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
-  -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+  -destination 'platform=iOS Simulator,id=D799B5E4-DB81-40AE-84A2-FA4B44F2A44E' \
+  -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO --quiet \
+  2>&1 | xcsift -w
 
 # Run all tests (unit + UI)
 xcodebuild test \
@@ -139,6 +144,25 @@ Rules in `firestore.rules` with a 62-case pen test suite in `firestore-rules-tes
 - **`@MainActor`** on `AppState`, `AppContainer`, and all ViewModels
 - Dates use ISO8601 encoding/decoding throughout persistence
 - Sensitive data goes in Keychain (`KeychainService`), never UserDefaults
+
+
+## Simulator Reference
+
+**Always reference simulators by UDID, not by name.**
+
+- iPhone 17 Pro Max: `D799B5E4-DB81-40AE-84A2-FA4B44F2A44E` (preferred for testing)
+- iPhone 17 Pro: `741DAF14-ED20-4EE7-9E29-E81494F05290`
+
+Preferred destination string:
+`platform=iOS Simulator,id=D799B5E4-DB81-40AE-84A2-FA4B44F2A44E`
+
+**Always launch apps with:**
+```bash
+xcrun simctl launch --terminate-running-process --console-pty D799B5E4-DB81-40AE-84A2-FA4B44F2A44E com.mitsheth.StreakSync
+```
+`--terminate-running-process` is mandatory — without it, launch silently does nothing if the app is already running.
+
+**Never delete DerivedData.** If builds are broken, clean with xcodebuild clean instead.
 
 ## Key File Locations
 
