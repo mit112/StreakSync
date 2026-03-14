@@ -64,7 +64,7 @@ struct NotificationPermissionFlowView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "bell.badge")
                         .font(.system(size: 60))
-                        .foregroundStyle(.accentColor)
+                        .foregroundStyle(Color.accentColor)
                         .accessibilityHidden(true)
                     
                     Text("Stay on Track")
@@ -150,7 +150,7 @@ struct BenefitRow: View {
         HStack(spacing: 16) {
             Image.safeSystemName(icon, fallback: "bell")
                 .font(.title2)
-                .foregroundStyle(.accentColor)
+                .foregroundStyle(Color.accentColor)
                 .frame(width: 24)
             
             VStack(alignment: .leading, spacing: 4) {

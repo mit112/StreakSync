@@ -124,16 +124,16 @@ final class SyncMergeTests: XCTestCase {
         XCTAssertNotNil(merged[0].progress.tierUnlockDates[.silver])
     }
     
-    func testConflictingUnlockDatesKeepLatest() {
+    func testConflictingUnlockDatesKeepEarliest() {
         let olderDate = date(daysAgo: 10)
         let newerDate = date(daysAgo: 2)
-        
+
         let local = [makeAchievement(tier: .bronze, value: 5, unlockDates: [.bronze: olderDate])]
         let remote = [makeAchievement(tier: .bronze, value: 5, unlockDates: [.bronze: newerDate])]
-        
+
         let merged = syncService.merge(local: local, remote: remote)
-        
-        XCTAssertEqual(merged[0].progress.tierUnlockDates[.bronze], newerDate)
+
+        XCTAssertEqual(merged[0].progress.tierUnlockDates[.bronze], olderDate)
     }
     
     // MARK: - Achievement Merge: Missing Achievements
