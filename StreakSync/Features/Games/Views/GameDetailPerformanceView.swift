@@ -79,6 +79,7 @@ struct GameDetailPerformanceView: View {
                 results: results,
                 streak: streak,
                 maxValue: chartMaxValue,
+                scoringModel: game?.scoringModel ?? .lowerAttempts,
                 selectedBar: $selectedBar,
                 hasAppeared: $chartHasAppeared
             ) {
@@ -116,6 +117,7 @@ private struct PerformanceChart: View {
     let results: [GameResult]
     let streak: GameStreak
     let maxValue: Int
+    let scoringModel: ScoringModel
     @Binding var selectedBar: DailyResult?
     @Binding var hasAppeared: Bool
     let onTap: () -> Void
@@ -145,7 +147,7 @@ private struct PerformanceChart: View {
     }
     
     private var stats: SimpleStats {
-        SimpleStats(from: dailyResults)
+        SimpleStats(from: dailyResults, scoringModel: scoringModel)
     }
     
     var body: some View {
@@ -372,10 +374,10 @@ private struct SimpleStats {
     let successRate: String
     let completionRatio: Double
     
-    init(from dailyResults: [DailyResult]) {
+    init(from dailyResults: [DailyResult], scoringModel: ScoringModel = .lowerAttempts) {
         let results = dailyResults.compactMap(\.result)
         self.gamesPlayed = results.count
-        
+
         // Calculate average
         let completedResults = results.filter { $0.completed && $0.score != nil }
         if !completedResults.isEmpty {
@@ -385,10 +387,14 @@ private struct SimpleStats {
         } else {
             self.averageScore = "—"
         }
-        
-        // Best score (lowest is best)
-        self.bestScore = completedResults.compactMap(\.score).min() ?? 0
-        
+
+        // Best score — direction depends on the game's scoring model
+        if scoringModel.isLowerBetter {
+            self.bestScore = completedResults.compactMap(\.score).min() ?? 0
+        } else {
+            self.bestScore = completedResults.compactMap(\.score).max() ?? 0
+        }
+
         // Success rate
         let successCount = results.filter(\.completed).count
         if gamesPlayed > 0 {

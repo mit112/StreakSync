@@ -13,52 +13,52 @@ extension GameResult {
     // MARK: - Display Score
     var displayScore: String {
         // Special handling for multi-puzzle games like Quordle
-        if gameName.lowercased() == "quordle" {
+        if gameName.lowercased() == Game.Names.quordle {
             return quordleDisplayScore
         }
-        
+
         // Special handling for Pips difficulty-based scoring
-        if gameName.lowercased() == "pips" {
+        if gameName.lowercased() == Game.Names.pips {
             return pipsDisplayScore
         }
-        
+
         // Special handling for Connections
-        if gameName.lowercased() == "connections" {
+        if gameName.lowercased() == Game.Names.connections {
             return connectionsDisplayScore
         }
-        
+
         // Special handling for LinkedIn Zip
-        if gameName.lowercased() == "linkedinzip" {
+        if gameName.lowercased() == Game.Names.linkedinZip {
             return zipDisplayScore
         }
-        
+
         // Special handling for LinkedIn Tango
-        if gameName.lowercased() == "linkedintango" {
+        if gameName.lowercased() == Game.Names.linkedinTango {
             return tangoDisplayScore
         }
-        
+
         // Special handling for LinkedIn Queens
-        if gameName.lowercased() == "linkedinqueens" {
+        if gameName.lowercased() == Game.Names.linkedinQueens {
             return queensDisplayScore
         }
-        
+
         // Special handling for LinkedIn Crossclimb
-        if gameName.lowercased() == "linkedincrossclimb" {
+        if gameName.lowercased() == Game.Names.linkedinCrossclimb {
             return crossclimbDisplayScore
         }
-        
+
         // Special handling for LinkedIn Pinpoint
-        if gameName.lowercased() == "linkedinpinpoint" {
+        if gameName.lowercased() == Game.Names.linkedinPinpoint {
             return pinpointDisplayScore
         }
-        
+
         // Special handling for NYT Strands
-        if gameName.lowercased() == "strands" {
+        if gameName.lowercased() == Game.Names.strands {
             return strandsDisplayScore
         }
-        
+
         // Special handling for Octordle
-        if gameName.lowercased() == "octordle" {
+        if gameName.lowercased() == Game.Names.octordle {
             return octordleDisplayScore
         }
         
@@ -227,22 +227,22 @@ extension GameResult {
     
     var scoreEmoji: String {
         // Special handling for Quordle
-        if gameName.lowercased() == "quordle" {
+        if gameName.lowercased() == Game.Names.quordle {
             return quordleScoreEmoji
         }
-        
+
         // Special handling for LinkedIn Pinpoint (completed vs not completed)
-        if gameName.lowercased() == "linkedinpinpoint" {
+        if gameName.lowercased() == Game.Names.linkedinPinpoint {
             return pinpointScoreEmoji
         }
-        
+
         // Special handling for Pips difficulty-based emojis
-        if gameName.lowercased() == "pips" {
+        if gameName.lowercased() == Game.Names.pips {
             return pipsScoreEmoji
         }
-        
+
         // Special handling for Connections
-        if gameName.lowercased() == "connections" {
+        if gameName.lowercased() == Game.Names.connections {
             return connectionsScoreEmoji
         }
         

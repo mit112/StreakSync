@@ -62,7 +62,7 @@ extension AppState {
         // Method 2: Check puzzle number for games that have them
         if !cleanPuzzleNumber.isEmpty && cleanPuzzleNumber != "unknown" {
             // Special handling for Pips - check puzzle number + difficulty combination
-            if result.gameName.lowercased() == "pips" {
+            if result.gameName.lowercased() == Game.Names.pips {
                 let difficulty = result.parsedData["difficulty"] ?? ""
                 let puzzleDifficultyKey = "\(cleanPuzzleNumber)-\(difficulty)"
 
@@ -119,7 +119,7 @@ extension AppState {
                 }
 
                 // Special handling for Pips - store puzzle number + difficulty combination
-                if result.gameName.lowercased() == "pips" {
+                if result.gameName.lowercased() == Game.Names.pips {
                     let difficulty = result.parsedData["difficulty"] ?? ""
                     let puzzleDifficultyKey = "\(cleanPuzzleNumber)-\(difficulty)"
                     self.gameResultsCache[result.gameId]?.insert(puzzleDifficultyKey)
@@ -147,7 +147,7 @@ extension AppState {
                 self.gameResultsCache[result.gameId] = Set<String>()
             }
 
-            if result.gameName.lowercased() == "pips" {
+            if result.gameName.lowercased() == Game.Names.pips {
                 let difficulty = result.parsedData["difficulty"] ?? ""
                 let puzzleDifficultyKey = "\(cleanPuzzleNumber)-\(difficulty)"
                 self.gameResultsCache[result.gameId]?.insert(puzzleDifficultyKey)

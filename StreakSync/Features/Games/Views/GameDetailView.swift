@@ -149,7 +149,8 @@ struct GameDetailView: View {
         browserLauncher.launchGame(game)
         
         // Reset loading state after a short delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
             isLoadingGame = false
         }
     }

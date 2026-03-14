@@ -185,7 +185,8 @@ struct AddCustomGameView: View {
         showingSuccessHaptic = true
         
         // Dismiss after short delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(300))
             dismiss()
         }
     }

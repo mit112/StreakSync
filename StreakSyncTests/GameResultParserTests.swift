@@ -364,6 +364,14 @@ final class GameResultParserTests: XCTestCase {
         XCTAssertEqual(result.parsedData["puzzleNumber"], "362")
     }
 
+    func testParseLinkedInTango_InvalidFormat() throws {
+        let shareText = "This is not a Tango result"
+
+        XCTAssertThrowsError(try parser.parse(shareText, for: Game.linkedinTango)) { error in
+            XCTAssertTrue(error is ParsingError)
+        }
+    }
+
     // MARK: - Crossclimb Tests
 
     func testParseLinkedInCrossclimb_Success() throws {
@@ -374,6 +382,14 @@ final class GameResultParserTests: XCTestCase {
         XCTAssertEqual(result.gameName, "linkedincrossclimb")
         XCTAssertEqual(result.score, 128) // 2*60 + 8
         XCTAssertEqual(result.parsedData["puzzleNumber"], "522")
+    }
+
+    func testParseLinkedInCrossclimb_InvalidFormat() throws {
+        let shareText = "Not a Crossclimb result at all"
+
+        XCTAssertThrowsError(try parser.parse(shareText, for: Game.linkedinCrossclimb)) { error in
+            XCTAssertTrue(error is ParsingError)
+        }
     }
 
     // MARK: - Zip Tests
@@ -410,6 +426,14 @@ final class GameResultParserTests: XCTestCase {
         XCTAssertEqual(result.gameName, "linkedinminisudoku")
         XCTAssertEqual(result.score, 1)
         XCTAssertTrue(result.completed)
+    }
+
+    func testParseLinkedInMiniSudoku_InvalidFormat() throws {
+        let shareText = "This is not a Mini Sudoku result"
+
+        XCTAssertThrowsError(try parser.parse(shareText, for: Game.linkedinMiniSudoku)) { error in
+            XCTAssertTrue(error is ParsingError)
+        }
     }
 
     // MARK: - Quordle Tests
@@ -503,6 +527,34 @@ final class GameResultParserTests: XCTestCase {
         let result = try parser.parse(shareText, for: Game.octordle)
 
         XCTAssertFalse(result.completed)
+    }
+
+    // MARK: - Extensibility Coverage
+
+    func testAllGamesHaveMatchingParserCase() {
+        // Verifies that every game in allAvailableGames is handled by the parser switch statement.
+        // The parser must either succeed or throw ParsingError.invalidFormat — never crash or
+        // throw ParsingError.unsupportedGame for a known game.
+        let games = Game.allAvailableGames
+        XCTAssertFalse(games.isEmpty, "allAvailableGames should not be empty")
+
+        for game in games {
+            XCTAssertFalse(game.name.isEmpty, "Game \(game.displayName) must have a non-empty name")
+
+            do {
+                _ = try parser.parse("test X/6", for: game)
+                // Success is acceptable (some parsers are lenient)
+            } catch let error as ParsingError {
+                // invalidFormat is the expected error when the test input doesn't match
+                if case .invalidFormat = error {
+                    // Expected — test input doesn't match the game's real format
+                } else {
+                    XCTFail("Parser for \(game.displayName) threw unexpected ParsingError: \(error)")
+                }
+            } catch {
+                XCTFail("Parser for \(game.displayName) threw unexpected non-ParsingError: \(error)")
+            }
+        }
     }
 
     // MARK: - Generic Parser Tests

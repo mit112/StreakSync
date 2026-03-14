@@ -79,10 +79,11 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
     
     // MARK: - Sample Data
     static var sample: Game {
+        // swiftlint:disable:next force_unwrapping
         Game(
             name: "Wordle",
             displayName: "Wordle",
-            url: URL(string: "https://www.nytimes.com/games/wordle")!,
+            url: URL(string: "https://www.nytimes.com/games/wordle") ?? URL(string: "https://www.nytimes.com")!,
             category: .word,
             resultPattern: "Wordle \\d+ \\d+/6",
             iconSystemName: "textformat.abc",
@@ -94,6 +95,27 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
     
     var accessibilityDescription: String {
         "\(displayName) game, \(category.displayName) category"
+    }
+}
+
+// MARK: - Game.Names Constants
+extension Game {
+    enum Names {
+        static let wordle = "wordle"
+        static let quordle = "quordle"
+        static let nerdle = "nerdle"
+        static let pips = "pips"
+        static let connections = "connections"
+        static let spellingBee = "spellingbee"
+        static let miniCrossword = "minicrossword"
+        static let strands = "strands"
+        static let linkedinQueens = "linkedinqueens"
+        static let linkedinTango = "linkedintango"
+        static let linkedinCrossclimb = "linkedincrossclimb"
+        static let linkedinPinpoint = "linkedinpinpoint"
+        static let linkedinZip = "linkedinzip"
+        static let linkedinMiniSudoku = "linkedinminisudoku"
+        static let octordle = "octordle"
     }
 }
 
@@ -138,7 +160,7 @@ enum GameCategory: String, CaseIterable, Codable, Sendable {
     }
     
     var accessibilityLabel: String {
-        NSLocalizedString("category.accessibility", comment: "\(displayName) category")
+        "\(displayName) category"
     }
 }
 

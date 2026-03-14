@@ -61,11 +61,12 @@ extension GameResultParser {
         let lines = text.components(separatedBy: .newlines)
         var emojiRows: [String] = []
         
+        let connectionEmoji: Set<Character> = ["🟩", "🟨", "🟦", "🟪"]
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Check if line contains only emoji squares (4 emojis)
-            if trimmedLine.count == 4 && 
-               trimmedLine.allSatisfy({ "🟩🟨🟦🟪".contains($0) }) {
+            // Allow 4-8 chars to handle potential variation selectors, and check only known emoji
+            if trimmedLine.count >= 4 && trimmedLine.count <= 8 &&
+               trimmedLine.allSatisfy({ connectionEmoji.contains($0) }) {
                 emojiRows.append(trimmedLine)
             }
         }

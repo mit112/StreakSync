@@ -14,36 +14,36 @@ struct GameResultParser {
         let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         
         switch game.name.lowercased() {
-        case "wordle":
+        case Game.Names.wordle:
             return try parseWordle(cleanText, gameId: game.id)
-        case "quordle":
+        case Game.Names.quordle:
             return try parseQuordle(cleanText, gameId: game.id)
-        case "nerdle":
+        case Game.Names.nerdle:
             return try parseNerdle(cleanText, gameId: game.id)
-        case "pips":
+        case Game.Names.pips:
             return try parsePips(cleanText, gameId: game.id)
-        case "connections":
+        case Game.Names.connections:
             return try parseConnections(cleanText, gameId: game.id)
-        case "spellingbee":
+        case Game.Names.spellingBee:
             return try parseSpellingBee(cleanText, gameId: game.id)
-        case "minicrossword":
+        case Game.Names.miniCrossword:
             return try parseMiniCrossword(cleanText, gameId: game.id)
-        case "strands":
+        case Game.Names.strands:
             return try parseStrands(cleanText, gameId: game.id)
         // LinkedIn Games
-        case "linkedinqueens":
+        case Game.Names.linkedinQueens:
             return try parseLinkedInQueens(cleanText, gameId: game.id)
-        case "linkedintango":
+        case Game.Names.linkedinTango:
             return try parseLinkedInTango(cleanText, gameId: game.id)
-        case "linkedincrossclimb":
+        case Game.Names.linkedinCrossclimb:
             return try parseLinkedInCrossclimb(cleanText, gameId: game.id)
-        case "linkedinpinpoint":
+        case Game.Names.linkedinPinpoint:
             return try parseLinkedInPinpoint(cleanText, gameId: game.id)
-        case "linkedinzip":
+        case Game.Names.linkedinZip:
             return try parseLinkedInZip(cleanText, gameId: game.id)
-        case "linkedinminisudoku":
+        case Game.Names.linkedinMiniSudoku:
             return try parseLinkedInMiniSudoku(cleanText, gameId: game.id)
-        case "octordle":
+        case Game.Names.octordle:
             return try parseOctordle(cleanText, gameId: game.id)
         default:
             return try parseGeneric(cleanText, game: game)
@@ -65,7 +65,7 @@ struct GameResultParser {
 
         let score = scoreString.uppercased() == "X" ? nil : Int(scoreString)
         let maxAttempts = Int(maxString) ?? 6
-        let completed = scoreString != "X"
+        let completed = scoreString.uppercased() != "X"
         
         return GameResult(
             gameId: game.id,
