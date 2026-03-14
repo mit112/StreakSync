@@ -79,7 +79,7 @@ Pipe through `| xcpretty` for readable output if xcpretty is installed.
 
 ### Dependency Injection
 
-`AppContainer` (`App/AppContainer.swift`) is the single DI container. It creates all services in dependency order and injects them into the SwiftUI environment as `@EnvironmentObject`. It also provides view model factory methods (`makeDashboardViewModel()`, etc.).
+`AppContainer` (`App/AppContainer.swift`) is the single DI container. It creates all services in dependency order and injects them into the SwiftUI environment as `@EnvironmentObject`. It also provides view model factory methods (`makeGameDetailViewModel()`, etc.).
 
 - `AppContainer` uses `ObservableObject` (required for `@EnvironmentObject` — do not change)
 - `AppState` and `GameCatalog` use `@Observable` (Swift Observation — do not change)
