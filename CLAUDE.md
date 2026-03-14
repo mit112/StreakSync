@@ -111,7 +111,7 @@ Protocol-oriented with production and mock implementations:
 
 Queue cleanup uses targeted key removal (only processed keys) to avoid cross-process TOCTOU races with the Share Extension.
 
-Deep links use `streaksync://` URL scheme. Payload keys centralized in `AppConstants.DeepLinkKeys`.
+Deep links use `streaksync://` URL scheme. Payload keys centralized in `AppConstants.DeepLinkKeys`. Notification UserDefaults keys centralized in `AppConstants.NotificationSettings`.
 
 ### Game System
 
@@ -171,6 +171,9 @@ xcrun simctl launch --terminate-running-process --console-pty D799B5E4-DB81-40AE
 - Entry point: `StreakSync/App/StreakSyncApp.swift`
 - DI container: `StreakSync/App/AppContainer.swift`
 - Central state: `StreakSync/Core/State/AppState*.swift` (8 files)
+- Achievement models: `StreakSync/Core/Models/Achievement/TieredAchievementModels.swift` + `AchievementFactory.swift`
+- Settings views: `StreakSync/Features/Settings/Views/` (SettingsView, AccountView, AboutView, DataManagementView, NotificationSettingsView, AppearanceSettingsView)
+- Settings VM: `StreakSync/Features/Settings/ViewModels/SettingsViewModel.swift`
 - Game definitions: `StreakSync/Core/Models/Game/GameDefinitions.swift`
 - Firestore rules: `firestore.rules`
 - CI config: `.github/workflows/ci.yml`
