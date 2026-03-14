@@ -138,7 +138,7 @@ final class FirestoreGameResultSyncService {
             // Update/add remote results (keep whichever version was modified more recently)
             for remote in remoteResults {
                 if let idx = indexById[remote.id] {
-                    if remote.lastModified >= merged[idx].lastModified {
+                    if remote.lastModified > merged[idx].lastModified {
                         merged[idx] = remote
                     }
                 } else {
@@ -152,12 +152,11 @@ final class FirestoreGameResultSyncService {
             let remoteByID = Dictionary(remoteResults.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
             let toPush: [GameResult]
             if isIncremental {
-                // Incremental: only push local results modified since last sync
-                let since = lastSyncTimestamp!
+                // Incremental: push local-only results and locally-modified results
                 toPush = merged.filter { local in
                     guard localIDs.contains(local.id) else { return false }
-                    if !remoteIDs.contains(local.id) && local.lastModified > since {
-                        return true // local-only, created since last sync
+                    if !remoteIDs.contains(local.id) {
+                        return true // local-only — always push regardless of timestamp
                     }
                     if let remote = remoteByID[local.id], local.lastModified > remote.lastModified {
                         return true // locally modified after remote
@@ -284,26 +283,9 @@ extension GameResult {
         let parsedData = data["parsedData"] as? [String: String] ?? [:]
         let lastModified = (data["lastModified"] as? Timestamp)?.dateValue()
 
-        if let score {
-            let normalizedName = gameName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-            let scoringModel = Game.allAvailableGames.first(where: { $0.id == gameId })?.scoringModel
-                ?? Game.allAvailableGames.first(where: {
-                    $0.name.lowercased() == normalizedName || $0.displayName.lowercased() == normalizedName
-                })?.scoringModel
-                ?? .lowerAttempts
-
-            let isValidScore: Bool
-            switch scoringModel {
-            case .lowerTimeSeconds, .higherIsBetter:
-                isValidScore = score >= 0
-            case .lowerGuesses, .lowerAttempts:
-                isValidScore = score >= 1 && score <= maxAttempts
-            case .lowerHints:
-                isValidScore = score >= 0 && score <= maxAttempts
-            }
-
-            guard isValidScore else { return nil }
-        }
+        // Trust Firestore data that was valid when written. Score validation
+        // happens at ingestion (addGameResult → isValid) — not during sync,
+        // where a scoring model change could silently drop historical results.
 
         self.init(
             id: id,

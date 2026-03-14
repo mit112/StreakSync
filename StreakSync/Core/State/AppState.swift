@@ -23,7 +23,6 @@ import OSLog
 final class AppState {
     internal let logger = Logger(subsystem: "com.streaksync.app", category: "AppState")
     internal let persistenceService: PersistenceServiceProtocol
-    internal let appGroupPersistence: AppGroupPersistenceService
 
     @ObservationIgnored
     internal var _tieredAchievements: [TieredAchievement]?
@@ -79,13 +78,10 @@ final class AppState {
     // MARK: - Observer Tokens
     @ObservationIgnored
     nonisolated(unsafe) private var dayChangeObserver: (any NSObjectProtocol)?
-    @ObservationIgnored
-    nonisolated(unsafe) var shareExtensionObserver: (any NSObjectProtocol)?
 
     // MARK: - Initialization
     init(persistenceService: PersistenceServiceProtocol = UserDefaultsPersistenceService()) {
         self.persistenceService = persistenceService
-        self.appGroupPersistence = AppGroupPersistenceService(appGroupID: "group.com.mitsheth.StreakSync")
 
         setupInitialData()
         setupDayChangeListener()
@@ -116,9 +112,6 @@ final class AppState {
 
     deinit {
         if let observer = dayChangeObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let observer = shareExtensionObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }

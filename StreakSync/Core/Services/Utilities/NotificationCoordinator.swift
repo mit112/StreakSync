@@ -19,8 +19,6 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - Properties
     private var observers: [NSObjectProtocol] = []
     private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationCoordinator")
-    // Injected ingestion closure to serialize result handling (returns whether added)
-    var resultIngestion: ((GameResult) async -> Bool)?
     // Debounce UI refresh spam
     private var lastUIRefreshAt: Date?
     private let uiRefreshDebounceInterval: TimeInterval = 0.3
@@ -169,13 +167,8 @@ final class NotificationCoordinator: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self = self else { return }
             
-            // Ingest and capture whether it actually added
-            let added: Bool
-            if let ingest = self.resultIngestion {
-                added = await ingest(result)
-            } else {
-                added = self.appState?.addGameResult(result) ?? false
-            }
+            // addGameResult is @MainActor — no actor hop needed
+            let added = self.appState?.addGameResult(result) ?? false
             
             // Trigger UI refresh
             self.triggerUIRefresh()
@@ -250,9 +243,10 @@ final class NotificationCoordinator: ObservableObject {
  logger.info("Triggering UI refresh")
         refreshID = UUID()
         
-        // Post additional notifications for specific UI updates
+        // Post dedicated UI refresh notification (not .gameResultReceived, which
+        // carries a GameResult payload and has different semantics)
         NotificationCenter.default.post(
-            name: NSNotification.Name(AppConstants.Notification.gameResultReceived),
+            name: .appUIRefreshNeeded,
             object: nil
         )
     }

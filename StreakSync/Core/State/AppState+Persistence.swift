@@ -197,61 +197,6 @@ extension AppState {
         return false
     }
     
-    // MARK: - Share Extension Sync
-    private func syncFromShareExtension() async {
-        // Ignore share extension ingestion while Guest Mode is active – host
-        // data is hidden and guest sessions should not mutate it.
-        if isGuestMode {
- logger.info("Guest Mode active – ignoring Share Extension sync")
-            return
-        }
-        do {
-            // Create the coordinator locally to avoid capturing self into a stored property
-            let coordinator = AppGroupSyncCoordinator()
-            let pendingResults = try await coordinator.loadPendingResults()
-            
-            for result in pendingResults {
-                // addGameResult already handles everything
-                addGameResult(result)
-            }
-            
-            if !pendingResults.isEmpty {
- logger.info("Processed \(pendingResults.count) results from Share Extension")
-                
-                // Force UI refresh
-                invalidateCache()
-                
-                // Post update notification
-                NotificationCenter.default.post(
-                    name: .appGameDataUpdated,
-                    object: nil
-                )
-            }
-        } catch {
- logger.error("Share Extension sync failed: \(error)")
-            // Non-critical - don't show error to user
-        }
-    }
-    
-    // MARK: - Share Extension Listener
-    private func setupShareExtensionListener() {
-        shareExtensionObserver = NotificationCenter.default.addObserver(
-            forName: .init(AppConstants.Notification.shareExtensionResultAvailable),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
- logger.info("Received Share Extension notification")
-                await self.syncFromShareExtension()
-                
-                // Tell AppGroupBridge we handled it
-                AppGroupBridge.shared.clearLatestResult()
-            }
-        }
-    }
-    
-    
     func saveGameResults() async {
         // In Guest Mode we never persist results to disk – the guest session
         // lives only in memory and is managed by GuestSessionManager.

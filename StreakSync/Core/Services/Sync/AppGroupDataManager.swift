@@ -78,63 +78,76 @@ final class AppGroupDataManager {
  logger.debug("Removed data for key: \(key)")
     }
     
-    func loadGameResultQueue() async throws -> [GameResult] {
+    /// Loads queued results and returns both results and the keys that were loaded.
+    /// Callers should pass the returned keys to `clearProcessedKeys(_:)` after
+    /// successful processing to avoid the cross-process TOCTOU race where the
+    /// Share Extension appends a new key between our read and clear.
+    func loadGameResultQueue() async -> (results: [GameResult], processedKeys: [String]) {
         guard let userDefaults = userDefaults else {
-            throw AppError.sync(.appGroupCommunicationFailed)
+            return ([], [])
         }
-        
+
         guard let keysData = userDefaults.data(forKey: "gameResultKeys") else {
-            return []
+            return ([], [])
         }
-        
-        do {
-            // Decode the array of result keys
-            guard let resultKeys = try JSONSerialization.jsonObject(with: keysData) as? [String] else {
- logger.error("Failed to decode game result keys")
-                return []
-            }
-            
-            // Load each result by its key
-            var results: [GameResult] = []
-            for key in resultKeys {
-                if let resultData = userDefaults.data(forKey: key) {
-                    do {
-                        let result = try decoder.decode(GameResult.self, from: resultData)
-                        results.append(result)
-                    } catch {
- logger.error("Failed to decode game result for key \(key): \(error)")
-                        // Continue processing other results
-                    }
+
+        guard let resultKeys = (try? JSONSerialization.jsonObject(with: keysData)) as? [String] else {
+            // Corrupted keys data — clear it to prevent permanent queue blockage
+            logger.error("Corrupted gameResultKeys data — clearing to recover")
+            userDefaults.removeObject(forKey: "gameResultKeys")
+            userDefaults.synchronize()
+            return ([], [])
+        }
+
+        // Load each result by its key
+        var results: [GameResult] = []
+        for key in resultKeys {
+            if let resultData = userDefaults.data(forKey: key) {
+                do {
+                    let result = try decoder.decode(GameResult.self, from: resultData)
+                    results.append(result)
+                } catch {
+                    logger.error("Failed to decode game result for key \(key): \(error)")
+                    // Continue processing other results — corrupted individual
+                    // entries are skipped but their keys are still cleared below.
                 }
             }
-            
- logger.info("Loaded \(results.count) results from queue")
-            return results
-            
-        } catch {
- logger.error("Failed to decode game result keys: \(error)")
-            throw AppError.persistence(.dataCorrupted(dataType: "GameResultKeys"))
         }
+
+        logger.info("Loaded \(results.count) results from queue (\(resultKeys.count) keys)")
+        return (results, resultKeys)
     }
-    
-    func clearGameResultQueue() {
+
+    /// Removes only the specific keys that were loaded, then rewrites the keys
+    /// list minus the processed entries. This avoids a TOCTOU race: if the Share
+    /// Extension appends a new key between our load and clear, it is preserved.
+    func clearProcessedKeys(_ processedKeys: [String]) {
         guard let userDefaults = userDefaults else { return }
-        
-        // Get all result keys
-        if let keysData = userDefaults.data(forKey: "gameResultKeys"),
-           let resultKeys = try? JSONSerialization.jsonObject(with: keysData) as? [String] {
-            
-            // Remove each result
-            for key in resultKeys {
-                userDefaults.removeObject(forKey: key)
-            }
+
+        let processedSet = Set(processedKeys)
+
+        // Remove individual result entries
+        for key in processedKeys {
+            userDefaults.removeObject(forKey: key)
         }
-        
-        // Clear the keys list
-        userDefaults.removeObject(forKey: "gameResultKeys")
+
+        // Re-read the current keys list (may have new entries from Share Extension)
+        if let keysData = userDefaults.data(forKey: "gameResultKeys"),
+           let currentKeys = (try? JSONSerialization.jsonObject(with: keysData)) as? [String] {
+            let remaining = currentKeys.filter { !processedSet.contains($0) }
+            if remaining.isEmpty {
+                userDefaults.removeObject(forKey: "gameResultKeys")
+            } else {
+                if let data = try? JSONSerialization.data(withJSONObject: remaining) {
+                    userDefaults.set(data, forKey: "gameResultKeys")
+                }
+            }
+        } else {
+            userDefaults.removeObject(forKey: "gameResultKeys")
+        }
+
         userDefaults.synchronize()
-        
- logger.info("Cleared game result queue")
+        logger.info("Cleared \(processedKeys.count) processed keys from queue")
     }
     
     // MARK: - Legacy Queue (Array) Support
@@ -168,13 +181,21 @@ final class AppGroupDataManager {
     
     func clearAll() {
         guard let userDefaults = userDefaults else { return }
-        
-        let keys = ["latestGameResult", "queuedResults", "gameResultQueue", "gameResultKeys"] // Add all known keys
-        keys.forEach { key in
+
+        // Clean up dynamic gameResult_<uuid> keys before removing the index
+        if let keysData = userDefaults.data(forKey: "gameResultKeys"),
+           let resultKeys = (try? JSONSerialization.jsonObject(with: keysData)) as? [String] {
+            for key in resultKeys {
+                userDefaults.removeObject(forKey: key)
+            }
+        }
+
+        let staticKeys = ["latestGameResult", "queuedResults", "gameResultQueue", "gameResultKeys"]
+        for key in staticKeys {
             userDefaults.removeObject(forKey: key)
         }
         userDefaults.synchronize()
-        
- logger.info("Cleared all App Group data")
+
+        logger.info("Cleared all App Group data")
     }
 }

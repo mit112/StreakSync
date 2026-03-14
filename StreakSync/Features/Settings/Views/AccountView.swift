@@ -312,11 +312,8 @@ private extension AccountView {
     // MARK: - Sign Out (H2 fix: clear local data before creating new anonymous session)
 
     func handleSignOut() async {
-        // 1. Clear local data to prevent cross-user leakage
-        await container.appState.clearAllData()
-
-        // 2. Clear sync timestamps so next user gets a full sync
-        container.gameResultSyncService.clearLastSyncTimestamp()
+        // 1-2. Clear local data and sync timestamps to prevent cross-user leakage
+        await container.cleanupForSignOut()
 
         // 3. Sign out and re-auth anonymously
         await authManager.signOutAndReauthAnonymously()
@@ -336,9 +333,8 @@ private extension AccountView {
             // 1. Delete all Firestore data (scores, friendships, friendCodes, gameResults, sync, profile)
             try await container.socialService.deleteAllUserData()
 
-            // 2. Clear all local data
-            await container.appState.clearAllData()
-            container.gameResultSyncService.clearLastSyncTimestamp()
+            // 2. Clear all local data and sync timestamps
+            await container.cleanupForSignOut()
 
             // 3. Delete the Firebase Auth account (requires recent authentication)
             try await authManager.deleteAccount()

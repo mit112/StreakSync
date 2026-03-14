@@ -20,7 +20,6 @@ final class AppContainer: ObservableObject {
     
     // MARK: - Data Services
     let persistenceService: PersistenceServiceProtocol
-    let syncCoordinator: AppGroupSyncCoordinator
     let appGroupBridge: AppGroupBridge
     
     let gameCatalog: GameCatalog
@@ -43,7 +42,6 @@ final class AppContainer: ObservableObject {
 
     // MARK: - Notification Coordinator
     let notificationCoordinator: NotificationCoordinator
-    private let ingestionActor = GameResultIngestionActor()
     
     // MARK: - Logger
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AppContainer")
@@ -72,7 +70,6 @@ final class AppContainer: ObservableObject {
         self.navigationCoordinator.setupDeepLinkObservers()
         
         // 4. Sync services
-        self.syncCoordinator = AppGroupSyncCoordinator()
         self.appGroupBridge = AppGroupBridge.shared
         
         // 5. UI services
@@ -139,10 +136,8 @@ final class AppContainer: ObservableObject {
         notificationCoordinator.appState = appState
         notificationCoordinator.navigationCoordinator = navigationCoordinator
         notificationCoordinator.appGroupBridge = appGroupBridge
-        notificationCoordinator.resultIngestion = { [weak self] result in
-            guard let self else { return false }
-            return await self.ingestionActor.ingest(result, into: self.appState)
-        }
+        // No closure needed — NotificationCoordinator calls appState.addGameResult() directly
+        // on @MainActor, which already serializes access.
         
         // Wire analytics service to app state for cache invalidation
         appState.analyticsService = analyticsService
@@ -151,6 +146,16 @@ final class AppContainer: ObservableObject {
         notificationCoordinator.setupObservers()
     }
     
+    // MARK: - Sign-Out Cleanup
+
+    /// Consolidates all cleanup needed when a user signs out.
+    /// Call this instead of manually calling clearAllData + clearLastSyncTimestamp
+    /// to prevent future sign-out paths from missing a step.
+    func cleanupForSignOut() async {
+        await appState.clearAllData()
+        gameResultSyncService.clearLastSyncTimestamp()
+    }
+
     // MARK: - View Model Factories
     
     /// Creates a new DashboardViewModel

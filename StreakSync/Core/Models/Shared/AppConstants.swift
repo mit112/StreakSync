@@ -66,4 +66,5 @@ extension Notification.Name {
     static let appGameDataUpdated = Notification.Name(AppConstants.Notification.gameDataUpdated)
     static let appNavigateToGame = Notification.Name("NavigateToGame")
     static let appHandleNewGameResult = Notification.Name("HandleNewGameResult")
+    static let appUIRefreshNeeded = Notification.Name("UIRefreshNeeded")
 }

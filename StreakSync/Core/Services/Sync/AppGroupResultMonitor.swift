@@ -42,67 +42,52 @@ final class AppGroupResultMonitor {
     
     // MARK: - Result Checking
     func checkForNewResult() async -> Bool {
-        do {
-            // Check for queued results first
-            let queuedResults = try await dataManager.loadGameResultQueue()
-            
-            if !queuedResults.isEmpty {
- logger.info("Found \(queuedResults.count) queued results")
-                return true
-            }
-            
-            // Legacy array-based queue fallback
-            if let legacy = dataManager.loadLegacyQueuedResultsArray(), !legacy.isEmpty {
- logger.info("Found \(legacy.count) legacy queued results (array)")
-                return true
-            }
-            
-            // Fallback to single result for backward compatibility
-            guard let result = try await dataManager.loadGameResult(forKey: "latestGameResult") else {
-                return false
-            }
-            
-            // Check if it's different from last known
-            if let lastKnown = lastKnownResultId, lastKnown == result.id {
-                return false // Same result
-            }
-            
-            // New result detected
-            lastKnownResultId = result.id
- logger.info("New result detected: \(result.gameName)")
+        // Check for queued results first
+        let queue = await dataManager.loadGameResultQueue()
+        if !queue.results.isEmpty {
+            logger.info("Found \(queue.results.count) queued results")
             return true
-            
-        } catch {
- logger.error("Error checking for result: \(error)")
+        }
+
+        // Legacy array-based queue fallback
+        if let legacy = dataManager.loadLegacyQueuedResultsArray(), !legacy.isEmpty {
+            logger.info("Found \(legacy.count) legacy queued results (array)")
+            return true
+        }
+
+        // Fallback to single result for backward compatibility
+        guard let result = try? await dataManager.loadGameResult(forKey: "latestGameResult") else {
             return false
         }
+
+        // Check if it's different from last known
+        if let lastKnown = lastKnownResultId, lastKnown == result.id {
+            return false
+        }
+
+        lastKnownResultId = result.id
+        logger.info("New result detected: \(result.gameName)")
+        return true
     }
-    
+
     // MARK: - Queue Processing
     func processQueuedResults() async -> [GameResult] {
-        do {
-            let queuedResults = try await dataManager.loadGameResultQueue()
-            
-            if !queuedResults.isEmpty {
-                // Clear the queue after processing
-                dataManager.clearGameResultQueue()
- logger.info("Processed and cleared \(queuedResults.count) queued results")
-                return queuedResults
-            }
-            
-            // Fallback: process legacy array-based queue
-            if let legacy = dataManager.loadLegacyQueuedResultsArray(), !legacy.isEmpty {
-                dataManager.clearLegacyQueuedResultsArray()
- logger.info("Processed and cleared \(legacy.count) legacy queued results (array)")
-                return legacy
-            }
-            
-            return []
-            
-        } catch {
- logger.error("Error processing queued results: \(error)")
-            return []
+        // Process key-based queue (only clear the specific keys we loaded)
+        let queue = await dataManager.loadGameResultQueue()
+        if !queue.results.isEmpty {
+            dataManager.clearProcessedKeys(queue.processedKeys)
+            logger.info("Processed and cleared \(queue.results.count) queued results")
+            return queue.results
         }
+
+        // Fallback: process legacy array-based queue
+        if let legacy = dataManager.loadLegacyQueuedResultsArray(), !legacy.isEmpty {
+            dataManager.clearLegacyQueuedResultsArray()
+            logger.info("Processed and cleared \(legacy.count) legacy queued results (array)")
+            return legacy
+        }
+
+        return []
     }
     
     // MARK: - Cleanup

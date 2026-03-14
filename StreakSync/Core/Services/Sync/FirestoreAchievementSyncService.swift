@@ -89,15 +89,16 @@ final class FirestoreAchievementSyncService {
             let payload = (try? encoder.encode(appState.tieredAchievements)) ?? Data()
             
             // Size guard: base64 adds ~33% overhead, Firestore limit is 1MB per document.
-            // Warn at 500KB raw (~667KB base64) and refuse at 750KB (~1MB base64).
+            // The document also includes summary, lastUpdated, and version fields.
+            // Warn at 450KB raw (~600KB base64) and refuse at 700KB (~933KB base64 + metadata).
             let payloadKB = payload.count / 1024
-            if payloadKB > 750 {
- logger.error("Achievement payload too large (\(payloadKB)KB) — skipping sync to avoid Firestore limit")
+            if payloadKB > 700 {
+                logger.error("Achievement payload too large (\(payloadKB)KB) — skipping sync to avoid Firestore limit")
                 status = .error("Data too large to sync (\(payloadKB)KB)")
                 return
             }
-            if payloadKB > 500 {
- logger.warning("Achievement payload growing large (\(payloadKB)KB) — consider restructuring")
+            if payloadKB > 450 {
+                logger.warning("Achievement payload growing large (\(payloadKB)KB) — consider restructuring")
             }
             
             let summary = summarize(appState.tieredAchievements)

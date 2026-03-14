@@ -118,6 +118,7 @@ class ShareViewController: UIViewController {
         // Convert GameResult to JSON dictionary for App Group storage
         let dict: [String: Any] = {
             let isoFormatter = ISO8601DateFormatter()
+            isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             var d: [String: Any] = [
                 "id": result.id.uuidString,
                 "gameId": result.gameId.uuidString,
@@ -171,7 +172,12 @@ class ShareViewController: UIViewController {
             
             // 3) Timestamp
             userDefaults?.set(Date(), forKey: "lastShareExtensionSave")
-            
+
+            // Flush writes to shared container before notifying the main app.
+            // Cross-process UserDefaults requires explicit synchronize() to ensure
+            // the main app reads the latest data when woken by the Darwin notification.
+            userDefaults?.synchronize()
+
             // 4) Darwin notification
             let darwinName = "com.streaksync.app.newResult" as CFString
             CFNotificationCenterPostNotification(
