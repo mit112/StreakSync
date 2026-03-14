@@ -49,6 +49,10 @@ final class NavigationCoordinator: ObservableObject {
     // MARK: - Sheet Presentation
     @Published var presentedSheet: SheetDestination?
     
+    // MARK: - Notification Highlight State
+    /// Achievement ID to highlight when navigating from a notification
+    @Published var highlightedAchievementId: UUID?
+
     // MARK: - Deep Link State
     /// Join code received from deep link - FriendManagementView will consume this
     @Published var pendingJoinCode: String?
@@ -271,8 +275,8 @@ final class NavigationCoordinator: ObservableObject {
     
     /// Navigate to achievements with optional highlight
     func navigateToAchievements(highlightId: UUID? = nil) {
+        self.highlightedAchievementId = highlightId
         switchToTab(.awards)
-        // The achievements view can handle highlighting based on the highlightId
     }
     
     /// Handle join group deep link - navigates to Friends tab and shows join sheet

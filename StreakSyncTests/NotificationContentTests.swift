@@ -15,11 +15,12 @@ final class NotificationContentTests: XCTestCase {
     
     // MARK: - Helper
     
-    private func sampleGame(name: String) -> Game {
-        Game(
+    private func sampleGame(name: String) throws -> Game {
+        let url = try XCTUnwrap(URL(string: "https://example.com"))
+        return Game(
             name: name.lowercased(),
             displayName: name,
-            url: URL(string: "https://example.com")!,
+            url: url,
             category: .word,
             resultPattern: "",
             iconSystemName: "square",
@@ -31,8 +32,8 @@ final class NotificationContentTests: XCTestCase {
     
     // MARK: - buildStreakReminderContent Tests
     
-    func testSingleGameContent() {
-        let games = [sampleGame(name: "Wordle")]
+    func testSingleGameContent() throws {
+        let games = [try sampleGame(name: "Wordle")]
         let content = scheduler.buildStreakReminderContent(games: games)
         
         XCTAssertEqual(content.title, "Streak Reminder")
@@ -42,8 +43,8 @@ final class NotificationContentTests: XCTestCase {
         XCTAssertEqual(content.userInfo["type"] as? String, "daily_streak_reminder")
     }
     
-    func testTwoGamesContent() {
-        let games = [sampleGame(name: "Wordle"), sampleGame(name: "Nerdle")]
+    func testTwoGamesContent() throws {
+        let games = [try sampleGame(name: "Wordle"), try sampleGame(name: "Nerdle")]
         let content = scheduler.buildStreakReminderContent(games: games)
         
         XCTAssertEqual(content.title, "Streak Reminders")
@@ -52,11 +53,11 @@ final class NotificationContentTests: XCTestCase {
         XCTAssertEqual(content.userInfo["type"] as? String, "daily_streak_reminder")
     }
     
-    func testThreeGamesContent() {
+    func testThreeGamesContent() throws {
         let games = [
-            sampleGame(name: "Wordle"),
-            sampleGame(name: "Nerdle"),
-            sampleGame(name: "Connections")
+            try sampleGame(name: "Wordle"),
+            try sampleGame(name: "Nerdle"),
+            try sampleGame(name: "Connections")
         ]
         let content = scheduler.buildStreakReminderContent(games: games)
         
@@ -66,12 +67,12 @@ final class NotificationContentTests: XCTestCase {
         XCTAssertTrue(content.body.contains("Connections"))
     }
     
-    func testMoreThanThreeGamesContent() {
+    func testMoreThanThreeGamesContent() throws {
         let games = [
-            sampleGame(name: "Wordle"),
-            sampleGame(name: "Nerdle"),
-            sampleGame(name: "Connections"),
-            sampleGame(name: "Strands")
+            try sampleGame(name: "Wordle"),
+            try sampleGame(name: "Nerdle"),
+            try sampleGame(name: "Connections"),
+            try sampleGame(name: "Strands")
         ]
         let content = scheduler.buildStreakReminderContent(games: games)
         
@@ -83,8 +84,8 @@ final class NotificationContentTests: XCTestCase {
         XCTAssertTrue(content.body.contains("2 other games"))
     }
     
-    func testFiveGamesShowsCorrectRemaining() {
-        let games = (1...5).map { sampleGame(name: "Game\($0)") }
+    func testFiveGamesShowsCorrectRemaining() throws {
+        let games = try (1...5).map { try sampleGame(name: "Game\($0)") }
         let content = scheduler.buildStreakReminderContent(games: games)
         
         XCTAssertTrue(content.body.contains("3 other games"))
@@ -98,48 +99,48 @@ final class NotificationContentTests: XCTestCase {
         XCTAssertEqual(content.userInfo["type"] as? String, "daily_streak_reminder")
     }
     
-    func testContentHasSoundSet() {
-        let games = [sampleGame(name: "Wordle")]
+    func testContentHasSoundSet() throws {
+        let games = [try sampleGame(name: "Wordle")]
         let content = scheduler.buildStreakReminderContent(games: games)
         
         XCTAssertNotNil(content.sound)
     }
     
-    func testContentCategoryIsStreakReminder() {
-        let games = [sampleGame(name: "Wordle")]
+    func testContentCategoryIsStreakReminder() throws {
+        let games = [try sampleGame(name: "Wordle")]
         let content = scheduler.buildStreakReminderContent(games: games)
         
         XCTAssertEqual(content.categoryIdentifier, NotificationCategory.streakReminder.identifier)
     }
     
-    func testSingleGameIncludesGameIdInUserInfo() {
-        let games = [sampleGame(name: "Wordle")]
+    func testSingleGameIncludesGameIdInUserInfo() throws {
+        let games = [try sampleGame(name: "Wordle")]
         let content = scheduler.buildStreakReminderContent(games: games)
         
         XCTAssertNotNil(content.userInfo["gameId"])
         XCTAssertEqual(content.userInfo["gameId"] as? String, games[0].id.uuidString)
     }
     
-    func testMultipleGamesOmitsGameIdFromUserInfo() {
-        let games = [sampleGame(name: "Wordle"), sampleGame(name: "Nerdle")]
+    func testMultipleGamesOmitsGameIdFromUserInfo() throws {
+        let games = [try sampleGame(name: "Wordle"), try sampleGame(name: "Nerdle")]
         let content = scheduler.buildStreakReminderContent(games: games)
         
         // Multi-game reminders should not include a single gameId
         XCTAssertNil(content.userInfo["gameId"])
     }
     
-    func testFourGamesShowsSingularOtherGame() {
+    func testFourGamesShowsSingularOtherGame() throws {
         let games = [
-            sampleGame(name: "Wordle"),
-            sampleGame(name: "Nerdle"),
-            sampleGame(name: "Connections")
+            try sampleGame(name: "Wordle"),
+            try sampleGame(name: "Nerdle"),
+            try sampleGame(name: "Connections")
         ]
         // With exactly 3 games, they should all be listed (count <= 3 path)
         let content = scheduler.buildStreakReminderContent(games: games)
         XCTAssertFalse(content.body.contains("other game"))
-        
+
         // With 4 games, remaining = 2 → "2 other games" (plural)
-        let fourGames = games + [sampleGame(name: "Strands")]
+        let fourGames = games + [try sampleGame(name: "Strands")]
         let content4 = scheduler.buildStreakReminderContent(games: fourGames)
         XCTAssertTrue(content4.body.contains("other games"))
     }

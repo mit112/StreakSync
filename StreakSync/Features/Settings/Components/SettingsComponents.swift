@@ -28,18 +28,18 @@ final class SettingsViewModel: ObservableObject {
         notificationsEnabled = settings.authorizationStatus == .authorized
         
         // Load saved preferences
-        streakRemindersEnabled = userDefaults.bool(forKey: "streakRemindersEnabled")
+        streakRemindersEnabled = userDefaults.bool(forKey: AppConstants.NotificationSettings.remindersEnabled)
         achievementAlertsEnabled = userDefaults.bool(forKey: "achievementAlertsEnabled")
     }
     
     private func loadSettings() {
         // Synchronous version for init
-        streakRemindersEnabled = userDefaults.bool(forKey: "streakRemindersEnabled")
+        streakRemindersEnabled = userDefaults.bool(forKey: AppConstants.NotificationSettings.remindersEnabled)
         achievementAlertsEnabled = userDefaults.bool(forKey: "achievementAlertsEnabled")
     }
     
     func saveSettings() {
-        userDefaults.set(streakRemindersEnabled, forKey: "streakRemindersEnabled")
+        userDefaults.set(streakRemindersEnabled, forKey: AppConstants.NotificationSettings.remindersEnabled)
         userDefaults.set(achievementAlertsEnabled, forKey: "achievementAlertsEnabled")
     }
 }

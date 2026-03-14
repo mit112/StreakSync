@@ -12,9 +12,10 @@ import XCTest
 final class NotificationSchedulingDateTests: XCTestCase {
     private let scheduler = NotificationScheduler.shared
 
-    private func gregorianCalendar(timeZoneID: String) -> Calendar {
+    private func gregorianCalendar(timeZoneID: String) throws -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: timeZoneID)!
+        let tz = try XCTUnwrap(TimeZone(identifier: timeZoneID))
+        calendar.timeZone = tz
         return calendar
     }
 
@@ -25,7 +26,7 @@ final class NotificationSchedulingDateTests: XCTestCase {
         _ hour: Int,
         _ minute: Int,
         calendar: Calendar
-    ) -> Date {
+    ) throws -> Date {
         var components = DateComponents()
         components.year = year
         components.month = month
@@ -34,12 +35,13 @@ final class NotificationSchedulingDateTests: XCTestCase {
         components.minute = minute
         components.second = 0
         components.timeZone = calendar.timeZone
-        return calendar.date(from: components)!
+        let date = try XCTUnwrap(calendar.date(from: components))
+        return date
     }
 
-    func testMakeOneOffReminderDateComponents_regularDayPreservesRequestedTime() {
-        let calendar = gregorianCalendar(timeZoneID: "America/Los_Angeles")
-        let now = date(2026, 2, 10, 10, 0, calendar: calendar)
+    func testMakeOneOffReminderDateComponents_regularDayPreservesRequestedTime() throws {
+        let calendar = try gregorianCalendar(timeZoneID: "America/Los_Angeles")
+        let now = try date(2026, 2, 10, 10, 0, calendar: calendar)
 
         let components = scheduler.makeOneOffReminderDateComponents(
             daysFromNow: 2,
@@ -57,9 +59,9 @@ final class NotificationSchedulingDateTests: XCTestCase {
         XCTAssertEqual(components?.timeZone?.identifier, "America/Los_Angeles")
     }
 
-    func testResolveOneOffReminderDate_springForwardNonexistentLocalTimeRollsForward() {
-        let calendar = gregorianCalendar(timeZoneID: "America/New_York")
-        let now = date(2026, 3, 7, 10, 0, calendar: calendar)
+    func testResolveOneOffReminderDate_springForwardNonexistentLocalTimeRollsForward() throws {
+        let calendar = try gregorianCalendar(timeZoneID: "America/New_York")
+        let now = try date(2026, 3, 7, 10, 0, calendar: calendar)
 
         let resolved = scheduler.resolveOneOffReminderDate(
             daysFromNow: 1,
@@ -79,9 +81,9 @@ final class NotificationSchedulingDateTests: XCTestCase {
         XCTAssertNotEqual(resolvedComponents.hour, 2, "2:30 AM does not exist on DST spring-forward day")
     }
 
-    func testResolveOneOffReminderDate_fallBackAmbiguousTimeUsesFirstOccurrence() {
-        let calendar = gregorianCalendar(timeZoneID: "America/New_York")
-        let now = date(2026, 10, 31, 10, 0, calendar: calendar)
+    func testResolveOneOffReminderDate_fallBackAmbiguousTimeUsesFirstOccurrence() throws {
+        let calendar = try gregorianCalendar(timeZoneID: "America/New_York")
+        let now = try date(2026, 10, 31, 10, 0, calendar: calendar)
 
         let resolved = scheduler.resolveOneOffReminderDate(
             daysFromNow: 1,

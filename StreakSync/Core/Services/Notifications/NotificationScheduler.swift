@@ -31,24 +31,15 @@ enum NotificationAction: String, CaseIterable {
 
 // MARK: - Notification Scheduler
 @MainActor
-final class NotificationScheduler: ObservableObject {
+final class NotificationScheduler {
     static let shared = NotificationScheduler()
     
     // MARK: - Properties
     private let center = UNUserNotificationCenter.current()
     private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationScheduler")
-    private let userDefaults = UserDefaults.standard
-    
-    // MARK: - Settings Keys
-    private enum SettingsKeys {
-        static let lastNotificationDate = "lastNotificationDate"
-        static let dailyNotificationCount = "dailyNotificationCount"
-    }
-    
+
     // MARK: - Initialization
-    private init() {
-        setupDefaultSettings()
-    }
+    private init() {}
     
     // MARK: - Setup
     func registerCategories() async {
@@ -69,8 +60,13 @@ final class NotificationScheduler: ObservableObject {
                 options: []
             ),
             UNNotificationAction(
+                identifier: NotificationAction.snooze3Days.identifier,
+                title: "Snooze 3 Days",
+                options: []
+            ),
+            UNNotificationAction(
                 identifier: NotificationAction.markPlayed.identifier,
-                title: "Already Played",
+                title: "Dismiss",
                 options: []
             )
         ]
@@ -295,111 +291,7 @@ final class NotificationScheduler: ObservableObject {
  logger.info("Cancelled \(streakReminderIds.count) legacy streak reminders")
         }
     }
-    
-    
-    // MARK: - Digest Preview (Debug/Testing)
-    func scheduleDigestPreview(for games: [Game]) async {
-        guard await checkPermissionStatus() == .authorized else { return }
-        
-        let topGames = games.prefix(4)
-        let names = topGames.map { $0.displayName }
-        let body: String
-        if names.isEmpty {
-            body = "No streaks at risk today."
-        } else if names.count == 1 {
-            body = "Don't lose your streak in \(names[0])."
-        } else {
-            let list = names.dropLast().joined(separator: ", ")
-            let trailingName = names.last ?? "your games"
-            body = "Don't lose your streaks in \(list) and \(trailingName)."
-        }
-        
-        let content = UNMutableNotificationContent()
-        content.title = "📧 Daily Streak Digest"
-        content.body = body
-        content.sound = .default
-        content.categoryIdentifier = NotificationCategory.streakReminder.identifier
-        content.userInfo = [
-            "type": "digest_preview",
-            "gameCount": games.count
-        ]
-        
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: "digest_preview_\(UUID().uuidString)",
-            content: content,
-            trigger: trigger
-        )
-        
-        do {
-            try await center.add(request)
- logger.info("Scheduled digest preview with \(games.count) games")
-        } catch {
- logger.error("Failed to schedule digest preview: \(error.localizedDescription)")
-        }
-    }
-    
-    
-    // MARK: - Achievement Notifications
-    func scheduleAchievementNotification(for unlock: AchievementUnlock) async {
-        guard await checkPermissionStatus() == .authorized else { return }
-        
-        let content = UNMutableNotificationContent()
-        content.title = "🎉 Achievement Unlocked!"
-        content.body = "\(unlock.achievement.displayName) - \(unlock.tier.displayName)"
-        content.sound = .default
-        content.categoryIdentifier = NotificationCategory.achievementUnlocked.identifier
-        content.userInfo = [
-            "achievementId": unlock.achievement.id.uuidString,
-            "tierId": unlock.tier.id.uuidString,
-            "type": "achievement"
-        ]
-        
-        // Immediate notification
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: "achievement_\(unlock.achievement.id.uuidString)_\(unlock.tier.id.uuidString)",
-            content: content,
-            trigger: trigger
-        )
-        
-        do {
-            try await center.add(request)
- logger.info("Scheduled achievement notification for \(unlock.achievement.displayName)")
-        } catch {
- logger.error("Failed to schedule achievement notification: \(error.localizedDescription)")
-        }
-    }
-    
-    // MARK: - Result Import Notifications
-    func scheduleResultImportedNotification(for game: Game) async {
-        guard await checkPermissionStatus() == .authorized else { return }
-        
-        let content = UNMutableNotificationContent()
-        content.title = "Result Imported"
-        content.body = "Your \(game.displayName) result has been added to your streak!"
-        content.sound = .default
-        content.categoryIdentifier = NotificationCategory.resultImported.identifier
-        content.userInfo = [
-            "gameId": game.id.uuidString,
-            "type": "result_imported"
-        ]
-        
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: "result_imported_\(game.id.uuidString)_\(Date().timeIntervalSince1970)",
-            content: content,
-            trigger: trigger
-        )
-        
-        do {
-            try await center.add(request)
- logger.info("Scheduled result imported notification for \(game.displayName)")
-        } catch {
- logger.error("Failed to schedule result imported notification: \(error.localizedDescription)")
-        }
-    }
-    
+
     // MARK: - Cancellation
     
     func cancelAllNotifications() async {
@@ -448,12 +340,6 @@ final class NotificationScheduler: ObservableObject {
             
  logger.info("\(request.identifier): \(request.content.title) - \(triggerDescription)")
         }
-    }
-    
-    // MARK: - Private Helpers
-    private func setupDefaultSettings() {
-        // No default settings needed for simplified system
-        // Settings are managed by AppState migration
     }
     
     // MARK: - Test Methods

@@ -28,9 +28,9 @@ final class NotificationSettingsViewModel: ObservableObject {
     }
     
     func loadSettings() {
-        remindersEnabled = userDefaults.bool(forKey: "streakRemindersEnabled")
-        reminderHour = userDefaults.object(forKey: "streakReminderHour") as? Int ?? 19
-        reminderMinute = userDefaults.object(forKey: "streakReminderMinute") as? Int ?? 0
+        remindersEnabled = userDefaults.bool(forKey: AppConstants.NotificationSettings.remindersEnabled)
+        reminderHour = userDefaults.object(forKey: AppConstants.NotificationSettings.reminderHour) as? Int ?? 19
+        reminderMinute = userDefaults.object(forKey: AppConstants.NotificationSettings.reminderMinute) as? Int ?? 0
         
         Task {
             await checkPermissionStatus()
@@ -38,9 +38,9 @@ final class NotificationSettingsViewModel: ObservableObject {
     }
     
     func saveSettings() {
-        userDefaults.set(remindersEnabled, forKey: "streakRemindersEnabled")
-        userDefaults.set(reminderHour, forKey: "streakReminderHour")
-        userDefaults.set(reminderMinute, forKey: "streakReminderMinute")
+        userDefaults.set(remindersEnabled, forKey: AppConstants.NotificationSettings.remindersEnabled)
+        userDefaults.set(reminderHour, forKey: AppConstants.NotificationSettings.reminderHour)
+        userDefaults.set(reminderMinute, forKey: AppConstants.NotificationSettings.reminderMinute)
         
         // Reschedule reminders with new settings
         Task {
@@ -118,7 +118,7 @@ struct NotificationSettingsView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             viewModel.setAppState(appState)
             viewModel.loadSettings()
         }
@@ -136,14 +136,14 @@ struct NotificationSettingsView: View {
             VStack(spacing: 16) {
                 Image(systemName: "bell.slash")
                     .font(.system(size: 40))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 
                 Text("Notifications Disabled")
                     .font(.headline)
                 
                 Text("Enable notifications to get gentle reminders about your streaks and achievements.")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                 
                 Button("Enable Notifications") {
@@ -203,20 +203,20 @@ struct NotificationSettingsView: View {
             Text("Preview")
                 .font(.subheadline)
                 .fontWeight(.medium)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
             
             // Simulate notification appearance
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "bell.fill")
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                     Text("StreakSync")
                         .font(.caption)
                         .fontWeight(.medium)
                     Spacer()
                     Text("now")
                         .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                 }
                 
                 Text("Streak Reminders")
@@ -225,13 +225,14 @@ struct NotificationSettingsView: View {
                 
                 Text(previewNotificationBody)
                     .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
             .padding(12)
             .background(Color(.secondarySystemGroupedBackground))
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
+        .accessibilityElement(children: .combine)
     }
     
     private var previewNotificationBody: String {
