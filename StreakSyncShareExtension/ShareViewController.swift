@@ -117,11 +117,13 @@ class ShareViewController: UIViewController {
     private func saveResult(_ result: GameResult) {
         // Convert GameResult to JSON dictionary for App Group storage
         let dict: [String: Any] = {
+            let isoFormatter = ISO8601DateFormatter()
             var d: [String: Any] = [
                 "id": result.id.uuidString,
                 "gameId": result.gameId.uuidString,
                 "gameName": result.gameName,
-                "date": ISO8601DateFormatter().string(from: result.date),
+                "date": isoFormatter.string(from: result.date),
+                "lastModified": isoFormatter.string(from: result.lastModified),
                 "maxAttempts": result.maxAttempts,
                 "completed": result.completed,
                 "sharedText": result.sharedText,
@@ -155,6 +157,15 @@ class ShareViewController: UIViewController {
                 resultKeys = existingKeys
             }
             resultKeys.append(resultKey)
+            // Cap queue at 50 entries to prevent unbounded growth
+            let maxQueueSize = 50
+            if resultKeys.count > maxQueueSize {
+                let keysToRemove = resultKeys.prefix(resultKeys.count - maxQueueSize)
+                for key in keysToRemove {
+                    userDefaults?.removeObject(forKey: key)
+                }
+                resultKeys = Array(resultKeys.suffix(maxQueueSize))
+            }
             let keysDataOut = try JSONSerialization.data(withJSONObject: resultKeys, options: [])
             userDefaults?.set(keysDataOut, forKey: "gameResultKeys")
             
