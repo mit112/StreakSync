@@ -61,11 +61,12 @@ struct EmptyStateGuidanceCard: View {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     isVisible = false
                 }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
                     onDismiss()
                 }
-                
+
                 HapticManager.shared.trigger(.buttonTap)
             } label: {
                 Image(systemName: "xmark.circle.fill")

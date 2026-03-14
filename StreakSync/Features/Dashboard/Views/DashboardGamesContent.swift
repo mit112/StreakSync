@@ -1,23 +1,22 @@
 //
-//  DashboardGamesContent.swift (Updated)
+//  DashboardGamesContent.swift
 //  StreakSync
 //
-//  Updated to use modern game cards
+//  Game card grid/list rendering for the dashboard
 //
 
 import SwiftUI
 
 struct DashboardGamesContent: View {
     let filteredGames: [Game]
-    let filteredStreaks: [GameStreak]
     let displayMode: GameDisplayMode
     let searchText: String
     let hasInitiallyAppeared: Bool
-    
+
     @Environment(AppState.self) private var appState
     @Environment(GameCatalog.self) private var gameCatalog
     @EnvironmentObject private var coordinator: NavigationCoordinator
-    
+
     var body: some View {
         if filteredGames.isEmpty {
             GameEmptyState(
@@ -38,14 +37,13 @@ struct DashboardGamesContent: View {
             }
         }
     }
-    
+
     // MARK: - Modern Card View
     private var modernCardView: some View {
         LazyVStack(spacing: 8) {
             ForEach(Array(filteredGames.enumerated()), id: \.element.id) { index, game in
-                // Get streak for this game, or create an empty one if it doesn't exist
                 let streak = appState.getStreak(for: game) ?? GameStreak.empty(for: game)
-                
+
                 ModernGameCard(
                     streak: streak,
                     game: game,
@@ -55,9 +53,7 @@ struct DashboardGamesContent: View {
                         HapticManager.shared.trigger(.toggleSwitch)
                     },
                     action: {
-                        DispatchQueue.main.async {
-                            coordinator.navigateTo(.gameDetail(game))
-                        }
+                        coordinator.navigateTo(.gameDetail(game))
                     }
                 )
                 .transition(.asymmetric(
@@ -68,7 +64,7 @@ struct DashboardGamesContent: View {
             }
         }
     }
-    
+
     // MARK: - Modern Grid View
     private var modernGridView: some View {
         LazyVGrid(columns: [
@@ -76,9 +72,8 @@ struct DashboardGamesContent: View {
             GridItem(.flexible(), spacing: 12)
         ], spacing: 12) {
             ForEach(Array(filteredGames.enumerated()), id: \.element.id) { index, game in
-                // Get streak for this game, or create an empty one if it doesn't exist
                 let streak = appState.getStreak(for: game) ?? GameStreak.empty(for: game)
-                
+
                 GameCompactCardView(
                     streak: streak,
                     isFavorite: gameCatalog.isFavorite(game.id),
@@ -103,7 +98,6 @@ struct DashboardGamesContent: View {
             }
         }
         .padding(.horizontal, 16)
-        // Removed top padding completely
     }
 }
 
@@ -113,18 +107,6 @@ struct DashboardGamesContent: View {
         ScrollView {
             DashboardGamesContent(
                 filteredGames: [Game.wordle, Game.quordle],
-                filteredStreaks: [
-                    GameStreak(
-                        gameId: Game.wordle.id,
-                        gameName: "wordle",
-                        currentStreak: 5,
-                        maxStreak: 12,
-                        totalGamesPlayed: 30,
-                        totalGamesCompleted: 25,
-                        lastPlayedDate: Date(),
-                        streakStartDate: Date()
-                    )
-                ],
                 displayMode: .card,
                 searchText: "",
                 hasInitiallyAppeared: true

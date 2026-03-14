@@ -1,10 +1,10 @@
-////
-////  Missing Dashboard Components - COMPILER ERROR FIXES
-////  StreakSync
-////
-////  FIXED: All missing view declarations and component issues (SINGLE SOURCE)
-////
 //
+//  SectionHeaderView.swift
+//  StreakSync
+//
+//  Reusable section header with title, icon, and optional action
+//
+
 import SwiftUI
 
 // MARK: - SectionHeaderView (Single Declaration)

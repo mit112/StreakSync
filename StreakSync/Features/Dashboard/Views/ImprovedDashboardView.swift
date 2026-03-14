@@ -25,20 +25,15 @@ struct ImprovedDashboardView: View {
     @State private var selectedSort: GameSortOption = .lastPlayed
     @State private var sortDirection: SortDirection = .descending
     @State private var hasSeenGuidance = UserDefaults.standard.bool(forKey: "hasSeenEmptyStateGuidance")
-    @State private var refreshToken = UUID()
-
-    // iOS 26: Scroll position tracking
-    @State private var scrollPosition = ScrollPosition()
-    @State private var visibleItems: Set<String> = []
 
     // MARK: - Computed Properties
 
     private var longestCurrentStreak: Int {
-        appState.streaks.map(\.currentStreak).max() ?? 0
+        appState.longestCurrentStreak
     }
 
     private var activeStreakCount: Int {
-        appState.streaks.filter { $0.isActive }.count
+        appState.totalActiveStreaks
     }
 
     private var hasActiveStreaks: Bool {
@@ -69,12 +64,14 @@ struct ImprovedDashboardView: View {
     }
 
     private var filteredGames: [Game] {
+        let nonArchived = appState.games.filter { !gameManagementState.isArchived($0.id) }
+
         let baseGames = showOnlyActive ?
-            appState.games.filter { game in
+            nonArchived.filter { game in
                 guard let streak = appState.getStreak(for: game) else { return false }
                 return streak.isActive
             } :
-            appState.games
+            nonArchived
 
         let categoryFiltered = selectedCategory == nil ?
             baseGames :
@@ -88,9 +85,8 @@ struct ImprovedDashboardView: View {
     }
 
     private var filteredStreaks: [GameStreak] {
-        appState.streaks.filter { streak in
-            filteredGames.contains { $0.id == streak.gameId }
-        }.sorted { streak1, streak2 in
+        let gameIds = Set(filteredGames.map(\.id))
+        return appState.streaks.filter { gameIds.contains($0.gameId) }.sorted { streak1, streak2 in
             switch selectedSort {
             case .lastPlayed:
                 return sortDirection == .descending ?
@@ -120,8 +116,6 @@ struct ImprovedDashboardView: View {
     // MARK: - Body
 
     var body: some View {
-        let _ = refreshToken
-
         Group {
             dashboardScrollView(spacing: 24)
                 .scrollBounceBehavior(.automatic)
@@ -149,11 +143,6 @@ struct ImprovedDashboardView: View {
                let gameId = userInfo["gameId"] as? UUID,
                let game = appState.games.first(where: { $0.id == gameId }) {
                 coordinator.navigateTo(.gameDetail(game))
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .appGameDataUpdated)) { _ in
-            Task { @MainActor in
-                withAnimation(.easeInOut(duration: 0.25)) { refreshToken = UUID() }
             }
         }
         .onChange(of: appState.isGuestMode) { oldValue, newValue in
@@ -226,16 +215,12 @@ struct ImprovedDashboardView: View {
 
     @ViewBuilder
     private var gamesContent: some View {
-        let content = DashboardGamesContent(
+        DashboardGamesContent(
             filteredGames: filteredGames,
-            filteredStreaks: filteredStreaks,
             displayMode: displayMode,
             searchText: searchText,
             hasInitiallyAppeared: hasInitiallyAppeared
         )
-        .id(refreshToken)
-
-        content.modifier(iOS26ContentTransitionModifier())
     }
 
     // MARK: - Recent Activity (with iOS 26 enhancements)
@@ -287,50 +272,41 @@ struct ImprovedDashboardView: View {
     private func performRefresh() async {
         isRefreshing = true
 
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        HapticManager.shared.trigger(.pullToRefresh)
 
         await appState.refreshData()
 
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        HapticManager.shared.trigger(.streakUpdate)
 
         AccessibilityAnnouncer.announceDataRefreshed()
         isRefreshing = false
     }
 
     private func sortGames(_ games: [Game]) -> [Game] {
-        games.sorted { game1, game2 in
+        let streakByGame = Dictionary(
+            uniqueKeysWithValues: appState.streaks.map { ($0.gameId, $0) }
+        )
+        let ascending = sortDirection == .ascending
+        return games.sorted { game1, game2 in
             switch selectedSort {
             case .lastPlayed:
-                let date1 = appState.streaks.first(where: { $0.gameId == game1.id })?.lastPlayedDate ?? .distantPast
-                let date2 = appState.streaks.first(where: { $0.gameId == game2.id })?.lastPlayedDate ?? .distantPast
-                return sortDirection == .descending ? (date1 > date2) : (date1 < date2)
+                let date1 = streakByGame[game1.id]?.lastPlayedDate ?? .distantPast
+                let date2 = streakByGame[game2.id]?.lastPlayedDate ?? .distantPast
+                return ascending ? (date1 < date2) : (date1 > date2)
             case .name:
-                return game1.displayName < game2.displayName
+                return ascending ?
+                    game1.displayName > game2.displayName :
+                    game1.displayName < game2.displayName
             case .streakLength:
-                let streak1 = appState.streaks.first(where: { $0.gameId == game1.id })?.currentStreak ?? 0
-                let streak2 = appState.streaks.first(where: { $0.gameId == game2.id })?.currentStreak ?? 0
-                return streak1 > streak2
+                let s1 = streakByGame[game1.id]?.currentStreak ?? 0
+                let s2 = streakByGame[game2.id]?.currentStreak ?? 0
+                return ascending ? (s1 < s2) : (s1 > s2)
             case .completionRate:
-                let rate1 = appState.streaks.first(where: { $0.gameId == game1.id })?.completionRate ?? 0
-                let rate2 = appState.streaks.first(where: { $0.gameId == game2.id })?.completionRate ?? 0
-                return rate1 > rate2
+                let r1 = streakByGame[game1.id]?.completionRate ?? 0
+                let r2 = streakByGame[game2.id]?.completionRate ?? 0
+                return ascending ? (r1 < r2) : (r1 > r2)
             }
         }
-    }
-}
-
-// MARK: - iOS 26 View Modifiers
-
-struct iOS26ContentTransitionModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .scrollTransition { innerContent, phase in
-                innerContent
-                    .scaleEffect(
-                        x: phase.isIdentity ? 1 : 0.98,
-                        y: phase.isIdentity ? 1 : 0.98
-                    )
-            }
     }
 }
 

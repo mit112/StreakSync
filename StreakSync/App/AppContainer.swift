@@ -158,11 +158,6 @@ final class AppContainer: ObservableObject {
 
     // MARK: - View Model Factories
     
-    /// Creates a new DashboardViewModel
-    func makeDashboardViewModel() -> DashboardViewModel {
-        DashboardViewModel(appState: appState)
-    }
-    
     /// Creates a new GameDetailViewModel for a specific game
     func makeGameDetailViewModel(for gameId: UUID) -> GameDetailViewModel {
         GameDetailViewModel(gameId: gameId)
