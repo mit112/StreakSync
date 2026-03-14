@@ -332,12 +332,9 @@ private extension DataManagementView {
 }
 
 // MARK: - Export / Import Logic
-
 private extension DataManagementView {
-
     func exportData() {
         guard !isExporting else { return }
-
         isExporting = true
 
         Task {
@@ -410,15 +407,6 @@ private extension DataManagementView {
             defer { url.stopAccessingSecurityScopedResource() }
 
             let jsonData = try Data(contentsOf: url)
-
-            // Debug log a preview of the JSON
-            if let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
-               let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: .prettyPrinted),
-               let jsonString = String(data: prettyData, encoding: .utf8) {
-                Logger(subsystem: "com.streaksync.app", category: "Settings")
-                    .debug("JSON Preview: \(String(jsonString.prefix(500)))")
-            }
-
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
 
@@ -427,7 +415,6 @@ private extension DataManagementView {
 
                 try validateImportData(importedData)
 
-                // Fix 4: import first, then set the count from actual results
                 let actualCount = await importDataToAppState(importedData)
 
                 self.isImporting = false
@@ -473,7 +460,6 @@ private extension DataManagementView {
         }
     }
 
-    /// Returns the number of actually imported items
     func importDataToAppState(_ data: ExportData) async -> Int {
         var importCount = 0
 
@@ -485,8 +471,6 @@ private extension DataManagementView {
                 }
             }
         }
-
-        // Legacy achievements import removed (tiered-only system)
 
         // Update favorite games
         for gameId in data.favoriteGameIds {
@@ -513,49 +497,4 @@ private extension DataManagementView {
         self.showError = true
         HapticManager.shared.trigger(.error)
     }
-}
-
-// MARK: - Import Errors
-private enum ImportError: LocalizedError {
-    case invalidVersion
-    case corruptedData
-    case cannotAccessFile
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidVersion:
-            return "Incompatible backup version"
-        case .corruptedData:
-            return "Corrupted backup data"
-        case .cannotAccessFile:
-            return "Cannot access file"
-        }
-    }
-}
-
-// MARK: - Enhanced Export Data Model
-struct ExportData: Codable {
-    let version: Int
-    let exportDate: Date
-    let appVersion: String
-    let gameResults: [GameResult]
-    let achievements: [TieredAchievement]
-    let streaks: [GameStreak]
-    let favoriteGameIds: [UUID]
-    let customGames: [Game]
-}
-
-// MARK: - Share Sheet (for Export)
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(
-            activityItems: activityItems,
-            applicationActivities: nil
-        )
-        return controller
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
