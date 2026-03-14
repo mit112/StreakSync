@@ -44,7 +44,6 @@ struct AppearanceSettingsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Done") {

@@ -7,14 +7,12 @@
 //
 
 import SwiftUI
-import UserNotifications
 
 // MARK: - Settings View
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     @EnvironmentObject private var coordinator: NavigationCoordinator
-    @Environment(AppState.self) private var appState
-    
+
     var body: some View {
         iOS26SettingsContent(viewModel: viewModel)
     }
@@ -137,26 +135,30 @@ private struct iOS26SettingsContent: View {
                         ) {
                             AboutView()
                         }
-                        
-                        Divider()
-                            .padding(.horizontal)
-                        
-                        iOS26SettingsLinkRow(
-                            icon: "hand.raised.circle",
-                            iconColor: .purple,
-                            title: "Privacy Policy",
-                            url: URL(string: "https://streaksync.app/privacy")!
-                        )
-                        
-                        Divider()
-                            .padding(.horizontal)
-                        
-                        iOS26SettingsLinkRow(
-                            icon: "envelope.circle",
-                            iconColor: .orange,
-                            title: "Contact Support",
-                            url: URL(string: "mailto:support@streaksync.app")!
-                        )
+
+                        if let privacyURL = URL(string: "https://streaksync.app/privacy") {
+                            Divider()
+                                .padding(.horizontal)
+
+                            iOS26SettingsLinkRow(
+                                icon: "hand.raised.circle",
+                                iconColor: .purple,
+                                title: "Privacy Policy",
+                                url: privacyURL
+                            )
+                        }
+
+                        if let supportURL = URL(string: "mailto:support@streaksync.app") {
+                            Divider()
+                                .padding(.horizontal)
+
+                            iOS26SettingsLinkRow(
+                                icon: "envelope.circle",
+                                iconColor: .orange,
+                                title: "Contact Support",
+                                url: supportURL
+                            )
+                        }
                     }
                 }
                 .onHover { isHovered in

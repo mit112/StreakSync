@@ -5,9 +5,9 @@
 //  Account management — Apple Sign-In, Google Sign-In, profile display, sign out, delete account.
 //
 
-import SwiftUI
 import AuthenticationServices
 import GoogleSignIn
+import SwiftUI
 
 @MainActor
 struct AccountView: View {
@@ -45,7 +45,19 @@ struct AccountView: View {
             }
         }
         .navigationTitle("Account")
+        .disabled(isLoading)
         .task { await loadProfile() }
+        .overlay {
+            if isLoading {
+                ZStack {
+                    Color.black.opacity(0.2).ignoresSafeArea()
+                    ProgressView("Signing in...")
+                        .padding(24)
+                        .background(.regularMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
         .overlay {
             if isDeletingAccount {
                 ZStack {
@@ -268,12 +280,8 @@ private extension AccountView {
                 displayName: displayName,
                 authProvider: authManager.authProvider.rawValue
             )
-            signInSuccess = true
             await loadProfile()
-            Task {
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
-                signInSuccess = false
-            }
+            showSignInSuccessTemporarily()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -293,12 +301,8 @@ private extension AccountView {
                     displayName: displayName,
                     authProvider: authManager.authProvider.rawValue
                 )
-                signInSuccess = true
                 await loadProfile()
-                Task {
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
-                    signInSuccess = false
-                }
+                showSignInSuccessTemporarily()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -306,6 +310,15 @@ private extension AccountView {
             if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    /// Shows the sign-in success banner then auto-dismisses after 3 seconds
+    func showSignInSuccessTemporarily() {
+        signInSuccess = true
+        Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            signInSuccess = false
         }
     }
 
