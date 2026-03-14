@@ -20,37 +20,19 @@ extension AppState {
             .replacingOccurrences(of: " ", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
+        #if DEBUG
  logger.debug("Checking duplicate for \(result.gameName) puzzle: \(cleanPuzzleNumber)")
  logger.debug("Current results count: \(self.recentResults.count)")
- logger.debug("🆔 Result ID: \(result.id)")
+ logger.debug("Result ID: \(result.id)")
  logger.debug("Result date: \(result.date)")
-
-        // Log existing results for debugging
         for existingResult in self.recentResults.prefix(5) {
             let existingPuzzle = existingResult.parsedData["puzzleNumber"] ?? "unknown"
  logger.debug("Existing: \(existingResult.gameName) #\(existingPuzzle) on \(existingResult.date)")
         }
+        #endif
 
-        // Build cache if needed - ensure it's always up to date
         if self.gameResultsCache.isEmpty {
- logger.debug("Building results cache (was empty)")
             buildResultsCache()
-        } else {
-            // Double-check that the cache is current
-            let expectedCacheSize = self.recentResults.filter { result in
-                let puzzleNumber = result.parsedData["puzzleNumber"] ?? ""
-                let cleanPuzzleNumber = puzzleNumber
-                    .replacingOccurrences(of: ",", with: "")
-                    .replacingOccurrences(of: " ", with: "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                return !cleanPuzzleNumber.isEmpty && cleanPuzzleNumber != "unknown"
-            }.count
-
-            let actualCacheSize = self.gameResultsCache.values.flatMap { $0 }.count
-            if expectedCacheSize != actualCacheSize {
- logger.debug("Rebuilding results cache (size mismatch: expected \(expectedCacheSize), actual \(actualCacheSize))")
-                buildResultsCache()
-            }
         }
 
         // Method 1: Check exact ID match

@@ -129,6 +129,7 @@ final class AppState {
 
         Task {
             await rebuildStreaksFromResults()
+            await normalizeStreaksForMissedDays()
             await checkAllAchievements()
             await checkAndScheduleStreakReminders()
  logger.info("UI refreshed for new day")
@@ -214,12 +215,13 @@ final class AppState {
             await normalizeStreaksForMissedDays()
             recalculateAllTieredAchievementProgress()
 
+            // Refresh UI before persisting so views see consistent state
+            invalidateCache()
+            NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
+
             await saveGameResults()
             await saveStreaks()
             await saveTieredAchievements()
-
-            invalidateCache()
-            NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
  logger.info("Removed game result and recomputed dependent state")
         }
     }
@@ -229,11 +231,30 @@ final class AppState {
         removeGameResult(result.id)
     }
 
-    /// Check all achievements for all recent results (used during day changes)
+    /// Check all achievements for all recent results (used during day changes).
+    /// Uses a local `inout` array to avoid triggering the `tieredAchievements`
+    /// setter (and its save Task) for every result.
     func checkAllAchievements() async {
  logger.info("Checking all achievements for day change")
+        let checker = TieredAchievementChecker()
+        var current = tieredAchievements
         for result in recentResults {
-            checkAchievements(for: result)
+            _ = checker.checkAllAchievements(
+                for: result,
+                allResults: recentResults,
+                streaks: streaks,
+                games: games,
+                currentAchievements: &current
+            )
+        }
+        if let idx = current.firstIndex(where: { $0.category == .varietyPlayer }) {
+            let fromHistory = Set(recentResults.map(\.gameId))
+            let unionCount = fromHistory.union(uniqueGamesEver).count
+            let monotonicValue = max(current[idx].progress.currentValue, unionCount)
+            current[idx].updateProgress(value: monotonicValue)
+        }
+        if current != tieredAchievements {
+            tieredAchievements = current
         }
  logger.info("Completed checking all achievements")
     }

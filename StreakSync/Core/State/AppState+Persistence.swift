@@ -78,12 +78,17 @@ extension AppState {
     
     private func loadGameResults() async {
  logger.debug("Loading game results...")
-        
+
         if let results = persistenceService.load(
             [GameResult].self,
             forKey: UserDefaultsPersistenceService.Keys.gameResults
         ) {
             let validResults = results.filter { $0.isValid }
+            let droppedCount = results.count - validResults.count
+            if droppedCount > 0 {
+                let droppedGames = Set(results.filter { !$0.isValid }.map(\.gameName)).sorted()
+ logger.warning("Dropped \(droppedCount) invalid results on load — games: \(droppedGames.joined(separator: ", "))")
+            }
             setRecentResults(validResults.sorted { $0.date > $1.date })
             buildResultsCache()
  logger.debug("Loaded \(validResults.count) game results")

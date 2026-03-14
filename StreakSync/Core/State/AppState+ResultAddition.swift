@@ -36,8 +36,8 @@ extension AppState {
         // Add result
         self.recentResults.insert(result, at: 0)
 
-        // Update unique games ever cache (monotonic)
-        do {
+        // Update unique games ever cache (monotonic, host mode only)
+        if !isGuestMode {
             var set = self.uniqueGamesEver
             let inserted = set.insert(result.gameId).inserted
             if inserted {
