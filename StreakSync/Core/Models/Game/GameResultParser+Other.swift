@@ -167,15 +167,16 @@ extension GameResultParser {
             gameId: gameId,
             gameName: "pips",
             date: Date(),
-            score: difficultyScore, // Use difficulty as score
-            maxAttempts: 3, // Easy, Medium, Hard
+            score: totalSeconds,
+            maxAttempts: 600, // 10 min reasonable max for time-based scoring
             completed: true, // If we can parse it, it was completed
             sharedText: text,
             parsedData: [
                 "puzzleNumber": puzzleNumber,
                 "difficulty": difficulty,
                 "time": timeString,
-                "totalSeconds": "\(totalSeconds)"
+                "totalSeconds": "\(totalSeconds)",
+                "difficultyLevel": "\(difficultyScore)"
             ]
         )
     }
@@ -241,17 +242,18 @@ extension GameResultParser {
         
         // Use the actual score from "Score: XX" line as the main score
         let mainScore = totalScore
-        
+
         // Determine completion status - only completed if NO red squares (🟥) appear
-        let isCompleted = !hasFailedWords
-        
+        // A completed game with score 0 is invalid (lowerAttempts requires score >= 1)
+        let isCompleted = !hasFailedWords && mainScore > 0
+
         return GameResult(
             gameId: gameId,
             gameName: "octordle",
             date: Date(),
-            score: mainScore, // Use the actual score from "Score: XX" line
-            maxAttempts: mainScore, // For Octordle, maxAttempts = score (attempts don't matter)
-            completed: isCompleted, // Only completed if NO red squares (🟥) appear
+            score: isCompleted ? mainScore : nil,
+            maxAttempts: 104, // Theoretical max: 13 guesses × 8 words
+            completed: isCompleted,
             sharedText: text,
             parsedData: [
                 "puzzleNumber": puzzleNumber,

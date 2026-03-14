@@ -51,19 +51,19 @@ struct GameResultParser {
     }
 
     private func parseGeneric(_ text: String, game: Game) throws -> GameResult {
-        let scorePattern = #"([X\d])/(\d+)"#
-        
+        let scorePattern = #"(\d+|X)/(\d+)"#
+
         guard let regex = try? NSRegularExpression(pattern: scorePattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
               let scoreRange = Range(match.range(at: 1), in: text),
               let maxRange = Range(match.range(at: 2), in: text) else {
             throw ParsingError.invalidFormat
         }
-        
+
         let scoreString = String(text[scoreRange])
         let maxString = String(text[maxRange])
-        
-        let score = scoreString == "X" ? nil : Int(scoreString)
+
+        let score = scoreString.uppercased() == "X" ? nil : Int(scoreString)
         let maxAttempts = Int(maxString) ?? 6
         let completed = scoreString != "X"
         

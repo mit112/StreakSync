@@ -260,7 +260,7 @@ extension Game {
         backgroundColor: CodableColor(UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)), // Gray #808080
         isPopular: false,
         isCustom: false,
-        scoringModel: .lowerTimeSeconds
+        scoringModel: .higherIsBetter // Share format has no consistent time data; score=1 means completed
     )
     
     // MARK: - Wordle Variants
