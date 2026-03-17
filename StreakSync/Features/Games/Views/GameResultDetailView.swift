@@ -154,7 +154,16 @@ struct GameResultDetailView: View {
             )
 
             if let puzzleNumber = result.parsedData["puzzleNumber"] {
-                DetailRowCompact(icon: "number.square", label: "Puzzle", value: "#\(puzzleNumber)")
+                DetailRowCompact(
+                    icon: "number.square",
+                    label: result.parsedData["mode"]?.lowercased() == "weekly" ? "Challenge" : "Puzzle",
+                    value: "#\(puzzleNumber)"
+                )
+            }
+
+            if result.gameName.lowercased() == Game.Names.quordle,
+               result.parsedData["mode"]?.lowercased() == "weekly" {
+                DetailRowCompact(icon: "calendar.badge.clock", label: "Mode", value: "Weekly Challenge")
             }
 
             if shouldShowAttempts {

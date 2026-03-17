@@ -400,6 +400,7 @@ struct GameDetector {
         // Detection rules: (textContains, gameName)
         let rules: [(String, String)] = [
             ("Pips #", "pips"),
+            ("Weekly Quordle Challenge", "quordle"),
             ("Daily Quordle", "quordle"),
             ("Daily Octordle", "octordle"),
             ("Wordle", "wordle"),

@@ -230,6 +230,41 @@ final class StreakLogicTests: XCTestCase {
         )
         XCTAssertTrue(appState.isDuplicateResult(result3))
     }
+
+    func testQuordleDailyAndWeeklySameNumberAreNotDuplicates() {
+        let quordleId = UUID()
+        let daily = GameResult(
+            gameId: quordleId,
+            gameName: Game.Names.quordle,
+            date: Date(),
+            score: 5,
+            maxAttempts: 9,
+            completed: true,
+            sharedText: "Daily Quordle 143",
+            parsedData: [
+                "puzzleNumber": "143",
+                "mode": "daily"
+            ]
+        )
+        appState.setRecentResults([daily])
+        appState.buildResultsCache()
+
+        let weekly = GameResult(
+            gameId: quordleId,
+            gameName: Game.Names.quordle,
+            date: Date(),
+            score: 6,
+            maxAttempts: 9,
+            completed: true,
+            sharedText: "Weekly Quordle Challenge 143",
+            parsedData: [
+                "puzzleNumber": "143",
+                "mode": "weekly"
+            ]
+        )
+
+        XCTAssertFalse(appState.isDuplicateResult(weekly))
+    }
     
     func testCacheRebuildsWhenEmpty() {
         let result = makeResult(puzzleNumber: "200")

@@ -71,6 +71,7 @@ extension GameResult {
     }
     
     private var quordleDisplayScore: String {
+        let isWeekly = parsedData["mode"]?.lowercased() == "weekly"
         // Try to get individual scores from parsedData
         if let score1 = parsedData["score1"],
            let score2 = parsedData["score2"],
@@ -83,14 +84,16 @@ extension GameResult {
             let s3 = score3 == "failed" ? "X" : score3
             let s4 = score4 == "failed" ? "X" : score4
             
-            return "\(s1)-\(s2)-\(s3)-\(s4)"
+            let baseScore = "\(s1)-\(s2)-\(s3)-\(s4)"
+            return isWeekly ? "Weekly \(baseScore)" : baseScore
         }
         
         // Fallback to standard display if individual scores not available
         guard let score = score else {
             return "X/\(maxAttempts)"
         }
-        return "\(score)/\(maxAttempts)"
+        let baseScore = "\(score)/\(maxAttempts)"
+        return isWeekly ? "Weekly \(baseScore)" : baseScore
     }
     
     private var pipsDisplayScore: String {

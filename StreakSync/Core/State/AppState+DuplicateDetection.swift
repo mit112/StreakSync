@@ -53,6 +53,14 @@ extension AppState {
  logger.debug("Duplicate detected: Puzzle #\(cleanPuzzleNumber) \(difficulty) already exists for \(result.gameName)")
                     return true
                 }
+            } else if result.gameName.lowercased() == Game.Names.quordle {
+                let mode = result.parsedData["mode"]?.lowercased() ?? "daily"
+                let scopedPuzzleKey = "\(mode):\(cleanPuzzleNumber)"
+                if let cachedPuzzles = self.gameResultsCache[result.gameId],
+                   cachedPuzzles.contains(scopedPuzzleKey) {
+ logger.debug("Duplicate detected: \(mode) Quordle #\(cleanPuzzleNumber) already exists")
+                    return true
+                }
             } else {
                 // Standard puzzle number check for other games
                 if let cachedPuzzles = self.gameResultsCache[result.gameId],
@@ -105,6 +113,10 @@ extension AppState {
                     let difficulty = result.parsedData["difficulty"] ?? ""
                     let puzzleDifficultyKey = "\(cleanPuzzleNumber)-\(difficulty)"
                     self.gameResultsCache[result.gameId]?.insert(puzzleDifficultyKey)
+                } else if result.gameName.lowercased() == Game.Names.quordle {
+                    let mode = result.parsedData["mode"]?.lowercased() ?? "daily"
+                    let scopedPuzzleKey = "\(mode):\(cleanPuzzleNumber)"
+                    self.gameResultsCache[result.gameId]?.insert(scopedPuzzleKey)
                 } else {
                     // Standard puzzle number for other games
                     self.gameResultsCache[result.gameId]?.insert(cleanPuzzleNumber)
@@ -133,6 +145,10 @@ extension AppState {
                 let difficulty = result.parsedData["difficulty"] ?? ""
                 let puzzleDifficultyKey = "\(cleanPuzzleNumber)-\(difficulty)"
                 self.gameResultsCache[result.gameId]?.insert(puzzleDifficultyKey)
+            } else if result.gameName.lowercased() == Game.Names.quordle {
+                let mode = result.parsedData["mode"]?.lowercased() ?? "daily"
+                let scopedPuzzleKey = "\(mode):\(cleanPuzzleNumber)"
+                self.gameResultsCache[result.gameId]?.insert(scopedPuzzleKey)
             } else {
                 self.gameResultsCache[result.gameId]?.insert(cleanPuzzleNumber)
             }

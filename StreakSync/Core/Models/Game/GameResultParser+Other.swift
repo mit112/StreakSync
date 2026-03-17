@@ -11,15 +11,18 @@ extension GameResultParser {
 
     // MARK: - Quordle Parser
     func parseQuordle(_ text: String, gameId: UUID) throws -> GameResult {
-        // Pattern: "Daily Quordle 1346" followed by scores like "6️⃣5️⃣\n9️⃣4️⃣"
-        let pattern = #"Daily Quordle\s+(\d+)"#
+        // Pattern: "Daily Quordle 1346" or "Weekly Quordle Challenge 143"
+        let pattern = #"(?m)^(Daily Quordle|Weekly Quordle Challenge)\s+(\d+)\s*$"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
-              let puzzleRange = Range(match.range(at: 1), in: text) else {
+              let modeRange = Range(match.range(at: 1), in: text),
+              let puzzleRange = Range(match.range(at: 2), in: text) else {
             throw ParsingError.invalidFormat
         }
         
+        let modeToken = String(text[modeRange]).lowercased()
+        let mode = modeToken.contains("weekly") ? "weekly" : "daily"
         let puzzleNumber = String(text[puzzleRange])
         
         // Parse emoji scores (0️⃣-9️⃣) and failures (🟥)
@@ -40,7 +43,13 @@ extension GameResultParser {
         
         let completed = failedPuzzles == 0 && completedPuzzles == 4
         
-        var parsedData: [String: String] = ["puzzleNumber": puzzleNumber]
+        var parsedData: [String: String] = [
+            "puzzleNumber": puzzleNumber,
+            "mode": mode
+        ]
+        if mode == "weekly" {
+            parsedData["challengeNumber"] = puzzleNumber
+        }
         if scores.count >= 4 {
             parsedData["score1"] = scores[0] > 0 ? "\(scores[0])" : "failed"
             parsedData["score2"] = scores[1] > 0 ? "\(scores[1])" : "failed"

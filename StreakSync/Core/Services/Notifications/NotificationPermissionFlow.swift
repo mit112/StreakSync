@@ -50,6 +50,20 @@ final class NotificationPermissionFlowViewModel: ObservableObject {
             UIApplication.shared.open(settingsUrl)
         }
     }
+
+    static func shouldShowFirstLaunchPrompt() async -> Bool {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: AppConstants.NotificationSettings.firstLaunchPromptShown) == false else {
+            return false
+        }
+
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        return settings.authorizationStatus == .notDetermined
+    }
+
+    static func markFirstLaunchPromptShown() {
+        UserDefaults.standard.set(true, forKey: AppConstants.NotificationSettings.firstLaunchPromptShown)
+    }
 }
 
 // MARK: - Permission Flow View

@@ -84,6 +84,12 @@ final class GameDetectionTests: XCTestCase {
         XCTAssertEqual(game?.name.lowercased(), "quordle")
     }
 
+    func testDetectsWeeklyQuordleChallenge() {
+        let text = "Weekly Quordle Challenge 143\n7️⃣4️⃣\n5️⃣6️⃣\nm-w.com/games/quordle/"
+        let game = GameDetector.detect(from: text, in: Game.allAvailableGames)
+        XCTAssertEqual(game?.name.lowercased(), "quordle")
+    }
+
     func testDetectsOctordle() {
         let text = "Daily Octordle #1074\nScore: 62"
         let game = GameDetector.detect(from: text, in: Game.allAvailableGames)

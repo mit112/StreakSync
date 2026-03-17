@@ -462,6 +462,27 @@ final class GameResultParserTests: XCTestCase {
         XCTAssertFalse(result.completed)
     }
 
+    func testParseQuordle_WeeklyChallenge() throws {
+        let shareText = "Weekly Quordle Challenge 143\n7️⃣4️⃣\n5️⃣6️⃣\nm-w.com/games/quordle/"
+
+        let result = try parser.parse(shareText, for: Game.quordle)
+
+        XCTAssertEqual(result.gameName, "quordle")
+        XCTAssertEqual(result.score, 5) // Average of 7+4+5+6 = 22 / 4
+        XCTAssertTrue(result.completed)
+        XCTAssertEqual(result.parsedData["mode"], "weekly")
+        XCTAssertEqual(result.parsedData["challengeNumber"], "143")
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "143")
+    }
+
+    func testParseQuordle_WeeklyChallengeMissingNumber_Throws() {
+        let shareText = "Weekly Quordle Challenge\n7️⃣4️⃣\n5️⃣6️⃣"
+
+        XCTAssertThrowsError(try parser.parse(shareText, for: Game.quordle)) { error in
+            XCTAssertTrue(error is ParsingError)
+        }
+    }
+
     // MARK: - Nerdle Tests
 
     func testParseNerdle_Success() throws {

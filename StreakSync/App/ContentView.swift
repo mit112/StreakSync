@@ -9,6 +9,8 @@ struct ContentView: View {
     @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
     @EnvironmentObject private var guestSessionManager: GuestSessionManager
     @Environment(\.scenePhase) private var scenePhase
+    @State private var showFirstLaunchNotificationPrompt = false
+    @State private var didCheckFirstLaunchNotificationPrompt = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -40,6 +42,12 @@ struct ContentView: View {
                         .presentationBackground(.ultraThinMaterial)
                 }
         }
+        .sheet(isPresented: $showFirstLaunchNotificationPrompt) {
+            NotificationPermissionFlowView()
+        }
+        .task {
+            await evaluateFirstLaunchNotificationPromptIfNeeded()
+        }
         .background(
             Color(.systemGroupedBackground)
                 .ignoresSafeArea()
@@ -56,6 +64,7 @@ struct ContentView: View {
             // No need to update theme - it follows system automatically
             Task {
                 await container.handleAppBecameActive()
+                await evaluateFirstLaunchNotificationPromptIfNeeded()
             }
         case .inactive:
             container.handleAppWillResignActive()
@@ -64,6 +73,15 @@ struct ContentView: View {
         @unknown default:
             break
         }
+    }
+
+    @MainActor
+    private func evaluateFirstLaunchNotificationPromptIfNeeded() async {
+        guard !didCheckFirstLaunchNotificationPrompt else { return }
+        didCheckFirstLaunchNotificationPrompt = true
+        guard await NotificationPermissionFlowViewModel.shouldShowFirstLaunchPrompt() else { return }
+        NotificationPermissionFlowViewModel.markFirstLaunchPromptShown()
+        showFirstLaunchNotificationPrompt = true
     }
     
     // MARK: - Sheet Views

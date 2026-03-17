@@ -86,7 +86,7 @@ extension Game {
         displayName: "Quordle",
         url: GameURLs.quordle,
         category: .word,
-        resultPattern: #"Daily Quordle \d+"#,
+        resultPattern: #"(Daily Quordle \d+|Weekly Quordle Challenge \d+)"#,
         iconSystemName: "square.grid.2x2.fill",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
         isPopular: true,

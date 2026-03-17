@@ -62,12 +62,18 @@ final class NotificationSettingsViewModel: ObservableObject {
         }
     }
     
-    func requestPermission() async {
-        let granted = await NotificationPermissionFlowViewModel().requestPermission()
-        if granted {
-            await checkPermissionStatus()
-        } else {
+    func presentPermissionFlowIfNeeded() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional:
+            notificationsEnabled = true
+            showPermissionDenied = false
+        case .denied:
             showPermissionDenied = true
+        case .notDetermined, .ephemeral:
+            showPermissionFlow = true
+        @unknown default:
+            showPermissionFlow = true
         }
     }
     
@@ -125,6 +131,12 @@ struct NotificationSettingsView: View {
         .sheet(isPresented: $viewModel.showPermissionFlow) {
             NotificationPermissionFlowView()
         }
+        .onChange(of: viewModel.showPermissionFlow) { _, isPresented in
+            guard !isPresented else { return }
+            Task {
+                await viewModel.checkPermissionStatus()
+            }
+        }
         .sheet(isPresented: $viewModel.showPermissionDenied) {
             NotificationPermissionDeniedView()
         }
@@ -148,7 +160,7 @@ struct NotificationSettingsView: View {
                 
                 Button("Enable Notifications") {
                     Task {
-                        await viewModel.requestPermission()
+                        await viewModel.presentPermissionFlowIfNeeded()
                     }
                 }
                 .buttonStyle(.borderedProminent)

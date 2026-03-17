@@ -27,7 +27,6 @@ final class FriendsViewModel: ObservableObject {
     
     let socialService: SocialService
     private let defaults = UserDefaults.standard
-    private let lastDateKey = "friends_last_selected_date"
     private let lastPageKey = "friends_last_game_page"
     
     // Real-time listener handles (nil = not supported, fallback to polling)
@@ -47,13 +46,7 @@ final class FriendsViewModel: ObservableObject {
            page >= 0 && page < Game.allAvailableGames.count {
             self.currentGamePage = page
         }
-        let todayLocal = localStartOfDay(Date())
-        if let saved = defaults.object(forKey: lastDateKey) as? Date {
-            let savedLocal = localStartOfDay(saved)
-            self.selectedDateUTC = isSameLocalDay(savedLocal, todayLocal) ? todayLocal : min(savedLocal, todayLocal)
-        } else {
-            self.selectedDateUTC = todayLocal
-        }
+        self.selectedDateUTC = localStartOfDay(Date())
     }
     
     private var hasSetupListeners = false
@@ -111,10 +104,9 @@ final class FriendsViewModel: ObservableObject {
     }
     
     func persistUIState() {
-        defaults.set(selectedDateUTC, forKey: lastDateKey)
         defaults.set(currentGamePage, forKey: lastPageKey)
     }
-    
+
     func handleSelectedDateChange() {
         if normalizeSelectedDateIfNeeded() { return }
         persistUIState()

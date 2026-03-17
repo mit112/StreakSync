@@ -51,6 +51,7 @@ enum AppConstants {
         static let remindersEnabled = "streakRemindersEnabled"
         static let reminderHour = "streakReminderHour"
         static let reminderMinute = "streakReminderMinute"
+        static let firstLaunchPromptShown = "notificationFirstLaunchPromptShown"
         static let smartRemindersEnabled = "smartRemindersEnabled"
         static let smartRemindersLastComputed = "smartRemindersLastComputed"
         static let smartReminderWindowStartHour = "smartReminderWindowStartHour"
