@@ -154,6 +154,9 @@ final class AppContainer: ObservableObject {
     func cleanupForSignOut() async {
         await appState.clearAllData()
         gameResultSyncService.clearLastSyncTimestamp()
+        // Clear App Group queue so stale Share Extension results
+        // aren't ingested by the next user session.
+        appGroupBridge.clearAllData()
     }
 
     // MARK: - View Model Factories

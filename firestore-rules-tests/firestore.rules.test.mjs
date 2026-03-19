@@ -110,6 +110,18 @@ const VALID_FRIEND_CODE = {
   displayName: "Alice",
 };
 
+const VALID_GAME_RESULT = {
+  gameId: "550e8400-e29b-41d4-a716-446655440000",
+  gameName: "Wordle",
+  date: { seconds: 1708128000, nanoseconds: 0 },
+  maxAttempts: 6,
+  completed: true,
+  sharedText: "Wordle 1234 3/6",
+  parsedData: { puzzleNumber: "1234" },
+  lastModified: { seconds: 1708128000, nanoseconds: 0 },
+  score: 3,
+};
+
 // ═══════════════════════════════════════════════════════════════
 // TESTS
 // ═══════════════════════════════════════════════════════════════
@@ -258,7 +270,7 @@ async function main() {
   await runCase("✅ owner can write/read own gameResults", async () => {
     const db = authed("alice");
     await assertSucceeds(
-      setDoc(doc(db, "users/alice/gameResults/r1"), { gameName: "Wordle" })
+      setDoc(doc(db, "users/alice/gameResults/r1"), { ...VALID_GAME_RESULT })
     );
     await assertSucceeds(
       getDoc(doc(db, "users/alice/gameResults/r1"))
@@ -266,7 +278,7 @@ async function main() {
   });
 
   await runCase("✅ other user cannot read gameResults", async () => {
-    await seedDoc("users/alice/gameResults/r1", { gameName: "Wordle" });
+    await seedDoc("users/alice/gameResults/r1", { ...VALID_GAME_RESULT });
     await assertFails(
       getDoc(doc(authed("bob"), "users/alice/gameResults/r1"))
     );
@@ -275,15 +287,90 @@ async function main() {
   await runCase("✅ other user cannot write gameResults", async () => {
     await assertFails(
       setDoc(doc(authed("bob"), "users/alice/gameResults/r1"), {
-        gameName: "Hack",
+        ...VALID_GAME_RESULT,
       })
     );
   });
 
   await runCase("✅ owner can delete own gameResults", async () => {
-    await seedDoc("users/alice/gameResults/r1", { gameName: "Wordle" });
+    await seedDoc("users/alice/gameResults/r1", { ...VALID_GAME_RESULT });
     await assertSucceeds(
       deleteDoc(doc(authed("alice"), "users/alice/gameResults/r1"))
+    );
+  });
+
+  await runCase("✅ owner can write valid gameResult with all fields", async () => {
+    await assertSucceeds(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), { ...VALID_GAME_RESULT })
+    );
+  });
+
+  await runCase("✅ owner can write gameResult without optional score", async () => {
+    const { score, ...noScore } = VALID_GAME_RESULT;
+    await assertSucceeds(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), noScore)
+    );
+  });
+
+  await runCase("✅ rejects gameResult with disallowed extra fields", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {
+        ...VALID_GAME_RESULT,
+        isAdmin: true,
+      })
+    );
+  });
+
+  await runCase("✅ rejects gameResult with missing required field", async () => {
+    const { sharedText, ...missingField } = VALID_GAME_RESULT;
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), missingField)
+    );
+  });
+
+  await runCase("✅ rejects gameResult with wrong type for completed", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {
+        ...VALID_GAME_RESULT,
+        completed: "yes",
+      })
+    );
+  });
+
+  await runCase("✅ rejects gameResult with oversized gameName", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {
+        ...VALID_GAME_RESULT,
+        gameName: "X".repeat(201),
+      })
+    );
+  });
+
+  await runCase("✅ rejects gameResult with oversized sharedText", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {
+        ...VALID_GAME_RESULT,
+        sharedText: "X".repeat(2501),
+      })
+    );
+  });
+
+  await runCase("✅ accepts gameResult with exactly max-length sharedText", async () => {
+    await assertSucceeds(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {
+        ...VALID_GAME_RESULT,
+        sharedText: "X".repeat(2500),
+      })
+    );
+  });
+
+  await runCase("✅ owner can update existing gameResult", async () => {
+    await seedDoc("users/alice/gameResults/r1", { ...VALID_GAME_RESULT });
+    await assertSucceeds(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {
+        ...VALID_GAME_RESULT,
+        score: 4,
+      })
     );
   });
 

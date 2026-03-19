@@ -255,8 +255,8 @@ extension GameResult {
             "date": Timestamp(date: date),
             "maxAttempts": maxAttempts,
             "completed": completed,
-            "sharedText": sharedText,
-            "parsedData": parsedData,
+            "sharedText": String(sharedText.prefix(2000)),
+            "parsedData": parsedData.mapValues { String($0.prefix(500)) },
             "lastModified": Timestamp(date: lastModified)
         ]
         if let score = score {

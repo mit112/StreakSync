@@ -176,6 +176,14 @@ final class AppGroupBridge: ObservableObject {
         latestResult = nil
  logger.info("Cleared latest result")
     }
+
+    /// Clears all App Group data (queue, legacy entries, single-result key).
+    /// Called during sign-out to prevent stale results from leaking to the next session.
+    func clearAllData() {
+        dataManager.clearAll()
+        hasNewResults = false
+        latestResult = nil
+    }
     
     // MARK: - Private Methods
     private func processNewResult() async {

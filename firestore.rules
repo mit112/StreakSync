@@ -67,7 +67,22 @@ service cloud.firestore {
 
       // --- Game Results (private per-user) ---
       match /gameResults/{resultId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if isSignedIn() && request.auth.uid == userId;
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+        allow create, update: if isSignedIn()
+          && request.auth.uid == userId
+          && hasRequiredAndOnly(
+            ['gameId', 'gameName', 'date', 'maxAttempts', 'completed', 'sharedText', 'parsedData', 'lastModified'],
+            ['score']
+          )
+          && isShortString(request.resource.data.gameId)
+          && isShortString(request.resource.data.gameName)
+          && request.resource.data.maxAttempts is int
+          && request.resource.data.completed is bool
+          && request.resource.data.sharedText is string
+          && request.resource.data.sharedText.size() <= 2500
+          && request.resource.data.parsedData is map
+          && (!('score' in request.resource.data) || request.resource.data.score is int);
       }
 
       // --- Sync data (achievements, private per-user) ---
@@ -111,7 +126,28 @@ service cloud.firestore {
       allow read: if isSignedIn()
         && request.auth.uid in resource.data.allowedReaders;
 
-      allow create, update: if isSignedIn()
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && hasRequiredAndOnly(
+          ['userId', 'gameId', 'dateInt', 'gameName', 'completed', 'allowedReaders'],
+          ['score', 'maxAttempts', 'currentStreak', 'publishedAt']
+        )
+        && isShortString(request.resource.data.userId)
+        && isShortString(request.resource.data.gameId)
+        && request.resource.data.dateInt is int
+        && request.resource.data.completed is bool
+        && isShortString(request.resource.data.gameName)
+        && request.resource.data.allowedReaders is list
+        && request.resource.data.allowedReaders.size() <= 500
+        && request.auth.uid in request.resource.data.allowedReaders
+        && (!('score' in request.resource.data) || request.resource.data.score is int)
+        && (!('maxAttempts' in request.resource.data) || request.resource.data.maxAttempts is int)
+        && (!('currentStreak' in request.resource.data) || request.resource.data.currentStreak is int);
+
+      // Update requires ownership of the existing doc to prevent overwriting
+      // another user's score by supplying a different userId in the new data.
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
         && hasRequiredAndOnly(
           ['userId', 'gameId', 'dateInt', 'gameName', 'completed', 'allowedReaders'],

@@ -479,59 +479,96 @@ final class FirebaseSocialService: SocialService {
         let uid = try requireUID()
         logger.info("Starting full account data deletion for user \(uid)")
 
+        var errors: [Error] = []
+
         // 1. Delete all scores where userId == uid
-        let scoreDocs = try await db.collection("scores")
-            .whereField("userId", isEqualTo: uid)
-            .getDocuments()
-        for doc in scoreDocs.documents {
-            try await doc.reference.delete()
+        do {
+            let scoreDocs = try await db.collection("scores")
+                .whereField("userId", isEqualTo: uid)
+                .getDocuments()
+            for doc in scoreDocs.documents {
+                try await doc.reference.delete()
+            }
+            logger.info("Deleted \(scoreDocs.documents.count) score documents")
+        } catch {
+            logger.error("Failed to delete scores: \(error.localizedDescription)")
+            errors.append(error)
         }
-        logger.info("Deleted \(scoreDocs.documents.count) score documents")
 
         // 2. Delete all friendships
-        let fs1 = try await db.collection("friendships")
-            .whereField("userId1", isEqualTo: uid)
-            .getDocuments()
-        let fs2 = try await db.collection("friendships")
-            .whereField("userId2", isEqualTo: uid)
-            .getDocuments()
-        let allFriendshipDocs = fs1.documents + fs2.documents
-        for doc in allFriendshipDocs {
-            try await doc.reference.delete()
+        do {
+            let fs1 = try await db.collection("friendships")
+                .whereField("userId1", isEqualTo: uid)
+                .getDocuments()
+            let fs2 = try await db.collection("friendships")
+                .whereField("userId2", isEqualTo: uid)
+                .getDocuments()
+            let allFriendshipDocs = fs1.documents + fs2.documents
+            for doc in allFriendshipDocs {
+                try await doc.reference.delete()
+            }
+            logger.info("Deleted \(allFriendshipDocs.count) friendship documents")
+        } catch {
+            logger.error("Failed to delete friendships: \(error.localizedDescription)")
+            errors.append(error)
         }
-        logger.info("Deleted \(allFriendshipDocs.count) friendship documents")
 
         // 3. Delete friend code if user has one
-        let userDoc = try await db.collection("users").document(uid).getDocument()
-        if let friendCode = userDoc.data()?["friendCode"] as? String, !friendCode.isEmpty {
-            try await db.collection("friendCodes").document(friendCode).delete()
-            logger.info("Deleted friend code \(friendCode)")
+        do {
+            let userDoc = try await db.collection("users").document(uid).getDocument()
+            if let friendCode = userDoc.data()?["friendCode"] as? String, !friendCode.isEmpty {
+                try await db.collection("friendCodes").document(friendCode).delete()
+                logger.info("Deleted friend code \(friendCode)")
+            }
+        } catch {
+            logger.error("Failed to delete friend code: \(error.localizedDescription)")
+            errors.append(error)
         }
 
         // 4. Delete all gameResults subcollection docs
-        let gameResultDocs = try await db.collection("users").document(uid)
-            .collection("gameResults").getDocuments()
-        for doc in gameResultDocs.documents {
-            try await doc.reference.delete()
+        do {
+            let gameResultDocs = try await db.collection("users").document(uid)
+                .collection("gameResults").getDocuments()
+            for doc in gameResultDocs.documents {
+                try await doc.reference.delete()
+            }
+            logger.info("Deleted \(gameResultDocs.documents.count) game result documents")
+        } catch {
+            logger.error("Failed to delete game results: \(error.localizedDescription)")
+            errors.append(error)
         }
-        logger.info("Deleted \(gameResultDocs.documents.count) game result documents")
 
         // 5. Delete sync subcollection docs
-        let syncDocs = try await db.collection("users").document(uid)
-            .collection("sync").getDocuments()
-        for doc in syncDocs.documents {
-            try await doc.reference.delete()
+        do {
+            let syncDocs = try await db.collection("users").document(uid)
+                .collection("sync").getDocuments()
+            for doc in syncDocs.documents {
+                try await doc.reference.delete()
+            }
+            logger.info("Deleted \(syncDocs.documents.count) sync documents")
+        } catch {
+            logger.error("Failed to delete sync documents: \(error.localizedDescription)")
+            errors.append(error)
         }
-        logger.info("Deleted \(syncDocs.documents.count) sync documents")
 
         // 6. Delete user profile document (last — other cleanup needs it)
-        try await db.collection("users").document(uid).delete()
-        logger.info("Deleted user profile document")
+        do {
+            try await db.collection("users").document(uid).delete()
+            logger.info("Deleted user profile document")
+        } catch {
+            logger.error("Failed to delete user profile: \(error.localizedDescription)")
+            errors.append(error)
+        }
 
-        // 7. Clear local caches
+        // 7. Clear local caches (always runs regardless of remote errors)
         invalidateFriendsCache()
         pendingScores.removeAll()
         pendingScoreStore.save(pendingScores)
+
+        if let firstError = errors.first {
+            logger.error("Account deletion partially failed: \(errors.count) step(s) errored; first: \(firstError.localizedDescription)")
+            throw firstError
+        }
 
         logger.info("Account data deletion complete for user \(uid)")
     }
