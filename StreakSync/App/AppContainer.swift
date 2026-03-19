@@ -181,9 +181,12 @@ final class AppContainer: ObservableObject {
             return
         }
         
+        // Retry any saves that failed in a previous session
+        await appState.flushPendingSaves()
+
         // Start monitoring for share extension results
         appGroupBridge.startMonitoringForResults()
-        
+
         // Use lightweight refresh if we're navigating from notification
         if appState.isNavigatingFromNotification {
  logger.info("Using lightweight data refresh - navigating from notification")

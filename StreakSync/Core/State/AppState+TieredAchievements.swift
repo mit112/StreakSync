@@ -127,9 +127,10 @@ extension AppState {
  logger.info("Saved \(achievements.count) tiered achievements")
         } catch {
  logger.error("Failed to save tiered achievements: \(error)")
+            Self.pendingSaveStore.enqueue(key: Self.tieredAchievementsKey)
         }
     }
-    
+
     // MARK: - Unique Games Ever Persistence
     var uniqueGamesEver: Set<UUID> {
         get {

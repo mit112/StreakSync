@@ -211,7 +211,11 @@ extension AppState {
             )
  logger.debug("Saved \(self.recentResults.count) game results")
         } catch {
-            handleSaveError(error, dataType: "game results")
+            handleSaveError(
+                error,
+                dataType: "game results",
+                persistenceKey: UserDefaultsPersistenceService.Keys.gameResults
+            )
         }
     }
     
@@ -228,12 +232,90 @@ extension AppState {
                 forKey: UserDefaultsPersistenceService.Keys.streaks
             )
         } catch {
-            handleSaveError(error, dataType: "streaks")
+            handleSaveError(
+                error,
+                dataType: "streaks",
+                persistenceKey: UserDefaultsPersistenceService.Keys.streaks
+            )
         }
     }
     
+    // MARK: - Retry Queue
+
+    static let pendingSaveStore = PendingSaveStore()
+
+    /// Flushes any pending saves that failed previously.
+    /// Called on app activation to retry with current in-memory state.
+    func flushPendingSaves() async {
+        let store = Self.pendingSaveStore
+        let items = store.loadPendingItems()
+        guard !items.isEmpty else { return }
+
+        logger.info("Flushing \(items.count) pending save(s)")
+
+        var remaining: [PendingSaveItem] = []
+
+        for item in items {
+            let succeeded = await retrySave(forKey: item.key)
+            if succeeded {
+                logger.info("Pending save succeeded for '\(item.key)'")
+            } else {
+                var updated = item
+                updated.retryCount += 1
+                if updated.retryCount >= PendingSaveStore.maxRetries {
+                    logger.error(
+                        "Dropping pending save for '\(item.key)' after \(PendingSaveStore.maxRetries) retries"
+                    )
+                } else {
+                    remaining.append(updated)
+                }
+            }
+        }
+
+        store.savePendingItems(remaining)
+    }
+
+    /// Attempts to re-save the current in-memory data for the given key.
+    /// Returns true on success, false on failure.
+    private func retrySave(forKey key: String) async -> Bool {
+        do {
+            switch key {
+            case UserDefaultsPersistenceService.Keys.gameResults:
+                try persistenceService.save(
+                    recentResults,
+                    forKey: key
+                )
+            case UserDefaultsPersistenceService.Keys.streaks:
+                try persistenceService.save(
+                    streaks,
+                    forKey: key
+                )
+            case Self.tieredAchievementsKey:
+                if let achievements = _tieredAchievements {
+                    try persistenceService.save(
+                        achievements,
+                        forKey: key
+                    )
+                }
+            default:
+                logger.warning("Unknown pending save key: '\(key)'")
+                return true // Drop unknown keys
+            }
+            return true
+        } catch {
+            logger.error(
+                "Retry save failed for '\(key)': \(error)"
+            )
+            return false
+        }
+    }
+
     // MARK: - Helper Methods
-    private func handleSaveError(_ error: Error, dataType: String) {
+    private func handleSaveError(
+        _ error: Error,
+        dataType: String,
+        persistenceKey: String? = nil
+    ) {
         if let appError = error as? AppError {
             setError(appError)
         } else {
@@ -241,6 +323,11 @@ extension AppState {
                 dataType: dataType,
                 underlying: error
             )))
+        }
+
+        // Enqueue failed key for retry on next app activation
+        if let key = persistenceKey {
+            Self.pendingSaveStore.enqueue(key: key)
         }
     }
     
