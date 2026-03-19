@@ -65,37 +65,34 @@ extension AppState {
     }
     
     // MARK: - Tiered-only checkAchievements
-    func checkAchievements(for result: GameResult) {
-        // Check tiered achievements only
-        checkTieredAchievements(for: result)
+    func checkAchievements() {
+        checkTieredAchievements()
     }
-    
-    // New tiered achievement checking
-    internal func checkTieredAchievements(for result: GameResult) {
+
+    // Tiered achievement checking via pre-computed snapshot
+    internal func checkTieredAchievements() {
+        let snapshot = AchievementSnapshot.build(from: recentResults, games: games)
         let checker = TieredAchievementChecker()
-        
+
         var currentAchievements = tieredAchievements
         let unlocks = checker.checkAllAchievements(
-            for: result,
-            allResults: recentResults,
+            snapshot: snapshot,
             streaks: streaks,
-            games: games,
             currentAchievements: &currentAchievements
         )
-        
+
         // Enforce all-time unique union for Variety Player to avoid regressions on partial histories
         if let idx = currentAchievements.firstIndex(where: { $0.category == .varietyPlayer }) {
-            let fromHistory = Set(recentResults.map(\.gameId))
-            let unionCount = fromHistory.union(uniqueGamesEver).count
+            let unionCount = snapshot.uniqueGameIds.union(uniqueGamesEver).count
             let monotonicValue = max(currentAchievements[idx].progress.currentValue, unionCount)
             currentAchievements[idx].updateProgress(value: monotonicValue)
         }
-        
+
         // Update achievements if changed
         if currentAchievements != tieredAchievements {
             tieredAchievements = currentAchievements
         }
-        
+
         // Handle unlocks
         for unlock in unlocks {
             handleTieredAchievementUnlock(unlock)
@@ -183,55 +180,50 @@ extension AppState {
 extension AppState {
     
     // Recalculate progress from existing data
-        internal func recalculateAllTieredAchievementProgress() {
- logger.info("Recomputing tiered achievements from all results...")
-            
-            // Create a map of existing achievements by category to preserve their IDs
-            var existingByCategory: [AchievementCategory: TieredAchievement] = [:]
-            for existing in tieredAchievements {
-                existingByCategory[existing.category] = existing
-            }
-            
-            // Create new achievements with consistent IDs, but preserve existing IDs if they exist
-            var current = AchievementFactory.createDefaultAchievements()
-            for i in current.indices {
-                // If we have an existing achievement for this category, preserve its ID
-                if let existing = existingByCategory[current[i].category] {
-                    // Preserve the existing ID to prevent duplicates
-                    current[i] = TieredAchievement(
-                        id: existing.id,
-                        category: current[i].category,
-                        requirements: current[i].requirements,
-                        progress: current[i].progress
-                    )
-                }
-            }
-            
-            let checker = TieredAchievementChecker()
-            // Iterate deterministically by date ascending so progression is stable
-            let orderedResults = recentResults.sorted { $0.date < $1.date }
-            for r in orderedResults {
-                _ = checker.checkAllAchievements(
-                    for: r,
-                    allResults: recentResults,
-                    streaks: streaks,
-                    games: games,
-                    currentAchievements: &current
+    internal func recalculateAllTieredAchievementProgress() {
+logger.info("Recomputing tiered achievements from all results...")
+
+        // Create a map of existing achievements by category to preserve their IDs
+        var existingByCategory: [AchievementCategory: TieredAchievement] = [:]
+        for existing in tieredAchievements {
+            existingByCategory[existing.category] = existing
+        }
+
+        // Create new achievements with consistent IDs, but preserve existing IDs if they exist
+        var current = AchievementFactory.createDefaultAchievements()
+        for i in current.indices {
+            if let existing = existingByCategory[current[i].category] {
+                current[i] = TieredAchievement(
+                    id: existing.id,
+                    category: current[i].category,
+                    requirements: current[i].requirements,
+                    progress: current[i].progress
                 )
             }
-            // Enforce union with cached unique games to avoid regressions on partial histories
-            if let idx = current.firstIndex(where: { $0.category == .varietyPlayer }) {
-                let fromHistory = Set(recentResults.map(\.gameId))
-                let unionCount = fromHistory.union(uniqueGamesEver).count
-                let monotonicValue = max(current[idx].progress.currentValue, unionCount)
-                current[idx].updateProgress(value: monotonicValue)
-            }
-            // Persist if changed
-            if current != tieredAchievements {
-                tieredAchievements = current
- logger.info("Tiered achievements recomputed")
-            } else {
- logger.info("ℹ Tiered achievements already up to date")
-            }
         }
+
+        // Single-pass snapshot replaces the per-result loop
+        let snapshot = AchievementSnapshot.build(from: recentResults, games: games)
+        let checker = TieredAchievementChecker()
+        _ = checker.checkAllAchievements(
+            snapshot: snapshot,
+            streaks: streaks,
+            currentAchievements: &current
+        )
+
+        // Enforce union with cached unique games to avoid regressions on partial histories
+        if let idx = current.firstIndex(where: { $0.category == .varietyPlayer }) {
+            let unionCount = snapshot.uniqueGameIds.union(uniqueGamesEver).count
+            let monotonicValue = max(current[idx].progress.currentValue, unionCount)
+            current[idx].updateProgress(value: monotonicValue)
+        }
+
+        // Persist if changed
+        if current != tieredAchievements {
+            tieredAchievements = current
+logger.info("Tiered achievements recomputed")
+        } else {
+logger.info("Tiered achievements already up to date")
+        }
+    }
 }

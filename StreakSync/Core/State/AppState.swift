@@ -224,32 +224,26 @@ final class AppState {
         removeGameResult(result.id)
     }
 
-    /// Check all achievements for all recent results (used during day changes).
-    /// Uses a local `inout` array to avoid triggering the `tieredAchievements`
-    /// setter (and its save Task) for every result.
+    /// Check all achievements via pre-computed snapshot (used during day changes).
     func checkAllAchievements() async {
- logger.info("Checking all achievements for day change")
+logger.info("Checking all achievements for day change")
+        let snapshot = AchievementSnapshot.build(from: recentResults, games: games)
         let checker = TieredAchievementChecker()
         var current = tieredAchievements
-        for result in recentResults {
-            _ = checker.checkAllAchievements(
-                for: result,
-                allResults: recentResults,
-                streaks: streaks,
-                games: games,
-                currentAchievements: &current
-            )
-        }
+        _ = checker.checkAllAchievements(
+            snapshot: snapshot,
+            streaks: streaks,
+            currentAchievements: &current
+        )
         if let idx = current.firstIndex(where: { $0.category == .varietyPlayer }) {
-            let fromHistory = Set(recentResults.map(\.gameId))
-            let unionCount = fromHistory.union(uniqueGamesEver).count
+            let unionCount = snapshot.uniqueGameIds.union(uniqueGamesEver).count
             let monotonicValue = max(current[idx].progress.currentValue, unionCount)
             current[idx].updateProgress(value: monotonicValue)
         }
         if current != tieredAchievements {
             tieredAchievements = current
         }
- logger.info("Completed checking all achievements")
+logger.info("Completed checking all achievements")
     }
 
     // MARK: - Grouped Results for Pips

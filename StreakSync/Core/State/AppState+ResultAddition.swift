@@ -55,7 +55,7 @@ extension AppState {
 
         // Check for new achievements (tiered-only, host mode only)
         if !isGuestMode {
-            checkAchievements(for: result)
+            checkAchievements()
         }
 
         // Invalidate UI cache
