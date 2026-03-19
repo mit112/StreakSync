@@ -18,14 +18,14 @@ struct AchievementSnapshot {
     let uniqueGameIds: Set<UUID>
     let uniqueDayCount: Int
     let consecutiveDaysPlayed: Int
-    let earlyBirdCount: Int
-    let nightOwlCount: Int
     let minimalAttemptWins: Int
-    let comebackCount: Int
+    let personalBestCount: Int
+    let friendCount: Int
 
     static func build(
         from results: [GameResult],
         games: [Game],
+        friendCount: Int = 0,
         referenceDate: Date = Date()
     ) -> AchievementSnapshot {
         guard !results.isEmpty else {
@@ -35,10 +35,9 @@ struct AchievementSnapshot {
                 uniqueGameIds: [],
                 uniqueDayCount: 0,
                 consecutiveDaysPlayed: 0,
-                earlyBirdCount: 0,
-                nightOwlCount: 0,
                 minimalAttemptWins: 0,
-                comebackCount: 0
+                personalBestCount: 0,
+                friendCount: friendCount
             )
         }
 
@@ -47,10 +46,7 @@ struct AchievementSnapshot {
 
         var uniqueGameIds = Set<UUID>()
         var uniqueDays = Set<Date>()
-        var daysByGame = [UUID: Set<Date>]()
         var successCount = 0
-        var earlyBirdCount = 0
-        var nightOwlCount = 0
         var minimalAttemptWins = 0
 
         // Single pass over all results
@@ -59,17 +55,9 @@ struct AchievementSnapshot {
 
             let day = calendar.startOfDay(for: result.date)
             uniqueDays.insert(day)
-            daysByGame[result.gameId, default: []].insert(day)
 
             if result.isSuccess {
                 successCount += 1
-            }
-
-            let hour = calendar.component(.hour, from: result.date)
-            if hour >= 5 && hour < 9 {
-                earlyBirdCount += 1
-            } else if hour < 5 {
-                nightOwlCount += 1
             }
 
             if let score = result.score, result.isSuccess,
@@ -86,8 +74,8 @@ struct AchievementSnapshot {
             from: uniqueDays, calendar: calendar, referenceDate: referenceDate
         )
 
-        // Derive comeback count from per-game day sets
-        let comebackCount = calculateComebacks(from: daysByGame, calendar: calendar)
+        // Derive personal best count from results
+        let personalBestCount = calculatePersonalBests(from: results, gameLookup: gameLookup)
 
         return AchievementSnapshot(
             totalGamesPlayed: results.count,
@@ -95,10 +83,9 @@ struct AchievementSnapshot {
             uniqueGameIds: uniqueGameIds,
             uniqueDayCount: uniqueDays.count,
             consecutiveDaysPlayed: consecutiveDays,
-            earlyBirdCount: earlyBirdCount,
-            nightOwlCount: nightOwlCount,
             minimalAttemptWins: minimalAttemptWins,
-            comebackCount: comebackCount
+            personalBestCount: personalBestCount,
+            friendCount: friendCount
         )
     }
 
@@ -140,27 +127,36 @@ struct AchievementSnapshot {
         return currentStreak
     }
 
-    private static func calculateComebacks(
-        from daysByGame: [UUID: Set<Date>],
-        calendar: Calendar
+    /// Counts games where the user beat their previous best score.
+    /// Respects `Game.scoringModel.isLowerBetter` for each game — lower is better
+    /// for word games (Wordle), higher is better for score-based games (Spelling Bee).
+    private static func calculatePersonalBests(
+        from results: [GameResult],
+        gameLookup: [UUID: Game]
     ) -> Int {
-        var totalComebacks = 0
+        let grouped = Dictionary(grouping: results) { $0.gameId }
+        var totalBests = 0
 
-        for (_, daySet) in daysByGame {
-            let sortedDays = daySet.sorted()
-            guard sortedDays.count > 1 else { continue }
+        for (gameId, gameResults) in grouped {
+            let isLowerBetter = gameLookup[gameId]?.scoringModel.isLowerBetter ?? true
+            let sorted = gameResults.sorted { $0.date < $1.date }
+            var bestScore: Int?
 
-            for i in 1..<sortedDays.count {
-                let delta = calendar.dateComponents(
-                    [.day], from: sortedDays[i - 1], to: sortedDays[i]
-                ).day ?? 0
-                if delta > 1 {
-                    totalComebacks += 1
+            for result in sorted {
+                guard let score = result.score, result.isSuccess else { continue }
+                if let previous = bestScore {
+                    let isBetter = isLowerBetter ? score < previous : score > previous
+                    if isBetter {
+                        totalBests += 1
+                        bestScore = score
+                    }
+                } else {
+                    bestScore = score
                 }
             }
         }
 
-        return totalComebacks
+        return totalBests
     }
 
     private static func minimalAttempts(
@@ -202,9 +198,11 @@ struct TieredAchievementChecker {
         unlocks.append(contentsOf: checkDailyDevotee(snapshot: snapshot, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkVarietyPlayer(snapshot: snapshot, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkSpeedDemon(snapshot: snapshot, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkTimeBasedAchievements(snapshot: snapshot, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkComebackChampion(snapshot: snapshot, achievements: &currentAchievements))
         unlocks.append(contentsOf: checkMarathonRunner(snapshot: snapshot, achievements: &currentAchievements))
+        unlocks.append(contentsOf: checkPersonalBest(snapshot: snapshot, achievements: &currentAchievements))
+        unlocks.append(contentsOf: checkSocialPlayer(snapshot: snapshot, achievements: &currentAchievements))
+        // Completionist runs AFTER all others (depends on their tiers)
+        unlocks.append(contentsOf: checkCompletionist(achievements: &currentAchievements))
 
         return unlocks
     }
@@ -373,72 +371,6 @@ logger.info("Unlocked Speed Demon \(newTier.displayName) - minimal-attempt wins:
         return unlocks
     }
 
-    // MARK: - Time-Based Achievements
-
-    private func checkTimeBasedAchievements(
-        snapshot: AchievementSnapshot,
-        achievements: inout [TieredAchievement]
-    ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
-        if let index = achievements.firstIndex(where: { $0.category == .earlyBird }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: snapshot.earlyBirdCount)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-            }
-        }
-
-        if let index = achievements.firstIndex(where: { $0.category == .nightOwl }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: snapshot.nightOwlCount)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-            }
-        }
-
-        return unlocks
-    }
-
-    // MARK: - Comeback Champion
-
-    private func checkComebackChampion(
-        snapshot: AchievementSnapshot,
-        achievements: inout [TieredAchievement]
-    ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
-        if let index = achievements.firstIndex(where: { $0.category == .comebackChampion }) {
-            let oldTier = achievements[index].progress.currentTier
-            // Monotonic guard: never decrease on partial histories
-            let newValue = max(achievements[index].progress.currentValue, snapshot.comebackCount)
-            achievements[index].updateProgress(value: newValue)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-            }
-        }
-
-        return unlocks
-    }
-
     // MARK: - Marathon Runner
 
     private func checkMarathonRunner(
@@ -459,6 +391,90 @@ logger.info("Unlocked Speed Demon \(newTier.displayName) - minimal-attempt wins:
                     timestamp: Date()
                 ))
 logger.info("Unlocked Marathon Runner \(newTier.displayName) - \(snapshot.uniqueDayCount) active days")
+            }
+        }
+
+        return unlocks
+    }
+
+    // MARK: - Personal Best
+
+    private func checkPersonalBest(
+        snapshot: AchievementSnapshot,
+        achievements: inout [TieredAchievement]
+    ) -> [AchievementUnlock] {
+        var unlocks: [AchievementUnlock] = []
+
+        if let index = achievements.firstIndex(where: { $0.category == .personalBest }) {
+            let oldTier = achievements[index].progress.currentTier
+            achievements[index].updateProgress(value: snapshot.personalBestCount)
+
+            if let newTier = achievements[index].progress.currentTier,
+               oldTier != newTier {
+                unlocks.append(AchievementUnlock(
+                    achievement: achievements[index],
+                    tier: newTier,
+                    timestamp: Date()
+                ))
+logger.info("Unlocked Personal Best \(newTier.displayName) - \(snapshot.personalBestCount) personal bests")
+            }
+        }
+
+        return unlocks
+    }
+
+    // MARK: - Social Player
+
+    private func checkSocialPlayer(
+        snapshot: AchievementSnapshot,
+        achievements: inout [TieredAchievement]
+    ) -> [AchievementUnlock] {
+        var unlocks: [AchievementUnlock] = []
+
+        if let index = achievements.firstIndex(where: { $0.category == .socialPlayer }) {
+            let oldTier = achievements[index].progress.currentTier
+            achievements[index].updateProgress(value: snapshot.friendCount)
+
+            if let newTier = achievements[index].progress.currentTier,
+               oldTier != newTier {
+                unlocks.append(AchievementUnlock(
+                    achievement: achievements[index],
+                    tier: newTier,
+                    timestamp: Date()
+                ))
+logger.info("Unlocked Social Player \(newTier.displayName) - \(snapshot.friendCount) friends")
+            }
+        }
+
+        return unlocks
+    }
+
+    // MARK: - Completionist (meta-achievement, runs after all others)
+
+    private func checkCompletionist(
+        achievements: inout [TieredAchievement]
+    ) -> [AchievementUnlock] {
+        var unlocks: [AchievementUnlock] = []
+
+        // Count categories (excluding completionist itself) at Gold or above
+        let goldOrAboveCount = achievements.filter { achievement in
+            achievement.category != .completionist &&
+            !achievement.category.isRetired &&
+            (achievement.progress.currentTier?.rawValue ?? 0) >= AchievementTier.gold.rawValue
+        }.count
+
+        if let index = achievements.firstIndex(where: { $0.category == .completionist }) {
+            let oldTier = achievements[index].progress.currentTier
+            achievements[index].updateProgress(value: goldOrAboveCount)
+
+            if let newTier = achievements[index].progress.currentTier,
+               oldTier != newTier {
+                unlocks.append(AchievementUnlock(
+                    achievement: achievements[index],
+                    tier: newTier,
+                    timestamp: Date()
+                ))
+logger.info("Unlocked Completionist \(newTier.displayName) - \(goldOrAboveCount) categories at Gold+")
             }
         }
 

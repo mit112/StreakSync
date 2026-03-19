@@ -23,19 +23,7 @@ extension AppState {
             if _tieredAchievements == nil {
                 // Try to load from persistence
                 if let saved = persistenceService.load([TieredAchievement].self, forKey: Self.tieredAchievementsKey) {
-                    // Deduplicate by category (keep the first occurrence of each category)
-                    var deduplicated: [TieredAchievement] = []
-                    var seenCategories: Set<AchievementCategory> = []
-                    for achievement in saved {
-                        if !seenCategories.contains(achievement.category) {
-                            deduplicated.append(achievement)
-                            seenCategories.insert(achievement.category)
-                        }
-                    }
-                    _tieredAchievements = deduplicated
-                    if deduplicated.count != saved.count {
- logger.debug("Removed \(saved.count - deduplicated.count) duplicate achievements from persistence")
-                    }
+                    _tieredAchievements = migrateAchievements(saved)
                 } else {
                     // Create default achievements if none exist
                     _tieredAchievements = AchievementFactory.createDefaultAchievements()
@@ -44,24 +32,45 @@ extension AppState {
             return _tieredAchievements ?? []
         }
         set {
-            // Deduplicate by category before setting
-            var deduplicated: [TieredAchievement] = []
-            var seenCategories: Set<AchievementCategory> = []
-            for achievement in newValue {
-                if !seenCategories.contains(achievement.category) {
-                    deduplicated.append(achievement)
-                    seenCategories.insert(achievement.category)
-                }
-            }
-            _tieredAchievements = deduplicated
-            if deduplicated.count != newValue.count {
- logger.debug("Removed \(newValue.count - deduplicated.count) duplicate achievements")
-            }
+            _tieredAchievements = migrateAchievements(newValue)
             // Save immediately
             Task {
                 await saveTieredAchievements()
             }
         }
+    }
+
+    /// Migrates an achievement array: strips retired categories, appends missing
+    /// active categories with fresh defaults, and deduplicates by category.
+    private func migrateAchievements(_ input: [TieredAchievement]) -> [TieredAchievement] {
+        // 1. Filter out retired categories
+        let active = input.filter { !$0.category.isRetired }
+
+        // 2. Deduplicate by category (keep first occurrence)
+        var deduplicated: [TieredAchievement] = []
+        var seenCategories: Set<AchievementCategory> = []
+        for achievement in active {
+            if !seenCategories.contains(achievement.category) {
+                deduplicated.append(achievement)
+                seenCategories.insert(achievement.category)
+            }
+        }
+
+        // 3. Append missing active categories from defaults
+        let defaults = AchievementFactory.createDefaultAchievements()
+        let countBeforeAppend = deduplicated.count
+        for defaultAchievement in defaults where !seenCategories.contains(defaultAchievement.category) {
+            deduplicated.append(defaultAchievement)
+            seenCategories.insert(defaultAchievement.category)
+        }
+
+        let retiredCount = input.count - active.count
+        let addedCount = deduplicated.count - countBeforeAppend
+        if retiredCount > 0 || addedCount > 0 {
+ logger.debug("Achievement migration: stripped \(retiredCount) retired, added \(addedCount) new categories")
+        }
+
+        return deduplicated
     }
     
     // MARK: - Tiered-only checkAchievements
@@ -71,7 +80,7 @@ extension AppState {
 
     // Tiered achievement checking via pre-computed snapshot
     internal func checkTieredAchievements() {
-        let snapshot = AchievementSnapshot.build(from: recentResults, games: games)
+        let snapshot = AchievementSnapshot.build(from: recentResults, games: games, friendCount: cachedFriendCount)
         let checker = TieredAchievementChecker()
 
         var currentAchievements = tieredAchievements
@@ -99,7 +108,7 @@ extension AppState {
         }
     }
     
-    private func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
+    internal func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
  logger.info("Tiered Achievement Unlocked: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
         
         // Queue celebration directly (deterministic, no fire-and-forget)
@@ -164,8 +173,9 @@ extension AppState {
     
     func loadTieredAchievements() async {
         if let saved = persistenceService.load([TieredAchievement].self, forKey: Self.tieredAchievementsKey) {
-            _tieredAchievements = saved
- logger.info("Loaded \(saved.count) tiered achievements")
+            _tieredAchievements = migrateAchievements(saved)
+            let migratedCount = _tieredAchievements?.count ?? 0
+ logger.info("Loaded \(saved.count) tiered achievements (migrated to \(migratedCount))")
         } else {
             // Initialize with default achievements
             _tieredAchievements = AchievementFactory.createDefaultAchievements()
@@ -204,7 +214,7 @@ logger.info("Recomputing tiered achievements from all results...")
         }
 
         // Single-pass snapshot replaces the per-result loop
-        let snapshot = AchievementSnapshot.build(from: recentResults, games: games)
+        let snapshot = AchievementSnapshot.build(from: recentResults, games: games, friendCount: cachedFriendCount)
         let checker = TieredAchievementChecker()
         _ = checker.checkAllAchievements(
             snapshot: snapshot,

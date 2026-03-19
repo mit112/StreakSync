@@ -85,7 +85,22 @@ enum AchievementCategory: String, CaseIterable, Codable, Sendable {
     case nightOwl = "night_owl"
     case comebackChampion = "comeback_champion"
     case marathonRunner = "marathon_runner"
+    case personalBest = "personal_best"
+    case socialPlayer = "social_player"
+    case completionist = "completionist"
     
+    /// Categories that reward anti-patterns (clock-watching, streak failure).
+    /// Kept in enum for Codable backward compatibility; hidden from UI and checker.
+    var isRetired: Bool {
+        switch self {
+        case .earlyBird, .nightOwl, .comebackChampion: return true
+        default: return false
+        }
+    }
+
+    /// All non-retired categories, in declaration order.
+    static let activeCategories: [AchievementCategory] = allCases.filter { !$0.isRetired }
+
     var displayName: String {
         switch self {
         case .streakMaster: return "Streak Master"
@@ -98,6 +113,9 @@ enum AchievementCategory: String, CaseIterable, Codable, Sendable {
         case .nightOwl: return "Night Owl"
         case .comebackChampion: return "Comeback Champion"
         case .marathonRunner: return "Marathon Runner"
+        case .personalBest: return "Personal Best"
+        case .socialPlayer: return "Social Player"
+        case .completionist: return "Completionist"
         }
     }
     
@@ -113,9 +131,12 @@ enum AchievementCategory: String, CaseIterable, Codable, Sendable {
         case .nightOwl: return "moon.stars.fill"
         case .comebackChampion: return "arrow.counterclockwise.circle.fill"
         case .marathonRunner: return "figure.run"
+        case .personalBest: return "chart.line.uptrend.xyaxis"
+        case .socialPlayer: return "person.2.fill"
+        case .completionist: return "checkmark.seal.fill"
         }
     }
-    
+
     var description: String {
         switch self {
         case .streakMaster: return "Maintain consecutive day streaks for individual games"
@@ -128,6 +149,9 @@ enum AchievementCategory: String, CaseIterable, Codable, Sendable {
         case .nightOwl: return "Play games late at night"
         case .comebackChampion: return "Rebuild streaks after they break"
         case .marathonRunner: return "Stay active for extended periods"
+        case .personalBest: return "Beat your own high scores across games"
+        case .socialPlayer: return "Build your friends network"
+        case .completionist: return "Earn Gold or higher in multiple categories"
         }
     }
     
@@ -158,6 +182,12 @@ enum AchievementCategory: String, CaseIterable, Codable, Sendable {
             uuidString = "C9D0E1F2-A3B4-4567-C89A-BCDEF0123456"
         case .marathonRunner:
             uuidString = "D0E1F2A3-B4C5-4678-D9AB-CDEF01234567"
+        case .personalBest:
+            uuidString = "E1F2A3B4-C5D6-4789-EABC-DEF012345678"
+        case .socialPlayer:
+            uuidString = "F2A3B4C5-D6E7-4890-FBCD-EF0123456789"
+        case .completionist:
+            uuidString = "A3B4C5D6-E7F8-4901-ACDE-F01234567890"
         }
         return UUID(uuidString: uuidString) ?? UUID()
     }
@@ -199,9 +229,20 @@ struct AchievementProgress: Codable, Hashable, Sendable {
         guard let current = currentTier else { return .bronze }
         return AchievementTier.allCases.first { $0.rawValue == current.rawValue + 1 }
     }
-    
+
+    /// Returns the next tier that actually has a requirement defined.
+    /// Fixes the bug where skipping `.master` in requirements caused Diamond
+    /// to appear as the max tier (nextTier returned `.master` but no
+    /// requirement existed for it).
+    func nextTier(in requirements: [TierRequirement]) -> AchievementTier? {
+        guard let current = currentTier else {
+            return requirements.first?.tier
+        }
+        return requirements.first { $0.tier.rawValue > current.rawValue }?.tier
+    }
+
     func percentageToNextTier(requirements: [TierRequirement]) -> Double {
-        guard let nextTier = nextTier else { return 1.0 }
+        guard let nextTier = nextTier(in: requirements) else { return 1.0 }
         guard let nextRequirement = requirements.first(where: { $0.tier == nextTier }) else { return 0.0 }
         
         let previousThreshold: Int
@@ -264,7 +305,7 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
     }
     
     var nextTierRequirement: TierRequirement? {
-        guard let nextTier = progress.nextTier else { return nil }
+        guard let nextTier = progress.nextTier(in: requirements) else { return nil }
         return requirements.first { $0.tier == nextTier }
     }
     

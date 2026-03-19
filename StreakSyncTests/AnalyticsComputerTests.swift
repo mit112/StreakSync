@@ -447,7 +447,7 @@ final class AnalyticsComputerTests: XCTestCase {
     func test_computeAchievementAnalytics_nextActions_limitsToThree() {
         let achievements = (0..<5).map { i in
             makeTieredAchievement(
-                category: AchievementCategory.allCases[i],
+                category: AchievementCategory.activeCategories[i],
                 currentValue: i,
                 currentTier: .bronze
             )

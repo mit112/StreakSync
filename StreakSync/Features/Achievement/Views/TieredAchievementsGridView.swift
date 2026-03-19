@@ -39,7 +39,7 @@ struct TieredAchievementsGridView: View {
     
     private var availableCategories: [AchievementCategory] {
         let categories = Set(appState.tieredAchievements.map { $0.category })
-        return AchievementCategory.allCases.filter { categories.contains($0) }
+        return AchievementCategory.activeCategories.filter { categories.contains($0) }
     }
     
     var body: some View {

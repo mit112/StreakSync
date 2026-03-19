@@ -72,6 +72,9 @@ struct FriendsView: View {
         .onDisappear {
             viewModel.cleanup()
         }
+        .onChange(of: viewModel.friends.count) { _, newCount in
+            container.appState.cachedFriendCount = newCount
+        }
         .onChange(of: viewModel.selectedDateUTC) { _, _ in
             viewModel.handleSelectedDateChange()
         }

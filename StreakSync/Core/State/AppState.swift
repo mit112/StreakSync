@@ -75,6 +75,17 @@ final class AppState {
     // MARK: - Score Publish Throttle
     internal var lastScorePublishByGame: [UUID: Date] = [:]
 
+    // MARK: - Social Metrics (for achievement checking)
+    internal var cachedFriendCount: Int {
+        get { _cachedFriendCount }
+        set {
+            _cachedFriendCount = newValue
+            UserDefaults.standard.set(newValue, forKey: "cachedFriendCount")
+        }
+    }
+    @ObservationIgnored
+    private var _cachedFriendCount: Int = UserDefaults.standard.integer(forKey: "cachedFriendCount")
+
     // MARK: - Observer Tokens
     @ObservationIgnored
     nonisolated(unsafe) private var dayChangeObserver: (any NSObjectProtocol)?
@@ -227,10 +238,10 @@ final class AppState {
     /// Check all achievements via pre-computed snapshot (used during day changes).
     func checkAllAchievements() async {
 logger.info("Checking all achievements for day change")
-        let snapshot = AchievementSnapshot.build(from: recentResults, games: games)
+        let snapshot = AchievementSnapshot.build(from: recentResults, games: games, friendCount: cachedFriendCount)
         let checker = TieredAchievementChecker()
         var current = tieredAchievements
-        _ = checker.checkAllAchievements(
+        let unlocks = checker.checkAllAchievements(
             snapshot: snapshot,
             streaks: streaks,
             currentAchievements: &current
@@ -242,6 +253,9 @@ logger.info("Checking all achievements for day change")
         }
         if current != tieredAchievements {
             tieredAchievements = current
+        }
+        for unlock in unlocks {
+            handleTieredAchievementUnlock(unlock)
         }
 logger.info("Completed checking all achievements")
     }

@@ -201,7 +201,7 @@ struct AchievementUnlockCelebrationView: View {
             }
             .foregroundStyle(unlock.tier.color)
             
-            if let nextTier = unlock.achievement.progress.nextTier,
+            if let nextTier = unlock.achievement.progress.nextTier(in: unlock.achievement.requirements),
                let nextRequirement = unlock.achievement.nextTierRequirement {
                 Text("Next: \(nextTier.displayName) at \(nextRequirement.threshold)")
                     .font(.caption)
@@ -317,7 +317,7 @@ struct AchievementUnlockCelebrationView: View {
     private func announceCompletion() {
         UIAccessibility.post(notification: .announcement, argument: """
         Celebration complete. You can share your achievement or tap continue to dismiss.
-        Next tier: \(unlock.achievement.progress.nextTier?.displayName ?? "Maximum tier reached").
+        Next tier: \(unlock.achievement.progress.nextTier(in: unlock.achievement.requirements)?.displayName ?? "Maximum tier reached").
         """)
     }
     

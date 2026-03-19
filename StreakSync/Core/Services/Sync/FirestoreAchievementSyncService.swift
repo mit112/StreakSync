@@ -77,6 +77,8 @@ final class FirestoreAchievementSyncService {
                 if let remote = try? decoder.decode([TieredAchievement].self, from: payloadData) {
                     let merged = merge(local: appState.tieredAchievements, remote: remote)
                     if merged != appState.tieredAchievements {
+                        // The setter runs migrateAchievements, which strips retired
+                        // categories from the merge result and appends missing new ones.
                         appState.tieredAchievements = merged
  logger.info("Pulled and merged tiered achievements from Firestore")
                     }
@@ -107,7 +109,7 @@ final class FirestoreAchievementSyncService {
                 "payload": payload.base64EncodedString(),
                 "summary": summary,
                 "lastUpdated": FieldValue.serverTimestamp(),
-                "version": 1
+                "version": 2
             ])
 
             status = .success(Date())
@@ -170,7 +172,7 @@ final class FirestoreAchievementSyncService {
 
     private func summarize(_ items: [TieredAchievement]) -> [String: Int] {
         var byCategory: [String: Int] = [:]
-        for a in items {
+        for a in items where !a.category.isRetired {
             if a.progress.currentTier != nil { byCategory[a.category.rawValue, default: 0] += 1 }
         }
         return byCategory

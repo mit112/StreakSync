@@ -10,7 +10,7 @@ import Foundation
 // MARK: - Achievement Factory
 struct AchievementFactory {
 
-    // MARK: - Streak Master Achievement (fixed naming)
+    // MARK: - Streak Master Achievement
     static func createStreakMasterAchievement(for gameId: UUID? = nil) -> TieredAchievement {
         TieredAchievement(
             id: AchievementCategory.streakMaster.consistentID,
@@ -20,8 +20,7 @@ struct AchievementFactory {
                 TierRequirement(tier: .silver, threshold: 7, specificGameId: gameId),
                 TierRequirement(tier: .gold, threshold: 14, specificGameId: gameId),
                 TierRequirement(tier: .diamond, threshold: 30, specificGameId: gameId),
-                TierRequirement(tier: .master, threshold: 60, specificGameId: gameId),
-                TierRequirement(tier: .legendary, threshold: 100, specificGameId: gameId)
+                TierRequirement(tier: .legendary, threshold: 60, specificGameId: gameId)
             ]
         )
     }
@@ -33,11 +32,10 @@ struct AchievementFactory {
             category: .gameCollector,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 10),
-                TierRequirement(tier: .silver, threshold: 50),
-                TierRequirement(tier: .gold, threshold: 100),
-                TierRequirement(tier: .diamond, threshold: 250),
-                TierRequirement(tier: .master, threshold: 500),
-                TierRequirement(tier: .legendary, threshold: 1000)
+                TierRequirement(tier: .silver, threshold: 25),
+                TierRequirement(tier: .gold, threshold: 50),
+                TierRequirement(tier: .diamond, threshold: 100),
+                TierRequirement(tier: .legendary, threshold: 250)
             ]
         )
     }
@@ -49,11 +47,10 @@ struct AchievementFactory {
             category: .perfectionist,
             requirements: [
                 TierRequirement(tier: .bronze, threshold: 5),
-                TierRequirement(tier: .silver, threshold: 25),
-                TierRequirement(tier: .gold, threshold: 50),
-                TierRequirement(tier: .diamond, threshold: 100),
-                TierRequirement(tier: .master, threshold: 250),
-                TierRequirement(tier: .legendary, threshold: 500)
+                TierRequirement(tier: .silver, threshold: 15),
+                TierRequirement(tier: .gold, threshold: 30),
+                TierRequirement(tier: .diamond, threshold: 75),
+                TierRequirement(tier: .legendary, threshold: 150)
             ]
         )
     }
@@ -68,7 +65,7 @@ struct AchievementFactory {
                 TierRequirement(tier: .silver, threshold: 7),
                 TierRequirement(tier: .gold, threshold: 14),
                 TierRequirement(tier: .diamond, threshold: 30),
-                TierRequirement(tier: .master, threshold: 60)
+                TierRequirement(tier: .legendary, threshold: 60)
             ]
         )
     }
@@ -83,8 +80,7 @@ struct AchievementFactory {
                 TierRequirement(tier: .silver, threshold: 5),
                 TierRequirement(tier: .gold, threshold: 8),
                 TierRequirement(tier: .diamond, threshold: 12),
-                TierRequirement(tier: .master, threshold: 15),
-                TierRequirement(tier: .legendary, threshold: 20)
+                TierRequirement(tier: .legendary, threshold: 16)
             ]
         )
     }
@@ -95,54 +91,11 @@ struct AchievementFactory {
             id: AchievementCategory.speedDemon.consistentID,
             category: .speedDemon,
             requirements: [
-                TierRequirement(tier: .bronze, threshold: 1),    // Win in minimum attempts once
-                TierRequirement(tier: .silver, threshold: 5),    // Win in minimum attempts 5 times
-                TierRequirement(tier: .gold, threshold: 10),     // Win in minimum attempts 10 times
-                TierRequirement(tier: .diamond, threshold: 20),  // Win in minimum attempts 20 times
-                TierRequirement(tier: .master, threshold: 50),   // Win in minimum attempts 50 times
-                TierRequirement(tier: .legendary, threshold: 100) // Win in minimum attempts 100 times
-            ]
-        )
-    }
-
-    // MARK: - Early Bird Achievement
-    static func createEarlyBirdAchievement() -> TieredAchievement {
-        TieredAchievement(
-            id: AchievementCategory.earlyBird.consistentID,
-            category: .earlyBird,
-            requirements: [
-                TierRequirement(tier: .bronze, threshold: 1),   // Count plays between 05:00-08:59
-                TierRequirement(tier: .silver, threshold: 5),   // Same band; tiers reflect total occurrences
-                TierRequirement(tier: .gold, threshold: 10),    // Same band; tiers reflect total occurrences
-                TierRequirement(tier: .diamond, threshold: 20)  // Same band; tiers reflect total occurrences
-            ]
-        )
-    }
-
-    // MARK: - Night Owl Achievement
-    static func createNightOwlAchievement() -> TieredAchievement {
-        TieredAchievement(
-            id: AchievementCategory.nightOwl.consistentID,
-            category: .nightOwl,
-            requirements: [
-                TierRequirement(tier: .bronze, threshold: 1),   // Count plays between 00:00-04:59
-                TierRequirement(tier: .silver, threshold: 5),   // Same band; tiers reflect total occurrences
-                TierRequirement(tier: .gold, threshold: 10),    // Same band; tiers reflect total occurrences
-                TierRequirement(tier: .diamond, threshold: 20)  // Same band; tiers reflect total occurrences
-            ]
-        )
-    }
-
-    // MARK: - Comeback Champion Achievement
-    static func createComebackChampionAchievement() -> TieredAchievement {
-        TieredAchievement(
-            id: AchievementCategory.comebackChampion.consistentID,
-            category: .comebackChampion,
-            requirements: [
-                TierRequirement(tier: .bronze, threshold: 1),   // 1 comeback
-                TierRequirement(tier: .silver, threshold: 7),   // 7 total comebacks
-                TierRequirement(tier: .gold, threshold: 14),    // 14 total comebacks
-                TierRequirement(tier: .diamond, threshold: 30)  // 30 total comebacks
+                TierRequirement(tier: .bronze, threshold: 1),
+                TierRequirement(tier: .silver, threshold: 5),
+                TierRequirement(tier: .gold, threshold: 10),
+                TierRequirement(tier: .diamond, threshold: 25),
+                TierRequirement(tier: .legendary, threshold: 50)
             ]
         )
     }
@@ -153,16 +106,101 @@ struct AchievementFactory {
             id: AchievementCategory.marathonRunner.consistentID,
             category: .marathonRunner,
             requirements: [
-                TierRequirement(tier: .bronze, threshold: 10),
+                TierRequirement(tier: .bronze, threshold: 7),
                 TierRequirement(tier: .silver, threshold: 30),
                 TierRequirement(tier: .gold, threshold: 60),
-                TierRequirement(tier: .diamond, threshold: 100),
-                TierRequirement(tier: .master, threshold: 365)
+                TierRequirement(tier: .diamond, threshold: 120),
+                TierRequirement(tier: .legendary, threshold: 365)
             ]
         )
     }
 
-    // MARK: - All Default Achievements
+    // MARK: - Personal Best Achievement
+    static func createPersonalBestAchievement() -> TieredAchievement {
+        TieredAchievement(
+            id: AchievementCategory.personalBest.consistentID,
+            category: .personalBest,
+            requirements: [
+                TierRequirement(tier: .bronze, threshold: 1),
+                TierRequirement(tier: .silver, threshold: 3),
+                TierRequirement(tier: .gold, threshold: 5),
+                TierRequirement(tier: .diamond, threshold: 10),
+                TierRequirement(tier: .legendary, threshold: 20)
+            ]
+        )
+    }
+
+    // MARK: - Social Player Achievement
+    static func createSocialPlayerAchievement() -> TieredAchievement {
+        TieredAchievement(
+            id: AchievementCategory.socialPlayer.consistentID,
+            category: .socialPlayer,
+            requirements: [
+                TierRequirement(tier: .bronze, threshold: 1),
+                TierRequirement(tier: .silver, threshold: 3),
+                TierRequirement(tier: .gold, threshold: 5),
+                TierRequirement(tier: .diamond, threshold: 10),
+                TierRequirement(tier: .legendary, threshold: 15)
+            ]
+        )
+    }
+
+    // MARK: - Completionist Achievement (meta-achievement, 4 tiers)
+    static func createCompletionistAchievement() -> TieredAchievement {
+        TieredAchievement(
+            id: AchievementCategory.completionist.consistentID,
+            category: .completionist,
+            requirements: [
+                TierRequirement(tier: .bronze, threshold: 3),
+                TierRequirement(tier: .silver, threshold: 5),
+                TierRequirement(tier: .gold, threshold: 7),
+                TierRequirement(tier: .diamond, threshold: 9)
+            ]
+        )
+    }
+
+    // MARK: - Retired Achievement Factories (kept for Codable backward compat in tests)
+
+    static func createEarlyBirdAchievement() -> TieredAchievement {
+        TieredAchievement(
+            id: AchievementCategory.earlyBird.consistentID,
+            category: .earlyBird,
+            requirements: [
+                TierRequirement(tier: .bronze, threshold: 1),
+                TierRequirement(tier: .silver, threshold: 5),
+                TierRequirement(tier: .gold, threshold: 10),
+                TierRequirement(tier: .diamond, threshold: 20)
+            ]
+        )
+    }
+
+    static func createNightOwlAchievement() -> TieredAchievement {
+        TieredAchievement(
+            id: AchievementCategory.nightOwl.consistentID,
+            category: .nightOwl,
+            requirements: [
+                TierRequirement(tier: .bronze, threshold: 1),
+                TierRequirement(tier: .silver, threshold: 5),
+                TierRequirement(tier: .gold, threshold: 10),
+                TierRequirement(tier: .diamond, threshold: 20)
+            ]
+        )
+    }
+
+    static func createComebackChampionAchievement() -> TieredAchievement {
+        TieredAchievement(
+            id: AchievementCategory.comebackChampion.consistentID,
+            category: .comebackChampion,
+            requirements: [
+                TierRequirement(tier: .bronze, threshold: 1),
+                TierRequirement(tier: .silver, threshold: 7),
+                TierRequirement(tier: .gold, threshold: 14),
+                TierRequirement(tier: .diamond, threshold: 30)
+            ]
+        )
+    }
+
+    // MARK: - All Default Achievements (active categories only)
     static func createDefaultAchievements() -> [TieredAchievement] {
         [
             createStreakMasterAchievement(),
@@ -171,10 +209,10 @@ struct AchievementFactory {
             createDailyDevoteeAchievement(),
             createVarietyPlayerAchievement(),
             createSpeedDemonAchievement(),
-            createEarlyBirdAchievement(),
-            createNightOwlAchievement(),
-            createComebackChampionAchievement(),
-            createMarathonRunnerAchievement()
+            createMarathonRunnerAchievement(),
+            createPersonalBestAchievement(),
+            createSocialPlayerAchievement(),
+            createCompletionistAchievement()
         ]
     }
 }

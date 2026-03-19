@@ -245,6 +245,24 @@ struct TieredAchievementDetailView: View {
                 "Total days with activity count",
                 "Long-term consistency is rewarded"
             ]
+        case .personalBest:
+            return [
+                "Beat your previous best score in any game",
+                "Lower scores count as better for word games",
+                "Keep improving to unlock higher tiers"
+            ]
+        case .socialPlayer:
+            return [
+                "Add friends to grow your network",
+                "Each friend counts toward this achievement",
+                "Connect with fellow players to progress"
+            ]
+        case .completionist:
+            return [
+                "Earn Gold or higher in other categories",
+                "Focus on categories closest to Gold first",
+                "The ultimate meta-achievement for dedicated players"
+            ]
         }
     }
 }

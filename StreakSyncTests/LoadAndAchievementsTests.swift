@@ -58,15 +58,77 @@ final class LoadAndAchievementsTests: XCTestCase {
     func testTieredAchievementsNotSavedWhenUnchanged() async {
         let persistence = CountingPersistence()
         let appState = AppState(persistenceService: persistence)
-        
+
         // Ensure defaults exist
         _ = appState.tieredAchievements
-        
+
         // Recompute with no results; should be up to date and not save
         appState.recalculateAllTieredAchievementProgress()
-        
+
         let saveCount = persistence.savesByKey[AppState.tieredAchievementsKey] ?? 0
         XCTAssertEqual(saveCount, 0, "Recompute should not save when achievements are unchanged")
+    }
+
+    // MARK: - Migration Tests
+
+    func testMigrationStripsRetiredAndAddsNewCategories() {
+        let persistence = CountingPersistence()
+
+        // Simulate old data with retired categories and missing new ones
+        let oldAchievements: [TieredAchievement] = [
+            AchievementFactory.createStreakMasterAchievement(),
+            AchievementFactory.createGameCollectorAchievement(),
+            AchievementFactory.createPerfectionistAchievement(),
+            AchievementFactory.createDailyDevoteeAchievement(),
+            AchievementFactory.createVarietyPlayerAchievement(),
+            AchievementFactory.createSpeedDemonAchievement(),
+            AchievementFactory.createEarlyBirdAchievement(),
+            AchievementFactory.createNightOwlAchievement(),
+            AchievementFactory.createComebackChampionAchievement(),
+            AchievementFactory.createMarathonRunnerAchievement(),
+        ]
+
+        // Persist old data
+        try? persistence.save(oldAchievements, forKey: AppState.tieredAchievementsKey)
+
+        let appState = AppState(persistenceService: persistence)
+        let loaded = appState.tieredAchievements
+
+        // Should have 10 active categories (3 retired stripped, 3 new added)
+        XCTAssertEqual(loaded.count, 10, "Should have exactly 10 active achievements")
+
+        // Retired should be gone
+        XCTAssertFalse(loaded.contains { $0.category == .earlyBird }, "earlyBird should be stripped")
+        XCTAssertFalse(loaded.contains { $0.category == .nightOwl }, "nightOwl should be stripped")
+        XCTAssertFalse(loaded.contains { $0.category == .comebackChampion }, "comebackChampion should be stripped")
+
+        // New categories should be present
+        XCTAssertTrue(loaded.contains { $0.category == .personalBest }, "personalBest should be added")
+        XCTAssertTrue(loaded.contains { $0.category == .socialPlayer }, "socialPlayer should be added")
+        XCTAssertTrue(loaded.contains { $0.category == .completionist }, "completionist should be added")
+    }
+
+    func testMigrationPreservesExistingProgress() {
+        let persistence = CountingPersistence()
+
+        var streakMaster = AchievementFactory.createStreakMasterAchievement()
+        streakMaster.updateProgress(value: 15)
+
+        let oldAchievements: [TieredAchievement] = [
+            streakMaster,
+            AchievementFactory.createGameCollectorAchievement(),
+            AchievementFactory.createEarlyBirdAchievement(), // retired
+        ]
+
+        try? persistence.save(oldAchievements, forKey: AppState.tieredAchievementsKey)
+
+        let appState = AppState(persistenceService: persistence)
+        let loaded = appState.tieredAchievements
+
+        // Streak Master progress should be preserved
+        let sm = loaded.first { $0.category == .streakMaster }
+        XCTAssertEqual(sm?.progress.currentValue, 15)
+        XCTAssertEqual(sm?.progress.currentTier, .gold)
     }
 }
 
