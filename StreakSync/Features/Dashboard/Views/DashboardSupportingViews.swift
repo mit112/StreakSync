@@ -222,7 +222,9 @@ private struct iOS26EnhancedStreakCard: View {
             .background {
                 ZStack {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(.secondarySystemGroupedBackground))
+                        // Use a true surface color so the card reads as a solid tile
+                        // on top of the grouped dashboard background in light mode.
+                        .fill(Color(.systemBackground))
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(gameColor.opacity(colorScheme == .dark ? 0.06 : 0.08))
                     RoundedRectangle(cornerRadius: 16, style: .continuous)

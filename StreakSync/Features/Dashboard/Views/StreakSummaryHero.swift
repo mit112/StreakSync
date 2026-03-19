@@ -75,8 +75,15 @@ struct StreakSummaryHero: View {
             .frame(maxWidth: .infinity)
             .background {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
-                    .strokeBorder(Color(.separator), lineWidth: 0.5)
+                    // Use a brighter surface so the hero stands out against the grouped dashboard background.
+                    .fill(Color(.systemBackground))
+                    .strokeBorder(colorScheme == .dark ? Color(.separator) : Color.black.opacity(0.08), lineWidth: 0.75)
+                    .shadow(
+                        color: .black.opacity(colorScheme == .dark ? 0.18 : 0.08),
+                        radius: colorScheme == .dark ? 8 : 10,
+                        x: 0,
+                        y: colorScheme == .dark ? 4 : 4
+                    )
             }
         }
     }

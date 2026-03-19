@@ -14,20 +14,46 @@ struct CardBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background {
+                let surfaceColor: Color = {
+                    if colorScheme == .dark {
+                        // Match prior dark mode look: near-black grouped surface.
+                        return Color(.secondarySystemGroupedBackground)
+                    } else {
+                        // Light mode: crisp surface on top of grouped background.
+                        return Color(.systemBackground)
+                    }
+                }()
+
+                let borderColor: Color = {
+                    if colorScheme == .dark {
+                        // Subtle edge like the original design.
+                        return Color(.separator)
+                    } else {
+                        // Light mode: slightly more defined edge to avoid washed-out look.
+                        return Color.black.opacity(0.08)
+                    }
+                }()
+
+                let borderWidth: CGFloat = (colorScheme == .dark ? 0.5 : 1)
+
+                let shadowColor: Color = .black.opacity(colorScheme == .dark ? 0.2 : 0.10)
+                let shadowRadius: CGFloat = (colorScheme == .dark ? 8 : 10)
+                let shadowYOffset: CGFloat = (colorScheme == .dark ? 4 : 4)
+
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
+                    .fill(surfaceColor)
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .strokeBorder(
-                                Color(.separator),
-                                lineWidth: colorScheme == .dark ? 0.5 : 1
+                                borderColor,
+                                lineWidth: borderWidth
                             )
                     }
                     .shadow(
-                        color: .black.opacity(colorScheme == .dark ? 0.2 : 0.08),
-                        radius: colorScheme == .dark ? 8 : 6,
+                        color: shadowColor,
+                        radius: shadowRadius,
                         x: 0,
-                        y: colorScheme == .dark ? 4 : 2
+                        y: shadowYOffset
                     )
             }
     }
