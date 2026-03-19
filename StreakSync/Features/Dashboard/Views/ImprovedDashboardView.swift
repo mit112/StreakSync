@@ -121,6 +121,9 @@ struct ImprovedDashboardView: View {
                 .scrollBounceBehavior(.automatic)
                 .skeletonLoading(isLoading: appState.isLoading && !hasInitiallyAppeared, style: .card)
         }
+        // Slightly tinted grouped background so cards and surfaces feel elevated in light mode,
+        // instead of everything sitting on flat white.
+        .background(Color(.systemGroupedBackground))
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("StreakSync")
         .navigationBarTitleDisplayMode(.large)

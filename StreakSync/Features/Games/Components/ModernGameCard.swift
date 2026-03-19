@@ -133,6 +133,21 @@ struct ModernGameCard: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(12)
+            .overlay(alignment: .leading) {
+                // Keep the card body neutral; use a single, controlled accent that
+                // does NOT cover the card outline drawn by `cardStyle()`.
+                if colorScheme != .dark {
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(gameColor.opacity(0.7))
+                        .frame(width: 4)
+                        .padding(.vertical, 10)
+                        .padding(.leading, 2)
+                        .mask {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        }
+                        .accessibilityHidden(true)
+                }
+            }
             .cardStyle()
         }
         .buttonStyle(ModernCardButtonStyle())
@@ -144,7 +159,7 @@ struct ModernGameCard: View {
         ZStack {
             Circle()
                 .fill(hasEverPlayed
-                    ? gameColor.opacity(colorScheme == .dark ? 0.2 : 0.12)
+                    ? gameColor.opacity(colorScheme == .dark ? 0.2 : 0.18)
                     : Color(.quaternarySystemFill)
                 )
                 .frame(width: 48, height: 48)
