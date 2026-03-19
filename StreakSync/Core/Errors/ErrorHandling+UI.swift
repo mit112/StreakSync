@@ -53,13 +53,13 @@ struct ErrorAlertModifier: ViewModifier {
                     if let reason = error.failureReason {
                         Text(reason)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     
                     if let suggestion = error.recoverySuggestion {
                         Text(suggestion)
                             .font(.caption)
-                            .foregroundColor(.blue)
+                            .foregroundStyle(.blue)
                     }
                 }
             }
@@ -97,17 +97,17 @@ struct InlineErrorView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image.safeSystemName(iconName, fallback: "exclamationmark.triangle")
-                    .foregroundColor(iconColor)
+                    .foregroundStyle(iconColor)
                 
                 Text(error.errorDescription ?? "An error occurred")
                     .font(.subheadline.weight(.medium))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
             
             if let suggestion = error.recoverySuggestion {
                 Text(suggestion)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             
             if let onRetry = onRetry {
@@ -115,7 +115,7 @@ struct InlineErrorView: View {
                     onRetry()
                 }
                 .font(.caption.weight(.medium))
-                .foregroundColor(.blue)
+                .foregroundStyle(.blue)
                 .padding(.top, 4)
             }
         }

@@ -98,10 +98,10 @@ private struct LinkedInGameInstructions: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "info.circle.fill")
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
                 Text("How to Play This Game")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
             
             VStack(alignment: .leading, spacing: 4) {
@@ -111,7 +111,7 @@ private struct LinkedInGameInstructions: View {
                 Text("4. Start playing immediately!")
             }
             .font(.caption)
-            .foregroundColor(.secondary)
+            .foregroundStyle(.secondary)
             .padding(.leading, 20)
         }
         .padding(12)

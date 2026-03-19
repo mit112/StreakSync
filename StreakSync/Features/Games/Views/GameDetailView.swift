@@ -110,7 +110,7 @@ struct GameDetailView: View {
                             
                             Text("Loading...")
                                 .font(.headline)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                         }
                         .padding(24)
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))

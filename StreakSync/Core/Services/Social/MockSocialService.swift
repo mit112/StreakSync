@@ -149,7 +149,3 @@ final class MockSocialService: SocialService {
         return id
     }
 }
-
-private extension String {
-    var nonEmpty: String? { isEmpty ? nil : self }
-}
