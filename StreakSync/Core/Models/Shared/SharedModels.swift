@@ -265,6 +265,29 @@ struct GameResult: Identifiable, Codable, Hashable, Sendable {
         case id, gameId, gameName, date, score, maxAttempts, completed, sharedText, parsedData, lastModified
     }
 
+    // MARK: - Editing Support
+
+    /// Creates a copy of this result with selectively overridden fields.
+    /// Preserves the same `id` so the replacement swaps in-place.
+    func replacing(
+        date: Date? = nil,
+        score: Int?? = nil,
+        completed: Bool? = nil
+    ) -> GameResult {
+        GameResult(
+            id: self.id,
+            gameId: self.gameId,
+            gameName: self.gameName,
+            date: date ?? self.date,
+            score: score ?? self.score,
+            maxAttempts: self.maxAttempts,
+            completed: completed ?? self.completed,
+            sharedText: self.sharedText,
+            parsedData: self.parsedData,
+            lastModified: Date()
+        )
+    }
+
     // MARK: - Computed Properties
     var isSuccess: Bool {
         completed && score != nil

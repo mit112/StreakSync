@@ -16,6 +16,7 @@ struct GameResultDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(AppState.self) private var appState
     @State private var showingDeleteConfirmation = false
+    @State private var showingEditSheet = false
 
     @State private var scoreRevealed = false
     @State private var showShareSheet = false
@@ -56,10 +57,17 @@ struct GameResultDetailView: View {
                         Button("Done") { dismiss() }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button(role: .destructive) {
-                            showingDeleteConfirmation = true
-                        } label: {
-                            Image(systemName: "trash")
+                        HStack(spacing: 16) {
+                            Button {
+                                showingEditSheet = true
+                            } label: {
+                                Image(systemName: "pencil")
+                            }
+                            Button(role: .destructive) {
+                                showingDeleteConfirmation = true
+                            } label: {
+                                Image(systemName: "trash")
+                            }
                         }
                     }
                 }
@@ -69,6 +77,11 @@ struct GameResultDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will remove the result and recalculate your streaks and achievements.")
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            EditGameResultView(result: result, game: game) {
+                dismiss()
+            }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)

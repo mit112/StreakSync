@@ -110,7 +110,7 @@ extension AppState {
 
     // MARK: - Social Publishing
 
-    private func publishScoreToSocial(_ result: GameResult) {
+    internal func publishScoreToSocial(_ result: GameResult) {
         // Throttle: skip if same game was published within 5 seconds
         if let lastPublish = lastScorePublishByGame[result.gameId],
            Date().timeIntervalSince(lastPublish) < 5.0 {
