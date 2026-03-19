@@ -140,10 +140,10 @@ enum AchievementCategory: String, CaseIterable, Codable, Sendable {
     var description: String {
         switch self {
         case .streakMaster: return "Maintain consecutive day streaks for individual games"
-        case .gameCollector: return "Play games across all categories"
+        case .gameCollector: return "Log more and more game results — every play counts"
         case .perfectionist: return "Complete games successfully without failing"
         case .dailyDevotee: return "Play at least one game every day"
-        case .varietyPlayer: return "Play many different games over time"
+        case .varietyPlayer: return "Try different games — each new title counts"
         case .speedDemon: return "Win games with minimal attempts"
         case .earlyBird: return "Play games in the early morning"
         case .nightOwl: return "Play games late at night"

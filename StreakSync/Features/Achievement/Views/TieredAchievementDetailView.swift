@@ -193,9 +193,9 @@ struct TieredAchievementDetailView: View {
             ]
         case .gameCollector:
             return [
-                "Try playing different games each day",
-                "Explore all available game categories",
-                "Every game counts toward your total"
+                "Every game you play adds to your total",
+                "Play the same game daily — it all counts",
+                "Volume is what matters here, not variety"
             ]
         case .perfectionist:
             return [
@@ -211,9 +211,9 @@ struct TieredAchievementDetailView: View {
             ]
         case .varietyPlayer:
             return [
-                "Play different games over time",
-                "Try games from different categories",
-                "The more variety, the faster you progress"
+                "Each unique game title you try counts once",
+                "Explore games you haven't played before",
+                "Playing the same game twice doesn't add more"
             ]
         case .speedDemon:
             return [
