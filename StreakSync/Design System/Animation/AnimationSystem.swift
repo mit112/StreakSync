@@ -81,66 +81,16 @@ struct HoverableModifier: ViewModifier {
     }
 }
 
-// MARK: - Shake Modifier
-struct ShakeModifier: ViewModifier {
-    let shakes: Int
-    let amplitude: CGFloat
-    
-    @State private var shakesRemaining = 0
-    
-    func body(content: Content) -> some View {
-        content
-            .offset(x: shakesRemaining > 0 ? amplitude : 0)
-            .animation(
-                shakesRemaining > 0 ?
-                Animation.linear(duration: 0.05).repeatCount(shakes * 2, autoreverses: true) :
-                .default,
-                value: shakesRemaining
-            )
-            .onReceive(NotificationCenter.default.publisher(for: .shake)) { _ in
-                shakesRemaining = shakes
-                Task { @MainActor in HapticManager.shared.trigger(.error) }
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(shakes) * 0.1) {
-                    shakesRemaining = 0
-                }
-            }
-    }
-}
-
 // MARK: - View Extensions
 extension View {
     /// Makes any view pressable with haptic feedback
     func pressable(hapticType: HapticManager.HapticType = .buttonTap, hapticEnabled: Bool = true, scaleAmount: CGFloat = 0.95) -> some View {
         modifier(PressableModifier(hapticType: hapticType, hapticEnabled: hapticEnabled, scaleAmount: scaleAmount))
     }
-    
+
     /// Adds hover effect for iPad cursor support
     func hoverable(scaleAmount: CGFloat = 1.05) -> some View {
         modifier(HoverableModifier(scaleAmount: scaleAmount))
-    }
-    
-    /// Adds shake animation capability
-    func shakeable(shakes: Int = 3, amplitude: CGFloat = 5) -> some View {
-        modifier(ShakeModifier(shakes: shakes, amplitude: amplitude))
-    }
-}
-
-// MARK: - Notification Names
-extension Notification.Name {
-    static let shake = Notification.Name("shakeAnimation")
-}
-
-// MARK: - Animation Utilities
-struct AnimationUtility {
-    /// Triggers a shake animation on any view with the shake modifier
-    static func triggerShake() {
-        NotificationCenter.default.post(name: .shake, object: nil)
-    }
-    
-    /// Performs an action with haptic feedback
-    @MainActor static func performWithHaptic(_ type: HapticManager.HapticType, action: () -> Void) {
-        HapticManager.shared.trigger(type)
-        action()
     }
 }
 
@@ -167,82 +117,10 @@ struct StaggeredAnimationModifier: ViewModifier {
     }
 }
 
-// MARK: - Card Swipe Modifier
-struct SwipeableCardModifier: ViewModifier {
-    @GestureState private var dragOffset = CGSize.zero
-    @State private var finalOffset = CGSize.zero
-    let onSwipe: ((SwipeDirection) -> Void)?
-    
-    enum SwipeDirection {
-        case left, right
-    }
-    
-    func body(content: Content) -> some View {
-        GeometryReader { geometry in
-            content
-                .offset(x: dragOffset.width + finalOffset.width)
-                .animation(SpringPreset.snappy, value: dragOffset)
-                .gesture(
-                    DragGesture()
-                        .updating($dragOffset) { value, state, _ in
-                            state = value.translation
-                        }
-                        .onEnded { value in
-                            let threshold: CGFloat = 100
-                            
-                            if value.translation.width > threshold {
-                                Task { @MainActor in HapticManager.shared.trigger(.cardSwipe) }
-                                onSwipe?(.right)
-                                withAnimation(SpringPreset.bouncy) {
-                                    finalOffset.width = geometry.size.width
-                                }
-                            } else if value.translation.width < -threshold {
-                                Task { @MainActor in HapticManager.shared.trigger(.cardSwipe) }
-                                onSwipe?(.left)
-                                withAnimation(SpringPreset.bouncy) {
-                                    finalOffset.width = -geometry.size.width
-                                }
-                            } else {
-                                // Snap back
-                                Task { @MainActor in HapticManager.shared.trigger(.cardSnap) }
-                                withAnimation(SpringPreset.snappy) {
-                                    finalOffset = .zero
-                                }
-                            }
-                        }
-                )
-        }
-    }
-}
-
-// MARK: - Pull to Refresh Modifier
-struct PullToRefreshModifier: ViewModifier {
-    @Binding var isRefreshing: Bool
-    let onRefresh: () async -> Void
-    
-    func body(content: Content) -> some View {
-        content
-            .refreshable {
-                Task { @MainActor in HapticManager.shared.trigger(.pullToRefresh) }
-                await onRefresh()
-            }
-    }
-}
-
 extension View {
     /// Adds staggered appearance animation
     func staggeredAppearance(index: Int, totalCount: Int) -> some View {
         modifier(StaggeredAnimationModifier(index: index, totalCount: totalCount))
-    }
-    
-    /// Makes a card swipeable with haptic feedback
-    func swipeableCard(onSwipe: ((SwipeableCardModifier.SwipeDirection) -> Void)? = nil) -> some View {
-        modifier(SwipeableCardModifier(onSwipe: onSwipe))
-    }
-    
-    /// Adds pull to refresh with haptic feedback
-    func pullToRefreshWithHaptic(isRefreshing: Binding<Bool>, onRefresh: @escaping () async -> Void) -> some View {
-        modifier(PullToRefreshModifier(isRefreshing: isRefreshing, onRefresh: onRefresh))
     }
 }
 
