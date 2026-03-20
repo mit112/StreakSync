@@ -159,18 +159,6 @@ final class AppContainer: ObservableObject {
         appGroupBridge.clearAllData()
     }
 
-    // MARK: - View Model Factories
-    
-    /// Creates a new GameDetailViewModel for a specific game
-    func makeGameDetailViewModel(for gameId: UUID) -> GameDetailViewModel {
-        GameDetailViewModel(gameId: gameId)
-    }
-    
-    /// Creates a SettingsViewModel
-    func makeSettingsViewModel() -> SettingsViewModel {
-        SettingsViewModel()
-    }
-    
     // MARK: - App Lifecycle
     
     /// Call when app becomes active

@@ -101,21 +101,3 @@ extension Image {
     }
 }
 
-// MARK: - UIKit Extension
-extension UIImage {
-    /// Creates a UIImage with SF Symbol and automatic compatibility fallback
-    static func compatibleSystemName(_ name: String, fallback: String? = nil) -> UIImage? {
-        let safeName = SFSymbolCompatibility.getSymbol(name)
-        
-        #if DEBUG
-        if name.isEmpty {
-            symbolLogger.error("EMPTY SYMBOL NAME in UIImage.compatibleSystemName — safe: '\(safeName)'")
-        }
-        if name != safeName {
-            symbolLogger.debug("UIImage symbol fallback: '\(name)' → '\(safeName)'")
-        }
-        #endif
-        
-        return UIImage(systemName: safeName)
-    }
-}
