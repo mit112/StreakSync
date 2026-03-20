@@ -253,9 +253,13 @@ private extension FriendManagementView {
                 errorMessage = "No user found with that code."
                 return
             }
-            try await socialService.sendFriendRequest(toUserId: found.id)
+            let autoAccepted = try await socialService.sendFriendRequest(toUserId: found.id)
             addCode = ""
-            successMessage = "Friend request sent to \(found.displayName)!"
+            if autoAccepted {
+                successMessage = "You're now friends with \(found.displayName)!"
+            } else {
+                successMessage = "Friend request sent to \(found.displayName)!"
+            }
             // Refresh lists
             friends = try await socialService.listFriends()
             pendingRequests = try await socialService.pendingRequests()

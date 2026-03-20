@@ -133,14 +133,18 @@ struct ManualEntryView: View {
     
     private func saveResult() {
         guard let game = selectedGame else { return }
-        
+
         // Create game result from manual entry
         let parser = GameResultParser()
-        
+
         do {
             let result = try parser.parse(gameResult, for: game)
-            appState.addGameResult(result)
-            dismiss()
+            if appState.addGameResult(result) {
+                dismiss()
+            } else {
+                errorMessage = "Could not save result. It may already be recorded."
+                showingError = true
+            }
         } catch {
             errorMessage = "Could not parse the result. Please check the format and try again."
             showingError = true

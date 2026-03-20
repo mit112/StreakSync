@@ -38,36 +38,28 @@ extension FirebaseSocialService {
         friendsCacheTimestamp = nil
     }
 
-    func sendFriendRequest(toUserId targetId: String) async throws {
+    @discardableResult
+    func sendFriendRequest(toUserId targetId: String) async throws -> Bool {
         let currentUID = try requireUID()
-        guard currentUID != targetId else { return }
-        // Check if friendship already exists
-        let existing = try await db.collection("friendships")
-            .whereField("userId1", in: [currentUID, targetId])
-            .getDocuments()
-        let matchingDoc = existing.documents.first { doc in
-            let d = doc.data()
-            let u1 = d["userId1"] as? String ?? ""
-            let u2 = d["userId2"] as? String ?? ""
-            return (u1 == currentUID && u2 == targetId) || (u1 == targetId && u2 == currentUID)
-        }
-        if let matchingDoc {
-            let d = matchingDoc.data()
+        guard currentUID != targetId else { return false }
+        // Check if friendship already exists via deterministic doc ID (O(1) fetch)
+        let docId = [currentUID, targetId].sorted().joined(separator: "_")
+        let existingDoc = try await db.collection("friendships").document(docId).getDocument()
+        if existingDoc.exists, let d = existingDoc.data() {
             // If the other user sent us a pending request, auto-accept it
             if d["userId1"] as? String == targetId,
                d["userId2"] as? String == currentUID,
                d["status"] as? String == FriendshipStatus.pending.rawValue {
-                try await acceptFriendRequest(friendshipId: matchingDoc.documentID)
- logger.info("Auto-accepted mutual friend request from \(targetId)")
-                return
+                try await acceptFriendRequest(friendshipId: docId)
+                logger.info("Auto-accepted mutual friend request from \(targetId)")
+                return true
             }
             // Already friends or we already sent a pending request
- logger.info("Friendship already exists between \(currentUID) and \(targetId)")
-            return
+            logger.info("Friendship already exists between \(currentUID) and \(targetId)")
+            return false
         }
         // Resolve sender's display name for pending request UI
         let senderName = auth.currentUser?.displayName ?? "Player"
-        let docId = [currentUID, targetId].sorted().joined(separator: "_")
         try await db.collection("friendships").document(docId).setData([
             "userId1": currentUID,
             "userId2": targetId,
@@ -75,7 +67,8 @@ extension FirebaseSocialService {
             "senderDisplayName": senderName,
             "createdAt": Timestamp(date: Date())
         ])
- logger.info("Sent friend request to \(targetId)")
+        logger.info("Sent friend request to \(targetId)")
+        return false
     }
 
     func acceptFriendRequest(friendshipId: String) async throws {

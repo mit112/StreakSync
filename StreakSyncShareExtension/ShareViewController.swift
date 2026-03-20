@@ -74,24 +74,43 @@ class ShareViewController: UIViewController {
         
         // Detect which game this result belongs to
         guard let game = detectGame(from: text) else {
-            showResult("Unknown game format")
+            showResult("Game not recognized. Supported games include Wordle, Connections, Strands, and more. Open StreakSync to add results manually.")
             return
         }
-        
+
         // Parse using the shared GameResultParser (same logic as main app)
         let parser = GameResultParser()
         do {
             let result = try parser.parse(text, for: game)
             saveResult(result)
-            showResult("\(game.displayName) result saved!")
+            showResult("✓ \(game.displayName) result saved!")
         } catch {
-            showResult("Couldn't parse \(game.displayName) result")
+            let hint = expectedFormatHint(for: game)
+            showResult("Couldn't parse your \(game.displayName) result. \(hint)")
         }
     }
     
     /// Maps shared text to a Game by delegating to the shared GameDetector.
     private func detectGame(from text: String) -> Game? {
         GameDetector.detect(from: text, in: Game.allAvailableGames)
+    }
+
+    /// Returns a short hint about the expected share text format for a game.
+    /// Only games with distinctive share formats get custom hints; all others
+    /// fall through to the generic default. Update when adding new games.
+    private func expectedFormatHint(for game: Game) -> String {
+        switch game.name {
+        case "wordle":
+            return "Expected format: \"Wordle 1,234 4/6\" followed by emoji grid."
+        case "connections":
+            return "Expected format: \"Connections\" with \"Puzzle #123\" and colored squares."
+        case "strands":
+            return "Expected format: \"Strands #123\" with hint count."
+        case "quordle":
+            return "Expected format: \"Daily Quordle 123\" with score digits."
+        default:
+            return "Make sure you're sharing the full result text from the game."
+        }
     }
     
     // MARK: - Input Sanitization

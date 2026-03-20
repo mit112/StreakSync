@@ -83,7 +83,9 @@ protocol SocialService: Sendable {
     
     // Friends
     func listFriends() async throws -> [UserProfile]
-    func sendFriendRequest(toUserId: String) async throws
+    /// Returns `true` when a mutual pending request was auto-accepted.
+    @discardableResult
+    func sendFriendRequest(toUserId: String) async throws -> Bool
     func acceptFriendRequest(friendshipId: String) async throws
     func removeFriend(friendshipId: String) async throws
     /// Remove a friend by their user ID (looks up the friendship document automatically)
