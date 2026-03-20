@@ -11,7 +11,7 @@ import UIKit
 // MARK: - Game Result Detail View
 struct GameResultDetailView: View {
     let result: GameResult
-    var onDelete: (() -> Void)? = nil
+    var onDelete: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(AppState.self) private var appState

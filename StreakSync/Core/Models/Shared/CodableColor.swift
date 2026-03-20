@@ -7,9 +7,9 @@
 //
 
 import Foundation
-import UIKit
-import SwiftUI
 import OSLog
+import SwiftUI
+import UIKit
 
 // MARK: - Thread-Safe Codable Color (Memory Optimized)
 struct CodableColor: Codable, Hashable, Sendable {
@@ -101,4 +101,3 @@ struct CodableColor: Codable, Hashable, Sendable {
     static let indigo = CodableColor(colorData: .systemIndigo)
     static let cyan = CodableColor(colorData: .systemCyan)
 }
-

@@ -9,7 +9,6 @@
 import Foundation
 
 extension GameResult {
-
     // MARK: - Display Score
     var displayScore: String {
         // Special handling for multi-puzzle games like Quordle
@@ -77,7 +76,6 @@ extension GameResult {
            let score2 = parsedData["score2"],
            let score3 = parsedData["score3"],
            let score4 = parsedData["score4"] {
-            
             // Format as "6-5-9-4" or "X-X-X-X"
             let s1 = score1 == "failed" ? "X" : score1
             let s2 = score2 == "failed" ? "X" : score2
@@ -341,5 +339,4 @@ extension GameResult {
         return NSLocalizedString("game.accessibility_description",
                                 comment: "\(gameName), \(displayScore), \(statusText)")
     }
-    
 }

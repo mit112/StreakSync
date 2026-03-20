@@ -5,12 +5,11 @@
 //  Tests for streak calculation (AppState+GameLogic) and duplicate detection (AppState+DuplicateDetection).
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class StreakLogicTests: XCTestCase {
-    
     private var appState: AppState!
     private let gameId = UUID()
     
@@ -68,6 +67,7 @@ final class StreakLogicTests: XCTestCase {
     }
     
     private func date(daysAgo: Int) -> Date {
+        // swiftlint:disable:next force_unwrapping
         Calendar.current.date(byAdding: .day, value: -daysAgo, to: Calendar.current.startOfDay(for: Date()))!
     }
     

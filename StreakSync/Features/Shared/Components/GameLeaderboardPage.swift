@@ -15,7 +15,7 @@ struct GameLeaderboardPage: View {
     let metricText: (Int) -> String
     let myUserId: String?
     let onRefresh: (() async -> Void)?
-    @State private var pressedIndex: Int? = nil
+    @State private var pressedIndex: Int?
     @ScaledMetric(relativeTo: .title3) private var rankWidth: CGFloat = 32
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 38
     @ScaledMetric(relativeTo: .body) private var rowSpacing: CGFloat = 14

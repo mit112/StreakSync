@@ -8,7 +8,6 @@
 import Foundation
 
 extension AppState {
-
     // MARK: - Result Addition
 
     /// Adds a game result, returning whether it was actually added (false if invalid/duplicate).

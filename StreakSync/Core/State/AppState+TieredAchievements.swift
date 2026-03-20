@@ -6,17 +6,14 @@
 //
 
 import Foundation
-import SwiftUI
 import OSLog
+import SwiftUI
 
 extension AppState {
-    
     // MARK: - Tiered Achievement Storage
     
     internal static let tieredAchievementsKey = "tieredAchievements"
     internal static let uniqueGamesEverKey = "uniqueGamesEver"
-    
-
     
     var tieredAchievements: [TieredAchievement] {
         get {
@@ -189,7 +186,6 @@ extension AppState {
 
 // MARK: - Update loadPersistedData
 extension AppState {
-    
     // Recalculate progress from existing data
     internal func recalculateAllTieredAchievementProgress() {
 logger.info("Recomputing tiered achievements from all results...")

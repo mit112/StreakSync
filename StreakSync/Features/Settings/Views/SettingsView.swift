@@ -14,17 +14,17 @@ struct SettingsView: View {
     @EnvironmentObject private var coordinator: NavigationCoordinator
 
     var body: some View {
-        iOS26SettingsContent(viewModel: viewModel)
+        IOS26SettingsContent(viewModel: viewModel)
     }
 }
 
 // MARK: - iOS 26 Implementation
-private struct iOS26SettingsContent: View {
+private struct IOS26SettingsContent: View {
     @ObservedObject var viewModel: SettingsViewModel
     @EnvironmentObject private var container: AppContainer
     
     @State private var scrollPosition = ScrollPosition()
-    @State private var hoveredSection: SettingsSection? = nil
+    @State private var hoveredSection: SettingsSection?
     
     enum SettingsSection: String, CaseIterable {
         case account, notifications, appearance, data, about
@@ -34,11 +34,11 @@ private struct iOS26SettingsContent: View {
         ScrollView {
             LazyVStack(spacing: 20) {
                 // Account Section
-                iOS26SettingsSection(
+                IOS26SettingsSection(
                     section: .account,
                     isHovered: hoveredSection == .account
                 ) {
-                    iOS26SettingsNavigationRow(
+                    IOS26SettingsNavigationRow(
                         icon: container.firebaseAuthManager.isAnonymous ? "person.crop.circle.badge.questionmark" : "person.crop.circle.fill",
                         iconColor: container.firebaseAuthManager.isAnonymous ? .orange : .blue,
                         title: "Account",
@@ -58,11 +58,11 @@ private struct iOS26SettingsContent: View {
                 }
 
                 // Notifications Section
-                iOS26SettingsSection(
+                IOS26SettingsSection(
                     section: .notifications,
                     isHovered: hoveredSection == .notifications
                 ) {
-                    iOS26SettingsNavigationRow(
+                    IOS26SettingsNavigationRow(
                         icon: "bell.badge",
                         iconColor: .blue,
                         title: "Notifications",
@@ -79,11 +79,11 @@ private struct iOS26SettingsContent: View {
                 }
                 
                 // Appearance Section
-                iOS26SettingsSection(
+                IOS26SettingsSection(
                     section: .appearance,
                     isHovered: hoveredSection == .appearance
                 ) {
-                    iOS26SettingsNavigationRow(
+                    IOS26SettingsNavigationRow(
                         icon: "moon.circle",
                         iconColor: .indigo,
                         title: "Appearance",
@@ -100,11 +100,11 @@ private struct iOS26SettingsContent: View {
                 }
                 
                 // Data Section
-                iOS26SettingsSection(
+                IOS26SettingsSection(
                     section: .data,
                     isHovered: hoveredSection == .data
                 ) {
-                    iOS26SettingsNavigationRow(
+                    IOS26SettingsNavigationRow(
                         icon: "square.and.arrow.down.on.square",
                         iconColor: .green,
                         title: "Data & Privacy",
@@ -121,12 +121,12 @@ private struct iOS26SettingsContent: View {
                 }
                 
                 // About Section
-                iOS26SettingsSection(
+                IOS26SettingsSection(
                     section: .about,
                     isHovered: hoveredSection == .about
                 ) {
                     VStack(spacing: 0) {
-                        iOS26SettingsNavigationRow(
+                        IOS26SettingsNavigationRow(
                             icon: "info.circle",
                             iconColor: .gray,
                             title: "About",
@@ -140,7 +140,7 @@ private struct iOS26SettingsContent: View {
                             Divider()
                                 .padding(.horizontal)
 
-                            iOS26SettingsLinkRow(
+                            IOS26SettingsLinkRow(
                                 icon: "hand.raised.circle",
                                 iconColor: .purple,
                                 title: "Privacy Policy",
@@ -152,7 +152,7 @@ private struct iOS26SettingsContent: View {
                             Divider()
                                 .padding(.horizontal)
 
-                            iOS26SettingsLinkRow(
+                            IOS26SettingsLinkRow(
                                 icon: "envelope.circle",
                                 iconColor: .orange,
                                 title: "Contact Support",
@@ -180,8 +180,8 @@ private struct iOS26SettingsContent: View {
 }
 
 // MARK: - iOS 26 Settings Section Container
-private struct iOS26SettingsSection<Content: View>: View {
-    let section: iOS26SettingsContent.SettingsSection
+private struct IOS26SettingsSection<Content: View>: View {
+    let section: IOS26SettingsContent.SettingsSection
     let isHovered: Bool
     @ViewBuilder let content: Content
     @Environment(\.colorScheme) private var colorScheme
@@ -221,7 +221,7 @@ private struct iOS26SettingsSection<Content: View>: View {
 }
 
 // MARK: - iOS 26 Settings Navigation Row
-private struct iOS26SettingsNavigationRow<Destination: View>: View {
+private struct IOS26SettingsNavigationRow<Destination: View>: View {
     let icon: String
     let iconColor: Color
     let title: String
@@ -295,7 +295,7 @@ private struct iOS26SettingsNavigationRow<Destination: View>: View {
 }
 
 // MARK: - iOS 26 Settings Link Row
-private struct iOS26SettingsLinkRow: View {
+private struct IOS26SettingsLinkRow: View {
     let icon: String
     let iconColor: Color
     let title: String

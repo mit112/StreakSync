@@ -82,4 +82,3 @@ extension Array where Element == GameStreak {
         }
     }
 }
-

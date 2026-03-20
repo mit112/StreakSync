@@ -4,8 +4,8 @@
 //
 
 import Foundation
-import UIKit
 import OSLog
+import UIKit
 
 @MainActor
 final class FriendsViewModel: ObservableObject {
@@ -16,11 +16,11 @@ final class FriendsViewModel: ObservableObject {
     @Published var errorMessage: String?
     /// Day currently selected by the user (stored at the local calendar's start-of-day). Converted to UTC when querying.
     @Published var selectedDateUTC: Date = Calendar.current.startOfDay(for: Date())
-    @Published var selectedGameId: UUID? = nil
+    @Published var selectedGameId: UUID?
     @Published var isPresentingManageFriends: Bool = false
     @Published var isPresentingDatePicker: Bool = false
     @Published var currentGamePage: Int = 0
-    @Published var myUserId: String? = nil
+    @Published var myUserId: String?
     
     // All games with parsers appear on the leaderboard
     var availableGames: [Game] { Game.allAvailableGames }
@@ -229,17 +229,21 @@ final class FriendsViewModel: ObservableObject {
             forName: UIApplication.didEnterBackgroundNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
-            self?.stopPollingFallback()
+            Task { @MainActor in
+                self?.stopPollingFallback()
+            }
         }
         foregroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.willEnterForegroundNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
-            guard let self else { return }
-            if self.scoreListenerHandle == nil {
-                self.startPollingFallback()
+            Task { @MainActor in
+                guard let self else { return }
+                if self.scoreListenerHandle == nil {
+                    self.startPollingFallback()
+                }
+                await self.refreshLeaderboard()
             }
-            Task { @MainActor in await self.refreshLeaderboard() }
         }
     }
     
@@ -281,7 +285,6 @@ final class FriendsViewModel: ObservableObject {
         let playedIds = Set(rowsForSelectedGameID(gid).map { $0.row.userId })
         return friends.filter { !playedIds.contains($0.id) && $0.id != myUserId }
     }
-    
 }
 
 // MARK: - Date Helpers

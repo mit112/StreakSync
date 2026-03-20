@@ -5,11 +5,10 @@
 //  Tests for social model logic: UserProfile, Friendship, DailyGameScore, Date extensions.
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 final class SocialModelTests: XCTestCase {
-
     // MARK: - UserProfile
 
     func testIsAnonymous_nilProvider() {
@@ -40,8 +39,16 @@ final class SocialModelTests: XCTestCase {
     }
 
     func testUserProfileHashable() {
-        let p1 = UserProfile(id: "uid1", displayName: "A", authProvider: nil, photoURL: nil, friendCode: nil, createdAt: Date(), updatedAt: Date())
-        let p2 = UserProfile(id: "uid1", displayName: "B", authProvider: "apple", photoURL: nil, friendCode: nil, createdAt: Date(), updatedAt: Date())
+        let p1 = UserProfile(
+            id: "uid1", displayName: "A", authProvider: nil,
+            photoURL: nil, friendCode: nil,
+            createdAt: Date(), updatedAt: Date()
+        )
+        let p2 = UserProfile(
+            id: "uid1", displayName: "B", authProvider: "apple",
+            photoURL: nil, friendCode: nil,
+            createdAt: Date(), updatedAt: Date()
+        )
         // Same id should hash the same if Hashable uses all fields — this tests conformance exists
         let set: Set<UserProfile> = [p1, p2]
         XCTAssertTrue(set.count >= 1, "UserProfile should be Hashable")
@@ -81,14 +88,26 @@ final class SocialModelTests: XCTestCase {
     // MARK: - DailyGameScore
 
     func testDailyGameScoreIdentity() {
-        let s1 = DailyGameScore(id: "u1|20250101|g1", userId: "u1", dateInt: 20250101, gameId: Game.wordle.id, gameName: "Wordle", score: 3, maxAttempts: 6, completed: true, currentStreak: 5)
-        let s2 = DailyGameScore(id: "u1|20250101|g1", userId: "u1", dateInt: 20250101, gameId: Game.wordle.id, gameName: "Wordle", score: 3, maxAttempts: 6, completed: true, currentStreak: 5)
+        let s1 = DailyGameScore(
+            id: "u1|20250101|g1", userId: "u1", dateInt: 20250101,
+            gameId: Game.wordle.id, gameName: "Wordle", score: 3,
+            maxAttempts: 6, completed: true, currentStreak: 5
+        )
+        let s2 = DailyGameScore(
+            id: "u1|20250101|g1", userId: "u1", dateInt: 20250101,
+            gameId: Game.wordle.id, gameName: "Wordle", score: 3,
+            maxAttempts: 6, completed: true, currentStreak: 5
+        )
         XCTAssertEqual(s1, s2, "Same id should be equal")
         XCTAssertEqual(s1.hashValue, s2.hashValue)
     }
 
     func testDailyGameScoreCodable() throws {
-        let original = DailyGameScore(id: "u|20250215|g", userId: "u", dateInt: 20250215, gameId: Game.wordle.id, gameName: "Wordle", score: 4, maxAttempts: 6, completed: true, currentStreak: 10)
+        let original = DailyGameScore(
+            id: "u|20250215|g", userId: "u", dateInt: 20250215,
+            gameId: Game.wordle.id, gameName: "Wordle", score: 4,
+            maxAttempts: 6, completed: true, currentStreak: 10
+        )
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(DailyGameScore.self, from: data)
         XCTAssertEqual(decoded.id, original.id)
@@ -98,7 +117,11 @@ final class SocialModelTests: XCTestCase {
     }
 
     func testDailyGameScore_nilOptionals() {
-        let score = DailyGameScore(id: "u|d|g", userId: "u", dateInt: 20250101, gameId: UUID(), gameName: "Test", score: nil, maxAttempts: 0, completed: false, currentStreak: nil)
+        let score = DailyGameScore(
+            id: "u|d|g", userId: "u", dateInt: 20250101,
+            gameId: UUID(), gameName: "Test", score: nil,
+            maxAttempts: 0, completed: false, currentStreak: nil
+        )
         XCTAssertNil(score.score)
         XCTAssertNil(score.currentStreak)
         XCTAssertFalse(score.completed)
@@ -117,24 +140,30 @@ final class SocialModelTests: XCTestCase {
 
     func testUTCDateInt_knownDate() {
         var cal = Calendar(identifier: .gregorian)
+        // swiftlint:disable:next force_unwrapping
         cal.timeZone = TimeZone(secondsFromGMT: 0)!
         let comps = DateComponents(year: 2026, month: 2, day: 15)
+        // swiftlint:disable:next force_unwrapping
         let date = cal.date(from: comps)!
         XCTAssertEqual(date.utcYYYYMMDD, 20260215)
     }
 
     func testUTCDateInt_newYearsDay() {
         var cal = Calendar(identifier: .gregorian)
+        // swiftlint:disable:next force_unwrapping
         cal.timeZone = TimeZone(secondsFromGMT: 0)!
         let comps = DateComponents(year: 2025, month: 1, day: 1)
+        // swiftlint:disable:next force_unwrapping
         let date = cal.date(from: comps)!
         XCTAssertEqual(date.utcYYYYMMDD, 20250101)
     }
 
     func testUTCDateInt_endOfYear() {
         var cal = Calendar(identifier: .gregorian)
+        // swiftlint:disable:next force_unwrapping
         cal.timeZone = TimeZone(secondsFromGMT: 0)!
         let comps = DateComponents(year: 2025, month: 12, day: 31)
+        // swiftlint:disable:next force_unwrapping
         let date = cal.date(from: comps)!
         XCTAssertEqual(date.utcYYYYMMDD, 20251231)
     }

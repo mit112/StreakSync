@@ -7,12 +7,11 @@
 //  App Group storage for the main app to ingest.
 //
 
+import Foundation
 import UIKit
 import UniformTypeIdentifiers
-import Foundation
 
 class ShareViewController: UIViewController {
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -42,7 +41,7 @@ class ShareViewController: UIViewController {
         }
         
         if itemProvider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-            itemProvider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] (rawItem, error) in
+            itemProvider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] rawItem, _ in
                 let text: String? = {
                     if let s = rawItem as? String { return s }
                     if let data = rawItem as? Data, let s = String(data: data, encoding: .utf8) { return s }
@@ -74,7 +73,10 @@ class ShareViewController: UIViewController {
         
         // Detect which game this result belongs to
         guard let game = detectGame(from: text) else {
-            showResult("Game not recognized. Supported games include Wordle, Connections, Strands, and more. Open StreakSync to add results manually.")
+            showResult(
+                "Game not recognized. Supported games include Wordle, Connections, Strands, and more. " +
+                "Open StreakSync to add results manually."
+            )
             return
         }
 

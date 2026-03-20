@@ -8,7 +8,6 @@
 import SwiftUI
 
 extension NavigationCoordinator {
-    
     @ViewBuilder
     func tieredAchievementDetailSheet(for achievement: TieredAchievement) -> some View {
         NavigationStack {

@@ -9,7 +9,6 @@ import Foundation
 
 // MARK: - App Error
 enum AppError: LocalizedError {
-
     // MARK: Share Extension Errors
     case shareExtension(ShareExtensionError)
 

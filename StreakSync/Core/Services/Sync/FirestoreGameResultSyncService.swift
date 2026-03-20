@@ -6,9 +6,9 @@
 //  Leverages Firestore's built-in offline persistence — no manual offline queue needed.
 //
 
-import Foundation
 import FirebaseAuth
 import FirebaseFirestore
+import Foundation
 import OSLog
 
 // MARK: - Sync State
@@ -39,7 +39,6 @@ enum SyncState: Equatable {
 @MainActor
 @Observable
 final class FirestoreGameResultSyncService {
-
     // MARK: - Public State
 
     var syncState: SyncState = .notStarted
@@ -89,110 +88,94 @@ final class FirestoreGameResultSyncService {
 
     func syncIfNeeded() async {
         guard let appState else {
- logger.warning("AppState deallocated – skipping sync")
+            logger.warning("AppState deallocated – skipping sync")
             return
         }
         if appState.isGuestMode {
- logger.info("Guest Mode active – skipping game result sync")
+            logger.info("Guest Mode active – skipping game result sync")
             return
         }
         guard let uid = currentUserId else {
- logger.warning("No authenticated user – skipping game result sync")
+            logger.warning("No authenticated user – skipping game result sync")
             syncState = .offline
             return
         }
 
- logger.info("Starting Firestore game result sync")
+        logger.info("Starting Firestore game result sync")
         syncState = .syncing
 
         do {
-            let collectionRef = db.collection("users").document(uid).collection("gameResults")
-            let isIncremental = lastSyncTimestamp != nil
+            let ref = db.collection("users").document(uid).collection("gameResults")
+            let remoteResults = try await fetchRemoteResults(from: ref)
+            var merged = mergeResults(local: appState.recentResults, remote: remoteResults)
+            let toPush = resultsToPush(merged: merged, local: appState.recentResults, remote: remoteResults)
 
-            // Pull: incremental fetch if we have a previous sync timestamp,
-            // otherwise full fetch on first sync
-            var query: Query = collectionRef
-            if let since = lastSyncTimestamp {
-                query = collectionRef
-                    .whereField("lastModified", isGreaterThan: Timestamp(date: since))
- logger.info("Incremental sync: fetching results modified after \(since.formatted())")
-            }
-
-            let snapshot = try await query.getDocuments(source: .default)
-            let remoteResults = snapshot.documents.compactMap { doc -> GameResult? in
-                return GameResult(fromFirestore: doc.data(), documentId: doc.documentID)
-            }
-
- logger.info("Fetched \(remoteResults.count) game results from Firestore\(isIncremental ? " (incremental)" : " (full)")")
-
-            // Merge: remote into local (remote is source of truth for existing IDs)
-            var merged = appState.recentResults
-            let localIDs = Set(merged.map { $0.id })
-
-            // Build index for O(1) lookup by ID (avoids O(n²) firstIndex scans)
-            var indexById: [UUID: Int] = [:]
-            for (i, result) in merged.enumerated() {
-                indexById[result.id] = i
-            }
-
-            // Update/add remote results (keep whichever version was modified more recently)
-            for remote in remoteResults {
-                if let idx = indexById[remote.id] {
-                    if remote.lastModified > merged[idx].lastModified {
-                        merged[idx] = remote
-                    }
-                } else {
-                    indexById[remote.id] = merged.count
-                    merged.append(remote)
-                }
-            }
-
-            // Push: upload local-only results AND locally-modified results newer than remote
-            let remoteIDs = Set(remoteResults.map { $0.id })
-            let remoteByID = Dictionary(remoteResults.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
-            let toPush: [GameResult]
-            if isIncremental {
-                // Incremental: push local-only results and locally-modified results
-                toPush = merged.filter { local in
-                    guard localIDs.contains(local.id) else { return false }
-                    if !remoteIDs.contains(local.id) {
-                        return true // local-only — always push regardless of timestamp
-                    }
-                    if let remote = remoteByID[local.id], local.lastModified > remote.lastModified {
-                        return true // locally modified after remote
-                    }
-                    return false
-                }
-            } else {
-                // Full sync: push everything remote doesn't have or that's newer locally
-                toPush = merged.filter { local in
-                    if !remoteIDs.contains(local.id) && localIDs.contains(local.id) {
-                        return true
-                    }
-                    if let remote = remoteByID[local.id], local.lastModified > remote.lastModified {
-                        return true
-                    }
-                    return false
-                }
-            }
             if !toPush.isEmpty {
- logger.info("Uploading \(toPush.count) results to Firestore")
+                logger.info("Uploading \(toPush.count) results to Firestore")
                 for result in toPush {
-                    try await uploadResult(result, to: collectionRef)
+                    try await uploadResult(result, to: ref)
                 }
             }
 
-            // Sort newest first and apply
             merged.sort { $0.date > $1.date }
             appState.setRecentResults(merged)
             await appState.saveGameResults()
 
             syncState = .synced(lastSyncDate: Date())
             saveLastSyncTimestamp(Date())
- logger.info("Game result sync completed. Total: \(merged.count)")
+            logger.info("Game result sync completed. Total: \(merged.count)")
         } catch {
- logger.error("Game result sync failed: \(error.localizedDescription)")
+            logger.error("Game result sync failed: \(error.localizedDescription)")
             syncState = .failed(error)
+        }
+    }
+
+    private func fetchRemoteResults(from collectionRef: CollectionReference) async throws -> [GameResult] {
+        var query: Query = collectionRef
+        if let since = lastSyncTimestamp {
+            query = collectionRef.whereField("lastModified", isGreaterThan: Timestamp(date: since))
+            logger.info("Incremental sync: fetching results modified after \(since.formatted())")
+        }
+        let snapshot = try await query.getDocuments(source: .default)
+        let results = snapshot.documents.compactMap { doc -> GameResult? in
+            GameResult(fromFirestore: doc.data(), documentId: doc.documentID)
+        }
+        let mode = lastSyncTimestamp != nil ? " (incremental)" : " (full)"
+        logger.info("Fetched \(results.count) game results from Firestore\(mode)")
+        return results
+    }
+
+    private func mergeResults(local: [GameResult], remote: [GameResult]) -> [GameResult] {
+        var merged = local
+        var indexById: [UUID: Int] = [:]
+        for (i, result) in merged.enumerated() {
+            indexById[result.id] = i
+        }
+        for remote in remote {
+            if let idx = indexById[remote.id] {
+                if remote.lastModified > merged[idx].lastModified {
+                    merged[idx] = remote
+                }
+            } else {
+                indexById[remote.id] = merged.count
+                merged.append(remote)
+            }
+        }
+        return merged
+    }
+
+    private func resultsToPush(merged: [GameResult], local: [GameResult], remote: [GameResult]) -> [GameResult] {
+        let localIDs = Set(local.map { $0.id })
+        let remoteIDs = Set(remote.map { $0.id })
+        let remoteByID = Dictionary(remote.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
+
+        return merged.filter { item in
+            guard localIDs.contains(item.id) else { return false }
+            if !remoteIDs.contains(item.id) { return true }
+            if let r = remoteByID[item.id], item.lastModified > r.lastModified {
+                return true
+            }
+            return false
         }
     }
 
@@ -247,7 +230,6 @@ final class FirestoreGameResultSyncService {
 // MARK: - GameResult ↔ Firestore Conversion
 
 extension GameResult {
-
     func toFirestoreData() -> [String: Any] {
         var data: [String: Any] = [
             "gameId": gameId.uuidString,

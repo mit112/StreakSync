@@ -9,45 +9,36 @@ import Foundation
 
 // MARK: - Game Result Parser
 struct GameResultParser {
-    
+    // swiftlint:disable:next cyclomatic_complexity
+    private func parserForGame(
+        _ name: String
+    ) -> ((String, UUID) throws -> GameResult)? {
+        switch name {
+        case Game.Names.wordle: return parseWordle
+        case Game.Names.quordle: return parseQuordle
+        case Game.Names.nerdle: return parseNerdle
+        case Game.Names.pips: return parsePips
+        case Game.Names.connections: return parseConnections
+        case Game.Names.spellingBee: return parseSpellingBee
+        case Game.Names.miniCrossword: return parseMiniCrossword
+        case Game.Names.strands: return parseStrands
+        case Game.Names.linkedinQueens: return parseLinkedInQueens
+        case Game.Names.linkedinTango: return parseLinkedInTango
+        case Game.Names.linkedinCrossclimb: return parseLinkedInCrossclimb
+        case Game.Names.linkedinPinpoint: return parseLinkedInPinpoint
+        case Game.Names.linkedinZip: return parseLinkedInZip
+        case Game.Names.linkedinMiniSudoku: return parseLinkedInMiniSudoku
+        case Game.Names.octordle: return parseOctordle
+        default: return nil
+        }
+    }
+
     func parse(_ text: String, for game: Game) throws -> GameResult {
         let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        switch game.name.lowercased() {
-        case Game.Names.wordle:
-            return try parseWordle(cleanText, gameId: game.id)
-        case Game.Names.quordle:
-            return try parseQuordle(cleanText, gameId: game.id)
-        case Game.Names.nerdle:
-            return try parseNerdle(cleanText, gameId: game.id)
-        case Game.Names.pips:
-            return try parsePips(cleanText, gameId: game.id)
-        case Game.Names.connections:
-            return try parseConnections(cleanText, gameId: game.id)
-        case Game.Names.spellingBee:
-            return try parseSpellingBee(cleanText, gameId: game.id)
-        case Game.Names.miniCrossword:
-            return try parseMiniCrossword(cleanText, gameId: game.id)
-        case Game.Names.strands:
-            return try parseStrands(cleanText, gameId: game.id)
-        // LinkedIn Games
-        case Game.Names.linkedinQueens:
-            return try parseLinkedInQueens(cleanText, gameId: game.id)
-        case Game.Names.linkedinTango:
-            return try parseLinkedInTango(cleanText, gameId: game.id)
-        case Game.Names.linkedinCrossclimb:
-            return try parseLinkedInCrossclimb(cleanText, gameId: game.id)
-        case Game.Names.linkedinPinpoint:
-            return try parseLinkedInPinpoint(cleanText, gameId: game.id)
-        case Game.Names.linkedinZip:
-            return try parseLinkedInZip(cleanText, gameId: game.id)
-        case Game.Names.linkedinMiniSudoku:
-            return try parseLinkedInMiniSudoku(cleanText, gameId: game.id)
-        case Game.Names.octordle:
-            return try parseOctordle(cleanText, gameId: game.id)
-        default:
-            return try parseGeneric(cleanText, game: game)
+        if let parser = parserForGame(game.name.lowercased()) {
+            return try parser(cleanText, game.id)
         }
+        return try parseGeneric(cleanText, game: game)
     }
 
     private func parseGeneric(_ text: String, game: Game) throws -> GameResult {

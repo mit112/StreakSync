@@ -59,7 +59,11 @@ struct TieredAchievementsGridView: View {
                     .foregroundStyle(.orange)
                 Text("Achievements Hidden in Guest Mode")
                     .font(.headline)
-                Text("Guest Mode lets someone try StreakSync without affecting your data. Achievements are only visible when you're using your own account.")
+                Text("""
+                    Guest Mode lets someone try StreakSync without \
+                    affecting your data. Achievements are only visible \
+                    when you're using your own account.
+                    """)
                     .font(.caption)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)

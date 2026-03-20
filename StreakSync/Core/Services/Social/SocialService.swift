@@ -62,7 +62,6 @@ struct Friendship: Identifiable, Codable, Hashable {
     }
 }
 
-
 // MARK: - Listener Handle
 
 /// Opaque handle for cancelling a real-time Firestore listener.
@@ -116,7 +115,6 @@ protocol SocialService: Sendable {
     nonisolated func addFriendshipListener(onChange: @escaping @MainActor @Sendable () -> Void) -> SocialServiceListenerHandle?
 }
 
-
 // MARK: - Helpers
 extension Date {
     /// Returns an Int in the form yyyyMMdd using the user's local calendar.
@@ -132,5 +130,3 @@ extension Date {
     /// Legacy alias — prefer `localDateInt` going forward.
     var utcYYYYMMDD: Int { localDateInt }
 }
-
-

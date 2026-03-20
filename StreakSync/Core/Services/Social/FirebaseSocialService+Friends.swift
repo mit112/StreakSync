@@ -11,7 +11,6 @@ import Foundation
 // MARK: - Friends
 
 extension FirebaseSocialService {
-
     func listFriends() async throws -> [UserProfile] {
         // Return cached result if fresh
         if let cached = cachedFriends,
@@ -363,5 +362,4 @@ extension FirebaseSocialService {
 
         logger.info("Account data deletion complete for user \(uid)")
     }
-
 }

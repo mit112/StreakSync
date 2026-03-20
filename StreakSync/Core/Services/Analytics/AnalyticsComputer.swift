@@ -35,7 +35,7 @@ struct AnalyticsComputer {
         let mostPlayedGame: Game?
         if game == nil {
             let gamePlayCounts = Dictionary(grouping: timeRangeResults, by: { $0.gameId }).mapValues { $0.count }
-            mostPlayedGame = gamePlayCounts.max(by: { $0.value < $1.value }).flatMap { (gid, _) in games.first { $0.id == gid } }
+            mostPlayedGame = gamePlayCounts.max(by: { $0.value < $1.value }).flatMap { gid, _ in games.first { $0.id == gid } }
         } else {
             mostPlayedGame = game
         }
@@ -171,7 +171,11 @@ struct AnalyticsComputer {
         let trendData = computeGameTrendData(for: gameId, in: timeRange, results: results)
         let personalBest = computePersonalBest(for: gameId, games: games, results: results)
         let averageScore = computeAverageScore(for: gameId, in: timeRange, results: results)
-        return GameAnalytics(game: game, streak: streak, recentResults: recentResults, trendData: trendData, personalBest: personalBest, averageScore: averageScore)
+        return GameAnalytics(
+            game: game, streak: streak, recentResults: recentResults,
+            trendData: trendData, personalBest: personalBest,
+            averageScore: averageScore
+        )
     }
     
     static func computeAchievementAnalytics(tieredAchievements: [TieredAchievement]?) -> AchievementAnalytics {
@@ -252,7 +256,11 @@ struct AnalyticsComputer {
             }
         }
         for entry in longestEntries.sorted(by: { $0.value > $1.value }).prefix(2) {
-            personalBests.append(PersonalBest(type: .longestStreak, value: entry.value, game: entry.game, date: endDate, description: "\(entry.value) day streak in \(entry.game.displayName)"))
+            let desc = "\(entry.value) day streak in \(entry.game.displayName)"
+            personalBests.append(PersonalBest(
+                type: .longestStreak, value: entry.value,
+                game: entry.game, date: endDate, description: desc
+            ))
         }
         // Best score per game (completed only) within range, respecting scoring direction
         let completed = filteredResults.filter { $0.completed }
@@ -271,13 +279,21 @@ struct AnalyticsComputer {
         }
         for (gid, score, result) in bests.prefix(2) {
             if let g = games.first(where: { $0.id == gid }) {
-                personalBests.append(PersonalBest(type: .bestScore, value: score, game: g, date: result.date, description: "\(result.displayScore) in \(g.displayName)"))
+                let desc = "\(result.displayScore) in \(g.displayName)"
+                personalBests.append(PersonalBest(
+                    type: .bestScore, value: score,
+                    game: g, date: result.date, description: desc
+                ))
             }
         }
         // Most games in a day within range (meaningful if > 1)
         let byDay = Dictionary(grouping: filteredResults) { Calendar.current.startOfDay(for: $0.date) }
         if let most = byDay.max(by: { $0.value.count < $1.value.count }), most.value.count > 1 {
-            personalBests.append(PersonalBest(type: .mostGamesInDay, value: most.value.count, game: nil, date: most.key, description: "\(most.value.count) games played in one day"))
+            let desc = "\(most.value.count) games played in one day"
+            personalBests.append(PersonalBest(
+                type: .mostGamesInDay, value: most.value.count,
+                game: nil, date: most.key, description: desc
+            ))
         }
         return personalBests
     }
@@ -310,7 +326,16 @@ struct AnalyticsComputer {
             // Consistency: days with at least one result this week divided by 7
             let daysWithActivity = Set(weekResults.map { calendar.startOfDay(for: $0.date) }).count
             let consistency = Double(daysWithActivity) / 7.0
-            summaries.append(WeeklySummary(weekStart: weekStart, weekEnd: weekEnd, totalGamesPlayed: totalPlayed, totalGamesCompleted: totalCompleted, averageStreakLength: avgStreak, longestStreak: longest, mostPlayedGame: mostPlayedGame, completionRate: completionRate, streakConsistency: consistency))
+            summaries.append(WeeklySummary(
+                weekStart: weekStart, weekEnd: weekEnd,
+                totalGamesPlayed: totalPlayed,
+                totalGamesCompleted: totalCompleted,
+                averageStreakLength: avgStreak,
+                longestStreak: longest,
+                mostPlayedGame: mostPlayedGame,
+                completionRate: completionRate,
+                streakConsistency: consistency
+            ))
         }
         return summaries.sorted { $0.weekStart > $1.weekStart }
     }

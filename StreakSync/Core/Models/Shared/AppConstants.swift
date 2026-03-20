@@ -72,7 +72,6 @@ enum AppConstants {
         static let scheme = "streaksync"
         static let shareActivity = "com.streaksync.share"
     }
-    
 }
 
 // MARK: - Typed Notification Names

@@ -5,10 +5,10 @@
 //  Detects day changes and triggers UI updates automatically
 //
 
-import Foundation
 import Combine
-import UIKit
+import Foundation
 import OSLog
+import UIKit
 
 @MainActor
 final class DayChangeDetector: ObservableObject {

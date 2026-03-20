@@ -187,9 +187,17 @@ struct EnhancedQuickStatPill: View {
     }
 }
 
+// MARK: - Stat Card Data
+struct StatCardData {
+    let icon: String
+    let value: String
+    let label: String
+    let gradient: LinearGradient
+}
+
 // MARK: - Stat Card Row
 struct StatCardRow: View {
-    let stats: [(icon: String, value: String, label: String, gradient: LinearGradient)]
+    let stats: [StatCardData]
     let hasAppeared: Bool
     
     var body: some View {
@@ -226,12 +234,14 @@ struct StatCardRow: View {
         // Using StatCardRow with palette colors
         StatCardRow(
             stats: [
-                ("flame.fill", "8", "Streak", LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing)),
-                ("trophy.fill", "15", "Awards", LinearGradient(
-                    colors: [.yellow, .orange],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
+                StatCardData(
+                    icon: "flame.fill", value: "8", label: "Streak",
+                    gradient: LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing)
+                ),
+                StatCardData(
+                    icon: "trophy.fill", value: "15", label: "Awards",
+                    gradient: LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
             ],
             hasAppeared: true
         )

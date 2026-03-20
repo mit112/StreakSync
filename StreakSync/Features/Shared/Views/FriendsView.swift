@@ -89,7 +89,6 @@ struct FriendsView: View {
 
 // MARK: - Subviews
 private extension FriendsView {
-
     // MARK: Header
 
     var header: some View {

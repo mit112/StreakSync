@@ -5,8 +5,8 @@
 //  Tests for FriendsViewModel leaderboard date-open behavior.
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class FriendsViewModelTests: XCTestCase {

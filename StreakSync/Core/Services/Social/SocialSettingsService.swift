@@ -95,4 +95,3 @@ final class SocialSettingsService: ObservableObject {
         }
     }
 }
-

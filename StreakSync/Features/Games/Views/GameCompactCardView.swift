@@ -153,7 +153,6 @@ struct GameCompactCardView: View {
                         .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.8)
                         .frame(height: 32)
-                    
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 12) // Add horizontal padding to main content

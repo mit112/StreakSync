@@ -5,8 +5,8 @@
 //  Streak history — iOS 26 only.
 //
 
-import SwiftUI
 import Charts
+import SwiftUI
 
 // MARK: - Streak History View
 struct StreakHistoryView: View {
@@ -145,12 +145,12 @@ struct StreakHistoryView: View {
             // Selected date detail
             if let selected = selectedDate {
                 if let grouped = groupedResult(for: selected) {
-                    iOS26SelectedDateGroupedDetail(date: selected, groupedResult: grouped, gameColor: gameColor)
+                    IOS26SelectedDateGroupedDetail(date: selected, groupedResult: grouped, gameColor: gameColor)
                         .transition(.asymmetric(
                             insertion: .push(from: .bottom).combined(with: .opacity),
                             removal: .push(from: .top).combined(with: .opacity)))
                 } else if let result = result(for: selected) {
-                    iOS26SelectedDateDetail(date: selected, result: result, gameColor: gameColor)
+                    IOS26SelectedDateDetail(date: selected, result: result, gameColor: gameColor)
                         .transition(.asymmetric(
                             insertion: .push(from: .bottom).combined(with: .opacity),
                             removal: .push(from: .top).combined(with: .opacity)))
@@ -213,12 +213,12 @@ struct StreakHistoryView: View {
     @ViewBuilder
     private var chartsSection: some View {
         if game?.name.lowercased() == "pips" {
-            iOS26TimeBasedChart(groupedResults: monthGroupedResults, gameColor: gameColor)
+            IOS26TimeBasedChart(groupedResults: monthGroupedResults, gameColor: gameColor)
                 .frame(height: 200)
                 .transition(.asymmetric(insertion: .push(from: .trailing).combined(with: .opacity),
                                         removal: .push(from: .leading).combined(with: .opacity)))
         } else {
-            iOS26PerformanceChart(results: monthResults, gameColor: gameColor)
+            IOS26PerformanceChart(results: monthResults, gameColor: gameColor)
                 .frame(height: 200)
                 .transition(.asymmetric(insertion: .push(from: .trailing).combined(with: .opacity),
                                         removal: .push(from: .leading).combined(with: .opacity)))

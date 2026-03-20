@@ -218,7 +218,6 @@ struct ModernCardButtonStyle: ButtonStyle {
     }
 }
 
-
 // MARK: - Preview
 #Preview {
     VStack(spacing: 16) {

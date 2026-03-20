@@ -6,9 +6,9 @@
 //
 
 import Foundation
-import UserNotifications
 import OSLog
 import SwiftUI
+import UserNotifications
 
 // MARK: - Notification Delegate
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {

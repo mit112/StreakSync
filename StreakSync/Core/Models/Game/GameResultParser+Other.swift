@@ -8,7 +8,6 @@
 import Foundation
 
 extension GameResultParser {
-
     // MARK: - Quordle Parser
     func parseQuordle(_ text: String, gameId: UUID) throws -> GameResult {
         // Pattern: "Daily Quordle 1346" or "Weekly Quordle Challenge 143"
@@ -190,7 +189,6 @@ extension GameResultParser {
         )
     }
     
-
     func parseOctordle(_ text: String, gameId: UUID) throws -> GameResult {
         // Pattern: "Daily Octordle #1349\n8️⃣4️⃣\n5️⃣🕛\n🕚🔟\n6️⃣7️⃣\nScore: 63"
         let pattern = #"Daily Octordle #(\d+)"#
@@ -320,5 +318,4 @@ extension GameResultParser {
         
         return totalScore
     }
-    
 }

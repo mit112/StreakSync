@@ -10,8 +10,8 @@ import SwiftUI
 // MARK: - Error Alert Modifier
 struct ErrorAlertModifier: ViewModifier {
     @Binding var error: AppError?
-    var onDismiss: (() -> Void)? = nil
-    var onRetry: (() -> Void)? = nil
+    var onDismiss: (() -> Void)?
+    var onRetry: (() -> Void)?
     
     func body(content: Content) -> some View {
         content
@@ -91,7 +91,7 @@ extension View {
 // MARK: - Inline Error View
 struct InlineErrorView: View {
     let error: AppError
-    var onRetry: (() -> Void)? = nil
+    var onRetry: (() -> Void)?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

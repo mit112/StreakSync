@@ -5,14 +5,14 @@
 //  Grouped result row for games like Pips that have multiple difficulties per puzzle
 //
 
-import SwiftUI
 import OSLog
+import SwiftUI
 
 private let groupedRowLogger = Logger(subsystem: "com.streaksync.app", category: "GroupedGameResultRow")
 
 struct GroupedGameResultRow: View {
     let groupedResult: GroupedGameResult
-    var onDelete: (() -> Void)? = nil
+    var onDelete: (() -> Void)?
     @State private var showingDetail = false
     @State private var isExpanded = false
     
@@ -82,7 +82,7 @@ struct GroupedGameResultRow: View {
             // Expanded details - Ultra simple approach
             if isExpanded {
                 VStack(spacing: 8) {
-                    ForEach(Array(groupedResult.results.enumerated()), id: \.element.id) { index, result in
+                    ForEach(Array(groupedResult.results.enumerated()), id: \.element.id) { _, result in
                         DifficultyResultRow(result: result, onDelete: onDelete)
                     }
                 }
@@ -114,7 +114,7 @@ struct GroupedGameResultRow: View {
 // MARK: - Individual Difficulty Result Row
 struct DifficultyResultRow: View {
     let result: GameResult
-    var onDelete: (() -> Void)? = nil
+    var onDelete: (() -> Void)?
     @State private var showingDetail = false
     
     var body: some View {

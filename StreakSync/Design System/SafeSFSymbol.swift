@@ -5,8 +5,8 @@
 //  Safe SF Symbol wrapper to prevent empty string errors
 //
 
-import SwiftUI
 import OSLog
+import SwiftUI
 
 private let safeSFLogger = Logger(subsystem: "com.streaksync.app", category: "SafeSFSymbol")
 

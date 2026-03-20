@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import UIKit
 import OSLog
+import UIKit
 
 @MainActor
 final class AppGroupBridge: ObservableObject {

@@ -60,5 +60,4 @@ struct PendingSaveStore: Sendable {
         savePendingItems(items)
         Self.logger.info("Enqueued pending save for key '\(key)'")
     }
-
 }

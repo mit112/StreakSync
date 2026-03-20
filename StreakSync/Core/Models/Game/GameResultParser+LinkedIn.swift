@@ -8,7 +8,6 @@
 import Foundation
 
 extension GameResultParser {
-
     // MARK: - LinkedIn Games Parsers
     
     // MARK: - LinkedIn Queens Parser
@@ -187,7 +186,6 @@ extension GameResultParser {
         
         if let emojiRegex = try? NSRegularExpression(pattern: emojiPattern, options: .caseInsensitive),
            let emojiMatch = emojiRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) {
-            
             // Extract puzzle number
             guard emojiMatch.range(at: 1).location != NSNotFound,
                   let puzzleRange = Range(emojiMatch.range(at: 1), in: text) else {
@@ -381,5 +379,4 @@ extension GameResultParser {
             ]
         )
     }
-    
 }

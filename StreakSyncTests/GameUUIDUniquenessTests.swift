@@ -7,11 +7,10 @@
 //  that new games can't accidentally reuse an existing ID.
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 final class GameUUIDUniquenessTests: XCTestCase {
-
     // MARK: - allAvailableGames
 
     func testAllAvailableGamesHaveUniqueUUIDs() {
@@ -45,7 +44,7 @@ final class GameUUIDUniquenessTests: XCTestCase {
             .mathle, .numberle,
             .worldle, .globle,
             .contexto, .framed,
-            .crosswordle, .mini_crossword, .sudoku,
+            .crosswordle, .extendedMiniCrossword, .sudoku,
             .lyricle, .absurdle, .semantle,
             .dordle, .sedecordle, .kilordle, .antiwordle,
             .wordscapes, .wordhurdle, .xordle, .squareword, .phrazle,
@@ -56,7 +55,7 @@ final class GameUUIDUniquenessTests: XCTestCase {
             // Geography
             .countryle, .flagle, .statele, .citydle, .wheretaken,
             // Trivia / visual
-            .moviedle, .posterdle, .actorle, .foodguessr, .artdle,
+            .moviedle, .posterdle, .actorle, .foodguessr, .artdle
         ]
     }
 

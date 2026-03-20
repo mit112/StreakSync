@@ -10,7 +10,7 @@ import SwiftUI
 @MainActor
 struct FriendManagementView: View {
     let socialService: SocialService
-    var initialJoinCode: String? = nil
+    var initialJoinCode: String?
 
     @State private var friends: [UserProfile] = []
     @State private var pendingRequests: [Friendship] = []
@@ -22,7 +22,7 @@ struct FriendManagementView: View {
     @State private var successMessage: String?
     @State private var copiedCode: Bool = false
     @State private var pendingScoreCount: Int = 0
-    @State private var friendToRemove: UserProfile? = nil
+    @State private var friendToRemove: UserProfile?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -61,7 +61,6 @@ struct FriendManagementView: View {
 // MARK: - Sections
 
 private extension FriendManagementView {
-
     var myCodeSection: some View {
         Section {
             if let code = myFriendCode {
@@ -214,7 +213,6 @@ private extension FriendManagementView {
 // MARK: - Actions
 
 private extension FriendManagementView {
-
     func load() async {
         isLoading = true
         defer { isLoading = false }

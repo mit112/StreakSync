@@ -15,7 +15,7 @@ struct GameIconCarousel: View {
     private let iconWidth: CGFloat = 60
     private let spacing: CGFloat = 12
     private let fixedHeight: CGFloat = 50
-    @State private var scrollSelection: Int? = nil
+    @State private var scrollSelection: Int?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     var body: some View {
@@ -56,7 +56,7 @@ struct GameIconCarousel: View {
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $scrollSelection)
             .onAppear { scrollSelection = currentIndex }
-            .onChange(of: currentIndex) { oldIndex, newIndex in
+            .onChange(of: currentIndex) { _, newIndex in
                 guard newIndex != scrollSelection else { return }
                 if reduceMotion {
                     scrollSelection = newIndex
@@ -64,7 +64,7 @@ struct GameIconCarousel: View {
                     withAnimation(.easeInOut(duration: 0.25)) { scrollSelection = newIndex }
                 }
             }
-            .onChange(of: scrollSelection) { oldSel, newSel in
+            .onChange(of: scrollSelection) { _, newSel in
                 guard let newSel, newSel != currentIndex else { return }
                 onGameSelected(newSel)
             }

@@ -41,7 +41,7 @@ struct DashboardGamesContent: View {
     // MARK: - Modern Card View
     private var modernCardView: some View {
         LazyVStack(spacing: 8) {
-            ForEach(Array(filteredGames.enumerated()), id: \.element.id) { index, game in
+            ForEach(Array(filteredGames.enumerated()), id: \.element.id) { _, game in
                 let streak = appState.getStreak(for: game) ?? GameStreak.empty(for: game)
 
                 ModernGameCard(

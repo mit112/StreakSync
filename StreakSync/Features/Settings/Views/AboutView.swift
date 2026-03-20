@@ -50,7 +50,10 @@ struct AboutView: View {
 
             // About Section
             Section("About") {
-                Text("StreakSync helps you track your daily puzzle game streaks. Simply share your game results and we'll automatically track your progress.")
+                Text("""
+                    StreakSync helps you track your daily puzzle game streaks. \
+                    Simply share your game results and we'll automatically track your progress.
+                    """)
                     .font(.subheadline)
                     .padding(.vertical, Spacing.xs)
             }

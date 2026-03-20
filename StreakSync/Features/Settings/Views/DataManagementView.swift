@@ -107,7 +107,6 @@ struct DataManagementView: View {
 // MARK: - Body Sections
 
 private extension DataManagementView {
-
     @ViewBuilder
     var cloudSyncSection: some View {
         Section("Cloud Sync") {
@@ -371,7 +370,6 @@ private extension DataManagementView {
                 self.showExportSheet = true
                 self.isExporting = false
                 HapticManager.shared.trigger(.achievement)
-
             } catch {
                 self.errorMessage = "Failed to export data: \(error.localizedDescription)"
                 self.showError = true
@@ -421,7 +419,6 @@ private extension DataManagementView {
                 self.importedItemsCount = actualCount
                 self.showImportSuccess = true
                 HapticManager.shared.trigger(.achievement)
-
             } catch let decodingError as DecodingError {
                 switch decodingError {
                 case .keyNotFound(let key, let context):
@@ -436,7 +433,6 @@ private extension DataManagementView {
                     await showImportError("Unknown decoding error: \(decodingError.localizedDescription)")
                 }
             }
-
         } catch ImportError.invalidVersion {
             await showImportError("This backup was created with a newer version of StreakSync.")
         } catch ImportError.corruptedData {

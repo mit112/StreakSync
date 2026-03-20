@@ -7,7 +7,6 @@
 
 import SwiftUI
 
-
 // MARK: - Recent Activity Section
 struct RecentActivitySection: View {
     let filteredStreaks: [GameStreak]

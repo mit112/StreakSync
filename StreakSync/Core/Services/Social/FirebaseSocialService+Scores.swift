@@ -11,7 +11,6 @@ import Foundation
 // MARK: - Allowed Readers
 
 extension FirebaseSocialService {
-
     /// Returns [self] + [accepted friend IDs] for the `allowedReaders` field on score documents.
     /// Uses the cached friends list (60s TTL) to avoid redundant Firestore reads.
     /// Falls back to [self] if friends can't be fetched (e.g., offline).
@@ -215,5 +214,4 @@ extension FirebaseSocialService {
  logger.warning("Failed to reconcile allowedReaders: \(error.localizedDescription)")
         }
     }
-
 }

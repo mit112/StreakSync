@@ -80,9 +80,21 @@ private struct WordleDeepDive: View {
 private struct PipsDeepDive: View {
     let results: [GameResult]
 
-    private var easyTimes: [Int] { results.filter { $0.parsedData["difficulty"] == "Easy" }.compactMap { Int($0.parsedData["totalSeconds"] ?? "") } }
-    private var mediumTimes: [Int] { results.filter { $0.parsedData["difficulty"] == "Medium" }.compactMap { Int($0.parsedData["totalSeconds"] ?? "") } }
-    private var hardTimes: [Int] { results.filter { $0.parsedData["difficulty"] == "Hard" }.compactMap { Int($0.parsedData["totalSeconds"] ?? "") } }
+    private var easyTimes: [Int] {
+        timesForDifficulty("Easy")
+    }
+    private var mediumTimes: [Int] {
+        timesForDifficulty("Medium")
+    }
+    private var hardTimes: [Int] {
+        timesForDifficulty("Hard")
+    }
+
+    private func timesForDifficulty(_ difficulty: String) -> [Int] {
+        results
+            .filter { $0.parsedData["difficulty"] == difficulty }
+            .compactMap { Int($0.parsedData["totalSeconds"] ?? "") }
+    }
 
     private func format(_ seconds: Int?) -> String {
         guard let s = seconds else { return "—" }

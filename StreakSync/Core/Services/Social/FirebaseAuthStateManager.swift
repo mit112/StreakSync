@@ -7,14 +7,14 @@
 //  to Apple credentials to preserve existing data.
 //
 
-import Foundation
-@preconcurrency import FirebaseAuth
 import AuthenticationServices
-@preconcurrency import GoogleSignIn
-import FirebaseCore
-import CryptoKit
-import OSLog
 import Combine
+import CryptoKit
+@preconcurrency import FirebaseAuth
+import FirebaseCore
+import Foundation
+@preconcurrency import GoogleSignIn
+import OSLog
 
 /// The authentication provider used for the current session.
 enum AuthProvider: String, Codable {
@@ -26,7 +26,6 @@ enum AuthProvider: String, Codable {
 /// Manages Firebase Authentication state and provides reactive auth state updates.
 @MainActor
 final class FirebaseAuthStateManager: ObservableObject {
-
     // MARK: - Published Properties
 
     @Published private(set) var currentUser: User?
@@ -155,10 +154,11 @@ final class FirebaseAuthStateManager: ObservableObject {
             }
             currentNonce = nil
         } catch {
-            authError = FirebaseAuthError.from(error)
- logger.error("Apple Sign-In failed: \(error.localizedDescription)")
+            let resolvedError = FirebaseAuthError.from(error)
+            authError = resolvedError
+            logger.error("Apple Sign-In failed: \(error.localizedDescription)")
             currentNonce = nil
-            throw authError!
+            throw resolvedError
         }
     }
 
@@ -177,7 +177,12 @@ final class FirebaseAuthStateManager: ObservableObject {
         // Get the presenting view controller
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
-            throw FirebaseAuthError.unknown(underlying: NSError(domain: "FirebaseAuthStateManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "No root view controller found"]))
+            throw FirebaseAuthError.unknown(
+                underlying: NSError(
+                    domain: "FirebaseAuthStateManager", code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "No root view controller found"]
+                )
+            )
         }
 
         // Find the topmost presented VC
@@ -231,9 +236,10 @@ final class FirebaseAuthStateManager: ObservableObject {
                 throw FirebaseAuthError.accountExistsWithDifferentCredential
             }
         } catch {
-            authError = FirebaseAuthError.from(error)
- logger.error("Google Sign-In failed: \(error.localizedDescription)")
-            throw authError!
+            let resolvedError = FirebaseAuthError.from(error)
+            authError = resolvedError
+            logger.error("Google Sign-In failed: \(error.localizedDescription)")
+            throw resolvedError
         }
     }
 

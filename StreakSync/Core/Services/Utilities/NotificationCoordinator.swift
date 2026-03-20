@@ -5,9 +5,9 @@
 //  Centralized notification handling and app communication
 //
 
+import OSLog
 import SwiftUI
 import UIKit
-import OSLog
 
 @MainActor
 final class NotificationCoordinator: ObservableObject {
@@ -38,19 +38,19 @@ final class NotificationCoordinator: ObservableObject {
     
     // MARK: - Setup
     func setupObservers() {
- logger.info("Setting up notification observers")
-        
-        // Remove any existing observers first
+        logger.info("Setting up notification observers")
         removeObservers()
-        
-        // Game result received from share extension
-        self.observers.append(
+        setupGameResultObservers()
+        setupDeepLinkObservers()
+        setupLifecycleObservers()
+        logger.info("Set up \(self.observers.count) notification observers")
+    }
+
+    private func setupGameResultObservers() {
+        observers.append(
             NotificationCenter.default.addObserver(
-                forName: .gameResultReceived,
-                object: nil,
-                queue: .main
+                forName: .gameResultReceived, object: nil, queue: .main
             ) { [weak self] notification in
-                // Extract object before using it to avoid Sendable issues
                 guard let result = notification.object as? GameResult else { return }
                 Task { @MainActor [weak self] in
                     self?.handleGameResult(result, quiet: false)
@@ -58,94 +58,77 @@ final class NotificationCoordinator: ObservableObject {
             }
         )
 
-        
-        // Open game deep link request
-        self.observers.append(
-            NotificationCenter.default.addObserver(
-                forName: .openGameRequested,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                // Extract object before using it to avoid Sendable issues
-                guard let payload = notification.object as? [String: Any],
-                      let gameId = payload[AppConstants.DeepLinkKeys.gameId] as? UUID else { return }
-                Task { @MainActor [weak self] in
-                    self?.handleGameDeepLinkWithId(gameId)
-                }
-            }
-
-        )
-        
-        // Open achievement deep link request
-        self.observers.append(
-            NotificationCenter.default.addObserver(
-                forName: .openAchievementRequested,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                // Extract object before using it to avoid Sendable issues
-                guard let payload = notification.object as? [String: Any],
-                      let achievementId = payload[AppConstants.DeepLinkKeys.achievementId] as? UUID else { return }
-                Task { @MainActor [weak self] in
-                    self?.handleAchievementDeepLinkWithId(achievementId)
-                }
-            }
-
-        )
-        
-        // App lifecycle notifications
-        self.observers.append(
-            NotificationCenter.default.addObserver(
-                forName: UIApplication.didBecomeActiveNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    await self?.handleAppDidBecomeActive()
-                }
-            }
-        )
-        
-        self.observers.append(
-            NotificationCenter.default.addObserver(
-                forName: UIApplication.willResignActiveNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.handleAppWillResignActive()
-                }
-            }
-        )
-        
-        // Share extension result available
-        self.observers.append(
+        observers.append(
             NotificationCenter.default.addObserver(
                 forName: .init(AppConstants.Notification.shareExtensionResultAvailable),
-                object: nil,
-                queue: .main
+                object: nil, queue: .main
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     await self?.handleShareExtensionResult()
                 }
             }
         )
-        
-        // Listen for refresh triggers
-        self.observers.append(
+
+        observers.append(
             NotificationCenter.default.addObserver(
-                forName: .appGameDataUpdated,
-                object: nil,
-                queue: .main
+                forName: .appGameDataUpdated, object: nil, queue: .main
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.triggerUIRefresh()
                 }
             }
-                
         )
-        
- logger.info("Set up \(self.observers.count) notification observers")
+    }
+
+    private func setupDeepLinkObservers() {
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: .openGameRequested, object: nil, queue: .main
+            ) { [weak self] notification in
+                guard let payload = notification.object as? [String: Any],
+                      let gameId = payload[AppConstants.DeepLinkKeys.gameId] as? UUID else { return }
+                Task { @MainActor [weak self] in
+                    self?.handleGameDeepLinkWithId(gameId)
+                }
+            }
+        )
+
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: .openAchievementRequested, object: nil, queue: .main
+            ) { [weak self] notification in
+                guard let payload = notification.object as? [String: Any],
+                      let achievementId = payload[AppConstants.DeepLinkKeys.achievementId] as? UUID
+                else { return }
+                Task { @MainActor [weak self] in
+                    self?.handleAchievementDeepLinkWithId(achievementId)
+                }
+            }
+        )
+    }
+
+    private func setupLifecycleObservers() {
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil, queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    await self?.handleAppDidBecomeActive()
+                }
+            }
+        )
+
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.willResignActiveNotification,
+                object: nil, queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.handleAppWillResignActive()
+                }
+            }
+        )
     }
     
     private func removeObservers() {

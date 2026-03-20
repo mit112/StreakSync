@@ -5,12 +5,11 @@
 //  Tests for game result editing: replacing, state mutation, and ViewModel validation.
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class EditGameResultTests: XCTestCase {
-
     private var appState: AppState!
 
     // Wordle game ID — deterministic UUID from GameDefinitions
@@ -43,7 +42,12 @@ final class EditGameResultTests: XCTestCase {
             score: score,
             maxAttempts: 6,
             completed: completed,
-            sharedText: "Wordle 1,234 3/6\n\u{2B1B}\u{1F7E8}\u{2B1B}\u{2B1B}\u{2B1B}\n\u{1F7E9}\u{1F7E9}\u{2B1B}\u{1F7E9}\u{2B1B}\n\u{1F7E9}\u{1F7E9}\u{1F7E9}\u{1F7E9}\u{1F7E9}",
+            sharedText: """
+                Wordle 1,234 3/6
+                \u{2B1B}\u{1F7E8}\u{2B1B}\u{2B1B}\u{2B1B}
+                \u{1F7E9}\u{1F7E9}\u{2B1B}\u{1F7E9}\u{2B1B}
+                \u{1F7E9}\u{1F7E9}\u{1F7E9}\u{1F7E9}\u{1F7E9}
+                """,
             parsedData: ["puzzleNumber": "1234"]
         )
     }

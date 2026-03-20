@@ -1,9 +1,8 @@
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class ShareExtensionIngestionTests: XCTestCase {
-    
     func testAddGameResult_UniqueThenDuplicateByID() {
         let app = AppState()
         let wordle = Game.wordle

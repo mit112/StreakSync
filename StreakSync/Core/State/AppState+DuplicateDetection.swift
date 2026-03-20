@@ -8,7 +8,6 @@
 import Foundation
 
 extension AppState {
-
     // MARK: - Duplicate Detection
 
     internal func isDuplicateResult(_ result: GameResult) -> Bool {

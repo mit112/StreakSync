@@ -27,7 +27,7 @@ final class AppGroupDarwinNotificationHandler {
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDarwinNotifyCenter(),
             Unmanaged.passUnretained(self).toOpaque(),
-            { _, observer, name, _, _ in
+            { _, observer, _, _, _ in
                 guard let observer = observer else { return }
                 let handler = Unmanaged<AppGroupDarwinNotificationHandler>.fromOpaque(observer).takeUnretainedValue()
                 Task { @MainActor in

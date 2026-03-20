@@ -10,7 +10,6 @@ import OSLog
 
 // MARK: - AppState Persistence Extension
 extension AppState {
-    
     // MARK: - Dependencies
     // Removed stored/computed coordinator to avoid sending non-Sendable self across actors.
     
@@ -66,7 +65,6 @@ extension AppState {
         
  logger.info("Data loading complete with tiered achievements")
     }
-    
     
     // MARK: - Parallel Data Loading
     private func loadAllData() async {

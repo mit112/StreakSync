@@ -6,8 +6,8 @@
 //  Single implementation with iOS 26 enhancements applied conditionally.
 //
 
-import SwiftUI
 import Charts
+import SwiftUI
 
 // MARK: - Analytics Dashboard View
 struct AnalyticsDashboardView: View {
@@ -107,7 +107,12 @@ struct AnalyticsDashboardView: View {
     private var contentSection: some View {
         // Overview stats
         if let overview = viewModel.overview {
-            OverviewStatsSection(overview: overview, analyticsService: viewModel.analyticsService, timeRange: viewModel.selectedTimeRange, selectedGame: viewModel.selectedGame)
+            OverviewStatsSection(
+                overview: overview,
+                analyticsService: viewModel.analyticsService,
+                timeRange: viewModel.selectedTimeRange,
+                selectedGame: viewModel.selectedGame
+            )
         }
 
         // At-Risk Today (only when viewing All Games)
@@ -147,7 +152,7 @@ struct AnalyticsDashboardView: View {
         }
 
         // Achievements (hide when nothing unlocked)
-        if let aa = viewModel.achievementAnalytics, (aa.totalUnlocked > 0 || !aa.tierDistribution.isEmpty) {
+        if let aa = viewModel.achievementAnalytics, aa.totalUnlocked > 0 || !aa.tierDistribution.isEmpty {
             AchievementsSummarySection(analytics: aa)
             if !aa.nextActions.isEmpty {
                 NextActionsSection(actions: aa.nextActions)
@@ -206,7 +211,9 @@ struct AnalyticsDashboardView: View {
                     } label: {
                         Label(
                             game.displayName,
-                            systemImage: viewModel.selectedGame?.id == game.id ? "checkmark" : (game.iconSystemName.isEmpty ? "gamecontroller" : game.iconSystemName)
+                            systemImage: viewModel.selectedGame?.id == game.id
+                                ? "checkmark"
+                                : (game.iconSystemName.isEmpty ? "gamecontroller" : game.iconSystemName)
                         )
                     }
                 }
@@ -216,7 +223,6 @@ struct AnalyticsDashboardView: View {
                 .foregroundStyle(viewModel.selectedGame?.backgroundColor.color ?? .blue)
         }
     }
-
 }
 
 // MARK: - Data Refresh Modifier (iOS 26 notification listeners)

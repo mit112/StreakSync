@@ -42,7 +42,7 @@ struct AnimatedStatPill: View {
 // MARK: - Game Result Row
 struct GameResultRow: View {
     let result: GameResult
-    var onDelete: (() -> Void)? = nil
+    var onDelete: (() -> Void)?
     @State private var showingDetail = false
     
     var body: some View {
@@ -117,4 +117,3 @@ struct EmptyResultsCard: View {
         .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
     }
 }
-

@@ -14,8 +14,8 @@
 //
 
 import Foundation
-import SwiftUI
 import OSLog
+import SwiftUI
 
 // MARK: - App State
 @Observable
@@ -25,9 +25,9 @@ final class AppState {
     internal let persistenceService: PersistenceServiceProtocol
 
     @ObservationIgnored
-    internal var _tieredAchievements: [TieredAchievement]?
+    internal var _tieredAchievements: [TieredAchievement]? // swiftlint:disable:this identifier_name
     @ObservationIgnored
-    internal var _uniqueGamesEver: Set<UUID>?
+    internal var _uniqueGamesEver: Set<UUID>? // swiftlint:disable:this identifier_name
 
     // MARK: - Core Data (Persisted)
     var games: [Game] = []

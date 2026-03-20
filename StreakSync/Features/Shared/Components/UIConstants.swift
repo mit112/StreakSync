@@ -49,7 +49,6 @@ enum Layout {
     static let maxReadableWidth: CGFloat = 600
 }
 
-
 // MARK: - Accessibility Helpers
 extension View {
     /// Add standard accessibility traits for buttons

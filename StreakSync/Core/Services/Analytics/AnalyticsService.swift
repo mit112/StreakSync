@@ -11,7 +11,6 @@ import OSLog
 // MARK: - Analytics Service
 @MainActor
 final class AnalyticsService {
-    
     // MARK: - Dependencies
     private let appState: AppState
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AnalyticsService")
@@ -127,7 +126,7 @@ final class AnalyticsService {
     
     /// Runs all analytics computations concurrently with structured concurrency.
     /// `nonisolated` so the work runs off the main actor while respecting cancellation.
-    private nonisolated static func computeAll(
+    nonisolated private static func computeAll(
         timeRange: AnalyticsTimeRange,
         game: Game?,
         games: [Game],

@@ -5,15 +5,14 @@
 //  SF Symbol compatibility system for iOS version differences
 //
 
+import OSLog
 import SwiftUI
 import UIKit
-import OSLog
 
 private let symbolLogger = Logger(subsystem: "com.streaksync.app", category: "SFSymbolCompatibility")
 
 /// SF Symbol compatibility system that provides fallbacks for symbols not available in older iOS versions
 struct SFSymbolCompatibility {
-    
     /// Check if a symbol is available on the current iOS version
     static func isSymbolAvailable(_ symbolName: String) -> Bool {
         // Empty strings are never available
@@ -100,4 +99,3 @@ extension Image {
         return Image(systemName: safeName)
     }
 }
-

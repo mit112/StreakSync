@@ -5,8 +5,8 @@
 //  FIXED: Dynamic scale and simplified time ranges
 //
 
-import SwiftUI
 import Charts
+import SwiftUI
 
 // MARK: - Enhanced Game Detail Performance View
 struct GameDetailPerformanceView: View {
@@ -27,7 +27,8 @@ struct GameDetailPerformanceView: View {
     // Dynamic max value based on game type
     private var chartMaxValue: Int {
         // Special handling for time-based games like LinkedIn Zip, Tango, Queens, and Crossclimb
-        if let game = game, (game.name.lowercased() == "linkedinzip" || game.name.lowercased() == "linkedintango" || game.name.lowercased() == "linkedinqueens" || game.name.lowercased() == "linkedincrossclimb") {
+        let timeBasedGames = ["linkedinzip", "linkedintango", "linkedinqueens", "linkedincrossclimb"]
+        if let game = game, timeBasedGames.contains(game.name.lowercased()) {
             // For Zip, Tango, Queens, and Crossclimb, use actual score values (time in seconds) instead of maxAttempts
             if let maxScore = results.compactMap(\.score).max() {
                 return maxScore + 5 // Add some padding above the max score
@@ -230,7 +231,7 @@ private struct ModernChart: View {
                 .foregroundStyle(.tertiary.opacity(0.2))
                 .cornerRadius(2)
             }
-        }
+            }
         .chartYScale(domain: 0...maxValue) // Dynamic scale!
         .chartXAxis {
             AxisMarks { _ in
@@ -429,7 +430,7 @@ private struct ModernPerformanceChart: View {
     
     var body: some View {
         Chart {
-            ForEach(Array(dailyResults.enumerated()), id: \.offset) { index, daily in
+            ForEach(Array(dailyResults.enumerated()), id: \.offset) { _, daily in
                 if let result = daily.result {
                     // Show actual result
                     BarMark(
@@ -457,7 +458,7 @@ private struct ModernPerformanceChart: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .trailing, values: Array(1...chartMaxValue)) { value in
+            AxisMarks(position: .trailing, values: Array(1...chartMaxValue)) { _ in
                 AxisGridLine()
                 AxisValueLabel()
                     .font(.caption2)

@@ -8,7 +8,6 @@
 import Foundation
 
 extension AppState {
-
     /// Replaces `original` with `edited` (same id) and recomputes streaks,
     /// achievements, caches, and social scores.
     func editGameResult(original: GameResult, edited: GameResult) async {

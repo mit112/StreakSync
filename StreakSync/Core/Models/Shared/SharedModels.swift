@@ -6,9 +6,9 @@
 //
 
 import Foundation
-import UIKit
 import OSLog
 import SwiftUI
+import UIKit
 
 // MARK: - Scoring Model
 enum ScoringModel: String, Codable, Sendable {
@@ -25,7 +25,6 @@ enum ScoringModel: String, Codable, Sendable {
         }
     }
 }
-
 
 // MARK: - Game Model (Production Quality)
 struct Game: Identifiable, Codable, Hashable, Sendable {
@@ -162,7 +161,6 @@ enum GameCategory: String, CaseIterable, Codable, Sendable {
         "\(displayName) category"
     }
 }
-
 
 // MARK: - Game Result Model (Production Quality)
 struct GameResult: Identifiable, Codable, Hashable, Sendable {
@@ -437,7 +435,7 @@ struct GameDetector {
             ("Tango #", "linkedintango"),
             ("Crossclimb #", "linkedincrossclimb"),
             ("Pinpoint #", "linkedinpinpoint"),
-            ("Zip #", "linkedinzip"),
+            ("Zip #", "linkedinzip")
         ]
 
         // Connections needs two markers to avoid false positives
@@ -454,5 +452,3 @@ struct GameDetector {
         return nil
     }
 }
-
-

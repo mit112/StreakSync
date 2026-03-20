@@ -8,7 +8,6 @@
 import Foundation
 
 struct GameDateHelper {
-    
     /// Determines if a game result should be considered "today" based on when it was imported
     /// and the game's reset time (typically midnight)
     /// - Parameter importDate: The date when the game result was imported
@@ -18,7 +17,7 @@ struct GameDateHelper {
         let now = Date()
         
         // Get the start of today (midnight) - not used in current implementation
-        let _ = calendar.startOfDay(for: now)
+        _ = calendar.startOfDay(for: now)
         
         // A game result is "today" if it was imported today
         // This is the correct logic because:

@@ -50,7 +50,7 @@ struct AddCustomGameBasicInfoSection: View {
                         .font(.subheadline.weight(.medium))
                     
                     TextField("e.g., Wordle, Connections", text: $gameName)
-                        .textFieldStyle(iOS26TextFieldStyle())
+                        .textFieldStyle(IOS26TextFieldStyle())
                 }
                 
                 // Game URL Field
@@ -59,7 +59,7 @@ struct AddCustomGameBasicInfoSection: View {
                         .font(.subheadline.weight(.medium))
                     
                     TextField("https://example.com", text: $gameURL)
-                        .textFieldStyle(iOS26TextFieldStyle())
+                        .textFieldStyle(IOS26TextFieldStyle())
                         .keyboardType(.URL)
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
@@ -70,7 +70,7 @@ struct AddCustomGameBasicInfoSection: View {
                     Text("Category")
                         .font(.subheadline.weight(.medium))
                     
-                    iOS26CategoryPicker(selection: $selectedCategory)
+                    IOS26CategoryPicker(selection: $selectedCategory)
                 }
             }
         }
@@ -161,7 +161,7 @@ struct AddCustomGameAdvancedSection: View {
                     }
                     
                     TextField("Regex pattern to detect results", text: $resultPattern)
-                        .textFieldStyle(iOS26TextFieldStyle())
+                        .textFieldStyle(IOS26TextFieldStyle())
                         .font(.system(.body, design: .monospaced))
                 }
                 
@@ -171,7 +171,7 @@ struct AddCustomGameAdvancedSection: View {
                         .font(.subheadline.weight(.medium))
                     
                     TextField("Paste an example result here", text: $exampleResult, axis: .vertical)
-                        .textFieldStyle(iOS26TextFieldStyle())
+                        .textFieldStyle(IOS26TextFieldStyle())
                         .lineLimit(3...6)
                 }
             }

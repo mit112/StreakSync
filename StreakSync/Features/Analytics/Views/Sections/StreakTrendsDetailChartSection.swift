@@ -5,8 +5,8 @@
 //  Interactive chart with selection, point detail card, and game breakdown chips.
 //
 
-import SwiftUI
 import Charts
+import SwiftUI
 
 struct StreakTrendsDetailChartSection: View {
     let trends: [StreakTrendPoint]
@@ -75,7 +75,7 @@ struct StreakTrendsDetailChartSection: View {
                     }
                     .frame(height: 300)
                     .chartXAxis {
-                        AxisMarks(values: .automatic) { value in
+                        AxisMarks(values: .automatic) { _ in
                             AxisGridLine()
                             AxisTick()
                             AxisValueLabel(format: .dateTime.month(.abbreviated).day())

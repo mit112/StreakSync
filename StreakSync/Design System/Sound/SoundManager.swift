@@ -6,13 +6,12 @@
 //
 
 import AVFoundation
-import SwiftUI
 import OSLog
+import SwiftUI
 
 // MARK: - Sound Manager
 @MainActor
 final class SoundManager: ObservableObject {
-    
     // MARK: - Singleton
     static let shared = SoundManager()
     
@@ -24,7 +23,7 @@ final class SoundManager: ObservableObject {
     // MARK: - Sound Queue Management
     private var soundQueue: [(SoundType, Date)] = []
     private var isPlayingSound = false
-    private var lastSoundTime: Date = Date.distantPast
+    private var lastSoundTime = Date.distantPast
     private let minimumSoundInterval: TimeInterval = 0.1 // 100ms minimum between sounds
     
     // MARK: - Sound Types
@@ -116,8 +115,6 @@ case confetti = "confetti_burst"
             AudioServicesPlaySystemSound(1050)
         case .confetti:
             AudioServicesPlaySystemSound(1103)
-        default:
-            AudioServicesPlaySystemSound(1103)
         }
         
  logger.info("Playing sound: \(type.rawValue)")
@@ -140,5 +137,4 @@ case confetti = "confetti_burst"
             }
         }
     }
-    
 }

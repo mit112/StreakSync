@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import OSLog
+import SwiftUI
 
 extension AppState {
     // Legacy achievement import removed in tiered-only system

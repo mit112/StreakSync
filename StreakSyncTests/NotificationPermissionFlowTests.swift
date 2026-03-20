@@ -5,8 +5,8 @@
 //  Tests for first-launch notification prompt gating.
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class NotificationPermissionFlowTests: XCTestCase {

@@ -5,15 +5,14 @@
 //  Manages the presentation of achievement unlock celebrations
 //
 
+import OSLog
 import SwiftUI
 import UIKit
-import OSLog
 
 // MARK: - Achievement Celebration Coordinator
 @MainActor
 @Observable
 final class AchievementCelebrationCoordinator {
-    
     // MARK: - Observable Properties
     var currentCelebration: AchievementUnlock?
     var isShowingCelebration = false
@@ -58,17 +57,17 @@ final class AchievementCelebrationCoordinator {
         if let data = defaults.array(forKey: processedKey) as? [String] {
             processedAchievements = Set(data)
         }
-        if let last = defaults.object(forKey: processedKey+"_ts") as? Date, Date().timeIntervalSince(last) > processedExpiryHours*3600 {
+        if let last = defaults.object(forKey: processedKey + "_ts") as? Date, Date().timeIntervalSince(last) > processedExpiryHours * 3600 {
             processedAchievements.removeAll()
             defaults.removeObject(forKey: processedKey)
-            defaults.removeObject(forKey: processedKey+"_ts")
+            defaults.removeObject(forKey: processedKey + "_ts")
         }
     }
     
     private func persistProcessedCache() {
         let defaults = UserDefaults.standard
         defaults.set(Array(processedAchievements), forKey: processedKey)
-        defaults.set(Date(), forKey: processedKey+"_ts")
+        defaults.set(Date(), forKey: processedKey + "_ts")
     }
     
     private func processCelebrationQueue() {

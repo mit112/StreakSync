@@ -21,7 +21,7 @@ struct ImprovedDashboardView: View {
     @State private var showOnlyActive = false
     @State private var isRefreshing = false
     @State private var hasInitiallyAppeared = false
-    @State private var selectedCategory: GameCategory? = nil
+    @State private var selectedCategory: GameCategory?
     @State private var selectedSort: GameSortOption = .lastPlayed
     @State private var sortDirection: SortDirection = .descending
     @State private var hasSeenGuidance = UserDefaults.standard.bool(forKey: "hasSeenEmptyStateGuidance")
@@ -172,7 +172,7 @@ struct ImprovedDashboardView: View {
                 .padding(.horizontal)
 
                 // Empty state guidance card
-                if !hasActiveStreaks && !hasSeenGuidance && appState.games.count > 0 {
+                if !hasActiveStreaks && !hasSeenGuidance && !appState.games.isEmpty {
                     EmptyStateGuidanceCard(isReturningUser: isReturningUser) {
                         hasSeenGuidance = true
                         UserDefaults.standard.set(true, forKey: "hasSeenEmptyStateGuidance")

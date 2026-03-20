@@ -70,5 +70,3 @@ enum LeaderboardScoring {
         return max(0, score.maxAttempts - sc + 1)
     }
 }
-
-

@@ -5,19 +5,18 @@
 //  Handles remote notification registration.
 //
 
-import UIKit
-import OSLog
-import GoogleSignIn
+import FirebaseAppCheck
 import FirebaseCore
 import FirebaseFirestore
-import FirebaseAppCheck
+import OSLog
+import UIKit
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     weak var container: AppContainer?
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AppDelegate")
     
     func application(_ application: UIApplication,
-                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         // App Check is disabled until enforcement is enabled in Firestore rules.
         // When ready: register debug token in Firebase Console → App Check → Manage debug tokens,
         // then uncomment the line below.
@@ -52,20 +51,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
     
     func application(_ application: UIApplication,
-                     didReceiveRemoteNotification userInfo: [AnyHashable : Any],
+                     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
                      fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         // Firebase handles sync via Firestore listeners
         completionHandler(.noData)
     }
-
-    func application(_ app: UIApplication,
-                     open url: URL,
-                     options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
-        if GIDSignIn.sharedInstance.handle(url) {
-            return true
-        }
-        return false
-    }
 }
-
-

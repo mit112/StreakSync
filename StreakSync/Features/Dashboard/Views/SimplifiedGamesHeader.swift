@@ -191,7 +191,7 @@ struct ToolbarSortMenu: View {
         @State var selectedSort: GameSortOption = .lastPlayed
         @State var sortDirection: SortDirection = .descending
         @State var showOnlyActive: Bool = false
-        @State var selectedCategory: GameCategory? = nil
+        @State var selectedCategory: GameCategory?
         
         var body: some View {
             VStack(spacing: 20) {
@@ -257,4 +257,3 @@ struct ToolbarSortMenu: View {
     .padding()
     .background(Color(.systemBackground))
 }
-

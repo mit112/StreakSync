@@ -39,7 +39,7 @@ struct TypewriterText: View {
             .onAppear {
                 typeText()
             }
-            .onChange(of: text) { _, newText in
+            .onChange(of: text) { _, _ in
                 // Reset if text changes
                 displayedText = ""
                 currentIndex = 0
@@ -103,7 +103,7 @@ struct AnimatedNumberText: View {
             .onAppear {
                 animateValue()
             }
-            .onChange(of: value) { _, newValue in
+            .onChange(of: value) { _, _ in
                 animateValue()
             }
     }

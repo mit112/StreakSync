@@ -8,8 +8,8 @@
 import SwiftUI
 
 // MARK: - iOS 26 Text Field Style
-struct iOS26TextFieldStyle: TextFieldStyle {
-    func _body(configuration: TextField<Self._Label>) -> some View {
+struct IOS26TextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View { // swiftlint:disable:this identifier_name
         configuration
             .padding()
             .background {
@@ -24,7 +24,7 @@ struct iOS26TextFieldStyle: TextFieldStyle {
 }
 
 // MARK: - iOS 26 Category Picker
-struct iOS26CategoryPicker: View {
+struct IOS26CategoryPicker: View {
     @Binding var selection: GameCategory
     
     var body: some View {
@@ -79,9 +79,9 @@ struct iOS26CategoryPicker: View {
 #Preview {
     VStack(spacing: 20) {
         TextField("Test Field", text: .constant(""))
-            .textFieldStyle(iOS26TextFieldStyle())
+            .textFieldStyle(IOS26TextFieldStyle())
         
-        iOS26CategoryPicker(selection: .constant(.word))
+        IOS26CategoryPicker(selection: .constant(.word))
     }
     .padding()
 }

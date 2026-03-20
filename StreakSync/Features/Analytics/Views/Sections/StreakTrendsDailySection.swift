@@ -83,7 +83,11 @@ struct StreakTrendsDailySection: View {
         }
         .onTapGesture {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                selectedDate = (selectedDate != nil && Calendar.current.isDate(selectedDate!, inSameDayAs: point.date)) ? nil : point.date
+                if let selected = selectedDate, Calendar.current.isDate(selected, inSameDayAs: point.date) {
+                    selectedDate = nil
+                } else {
+                    selectedDate = point.date
+                }
             }
             HapticManager.shared.trigger(.buttonTap)
         }

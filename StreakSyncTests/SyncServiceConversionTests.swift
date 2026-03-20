@@ -5,12 +5,11 @@
 //  Focused tests for Firestore sync model conversion.
 //
 
-import XCTest
 import FirebaseFirestore
 @testable import StreakSync
+import XCTest
 
 final class SyncServiceConversionTests: XCTestCase {
-
     func testGameResultToFirestoreDataIncludesExpectedFields() {
         let gameId = UUID()
         let result = GameResult(

@@ -12,7 +12,6 @@ import UIKit
 
 @MainActor
 final class GuestSessionManager: ObservableObject {
-    
     // MARK: - Published State
     
     @Published private(set) var isGuestMode: Bool = false
@@ -195,5 +194,3 @@ final class GuestSessionManager: ObservableObject {
         }
     }
 }
-
-

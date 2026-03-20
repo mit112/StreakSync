@@ -5,25 +5,24 @@
 //  Regression tests for load debouncing and tiered achievements save-if-changed behavior.
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class LoadAndAchievementsTests: XCTestCase {
-    
     // Minimal persistence double to count saves per key
     final class CountingPersistence: PersistenceServiceProtocol {
         var savesByKey: [String: Int] = [:]
         var storage: [String: Data] = [:]
         
-        func save<T>(_ object: T, forKey key: String) throws where T : Decodable, T : Encodable {
+        func save<T>(_ object: T, forKey key: String) throws where T: Decodable, T: Encodable {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             storage[key] = try encoder.encode(object)
             savesByKey[key, default: 0] += 1
         }
         
-        func load<T>(_ type: T.Type, forKey key: String) -> T? where T : Decodable, T : Encodable {
+        func load<T>(_ type: T.Type, forKey key: String) -> T? where T: Decodable, T: Encodable {
             guard let data = storage[key] else { return nil }
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
@@ -85,7 +84,7 @@ final class LoadAndAchievementsTests: XCTestCase {
             AchievementFactory.createEarlyBirdAchievement(),
             AchievementFactory.createNightOwlAchievement(),
             AchievementFactory.createComebackChampionAchievement(),
-            AchievementFactory.createMarathonRunnerAchievement(),
+            AchievementFactory.createMarathonRunnerAchievement()
         ]
 
         // Persist old data
@@ -117,7 +116,7 @@ final class LoadAndAchievementsTests: XCTestCase {
         let oldAchievements: [TieredAchievement] = [
             streakMaster,
             AchievementFactory.createGameCollectorAchievement(),
-            AchievementFactory.createEarlyBirdAchievement(), // retired
+            AchievementFactory.createEarlyBirdAchievement() // retired
         ]
 
         try? persistence.save(oldAchievements, forKey: AppState.tieredAchievementsKey)
@@ -131,5 +130,3 @@ final class LoadAndAchievementsTests: XCTestCase {
         XCTAssertEqual(sm?.progress.currentTier, .gold)
     }
 }
-
-

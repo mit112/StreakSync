@@ -6,19 +6,18 @@
 //
 
 import Foundation
-import SwiftUI
 import OSLog
+import SwiftUI
 
 // MARK: - Analytics View Model
 @MainActor
 final class AnalyticsViewModel: ObservableObject {
-    
     // MARK: - Dependencies
     let analyticsService: AnalyticsService
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AnalyticsViewModel")
     
     // MARK: - Published Properties
-    @Published var scope: AnalyticsScope = AnalyticsScope.loadSaved()
+    @Published var scope = AnalyticsScope.loadSaved()
     @Published var selectedTimeRange: AnalyticsTimeRange = .week
     @Published var selectedGame: Game?
     @Published var analyticsData: AnalyticsData?
@@ -27,7 +26,6 @@ final class AnalyticsViewModel: ObservableObject {
     
     // MARK: - Task Management
     private var loadTask: Task<Void, Never>?
-    
     
     // MARK: - Computed Properties
     var hasData: Bool {
@@ -281,12 +279,11 @@ final class AnalyticsViewModel: ObservableObject {
 // MARK: - Analytics View Model Extensions
 
 extension AnalyticsViewModel {
-    
     /// Get formatted streak trend summary
     func getStreakTrendSummary() -> String {
         guard !currentStreakTrends.isEmpty else { return "No data available" }
         
-        let latest = currentStreakTrends.last!
+        guard let latest = currentStreakTrends.last else { return "No data available" }
         let previous = currentStreakTrends.count > 1 ? currentStreakTrends[currentStreakTrends.count - 2] : latest
         
         let trend = latest.totalActiveStreaks - previous.totalActiveStreaks

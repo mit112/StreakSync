@@ -5,10 +5,10 @@
 //  Centralized dependency injection container
 //
 
-import SwiftUI
-import OSLog
 import FirebaseCore
 import FirebaseFirestore
+import OSLog
+import SwiftUI
 
 @MainActor
 final class AppContainer: ObservableObject {
@@ -26,7 +26,6 @@ final class AppContainer: ObservableObject {
     let gameManagementState: GameManagementState
     let socialSettingsService: SocialSettingsService
 
-    
     // MARK: - UI Services
     let hapticManager: HapticManager
     let browserLauncher: BrowserLauncher
@@ -112,7 +111,6 @@ final class AppContainer: ObservableObject {
         // 11. Firestore achievements sync
         self.achievementSyncService = FirestoreAchievementSyncService(appState: appState)
 
-        
         // Wire up dependencies
         setupDependencies()
         
@@ -238,7 +236,6 @@ final class AppContainer: ObservableObject {
         AppContainer(isTest: true)
     }
 #endif
-    
 }
 
 // MARK: - Mock Persistence for Previews/Tests

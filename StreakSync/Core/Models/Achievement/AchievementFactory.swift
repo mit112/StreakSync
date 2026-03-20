@@ -9,7 +9,6 @@ import Foundation
 
 // MARK: - Achievement Factory
 struct AchievementFactory {
-
     // MARK: - Streak Master Achievement
     static func createStreakMasterAchievement(for gameId: UUID? = nil) -> TieredAchievement {
         TieredAchievement(

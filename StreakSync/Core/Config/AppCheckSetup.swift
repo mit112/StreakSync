@@ -6,9 +6,9 @@
 //  Uses App Attest in production, debug provider in development.
 //
 
-import Foundation
-import FirebaseCore
 import FirebaseAppCheck
+import FirebaseCore
+import Foundation
 
 /// Factory that provides the appropriate App Check provider based on build configuration.
 /// - Release: AppAttestProvider (hardware-backed attestation, blocks non-genuine clients)

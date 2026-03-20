@@ -5,12 +5,11 @@
 //  Tests for notification content builder logic
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class NotificationContentTests: XCTestCase {
-    
     private let scheduler = NotificationScheduler.shared
     
     // MARK: - Helper

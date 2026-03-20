@@ -152,7 +152,7 @@ struct ConfettiExplosion: View {
         let topY = geometry.size.height * 0.3
         
         for _ in 0..<confettiCount {
-            let angle = Double.random(in: -(.pi/3)...(.pi/3)) - .pi/2
+            let angle = Double.random(in: -(.pi / 3)...(.pi / 3)) - .pi / 2
             let speed = Double.random(in: 200...500)
             
             confettiPieces.append(ConfettiPiece(

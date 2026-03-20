@@ -7,12 +7,11 @@
 //  - GameResult.lastModified timestamp comparison logic
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class SyncMergeTests: XCTestCase {
-    
     private var syncService: FirestoreAchievementSyncService!
     private var appState: AppState!
     
@@ -56,6 +55,7 @@ final class SyncMergeTests: XCTestCase {
     }
     
     private func date(daysAgo: Int) -> Date {
+        // swiftlint:disable:next force_unwrapping
         Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date())!
     }
     

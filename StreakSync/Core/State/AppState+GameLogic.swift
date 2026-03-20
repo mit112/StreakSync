@@ -10,7 +10,6 @@ import OSLog
 
 // MARK: - AppState Game Logic Extension
 extension AppState {
-    
     // MARK: - Streak Updates
     func updateStreak(for result: GameResult) {
         guard let streakIndex = self.streaks.firstIndex(where: { $0.gameId == result.gameId }) else {

@@ -5,8 +5,8 @@
 //  DST/timezone-focused tests for one-off reminder date resolution.
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class NotificationSchedulingDateTests: XCTestCase {

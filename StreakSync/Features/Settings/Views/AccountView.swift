@@ -84,7 +84,6 @@ struct AccountView: View {
 // MARK: - Anonymous Section
 
 private extension AccountView {
-
     var anonymousSection: some View {
         Group {
             Section {
@@ -162,7 +161,6 @@ private extension AccountView {
 // MARK: - Signed-In Sections
 
 private extension AccountView {
-
     var profileSection: some View {
         Section {
             HStack(spacing: 14) {
@@ -216,7 +214,11 @@ private extension AccountView {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("Your personal streaks and scores stay on this device, but your leaderboard scores, friends, and friend code won\u{2019}t be visible until you sign back in.")
+                Text("""
+                    Your personal streaks and scores stay on this device, \
+                    but your leaderboard scores, friends, and friend code \
+                    won\u{2019}t be visible until you sign back in.
+                    """)
             }
         }
     }
@@ -238,7 +240,11 @@ private extension AccountView {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("This will permanently delete your account and all associated data: leaderboard scores, friends, friend code, game results, and achievements. This action cannot be undone.")
+                Text("""
+                    This will permanently delete your account and all associated data: \
+                    leaderboard scores, friends, friend code, game results, and achievements. \
+                    This action cannot be undone.
+                    """)
             }
         } footer: {
             Text("Permanently removes your account and all data from StreakSync servers.")
@@ -258,7 +264,6 @@ private extension AccountView {
 // MARK: - Actions
 
 private extension AccountView {
-
     func loadProfile() async {
         do {
             profile = try await container.socialService.myProfile()

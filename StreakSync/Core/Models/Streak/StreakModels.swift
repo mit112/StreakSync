@@ -82,8 +82,6 @@ struct GameStreak: Identifiable, Codable, Hashable, Sendable {
         self.streakStartDate = streakStartDate
     }
     
-    
-    
     // MARK: - Computed Properties
     var completionRate: Double {
         guard totalGamesPlayed > 0 else { return 0.0 }

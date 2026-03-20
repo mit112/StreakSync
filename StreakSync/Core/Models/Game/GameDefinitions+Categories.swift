@@ -11,14 +11,13 @@ import UIKit
 
 // MARK: - Math, Music, Geography & Trivia Games
 extension Game {
-
     // MARK: - More Math/Logic Games (31-35)
 
     static let primel = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001E"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544001E"),
         name: "primel",
         displayName: "Primel",
-        url: URL(string: "https://converged.yt/primel")!,
+        url: URL(staticString: "https://converged.yt/primel"),
         category: .math,
         resultPattern: #"Primel \d+ [1-6X]/6"#,
         iconSystemName: "number.circle",
@@ -28,10 +27,10 @@ extension Game {
     )
 
     static let ooodle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001F"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544001F"),
         name: "ooodle",
         displayName: "Ooodle",
-        url: URL(string: "https://ooodle.live")!,
+        url: URL(staticString: "https://ooodle.live"),
         category: .math,
         resultPattern: #"Ooodle.*?in \d+ attempts"#,
         iconSystemName: "plus.forwardslash.minus",
@@ -41,10 +40,10 @@ extension Game {
     )
 
     static let summle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440020"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440020"),
         name: "summle",
         displayName: "Summle",
-        url: URL(string: "https://summle.com")!,
+        url: URL(staticString: "https://summle.com"),
         category: .math,
         resultPattern: #"Summle.*?in \d+ tries"#,
         iconSystemName: "sum",
@@ -54,10 +53,10 @@ extension Game {
     )
 
     static let timeguessr = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440021"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440021"),
         name: "timeguessr",
         displayName: "TimeGuessr",
-        url: URL(string: "https://timeguessr.com")!,
+        url: URL(staticString: "https://timeguessr.com"),
         category: .math,
         resultPattern: #"TimeGuessr.*?Score: \d+"#,
         iconSystemName: "clock.badge.questionmark",
@@ -67,10 +66,10 @@ extension Game {
     )
 
     static let rankdle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440022"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440022"),
         name: "rankdle",
         displayName: "Rankdle",
-        url: URL(string: "https://rankdle.com")!,
+        url: URL(staticString: "https://rankdle.com"),
         category: .math,
         resultPattern: #"Rankdle.*?in \d+ attempts"#,
         iconSystemName: "list.number",
@@ -82,10 +81,10 @@ extension Game {
     // MARK: - More Music/Audio Games (36-40)
 
     static let songlio = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440023"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440023"),
         name: "songlio",
         displayName: "Songlio",
-        url: URL(string: "https://songlio.com")!,
+        url: URL(staticString: "https://songlio.com"),
         category: .music,
         resultPattern: #"Songlio.*?in \d+ tries"#,
         iconSystemName: "music.mic",
@@ -95,10 +94,10 @@ extension Game {
     )
 
     static let binb = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440024"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440024"),
         name: "binb",
         displayName: "BINB",
-        url: URL(string: "https://binb.co")!,
+        url: URL(staticString: "https://binb.co"),
         category: .music,
         resultPattern: #"BINB.*?in \d+ guesses"#,
         iconSystemName: "waveform",
@@ -108,10 +107,10 @@ extension Game {
     )
 
     static let songle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440025"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440025"),
         name: "songle",
         displayName: "Songle",
-        url: URL(string: "https://songle.io")!,
+        url: URL(staticString: "https://songle.io"),
         category: .music,
         resultPattern: #"Songle.*?in \d+ attempts"#,
         iconSystemName: "music.quarternote.3",
@@ -121,10 +120,10 @@ extension Game {
     )
 
     static let bandle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440026"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440026"),
         name: "bandle",
         displayName: "Bandle",
-        url: URL(string: "https://bandle.app")!,
+        url: URL(staticString: "https://bandle.app"),
         category: .music,
         resultPattern: #"Bandle.*?\d+/6"#,
         iconSystemName: "guitars",
@@ -134,10 +133,10 @@ extension Game {
     )
 
     static let musicle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440027"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440027"),
         name: "musicle",
         displayName: "Musicle",
-        url: URL(string: "https://musicle.app")!,
+        url: URL(staticString: "https://musicle.app"),
         category: .music,
         resultPattern: #"Musicle.*?in \d+ seconds"#,
         iconSystemName: "music.note.tv",
@@ -149,10 +148,10 @@ extension Game {
     // MARK: - More Geography Games (41-45)
 
     static let countryle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440028"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440028"),
         name: "countryle",
         displayName: "Countryle",
-        url: URL(string: "https://countryle.com")!,
+        url: URL(staticString: "https://countryle.com"),
         category: .geography,
         resultPattern: #"Countryle.*?in \d+ guesses"#,
         iconSystemName: "map",
@@ -162,10 +161,10 @@ extension Game {
     )
 
     static let flagle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440029"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440029"),
         name: "flagle",
         displayName: "Flagle",
-        url: URL(string: "https://flagle.io")!,
+        url: URL(staticString: "https://flagle.io"),
         category: .geography,
         resultPattern: #"Flagle.*?in \d+/6"#,
         iconSystemName: "flag",
@@ -175,10 +174,10 @@ extension Game {
     )
 
     static let statele = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002A"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544002A"),
         name: "statele",
         displayName: "Statele",
-        url: URL(string: "https://statele.com")!,
+        url: URL(staticString: "https://statele.com"),
         category: .geography,
         resultPattern: #"Statele.*?in \d+ guesses"#,
         iconSystemName: "map.circle",
@@ -188,10 +187,10 @@ extension Game {
     )
 
     static let citydle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002B"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544002B"),
         name: "citydle",
         displayName: "Citydle",
-        url: URL(string: "https://citydle.com")!,
+        url: URL(staticString: "https://citydle.com"),
         category: .geography,
         resultPattern: #"Citydle.*?in \d+ attempts"#,
         iconSystemName: "building.2",
@@ -201,10 +200,10 @@ extension Game {
     )
 
     static let wheretaken = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002C"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544002C"),
         name: "wheretaken",
         displayName: "WhereTaken",
-        url: URL(string: "https://wheretaken.com")!,
+        url: URL(staticString: "https://wheretaken.com"),
         category: .geography,
         resultPattern: #"WhereTaken.*?in \d+ guesses"#,
         iconSystemName: "camera.on.rectangle",
@@ -216,10 +215,10 @@ extension Game {
     // MARK: - More Trivia/Visual Games (46-50)
 
     static let moviedle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002D"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544002D"),
         name: "moviedle",
         displayName: "Moviedle",
-        url: URL(string: "https://moviedle.app")!,
+        url: URL(staticString: "https://moviedle.app"),
         category: .trivia,
         resultPattern: #"Moviedle.*?in \d+ seconds"#,
         iconSystemName: "film",
@@ -229,10 +228,10 @@ extension Game {
     )
 
     static let posterdle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002E"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544002E"),
         name: "posterdle",
         displayName: "Posterdle",
-        url: URL(string: "https://posterdle.com")!,
+        url: URL(staticString: "https://posterdle.com"),
         category: .trivia,
         resultPattern: #"Posterdle.*?in \d+ guesses"#,
         iconSystemName: "photo.artframe",
@@ -242,10 +241,10 @@ extension Game {
     )
 
     static let actorle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544002F"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544002F"),
         name: "actorle",
         displayName: "Actorle",
-        url: URL(string: "https://actorle.com")!,
+        url: URL(staticString: "https://actorle.com"),
         category: .trivia,
         resultPattern: #"Actorle.*?in \d+ guesses"#,
         iconSystemName: "person.crop.rectangle",
@@ -255,10 +254,10 @@ extension Game {
     )
 
     static let foodguessr = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440030"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440030"),
         name: "foodguessr",
         displayName: "FoodGuessr",
-        url: URL(string: "https://foodguessr.com")!,
+        url: URL(staticString: "https://foodguessr.com"),
         category: .trivia,
         resultPattern: #"FoodGuessr.*?Score: \d+"#,
         iconSystemName: "fork.knife",
@@ -268,10 +267,10 @@ extension Game {
     )
 
     static let artdle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440031"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440031"),
         name: "artdle",
         displayName: "Artdle",
-        url: URL(string: "https://artdle.com")!,
+        url: URL(staticString: "https://artdle.com"),
         category: .trivia,
         resultPattern: #"Artdle.*?in \d+ guesses"#,
         iconSystemName: "paintpalette",

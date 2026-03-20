@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import UserNotifications
 import OSLog
+import UserNotifications
 
 // MARK: - Notification Categories
 enum NotificationCategory: String, CaseIterable {
@@ -122,7 +122,7 @@ final class NotificationScheduler {
             content.title = "Streak Reminder"
             content.body = "Don't lose your \(game.displayName) streak"
             content.userInfo = ["gameId": game.id.uuidString, "type": "daily_streak_reminder"]
-        } else if games.count <= 3 && games.count > 0 {
+        } else if games.count <= 3 && !games.isEmpty {
             let gameNames = games.map { $0.displayName }.joined(separator: ", ")
             content.title = "Streak Reminders"
             content.body = "Don't lose your streaks in \(gameNames)"
@@ -299,8 +299,6 @@ final class NotificationScheduler {
  logger.info("Cancelled all pending notifications")
     }
     
-    
-    
     // MARK: - Settings Management
     
     /// Clean up all existing notifications before applying new settings
@@ -378,6 +376,4 @@ final class NotificationScheduler {
     }
     
     #endif
-    
 }
-

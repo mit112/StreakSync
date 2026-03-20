@@ -3,11 +3,10 @@
 //  StreakSyncTests
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 final class LeaderboardScoringTests: XCTestCase {
-
     // MARK: - Helpers
 
     private func makeScore(

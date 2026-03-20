@@ -6,15 +6,14 @@
 //  Stores the full [TieredAchievement] array as a single Firestore document.
 //
 
-import Foundation
 import FirebaseAuth
 import FirebaseFirestore
+import Foundation
 import OSLog
 
 @MainActor
 @Observable
 final class FirestoreAchievementSyncService {
-
     // MARK: - Sync Status
 
     enum SyncStatus: Equatable {

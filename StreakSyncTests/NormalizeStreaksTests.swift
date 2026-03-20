@@ -5,12 +5,11 @@
 //  Tests for AppState.normalizeStreaksForMissedDays() — streak integrity.
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class NormalizeStreaksTests: XCTestCase {
-
     private var appState: AppState!
     private let gameId = UUID()
 
@@ -27,6 +26,7 @@ final class NormalizeStreaksTests: XCTestCase {
     // MARK: - Helpers
 
     private func date(daysAgo: Int) -> Date {
+        // swiftlint:disable:next force_unwrapping
         Calendar.current.date(byAdding: .day, value: -daysAgo, to: Calendar.current.startOfDay(for: Date()))!
     }
 
@@ -89,7 +89,7 @@ final class NormalizeStreaksTests: XCTestCase {
         let results = [
             makeResult(date: date(daysAgo: 2)),
             makeResult(date: date(daysAgo: 1)),
-            makeResult(date: date(daysAgo: 0)),
+            makeResult(date: date(daysAgo: 0))
         ]
         let streak = makeStreak(current: 3, lastPlayed: date(daysAgo: 0), start: date(daysAgo: 2))
 
@@ -150,7 +150,7 @@ final class NormalizeStreaksTests: XCTestCase {
             makeResult(date: date(daysAgo: 3)),
             // day 2 missing
             makeResult(date: date(daysAgo: 1)),
-            makeResult(date: date(daysAgo: 0)),
+            makeResult(date: date(daysAgo: 0))
         ]
         let streak = makeStreak(current: 4, lastPlayed: date(daysAgo: 0), start: date(daysAgo: 4))
 
@@ -159,7 +159,10 @@ final class NormalizeStreaksTests: XCTestCase {
 
         await appState.normalizeStreaksForMissedDays(referenceDate: Date())
 
-        XCTAssertEqual(appState.streaks.first?.currentStreak, 4, "Normalization only checks gap from lastPlayed to reference date, not historical gaps")
+        XCTAssertEqual(
+            appState.streaks.first?.currentStreak, 4,
+            "Normalization only checks gap from lastPlayed to reference date, not historical gaps"
+        )
     }
 
     // MARK: - Edge cases
@@ -168,7 +171,7 @@ final class NormalizeStreaksTests: XCTestCase {
         // Played yesterday (completed) and today (failed)
         let results = [
             makeResult(date: date(daysAgo: 1), completed: true),
-            makeResult(date: date(daysAgo: 0), completed: false),
+            makeResult(date: date(daysAgo: 0), completed: false)
         ]
         let streak = makeStreak(current: 2, lastPlayed: date(daysAgo: 0), start: date(daysAgo: 1))
 
@@ -209,7 +212,7 @@ final class NormalizeStreaksTests: XCTestCase {
             GameResult(gameId: gameA, gameName: "gameA", date: date(daysAgo: 2), score: 1, maxAttempts: 6, completed: true, sharedText: "A"),
             GameResult(gameId: gameA, gameName: "gameA", date: date(daysAgo: 1), score: 1, maxAttempts: 6, completed: true, sharedText: "A"),
             GameResult(gameId: gameA, gameName: "gameA", date: date(daysAgo: 0), score: 1, maxAttempts: 6, completed: true, sharedText: "A"),
-            GameResult(gameId: gameB, gameName: "gameB", date: date(daysAgo: 3), score: 1, maxAttempts: 6, completed: true, sharedText: "B"),
+            GameResult(gameId: gameB, gameName: "gameB", date: date(daysAgo: 3), score: 1, maxAttempts: 6, completed: true, sharedText: "B")
             // gameB has no results for days 2, 1, 0
         ]
 

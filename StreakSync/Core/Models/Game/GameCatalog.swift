@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import OSLog
+import SwiftUI
 
 @MainActor
 @Observable

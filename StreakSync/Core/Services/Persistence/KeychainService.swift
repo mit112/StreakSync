@@ -7,11 +7,10 @@
 //
 
 import Foundation
-import Security
 import OSLog
+import Security
 
 struct KeychainService {
-
     private static let service = Bundle.main.bundleIdentifier ?? "com.mitsheth.StreakSync"
     private static let logger = Logger(subsystem: "com.streaksync.app", category: "Keychain")
 
@@ -71,6 +70,7 @@ struct KeychainService {
 
     // MARK: - Codable Convenience
 
+    @discardableResult
     static func saveCodable<T: Codable>(_ object: T, forKey key: String) -> Bool {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

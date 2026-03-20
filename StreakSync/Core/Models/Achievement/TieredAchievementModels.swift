@@ -260,7 +260,6 @@ struct AchievementProgress: Codable, Hashable, Sendable {
         
         return min(1.0, max(0.0, Double(progress) / Double(range)))
     }
-    
 }
 
 // MARK: - Tiered Achievement
@@ -322,7 +321,6 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
         return "Not started"
     }
 
-    
     // MARK: - Progress Update
     
     mutating func updateProgress(value: Int) {
@@ -341,5 +339,4 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
             }
         }
     }
-    
 }

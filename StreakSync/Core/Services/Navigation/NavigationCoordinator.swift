@@ -5,8 +5,8 @@
 //  Enhanced to handle tab-based navigation with separate NavigationStacks
 //
 
-import SwiftUI
 import Observation
+import SwiftUI
 
 // MARK: - Main Tab Enum
 enum MainTab: Int, CaseIterable {

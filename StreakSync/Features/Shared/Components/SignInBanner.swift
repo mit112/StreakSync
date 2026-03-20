@@ -6,9 +6,9 @@
 //  Shown at the top of the Friends tab.
 //
 
-import SwiftUI
 import AuthenticationServices
 import GoogleSignIn
+import SwiftUI
 
 struct SignInBanner: View {
     @EnvironmentObject private var container: AppContainer

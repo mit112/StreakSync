@@ -118,7 +118,6 @@ struct GameManagementView: View {
         HapticManager.impact(.light)
     }
     
-    
     // MARK: - Subviews
     private var searchBar: some View {
         HStack {
@@ -186,7 +185,6 @@ struct GameManagementView: View {
         }
     }
 }
-
 
 // MARK: - Game Row
 struct GameManagementRow: View {

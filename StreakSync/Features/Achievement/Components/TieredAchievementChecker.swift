@@ -180,7 +180,6 @@ struct AchievementSnapshot {
 // MARK: - Achievement Checker
 
 struct TieredAchievementChecker {
-
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AchievementChecker")
 
     // MARK: - Check All Achievements

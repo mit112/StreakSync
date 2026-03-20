@@ -3,8 +3,8 @@
 //  Game detail business logic with auto-refresh support
 //
 
-import SwiftUI
 import OSLog
+import SwiftUI
 
 @MainActor
 final class GameDetailViewModel: ObservableObject {

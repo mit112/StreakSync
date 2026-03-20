@@ -145,13 +145,30 @@ extension AppError.PersistenceError {
     var failureReason: String? {
         switch self {
         case .saveFailed(_, let underlying):
-            return underlying?.localizedDescription ?? NSLocalizedString("error.persistence.save_failed.reason", comment: "Data could not be written to storage")
+            return underlying?.localizedDescription
+                ?? NSLocalizedString(
+                    "error.persistence.save_failed.reason",
+                    comment: "Data could not be written to storage"
+                )
         case .loadFailed(_, let underlying):
-            return underlying?.localizedDescription ?? NSLocalizedString("error.persistence.load_failed.reason", comment: "Data could not be read from storage")
+            return underlying?.localizedDescription
+                ?? NSLocalizedString(
+                    "error.persistence.load_failed.reason",
+                    comment: "Data could not be read from storage"
+                )
         case .dataCorrupted:
-            return NSLocalizedString("error.persistence.corrupted.reason", comment: "The stored data is in an invalid format")
+            return NSLocalizedString(
+                "error.persistence.corrupted.reason",
+                comment: "The stored data is in an invalid format"
+            )
         case .migrationFailed(let from, let to):
-            return String(format: NSLocalizedString("error.persistence.migration_failed.reason", comment: "Could not migrate from version %@ to %@"), from, to)
+            return String(
+                format: NSLocalizedString(
+                    "error.persistence.migration_failed.reason",
+                    comment: "Could not migrate from version %@ to %@"
+                ),
+                from, to
+            )
         case .storageFull:
             return NSLocalizedString("error.persistence.storage_full.reason", comment: "There is not enough space to save data")
         case .keyNotFound(let key):

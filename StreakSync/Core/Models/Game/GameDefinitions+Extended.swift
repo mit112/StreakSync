@@ -11,12 +11,11 @@ import UIKit
 
 // MARK: - Wordle Variants & Additional Word Games
 extension Game {
-
     static let letterboxed = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440300"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440300"),
         name: "letterboxed",
         displayName: "Letter Boxed",
-        url: URL(string: "https://www.nytimes.com/puzzles/letter-boxed")!,
+        url: URL(staticString: "https://www.nytimes.com/puzzles/letter-boxed"),
         category: .word,
         resultPattern: #"Letter Boxed.*?in \d+ words"#,
         iconSystemName: "square.on.square",
@@ -26,10 +25,10 @@ extension Game {
     )
 
     static let waffle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440301"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440301"),
         name: "waffle",
         displayName: "Waffle",
-        url: URL(string: "https://wafflegame.net")!,
+        url: URL(staticString: "https://wafflegame.net"),
         category: .word,
         resultPattern: #"#waffle\d+ \d+/5"#,
         iconSystemName: "square.grid.2x2",
@@ -40,10 +39,10 @@ extension Game {
 
     // Math Games
     static let mathle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440008"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440008"),
         name: "mathle",
         displayName: "Mathle",
-        url: URL(string: "https://www.mathle.com")!,
+        url: URL(staticString: "https://www.mathle.com"),
         category: .math,
         resultPattern: #"Mathle \d+ [1-6X]/6"#,
         iconSystemName: "function",
@@ -53,10 +52,10 @@ extension Game {
     )
 
     static let numberle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440009"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440009"),
         name: "numberle",
         displayName: "Numberle",
-        url: URL(string: "https://numberle.com")!,
+        url: URL(staticString: "https://numberle.com"),
         category: .math,
         resultPattern: #"Numberle \d+ [1-6X]/6"#,
         iconSystemName: "number.square",
@@ -67,10 +66,10 @@ extension Game {
 
     // Geography Games
     static let worldle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000A"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544000A"),
         name: "worldle",
         displayName: "Worldle",
-        url: URL(string: "https://worldle.teuteuf.fr")!,
+        url: URL(staticString: "https://worldle.teuteuf.fr"),
         category: .geography,
         resultPattern: #"#Worldle #\d+ [1-6X]/6"#,
         iconSystemName: "globe",
@@ -80,10 +79,10 @@ extension Game {
     )
 
     static let globle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000B"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544000B"),
         name: "globle",
         displayName: "Globle",
-        url: URL(string: "https://globle-game.com")!,
+        url: URL(staticString: "https://globle-game.com"),
         category: .geography,
         resultPattern: #"Globle.*?in \d+ guesses"#,
         iconSystemName: "globe.americas",
@@ -94,10 +93,10 @@ extension Game {
 
     // Trivia Games
     static let contexto = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000C"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544000C"),
         name: "contexto",
         displayName: "Contexto",
-        url: URL(string: "https://contexto.me")!,
+        url: URL(staticString: "https://contexto.me"),
         category: .trivia,
         resultPattern: #"Contexto \d+.*?in \d+ guesses"#,
         iconSystemName: "lightbulb",
@@ -107,10 +106,10 @@ extension Game {
     )
 
     static let framed = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000D"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544000D"),
         name: "framed",
         displayName: "Framed",
-        url: URL(string: "https://framed.wtf")!,
+        url: URL(staticString: "https://framed.wtf"),
         category: .trivia,
         resultPattern: #"Framed #\d+ [1-6X]/6"#,
         iconSystemName: "film",
@@ -121,10 +120,10 @@ extension Game {
 
     // Puzzle Games
     static let crosswordle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000E"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544000E"),
         name: "crosswordle",
         displayName: "Crosswordle",
-        url: URL(string: "https://crosswordle.serializer.ca")!,
+        url: URL(staticString: "https://crosswordle.serializer.ca"),
         category: .puzzle,
         resultPattern: #"Crosswordle \d+.*?in \d+"#,
         iconSystemName: "square.grid.3x3.fill",
@@ -133,11 +132,11 @@ extension Game {
         isCustom: false
     )
 
-    static let mini_crossword = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544000F"),
+    static let extendedMiniCrossword = Game(
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544000F"),
         name: "mini_crossword",
         displayName: "Mini Crossword",
-        url: URL(string: "https://www.nytimes.com/crosswords/game/mini")!,
+        url: URL(staticString: "https://www.nytimes.com/crosswords/game/mini"),
         category: .puzzle,
         resultPattern: #"Mini Crossword.*?(\d+:\d+|\d+s)"#,
         iconSystemName: "square.grid.2x2",
@@ -147,10 +146,10 @@ extension Game {
     )
 
     static let sudoku = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440010"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440010"),
         name: "sudoku",
         displayName: "Sudoku",
-        url: URL(string: "https://www.nytimes.com/puzzles/sudoku")!,
+        url: URL(staticString: "https://www.nytimes.com/puzzles/sudoku"),
         category: .puzzle,
         resultPattern: #"Sudoku.*?in (\d+:\d+|\d+m)"#,
         iconSystemName: "square.grid.3x3.topleft.filled",
@@ -161,10 +160,10 @@ extension Game {
 
     // Music Games
     static let lyricle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440011"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440011"),
         name: "lyricle",
         displayName: "Lyricle",
-        url: URL(string: "https://www.lyricle.app")!,
+        url: URL(staticString: "https://www.lyricle.app"),
         category: .music,
         resultPattern: #"Lyricle \d+ [1-6X]/6"#,
         iconSystemName: "music.note.list",
@@ -175,10 +174,10 @@ extension Game {
 
     // More Word Games
     static let absurdle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440012"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440012"),
         name: "absurdle",
         displayName: "Absurdle",
-        url: URL(string: "https://absurdle.online")!,
+        url: URL(staticString: "https://absurdle.online"),
         category: .word,
         resultPattern: #"Absurdle.*?in \d+ guesses"#,
         iconSystemName: "questionmark.square",
@@ -188,10 +187,10 @@ extension Game {
     )
 
     static let semantle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440013"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440013"),
         name: "semantle",
         displayName: "Semantle",
-        url: URL(string: "https://semantle.com")!,
+        url: URL(staticString: "https://semantle.com"),
         category: .word,
         resultPattern: #"Semantle #\d+.*?in \d+ guesses"#,
         iconSystemName: "brain",
@@ -203,10 +202,10 @@ extension Game {
     // MARK: - More Word Games (21-30)
 
     static let dordle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440015"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440015"),
         name: "dordle",
         displayName: "Dordle",
-        url: URL(string: "https://zaratustra.itch.io/dordle")!,
+        url: URL(staticString: "https://zaratustra.itch.io/dordle"),
         category: .word,
         resultPattern: #"Daily Dordle #\d+"#,
         iconSystemName: "square.on.square",
@@ -216,10 +215,10 @@ extension Game {
     )
 
     static let sedecordle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440016"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440016"),
         name: "sedecordle",
         displayName: "Sedecordle",
-        url: URL(string: "https://sedecordle.com")!,
+        url: URL(staticString: "https://sedecordle.com"),
         category: .word,
         resultPattern: #"Daily Sedecordle #\d+"#,
         iconSystemName: "square.grid.3x3.square",
@@ -229,10 +228,10 @@ extension Game {
     )
 
     static let kilordle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440017"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440017"),
         name: "kilordle",
         displayName: "Kilordle",
-        url: URL(string: "https://kilordle.com")!,
+        url: URL(staticString: "https://kilordle.com"),
         category: .word,
         resultPattern: #"Kilordle.*?in \d+ guesses"#,
         iconSystemName: "infinity",
@@ -242,10 +241,10 @@ extension Game {
     )
 
     static let antiwordle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440018"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440018"),
         name: "antiwordle",
         displayName: "Antiwordle",
-        url: URL(string: "https://antiwordle.com")!,
+        url: URL(staticString: "https://antiwordle.com"),
         category: .word,
         resultPattern: #"Antiwordle.*?in \d+ attempts"#,
         iconSystemName: "arrow.uturn.backward.square",
@@ -255,10 +254,10 @@ extension Game {
     )
 
     static let wordscapes = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440019"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440019"),
         name: "wordscapes",
         displayName: "Wordscapes",
-        url: URL(string: "https://wordscapes.com")!,
+        url: URL(staticString: "https://wordscapes.com"),
         category: .word,
         resultPattern: #"Wordscapes.*?Level \d+"#,
         iconSystemName: "leaf",
@@ -268,10 +267,10 @@ extension Game {
     )
 
     static let wordhurdle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001A"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544001A"),
         name: "wordhurdle",
         displayName: "Word Hurdle",
-        url: URL(string: "https://wordhurdle.com")!,
+        url: URL(staticString: "https://wordhurdle.com"),
         category: .word,
         resultPattern: #"Word Hurdle.*?in \d+/6"#,
         iconSystemName: "figure.run.square.stack",
@@ -281,10 +280,10 @@ extension Game {
     )
 
     static let xordle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001B"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544001B"),
         name: "xordle",
         displayName: "Xordle",
-        url: URL(string: "https://xordle.xyz")!,
+        url: URL(staticString: "https://xordle.xyz"),
         category: .word,
         resultPattern: #"Xordle #\d+ [1-9X]/9"#,
         iconSystemName: "xmark.square",
@@ -294,10 +293,10 @@ extension Game {
     )
 
     static let squareword = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001C"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544001C"),
         name: "squareword",
         displayName: "Squareword",
-        url: URL(string: "https://squareword.org")!,
+        url: URL(staticString: "https://squareword.org"),
         category: .word,
         resultPattern: #"Squareword.*?in \d+ guesses"#,
         iconSystemName: "square.text.square",
@@ -307,10 +306,10 @@ extension Game {
     )
 
     static let phrazle = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-44665544001D"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-44665544001D"),
         name: "phrazle",
         displayName: "Phrazle",
-        url: URL(string: "https://phrazle.com")!,
+        url: URL(staticString: "https://phrazle.com"),
         category: .word,
         resultPattern: #"Phrazle.*?in \d+/6"#,
         iconSystemName: "text.quote",
@@ -318,5 +317,4 @@ extension Game {
         isPopular: false,
         isCustom: false
     )
-
 }

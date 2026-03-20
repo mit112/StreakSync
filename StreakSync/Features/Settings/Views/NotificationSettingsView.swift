@@ -5,9 +5,9 @@
 //  Comprehensive notification settings with per-game controls
 //
 
+import OSLog
 import SwiftUI
 import UserNotifications
-import OSLog
 
 // MARK: - Notification Settings View Model
 @MainActor
@@ -94,7 +94,6 @@ final class NotificationSettingsViewModel: ObservableObject {
     }
     #endif
 }
-
 
 // MARK: - Notification Settings View
 struct NotificationSettingsView: View {
@@ -269,7 +268,6 @@ struct NotificationSettingsView: View {
             return "Don't lose your streaks in \(firstTwo), and \(remaining) other game\(remaining > 1 ? "s" : "")"
         }
     }
-    
 }
 
 #Preview {

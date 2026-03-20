@@ -9,60 +9,67 @@
 import Foundation
 import UIKit
 
-extension Game {
-    // MARK: - Safe UUID Initializer
-    /// Returns a UUID from a known-valid string. Triggers assertionFailure in debug builds if the
-    /// string is malformed — catches typos at dev time rather than silently producing random IDs.
-    static func safeUUID(_ string: String) -> UUID {
-        guard let uuid = UUID(uuidString: string) else {
-            assertionFailure("Invalid UUID string: \(string)")
-            return UUID()
-        }
-        return uuid
-    }
+// MARK: - Safe Static Initializers
 
+extension UUID {
+    /// Creates a UUID from a compile-time-known string. Crashes at launch if the string is invalid.
+    init(staticString: StaticString) {
+        guard let uuid = UUID(uuidString: "\(staticString)") else {
+            fatalError("Invalid UUID string: \(staticString)")
+        }
+        self = uuid
+    }
+}
+
+extension URL {
+    /// Creates a URL from a compile-time-known string. Crashes at launch if the string is invalid.
+    init(staticString: StaticString) {
+        guard let url = URL(string: "\(staticString)") else {
+            fatalError("Invalid URL string: \(staticString)")
+        }
+        self = url
+    }
+}
+
+extension Game {
     // MARK: - Static Game IDs (Guaranteed Valid)
     private enum GameIDs {
-        static let wordle = Game.safeUUID("550e8400-e29b-41d4-a716-446655440000")
-        static let quordle = Game.safeUUID("550e8400-e29b-41d4-a716-446655440001")
-        static let nerdle = Game.safeUUID("550e8400-e29b-41d4-a716-446655440002")
-        static let connections = Game.safeUUID("550e8400-e29b-41d4-a716-446655440003")
-        static let spellingBee = Game.safeUUID("550e8400-e29b-41d4-a716-446655440004")
-        static let miniCrossword = Game.safeUUID("550e8400-e29b-41d4-a716-446655440005")
-        static let strands = Game.safeUUID("550e8400-e29b-41d4-a716-446655440007")
+        static let wordle = UUID(staticString: "550e8400-e29b-41d4-a716-446655440000")
+        static let quordle = UUID(staticString: "550e8400-e29b-41d4-a716-446655440001")
+        static let nerdle = UUID(staticString: "550e8400-e29b-41d4-a716-446655440002")
+        static let connections = UUID(staticString: "550e8400-e29b-41d4-a716-446655440003")
+        static let spellingBee = UUID(staticString: "550e8400-e29b-41d4-a716-446655440004")
+        static let miniCrossword = UUID(staticString: "550e8400-e29b-41d4-a716-446655440005")
+        static let strands = UUID(staticString: "550e8400-e29b-41d4-a716-446655440007")
         // LinkedIn Games
-        static let linkedinQueens = Game.safeUUID("550e8400-e29b-41d4-a716-446655440100")
-        static let linkedinTango = Game.safeUUID("550e8400-e29b-41d4-a716-446655440101")
-        static let linkedinCrossclimb = Game.safeUUID("550e8400-e29b-41d4-a716-446655440102")
-        static let linkedinPinpoint = Game.safeUUID("550e8400-e29b-41d4-a716-446655440103")
-        static let linkedinZip = Game.safeUUID("550e8400-e29b-41d4-a716-446655440104")
-        static let linkedinMiniSudoku = Game.safeUUID("550e8400-e29b-41d4-a716-446655440105")
+        static let linkedinQueens = UUID(staticString: "550e8400-e29b-41d4-a716-446655440100")
+        static let linkedinTango = UUID(staticString: "550e8400-e29b-41d4-a716-446655440101")
+        static let linkedinCrossclimb = UUID(staticString: "550e8400-e29b-41d4-a716-446655440102")
+        static let linkedinPinpoint = UUID(staticString: "550e8400-e29b-41d4-a716-446655440103")
+        static let linkedinZip = UUID(staticString: "550e8400-e29b-41d4-a716-446655440104")
+        static let linkedinMiniSudoku = UUID(staticString: "550e8400-e29b-41d4-a716-446655440105")
         // Wordle Variants
-        static let octordle = Game.safeUUID("550e8400-e29b-41d4-a716-446655440200")
+        static let octordle = UUID(staticString: "550e8400-e29b-41d4-a716-446655440200")
     }
     
     // MARK: - Static Game URLs (Guaranteed Valid)
     private enum GameURLs {
-        // SwiftLint exemption: These URLs are hardcoded constants that require force unwrap fallbacks
-        // swiftlint:disable force_unwrapping
-        static let wordle = URL(string: "https://www.nytimes.com/games/wordle") ?? URL(string: "https://www.nytimes.com")!
-        static let quordle = URL(string: "https://www.quordle.com") ?? URL(string: "https://www.merriam-webster.com")!
-        static let nerdle = URL(string: "https://nerdlegame.com") ?? URL(string: "https://nerdlegame.com")!
-        static let connections = URL(string: "https://www.nytimes.com/games/connections") ?? URL(string: "https://www.nytimes.com")!
-        static let spellingBee = URL(string: "https://www.nytimes.com/puzzles/spelling-bee") ?? URL(string: "https://www.nytimes.com")!
-        static let miniCrossword = URL(string: "https://www.nytimes.com/crosswords/game/mini") ?? URL(string: "https://www.nytimes.com")!
-        static let strands = URL(string: "https://www.nytimes.com/games/strands") ?? URL(string: "https://www.nytimes.com")!
-        // LinkedIn Games (direct game URLs that open in LinkedIn app)
-        // These URLs open the specific games directly in the LinkedIn app
-        static let linkedinQueens = URL(string: "https://www.linkedin.com/games/queens") ?? URL(string: "https://www.linkedin.com")!
-        static let linkedinTango = URL(string: "https://www.linkedin.com/games/tango") ?? URL(string: "https://www.linkedin.com")!
-        static let linkedinCrossclimb = URL(string: "https://www.linkedin.com/games/crossclimb") ?? URL(string: "https://www.linkedin.com")!
-        static let linkedinPinpoint = URL(string: "https://www.linkedin.com/games/pinpoint") ?? URL(string: "https://www.linkedin.com")!
-        static let linkedinZip = URL(string: "https://www.linkedin.com/games/zip") ?? URL(string: "https://www.linkedin.com")!
-        static let linkedinMiniSudoku = URL(string: "https://www.linkedin.com/games/mini-sudoku") ?? URL(string: "https://www.linkedin.com")!
+        static let wordle = URL(staticString: "https://www.nytimes.com/games/wordle")
+        static let quordle = URL(staticString: "https://www.quordle.com")
+        static let nerdle = URL(staticString: "https://nerdlegame.com")
+        static let connections = URL(staticString: "https://www.nytimes.com/games/connections")
+        static let spellingBee = URL(staticString: "https://www.nytimes.com/puzzles/spelling-bee")
+        static let miniCrossword = URL(staticString: "https://www.nytimes.com/crosswords/game/mini")
+        static let strands = URL(staticString: "https://www.nytimes.com/games/strands")
+        // LinkedIn Games
+        static let linkedinQueens = URL(staticString: "https://www.linkedin.com/games/queens")
+        static let linkedinTango = URL(staticString: "https://www.linkedin.com/games/tango")
+        static let linkedinCrossclimb = URL(staticString: "https://www.linkedin.com/games/crossclimb")
+        static let linkedinPinpoint = URL(staticString: "https://www.linkedin.com/games/pinpoint")
+        static let linkedinZip = URL(staticString: "https://www.linkedin.com/games/zip")
+        static let linkedinMiniSudoku = URL(staticString: "https://www.linkedin.com/games/mini-sudoku")
         // Wordle Variants
-        static let octordle = URL(string: "https://octordle.com") ?? URL(string: "https://octordle.com")!
-        // swiftlint:enable force_unwrapping
+        static let octordle = URL(staticString: "https://octordle.com")
     }
     
     // MARK: - Static Game Instances (Safe - IDs and URLs Guaranteed)
@@ -109,10 +116,10 @@ extension Game {
     )
     
     static let pips = Game(
-        id: Game.safeUUID("550e8400-e29b-41d4-a716-446655440006"),
+        id: UUID(staticString: "550e8400-e29b-41d4-a716-446655440006"),
         name: "pips",
         displayName: "Pips",
-        url: URL(string: "https://www.nytimes.com/games/pips")!,
+        url: URL(staticString: "https://www.nytimes.com/games/pips"),
         category: .puzzle,
         resultPattern: #"Pips #\d+ (Easy|Medium|Hard)"#,
         iconSystemName: "square.grid.2x2.fill",
@@ -299,5 +306,5 @@ extension Game {
             linkedinQueens, linkedinTango, linkedinCrossclimb, linkedinPinpoint, linkedinZip, linkedinMiniSudoku,
             // Wordle Variants
             octordle
-        ]
+    ]
 }

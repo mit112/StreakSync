@@ -5,9 +5,9 @@
 //  In-app permission flow with clear benefits and user control
 //
 
+import OSLog
 import SwiftUI
 import UserNotifications
-import OSLog
 
 // MARK: - Permission Flow View Model
 @MainActor

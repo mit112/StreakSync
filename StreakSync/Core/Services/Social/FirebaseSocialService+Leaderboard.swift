@@ -10,10 +10,18 @@ import FirebaseFirestore
 import Foundation
 import OSLog
 
+// MARK: - Leaderboard Aggregation
+
+private struct LeaderboardAggregation {
+    var name: String
+    var total: Int
+    var perGame: [UUID: Int]
+    var perGameStreak: [UUID: Int]
+}
+
 // MARK: - Leaderboard
 
 extension FirebaseSocialService {
-
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
         let currentUID = try requireUID()
         let startInt = startDateUTC.utcYYYYMMDD
@@ -52,12 +60,14 @@ extension FirebaseSocialService {
         let userNames = await fetchDisplayNames(for: uniqueUserIds)
 
         // Aggregate per-user
-        var perUser: [String: (name: String, total: Int, perGame: [UUID: Int], perGameStreak: [UUID: Int])] = [:]
+        var perUser: [String: LeaderboardAggregation] = [:]
         for s in allScores {
             let game = Game.allAvailableGames.first(where: { $0.id == s.gameId })
             let points = LeaderboardScoring.points(for: s, game: game)
             let displayName = userNames[s.userId] ?? "Player"
-            var entry = perUser[s.userId] ?? (name: displayName, total: 0, perGame: [:], perGameStreak: [:])
+            var entry = perUser[s.userId] ?? LeaderboardAggregation(
+                name: displayName, total: 0, perGame: [:], perGameStreak: [:]
+            )
             entry.total += points
             entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + points
             if let streak = s.currentStreak, streak > 0 {
@@ -66,7 +76,7 @@ extension FirebaseSocialService {
             perUser[s.userId] = entry
         }
 
-        return perUser.map { (userId, agg) in
+        return perUser.map { userId, agg in
             LeaderboardRow(id: userId, userId: userId, displayName: agg.name,
                            totalPoints: agg.total, perGameBreakdown: agg.perGame,
                            perGameStreak: agg.perGameStreak)
@@ -169,7 +179,6 @@ extension FirebaseSocialService {
         log.info("📡 Started friendship listener for user \(currentUID)")
         return FirestoreListenerHandle([reg1, reg2])
     }
-
 }
 
 // MARK: - Firestore Listener Handle

@@ -7,11 +7,10 @@
 //  maps to the right Game via signature string matching.
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 final class GameDetectionTests: XCTestCase {
-
     // MARK: - NYT Games
 
     func testDetectsWordle() {

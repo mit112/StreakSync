@@ -98,8 +98,12 @@ final class MockSocialService: SocialService {
             perUser[s.userId] = entry
         }
         
-        return perUser.map { (userId, agg) in
-            LeaderboardRow(id: userId, userId: userId, displayName: agg.name, totalPoints: agg.total, perGameBreakdown: agg.perGame, perGameStreak: [:])
+        return perUser.map { userId, agg in
+            LeaderboardRow(
+                id: userId, userId: userId, displayName: agg.name,
+                totalPoints: agg.total, perGameBreakdown: agg.perGame,
+                perGameStreak: [:]
+            )
         }.sorted { $0.totalPoints > $1.totalPoints }
     }
     

@@ -5,11 +5,9 @@
 //  Created by MiT on 7/24/25.
 //
 
-// DesignSystem/Haptics/HapticManager.swift
-
-import UIKit
-import SwiftUI
 import OSLog
+import SwiftUI
+// DesignSystem/Haptics/HapticManager.swiftimport UIKit
 
 /// Centralized haptic feedback management following the design spec
 @MainActor
@@ -139,4 +137,3 @@ extension HapticManager {
         }
     }
 }
-

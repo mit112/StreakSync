@@ -3,11 +3,11 @@
 //  Main app entry point with dependency injection
 //
 
-import SwiftUI
-import OSLog
-import UserNotifications
-import UIKit
 import GoogleSignIn
+import OSLog
+import SwiftUI
+import UIKit
+import UserNotifications
 
 // MARK: - Main App
 @main
@@ -59,55 +59,48 @@ struct StreakSyncApp: App {
     private func initializeApp() async {
  logger.info("Starting app initialization")
         
-        do {
-            // Initialize notification delegate dependencies early
-            NotificationDelegate.shared.appState = container.appState
-            NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
-            
-            // Ensure Firebase Anonymous Auth for social backend
-            // Uses the AuthStateManager which also handles re-authentication on sign-out
-            await container.firebaseAuthManager.ensureAuthenticated()
-            
-            // Register categories on launch if already authorized
-            let authStatus = await NotificationScheduler.shared.checkPermissionStatus()
-            if authStatus == .authorized {
-                await NotificationScheduler.shared.registerCategories()
-            }
-            
-            // Load app data from local persistence first (instant UX)
-            await container.appState.loadPersistedData()
-            
-            // Sync game results via Firestore
-            await container.gameResultSyncService.syncIfNeeded()
-            
-            // Rebuild streaks from any newly-synced results
-            await container.appState.rebuildStreaksFromResults()
-            
-            // Normalize streaks again after rebuild to check for gaps up to today
-            // (rebuildStreaksFromResults only checks gaps between results, not gaps to today)
-            await container.appState.normalizeStreaksForMissedDays()
-            
-            // Check for streak reminders on app launch
-            await container.appState.checkAndScheduleStreakReminders()
-            
-            // Reconcile recent scores — republishes any dropped by failures, timezone bugs, or offline periods
-            if let socialService = container.socialService as? FirebaseSocialService {
-                await socialService.reconcileRecentScores(
-                    results: container.appState.recentResults,
-                    streaks: container.appState.streaks
-                )
-            }
-            
-            // Mark as initialized
-            await MainActor.run {
-                isInitialized = true
- logger.info("App initialization completed")
-            }
-        } catch {
- logger.error("App initialization failed: \(error.localizedDescription)")
-            await MainActor.run {
-                initializationError = "Failed to initialize: \(error.localizedDescription)"
-            }
+        // Initialize notification delegate dependencies early
+        NotificationDelegate.shared.appState = container.appState
+        NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
+
+        // Ensure Firebase Anonymous Auth for social backend
+        // Uses the AuthStateManager which also handles re-authentication on sign-out
+        await container.firebaseAuthManager.ensureAuthenticated()
+
+        // Register categories on launch if already authorized
+        let authStatus = await NotificationScheduler.shared.checkPermissionStatus()
+        if authStatus == .authorized {
+            await NotificationScheduler.shared.registerCategories()
+        }
+
+        // Load app data from local persistence first (instant UX)
+        await container.appState.loadPersistedData()
+
+        // Sync game results via Firestore
+        await container.gameResultSyncService.syncIfNeeded()
+
+        // Rebuild streaks from any newly-synced results
+        await container.appState.rebuildStreaksFromResults()
+
+        // Normalize streaks again after rebuild to check for gaps up to today
+        // (rebuildStreaksFromResults only checks gaps between results, not gaps to today)
+        await container.appState.normalizeStreaksForMissedDays()
+
+        // Check for streak reminders on app launch
+        await container.appState.checkAndScheduleStreakReminders()
+
+        // Reconcile recent scores — republishes any dropped by failures, timezone bugs, or offline periods
+        if let socialService = container.socialService as? FirebaseSocialService {
+            await socialService.reconcileRecentScores(
+                results: container.appState.recentResults,
+                streaks: container.appState.streaks
+            )
+        }
+
+        // Mark as initialized
+        await MainActor.run {
+            isInitialized = true
+            logger.info("App initialization completed")
         }
     }
     
@@ -119,8 +112,6 @@ struct StreakSyncApp: App {
             await initializeApp()
         }
     }
-    
-
 }
 
 // MARK: - Initialization Views

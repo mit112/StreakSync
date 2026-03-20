@@ -5,8 +5,8 @@
 //  Chart sections for the analytics dashboard
 //
 
-import SwiftUI
 import Charts
+import SwiftUI
 
 // MARK: - Streak Trends Chart Section
 struct StreakTrendsChartSection: View {
@@ -102,7 +102,7 @@ struct StreakTrendsChart: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .trailing) { value in
+            AxisMarks(position: .trailing) { _ in
                 AxisGridLine()
                 AxisValueLabel()
                     .font(.caption2)

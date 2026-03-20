@@ -3,8 +3,8 @@
 //  StreakSyncTests
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class SocialSettingsServiceTests: XCTestCase {

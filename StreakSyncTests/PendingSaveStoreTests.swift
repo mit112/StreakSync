@@ -6,11 +6,10 @@
 //
 
 import Foundation
-import XCTest
 @testable import StreakSync
+import XCTest
 
 final class PendingSaveStoreTests: XCTestCase {
-
     private let store = PendingSaveStore()
 
     override func setUp() {

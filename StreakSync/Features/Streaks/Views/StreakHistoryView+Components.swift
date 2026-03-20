@@ -121,7 +121,7 @@ struct HistoryCalendarDayView: View {
 
 // MARK: - iOS 26 Selected Date Detail
 
-struct iOS26SelectedDateDetail: View {
+struct IOS26SelectedDateDetail: View {
     let date: Date
     let result: GameResult
     let gameColor: Color
@@ -150,7 +150,7 @@ struct iOS26SelectedDateDetail: View {
 
 // MARK: - iOS 26 Selected Date Grouped Detail
 
-struct iOS26SelectedDateGroupedDetail: View {
+struct IOS26SelectedDateGroupedDetail: View {
     let date: Date
     let groupedResult: GroupedGameResult
     let gameColor: Color
@@ -257,7 +257,7 @@ struct DifficultyResultRowView: View {
 
 // MARK: - iOS 26 Performance Chart
 
-struct iOS26PerformanceChart: View {
+struct IOS26PerformanceChart: View {
     let results: [GameResult]
     let gameColor: Color
 
@@ -279,7 +279,7 @@ struct iOS26PerformanceChart: View {
 
 // MARK: - iOS 26 Time Based Chart
 
-struct iOS26TimeBasedChart: View {
+struct IOS26TimeBasedChart: View {
     let groupedResults: [GroupedGameResult]
     let gameColor: Color
 

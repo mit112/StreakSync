@@ -7,8 +7,16 @@
 
 import Foundation
 
-extension AppState {
+// MARK: - Smart Reminder Suggestion
+struct SmartReminderSuggestion {
+    let hour: Int
+    let minute: Int
+    let windowStart: Int
+    let windowEnd: Int
+    let coverage: Int
+}
 
+extension AppState {
     // MARK: - Streak Risk Detection & Reminders
 
     func checkAndScheduleStreakReminders() async {
@@ -141,12 +149,14 @@ extension AppState {
     // MARK: - Smart Reminder Engine
 
     /// Computes a smart reminder suggestion based on the last N days of play and returns a best reminder time
-    func computeSmartReminderSuggestion(lastDays: Int = 30) -> (hour: Int, minute: Int, windowStart: Int, windowEnd: Int, coverage: Int) {
+    func computeSmartReminderSuggestion(lastDays: Int = 30) -> SmartReminderSuggestion {
         let calendar = Calendar.current
         let now = Date()
         let start = calendar.date(byAdding: .day, value: -lastDays, to: now) ?? now
         let recent = self.recentResults.filter { $0.date >= start && $0.completed }
-        guard !recent.isEmpty else { return (19, 0, 19, 21, 0) }
+        guard !recent.isEmpty else {
+            return SmartReminderSuggestion(hour: 19, minute: 0, windowStart: 19, windowEnd: 21, coverage: 0)
+        }
         var hourCounts = Array(repeating: 0, count: 24)
         for result in recent {
             let h = calendar.component(.hour, from: result.date)
@@ -166,7 +176,11 @@ extension AppState {
         var minute = 30
         if hour < 6 { hour = 6; minute = 0 }
         if hour > 22 { hour = 22; minute = 0 }
-        return (hour, minute, windowStart, windowEnd, coverage)
+        return SmartReminderSuggestion(
+            hour: hour, minute: minute,
+            windowStart: windowStart, windowEnd: windowEnd,
+            coverage: coverage
+        )
     }
 
     /// Updates smart reminders if enabled and last computation was over 2 days ago
@@ -193,6 +207,8 @@ extension AppState {
         defaults.set(suggestion.windowEnd, forKey: AppConstants.NotificationSettings.smartReminderWindowEndHour)
         defaults.set(suggestion.coverage, forKey: AppConstants.NotificationSettings.smartReminderCoveragePercent)
         await checkAndScheduleStreakReminders()
- logger.info("Applied smart reminder: \(suggestion.hour):\(String(format: "%02d", suggestion.minute)) window \(suggestion.windowStart)-\(suggestion.windowEnd) coverage \(suggestion.coverage)%")
+        let timeStr = "\(suggestion.hour):\(String(format: "%02d", suggestion.minute))"
+        let windowStr = "\(suggestion.windowStart)-\(suggestion.windowEnd)"
+        logger.info("Applied smart reminder: \(timeStr) window \(windowStr) coverage \(suggestion.coverage)%")
     }
 }

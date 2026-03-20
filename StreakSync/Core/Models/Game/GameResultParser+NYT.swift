@@ -7,8 +7,15 @@
 
 import Foundation
 
-extension GameResultParser {
+// MARK: - Connections Grid Stats
+struct ConnectionsGridStats {
+    let totalGuesses: Int
+    let solvedCategories: Int
+    let strikes: Int
+    let completed: Bool
+}
 
+extension GameResultParser {
     // MARK: - Wordle Parser
     func parseWordle(_ text: String, gameId: UUID) throws -> GameResult {
         // Pattern: "Wordle 1,492 3/6" or "Wordle 1492 X/6"
@@ -39,7 +46,6 @@ extension GameResultParser {
         )
     }
     
-
     // MARK: - NYT Connections Parser
     func parseConnections(_ text: String, gameId: UUID) throws -> GameResult {
         // Check if this looks like a Connections result
@@ -93,7 +99,7 @@ extension GameResultParser {
     }
     
     // MARK: - Connections Emoji Grid Parser Helper
-    func parseConnectionsEmojiGrid(_ emojiGrid: String) -> (totalGuesses: Int, solvedCategories: Int, strikes: Int, completed: Bool) {
+    func parseConnectionsEmojiGrid(_ emojiGrid: String) -> ConnectionsGridStats {
         // Split by spaces to get individual emoji rows
         let emojiRows = emojiGrid.components(separatedBy: .whitespaces)
             .filter { !$0.isEmpty }
@@ -124,10 +130,9 @@ extension GameResultParser {
         let totalGuesses = emojiRows.count
         let completed = solvedCategories == 4
         
-        return (totalGuesses: totalGuesses, solvedCategories: solvedCategories, strikes: strikes, completed: completed)
+        return ConnectionsGridStats(totalGuesses: totalGuesses, solvedCategories: solvedCategories, strikes: strikes, completed: completed)
     }
     
-
     // MARK: - NYT Spelling Bee Parser
     func parseSpellingBee(_ text: String, gameId: UUID) throws -> GameResult {
         // Pattern: "Spelling Bee\nScore: 150\nWords: 25\nRank: Genius"
@@ -146,10 +151,10 @@ extension GameResultParser {
         let rankString = String(text[rankRange]).trimmingCharacters(in: .whitespacesAndNewlines)
         
         let score = Int(scoreString) ?? 0
-        let _ = Int(wordsString) ?? 0 // wordsFound - not used in current implementation
+        _ = Int(wordsString) ?? 0 // wordsFound - not used in current implementation
         
         // Determine completion based on rank (Genius and above are considered "completed")
-        let completed = rankString.lowercased().contains("genius") || 
+        let completed = rankString.lowercased().contains("genius") ||
                        rankString.lowercased().contains("queen bee") ||
                        rankString.lowercased().contains("amazing")
         
@@ -169,7 +174,6 @@ extension GameResultParser {
         )
     }
     
-
     // MARK: - NYT Mini Crossword Parser
     func parseMiniCrossword(_ text: String, gameId: UUID) throws -> GameResult {
         // Pattern: "Mini Crossword\nCompleted in 2:30"
@@ -210,7 +214,6 @@ extension GameResultParser {
         )
     }
     
-
     // MARK: - NYT Strands Parser
     func parseStrands(_ text: String, gameId: UUID) throws -> GameResult {
         // Pattern for Strands results - actual shared format

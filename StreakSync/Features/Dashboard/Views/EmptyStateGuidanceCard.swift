@@ -92,7 +92,7 @@ struct EmptyStateGuidanceCard: View {
                             lineWidth: 1
                         )
                 }
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.08), 
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.08),
                        radius: 12, x: 0, y: 4)
         }
         .opacity(isVisible ? 1 : 0)
