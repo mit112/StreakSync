@@ -246,6 +246,25 @@ extension View {
     }
 }
 
+// MARK: - Initial Animation Modifier
+/// Drives staggered entrance animations on first appearance. Shared by StatCard and DashboardGamesContent.
+struct InitialAnimationModifier: ViewModifier {
+    let hasAppeared: Bool
+    let index: Int
+    let totalCount: Int
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(hasAppeared ? 1 : 0)
+            .offset(y: hasAppeared ? 0 : 20)
+            .animation(
+                .smooth(duration: 0.5)
+                .delay(Double(index) * 0.05),
+                value: hasAppeared
+            )
+    }
+}
+
 // MARK: - Scroll Phase Watcher (compat wrapper)
 /// Wraps `.onScrollPhaseChange` with a two-argument closure while compiling on iOS versions where the API may not be available at callsite.
 struct ScrollPhaseWatcher: ViewModifier {

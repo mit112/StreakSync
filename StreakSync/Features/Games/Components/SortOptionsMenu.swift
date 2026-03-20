@@ -12,7 +12,7 @@ enum GameSortOption: String, CaseIterable, Identifiable {
     case lastPlayed = "Last Played"
     case name = "Name"
     case streakLength = "Streak Length"
-    case completionRate = "Success Rate"  // ADD THIS LINE
+    case completionRate = "Success Rate"
     
     var id: String { rawValue }
     
@@ -24,8 +24,7 @@ enum GameSortOption: String, CaseIterable, Identifiable {
             return "textformat"
         case .streakLength:
             return "flame"
-        case .completionRate:  // ADD THIS CASE
-            return "percent"
+        case .completionRate:            return "percent"
         }
     }
     
@@ -37,8 +36,7 @@ enum GameSortOption: String, CaseIterable, Identifiable {
             return "A-Z"
         case .streakLength:
             return "Streak"
-        case .completionRate:  // ADD THIS CASE
-            return "Success"
+        case .completionRate:            return "Success"
         }
     }
 }
@@ -54,97 +52,6 @@ enum SortDirection: String, CaseIterable {
         case .descending:
             return "chevron.down"
         }
-    }
-}
-
-// MARK: - Sort Options Menu View
-struct SortOptionsMenu: View {
-    @Binding var selectedSort: GameSortOption
-    @Binding var sortDirection: SortDirection
-    
-    var body: some View {
-        Menu {
-            ForEach(GameSortOption.allCases) { option in
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        if selectedSort == option {
-                            // Toggle direction if same option selected
-                            sortDirection = sortDirection == .ascending ? .descending : .ascending
-                        } else {
-                            selectedSort = option
-                            // Default to descending for streak length, ascending for name
-                            sortDirection = option == .name ? .ascending : .descending
-                        }
-                        HapticManager.shared.trigger(.buttonTap)
-                    }
-                } label: {
-                    Label(option.rawValue, systemImage: option.icon)
-                }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image.safeSystemName(selectedSort.icon, fallback: "arrow.up.arrow.down")
-                    .font(.caption)
-                Image.safeSystemName(sortDirection.icon, fallback: "arrow.up")
-                    .font(.caption2)
-            }
-            .foregroundStyle(.blue)
-            .padding(8)
-            .background(
-                Circle()
-                    .fill(.blue.opacity(0.1))
-            )
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .accessibilityLabel("Sort options")
-        .accessibilityHint("Currently sorted by \(selectedSort.rawValue) in \(sortDirection.rawValue) order")
-    }
-}
-
-// Alternative compact version if you prefer text + icon:
-struct CompactSortOptionsMenu: View {
-    @Binding var selectedSort: GameSortOption
-    @Binding var sortDirection: SortDirection
-    
-    var body: some View {
-        Menu {
-            ForEach(GameSortOption.allCases) { option in
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        if selectedSort == option {
-                            // Toggle direction if same option selected
-                            sortDirection = sortDirection == .ascending ? .descending : .ascending
-                        } else {
-                            selectedSort = option
-                            // Default to descending for streak length, ascending for name
-                            sortDirection = option == .name ? .ascending : .descending
-                        }
-                        HapticManager.shared.trigger(.buttonTap)
-                    }
-                } label: {
-                    Label(option.rawValue, systemImage: option.icon)
-                }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Text(selectedSort.shortName)
-                    .font(.caption.weight(.medium))
-                Image.safeSystemName(sortDirection.icon, fallback: "arrow.up")
-                    .font(.caption2)
-            }
-            .foregroundStyle(.blue)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(.blue.opacity(0.1))
-            )
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .accessibilityLabel("Sort options")
-        .accessibilityHint("Currently sorted by \(selectedSort.rawValue) in \(sortDirection.rawValue) order")
     }
 }
 
@@ -176,20 +83,3 @@ extension Array where Element == GameStreak {
     }
 }
 
-// MARK: - Preview
-#Preview {
-    VStack(spacing: 20) {
-        Text("Icon only version:")
-        SortOptionsMenu(
-            selectedSort: .constant(.lastPlayed),
-            sortDirection: .constant(.descending)
-        )
-        
-        Text("Text + direction version:")
-        CompactSortOptionsMenu(
-            selectedSort: .constant(.streakLength),
-            sortDirection: .constant(.ascending)
-        )
-    }
-    .padding()
-}

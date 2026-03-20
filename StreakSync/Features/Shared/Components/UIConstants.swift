@@ -37,89 +37,6 @@ enum CornerRadius {
     static let card: CGFloat = 12
 }
 
-// MARK: - Animation System (Native iOS feel)
-enum AnimationDuration {
-    /// 0.25s - iOS standard quick animation
-    static let standard: Double = 0.25
-    
-    /// 0.35s - iOS standard smooth animation
-    static let smooth: Double = 0.35
-}
-
-// MARK: - Animation Presets (Simplified)
-extension Animation {
-    /// Standard iOS easing curve - quick and responsive
-    static var standard: Animation {
-        .easeInOut(duration: AnimationDuration.standard)
-    }
-    
-    /// Smooth iOS easing curve - for larger transitions
-    static var smooth: Animation {
-        .easeInOut(duration: AnimationDuration.smooth)
-    }
-}
-
-// MARK: - Shadow System (Minimal - only 2 options)
-struct ShadowStyle {
-    let color: Color
-    let radius: CGFloat
-    let x: CGFloat
-    let y: CGFloat
-    
-    /// Subtle shadow for floating elements only
-    static let subtle = ShadowStyle(
-        color: .black.opacity(0.08),
-        radius: 2,
-        x: 0,
-        y: 1
-    )
-    
-    /// Elevated shadow for modals and sheets
-    static let elevated = ShadowStyle(
-        color: .black.opacity(0.15),
-        radius: 8,
-        x: 0,
-        y: 4
-    )
-}
-
-// MARK: - Typography Helpers
-extension Font {
-    /// Use Dynamic Type system fonts
-    static var streakNumber: Font {
-        .system(.largeTitle, design: .rounded).weight(.bold)
-    }
-    
-    static var sectionHeader: Font {
-        .headline
-    }
-    
-    static var cardTitle: Font {
-        .subheadline.weight(.medium)
-    }
-    
-    static var cardSubtitle: Font {
-        .caption
-    }
-}
-
-// MARK: - Color Helpers
-extension Color {
-    /// System colors only - no custom colors
-    static var streakActive: Color {
-        .primary
-    }
-    
-    static var streakInactive: Color {
-        .secondary
-    }
-    
-
-    static var groupedBackground: Color {
-        Color(.systemGroupedBackground)
-    }
-}
-
 // MARK: - Layout Constants
 enum Layout {
     /// Minimum touch target size per HIG
@@ -133,24 +50,6 @@ enum Layout {
 }
 
 
-// MARK: - Device Size Helpers
-struct DeviceSize {
-    static var isSmallDevice: Bool {
-        // Fallback for when not in view context
-        // Views should use @Environment(\.horizontalSizeClass) for proper size detection
-        return false
-    }
-    
-    static var isIPad: Bool {
-        // UIDevice.current is MainActor-isolated. Since userInterfaceIdiom is a
-        // constant value per device, we can safely assume we're on MainActor
-        // for this read-only property access.
-        return MainActor.assumeIsolated {
-            UIDevice.current.userInterfaceIdiom == .pad
-        }
-    }
-}
-
 // MARK: - Accessibility Helpers
 extension View {
     /// Add standard accessibility traits for buttons
@@ -159,12 +58,5 @@ extension View {
             .accessibilityLabel(label)
             .accessibilityHint(hint ?? "")
             .accessibilityAddTraits(.isButton)
-    }
-    
-    /// Add standard accessibility for text content
-    func accessibleText(label: String) -> some View {
-        self
-            .accessibilityLabel(label)
-            .accessibilityAddTraits(.isStaticText)
     }
 }
