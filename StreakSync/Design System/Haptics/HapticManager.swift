@@ -9,7 +9,6 @@
 
 import UIKit
 import SwiftUI
-import CoreHaptics
 import OSLog
 
 /// Centralized haptic feedback management following the design spec
@@ -26,27 +25,12 @@ public final class HapticManager {
     private let selection = UISelectionFeedbackGenerator()
     private let notification = UINotificationFeedbackGenerator()
     
-    // Core Haptics engine for custom patterns
-    private var hapticEngine: CHHapticEngine?
-    
     private init() {
-        setupHapticEngine()
         prepareGenerators()
     }
-    
+
     // MARK: - Setup
-    
-    private func setupHapticEngine() {
-        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
-        
-        do {
-            hapticEngine = try CHHapticEngine()
-            try hapticEngine?.start()
-        } catch {
- logger.error("Failed to start haptic engine: \(error.localizedDescription)")
-        }
-    }
-    
+
     private func prepareGenerators() {
         impactLight.prepare()
         impactMedium.prepare()
@@ -101,20 +85,6 @@ public final class HapticManager {
         }
     }
     
-    /// Play a custom haptic pattern
-    public func playCustomPattern(_ pattern: HapticPattern) {
-        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics,
-              let engine = hapticEngine else { return }
-        
-        do {
-            let pattern = try pattern.createCHHapticPattern()
-            let player = try engine.makePlayer(with: pattern)
-            try player.start(atTime: 0)
-        } catch {
- logger.error("Failed to play custom haptic pattern: \(error.localizedDescription)")
-        }
-    }
-    
     // MARK: - Haptic Types
     
     public enum HapticType: Sendable {
@@ -130,59 +100,6 @@ public final class HapticManager {
         case longPress
         case cardSnap
     }
-}
-
-// MARK: - Custom Haptic Patterns
-public struct HapticPattern: Sendable {
-    let events: [HapticEvent]
-    
-    public struct HapticEvent: Sendable {
-        let time: TimeInterval
-        let intensity: Float
-        let sharpness: Float
-        let duration: TimeInterval
-    }
-    
-    /// Creates a CHHapticPattern from our custom structure
-    fileprivate func createCHHapticPattern() throws -> CHHapticPattern {
-        let hapticEvents = events.map { event in
-            CHHapticEvent(
-                eventType: .hapticContinuous,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: event.intensity),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: event.sharpness)
-                ],
-                relativeTime: event.time,
-                duration: event.duration
-            )
-        }
-        
-        return try CHHapticPattern(events: hapticEvents, parameters: [])
-    }
-    
-    // MARK: - Predefined Patterns
-    
-    /// Celebration pattern for achievements
-    public static let celebration = HapticPattern(events: [
-        HapticEvent(time: 0.0, intensity: 0.8, sharpness: 0.8, duration: 0.1),
-        HapticEvent(time: 0.15, intensity: 0.6, sharpness: 0.6, duration: 0.1),
-        HapticEvent(time: 0.3, intensity: 1.0, sharpness: 1.0, duration: 0.2)
-    ])
-    
-    /// Streak flame pattern
-    public static let streakFlame = HapticPattern(events: [
-        HapticEvent(time: 0.0, intensity: 0.3, sharpness: 0.2, duration: 0.5),
-        HapticEvent(time: 0.1, intensity: 0.5, sharpness: 0.4, duration: 0.3),
-        HapticEvent(time: 0.2, intensity: 0.7, sharpness: 0.6, duration: 0.2),
-        HapticEvent(time: 0.3, intensity: 0.4, sharpness: 0.3, duration: 0.4)
-    ])
-    
-    /// Card shuffle pattern
-    public static let cardShuffle = HapticPattern(events: [
-        HapticEvent(time: 0.0, intensity: 0.4, sharpness: 0.8, duration: 0.05),
-        HapticEvent(time: 0.1, intensity: 0.4, sharpness: 0.8, duration: 0.05),
-        HapticEvent(time: 0.2, intensity: 0.4, sharpness: 0.8, duration: 0.05)
-    ])
 }
 
 // MARK: - Convenience Extensions
@@ -223,26 +140,3 @@ extension HapticManager {
     }
 }
 
-// MARK: - SwiftUI View Modifier
-struct HapticModifier: ViewModifier {
-    let type: HapticManager.HapticType
-    let trigger: Bool
-    
-    func body(content: Content) -> some View {
-        content
-            .onChange(of: trigger) {
-                if trigger {
-                    Task { @MainActor in
-                        HapticManager.shared.trigger(type)
-                    }
-                }
-            }
-    }
-}
-
-extension View {
-    /// Trigger haptic feedback when a boolean value changes
-    public func hapticFeedback(_ type: HapticManager.HapticType, trigger: Bool) -> some View {
-        self.modifier(HapticModifier(type: type, trigger: trigger))
-    }
-}

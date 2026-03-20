@@ -30,8 +30,7 @@ final class SoundManager: ObservableObject {
     // MARK: - Sound Types
     enum SoundType: String, CaseIterable {
         case achievementUnlock = "achievement_unlock"
-        case tierProgression = "tier_progression"
-        case confetti = "confetti_burst"
+case confetti = "confetti_burst"
         case woosh = "woosh"
         case pop = "pop"
         case success = "success_chime"
@@ -39,7 +38,6 @@ final class SoundManager: ObservableObject {
         var volume: Float {
             switch self {
             case .achievementUnlock: return 0.8
-            case .tierProgression: return 0.7
             case .confetti: return 0.6
             case .woosh: return 0.5
             case .pop: return 0.4
@@ -143,13 +141,4 @@ final class SoundManager: ObservableObject {
         }
     }
     
-    func playSequence(_ types: [SoundType], delays: [TimeInterval]) {
-        guard soundEffectsEnabled, types.count == delays.count else { return }
-        
-        for (index, type) in types.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delays[index]) { [weak self] in
-                self?.play(type)
-            }
-        }
-    }
 }
