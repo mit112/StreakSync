@@ -161,9 +161,11 @@ private enum DebugSeedData {
 
     // Wordle — 60 consecutive days, 1 perfect score to trigger Perfectionist
     private static func wordleResults(from today: Date, count: Int) -> [GameResult] {
-        let scores = [3,4,5,3,2,4,6,3,4,3,5,3,4,3,3,5,4,3,4,2,
-                      3,4,5,3,4,3,4,5,3,4,3,4,3,5,3,2,4,3,4,3,
-                      5,3,4,3,4,3,2,4,3,5,3,4,3,4,3,4,5,1,3,4]
+        let scores = [
+            3, 4, 5, 3, 2, 4, 6, 3, 4, 3, 5, 3, 4, 3, 3, 5, 4, 3, 4, 2,
+            3, 4, 5, 3, 4, 3, 4, 5, 3, 4, 3, 4, 3, 5, 3, 2, 4, 3, 4, 3,
+            5, 3, 4, 3, 4, 3, 2, 4, 3, 5, 3, 4, 3, 4, 3, 4, 5, 1, 3, 4
+        ]
         return (0..<count).map { offset in
             let puzzle = 1100 + offset
             let score = scores[offset % scores.count]
@@ -179,7 +181,7 @@ private enum DebugSeedData {
 
     // Connections — 60 consecutive days
     private static func connectionsResults(from today: Date, count: Int) -> [GameResult] {
-        let scores = [4,4,4,3,4,4,3,4,4,4]
+        let scores = [4, 4, 4, 3, 4, 4, 3, 4, 4, 4]
         return (0..<count).map { offset in
             let puzzle = 500 + offset
             return GameResult(
@@ -194,8 +196,10 @@ private enum DebugSeedData {
 
     // Mini Crossword — 30 days (time in seconds)
     private static func miniCrosswordResults(from today: Date, count: Int) -> [GameResult] {
-        let times = [95,88,120,75,110,65,140,90,80,105,95,70,130,85,100,
-                     75,95,88,110,60,95,85,100,75,90,110,65,95,80,105]
+        let times = [
+            95, 88, 120, 75, 110, 65, 140, 90, 80, 105, 95, 70, 130, 85, 100,
+            75, 95, 88, 110, 60, 95, 85, 100, 75, 90, 110, 65, 95, 80, 105
+        ]
         return (0..<count).map { offset in
             let puzzle = 800 + offset
             let time = times[offset % times.count]
@@ -211,8 +215,10 @@ private enum DebugSeedData {
 
     // Spelling Bee — 25 days (point totals)
     private static func spellingBeeResults(from today: Date, count: Int) -> [GameResult] {
-        let pts = [125,89,142,98,175,110,63,145,88,120,95,155,78,132,105,
-                   88,160,92,115,140,85,108,145,72,130]
+        let pts = [
+            125, 89, 142, 98, 175, 110, 63, 145, 88, 120, 95, 155, 78, 132, 105,
+            88, 160, 92, 115, 140, 85, 108, 145, 72, 130
+        ]
         return (0..<count).map { offset in
             let puzzle = 900 + offset
             let score = pts[offset % pts.count]
@@ -228,7 +234,7 @@ private enum DebugSeedData {
 
     // Nerdle — 20 days
     private static func nerdleResults(from today: Date, count: Int) -> [GameResult] {
-        let scores = [2,3,4,3,5,2,4,3,3,4,2,5,3,4,3,3,4,2,3,5]
+        let scores = [2, 3, 4, 3, 5, 2, 4, 3, 3, 4, 2, 5, 3, 4, 3, 3, 4, 2, 3, 5]
         return (0..<count).map { offset in
             let puzzle = 700 + offset
             let score = scores[offset]
@@ -244,7 +250,7 @@ private enum DebugSeedData {
 
     // Strands — 20 days (hint count, lower is better)
     private static func strandsResults(from today: Date, count: Int) -> [GameResult] {
-        let hints = [0,1,0,2,0,1,0,0,1,0,2,0,1,0,0,1,0,2,0,1]
+        let hints = [0, 1, 0, 2, 0, 1, 0, 0, 1, 0, 2, 0, 1, 0, 0, 1, 0, 2, 0, 1]
         return (0..<count).map { offset in
             let puzzle = 300 + offset
             return GameResult(
@@ -259,13 +265,13 @@ private enum DebugSeedData {
 
     // Quordle — every other day, 15 results
     private static func quordleResults(from today: Date) -> [GameResult] {
-        let scores = [5,7,6,8,5,7,6,7,5,6,8,5,7,6,5]
-        return (0..<15).map { i in
-            let puzzle = 400 + i
+        let scores = [5, 7, 6, 8, 5, 7, 6, 7, 5, 6, 8, 5, 7, 6, 5]
+        return (0..<15).map { idx in
+            let puzzle = 400 + idx
             return GameResult(
                 gameId: Game.quordle.id, gameName: Game.quordle.name,
-                date: ago(i * 2 + 1, from: today),
-                score: scores[i], maxAttempts: 9, completed: true,
+                date: ago(idx * 2 + 1, from: today),
+                score: scores[idx], maxAttempts: 9, completed: true,
                 sharedText: "Daily Quordle \(puzzle)",
                 parsedData: ["puzzleNumber": "\(puzzle)", "mode": "daily"]
             )
@@ -274,14 +280,14 @@ private enum DebugSeedData {
 
     // LinkedIn Pinpoint — every 3rd day, 15 results
     private static func pinpointResults(from today: Date) -> [GameResult] {
-        let scores = [1,2,1,3,1,2,1,2,1,1,2,3,1,2,1]
-        return (0..<15).map { i in
-            let puzzle = 600 + i
+        let scores = [1, 2, 1, 3, 1, 2, 1, 2, 1, 1, 2, 3, 1, 2, 1]
+        return (0..<15).map { idx in
+            let puzzle = 600 + idx
             return GameResult(
                 gameId: Game.linkedinPinpoint.id, gameName: Game.linkedinPinpoint.name,
-                date: ago(i * 3, from: today),
-                score: scores[i], maxAttempts: 5, completed: true,
-                sharedText: "Pinpoint puzzle \(scores[i])/5",
+                date: ago(idx * 3, from: today),
+                score: scores[idx], maxAttempts: 5, completed: true,
+                sharedText: "Pinpoint puzzle \(scores[idx])/5",
                 parsedData: ["puzzleNumber": "\(puzzle)"]
             )
         }
@@ -289,14 +295,14 @@ private enum DebugSeedData {
 
     // LinkedIn Queens — every 5th day offset by 2, 10 results
     private static func queensResults(from today: Date) -> [GameResult] {
-        let times = [45,72,38,90,55,41,68,33,85,60]
-        return (0..<10).map { i in
-            let puzzle = 200 + i
+        let times = [45, 72, 38, 90, 55, 41, 68, 33, 85, 60]
+        return (0..<10).map { idx in
+            let puzzle = 200 + idx
             return GameResult(
                 gameId: Game.linkedinQueens.id, gameName: Game.linkedinQueens.name,
-                date: ago(i * 5 + 2, from: today),
-                score: times[i], maxAttempts: 0, completed: true,
-                sharedText: "Queens puzzle \(times[i])s",
+                date: ago(idx * 5 + 2, from: today),
+                score: times[idx], maxAttempts: 0, completed: true,
+                sharedText: "Queens puzzle \(times[idx])s",
                 parsedData: ["puzzleNumber": "\(puzzle)"]
             )
         }
@@ -304,13 +310,13 @@ private enum DebugSeedData {
 
     // Octordle — weekly, 8 results
     private static func octordleResults(from today: Date) -> [GameResult] {
-        let scores = [9,11,10,12,9,10,11,10]
-        return (0..<8).map { i in
-            let puzzle = 100 + i
+        let scores = [9, 11, 10, 12, 9, 10, 11, 10]
+        return (0..<8).map { idx in
+            let puzzle = 100 + idx
             return GameResult(
                 gameId: Game.octordle.id, gameName: Game.octordle.name,
-                date: ago(i * 7 + 3, from: today),
-                score: scores[i], maxAttempts: 13, completed: true,
+                date: ago(idx * 7 + 3, from: today),
+                score: scores[idx], maxAttempts: 13, completed: true,
                 sharedText: "Daily Octordle #\(puzzle)",
                 parsedData: ["puzzleNumber": "\(puzzle)"]
             )
@@ -321,17 +327,17 @@ private enum DebugSeedData {
     private static func pipsResults(from today: Date) -> [GameResult] {
         let entries: [(Int, String)] = [
             (45, "Easy"), (110, "Medium"), (185, "Hard"),
-            (38, "Easy"),  (95, "Medium"), (210, "Hard"),
+            (38, "Easy"), (95, "Medium"), (210, "Hard"),
             (52, "Easy"), (130, "Medium"), (170, "Hard"),
-            (41, "Easy"),  (88, "Medium"), (195, "Hard"),
+            (41, "Easy"), (88, "Medium"), (195, "Hard"),
             (60, "Easy"), (120, "Medium"), (160, "Hard")
         ]
-        return (0..<15).map { i in
-            let puzzle = 150 + i
-            let (seconds, difficulty) = entries[i]
+        return (0..<15).map { idx in
+            let puzzle = 150 + idx
+            let (seconds, difficulty) = entries[idx]
             return GameResult(
                 gameId: Game.pips.id, gameName: Game.pips.name,
-                date: ago(i * 3 + 1, from: today),
+                date: ago(idx * 3 + 1, from: today),
                 score: seconds, maxAttempts: 0, completed: true,
                 sharedText: "Pips #\(puzzle) \(difficulty)",
                 parsedData: [
@@ -346,14 +352,14 @@ private enum DebugSeedData {
 
     // LinkedIn Tango — every 4th day offset by 2, 12 results
     private static func tangoResults(from today: Date) -> [GameResult] {
-        let times = [45,72,88,55,110,63,95,42,78,130,58,85]
-        return (0..<12).map { i in
-            let puzzle = 350 + i
+        let times = [45, 72, 88, 55, 110, 63, 95, 42, 78, 130, 58, 85]
+        return (0..<12).map { idx in
+            let puzzle = 350 + idx
             return GameResult(
                 gameId: Game.linkedinTango.id, gameName: Game.linkedinTango.name,
-                date: ago(i * 4 + 2, from: today),
-                score: times[i], maxAttempts: 0, completed: true,
-                sharedText: "Tango puzzle \(times[i])s",
+                date: ago(idx * 4 + 2, from: today),
+                score: times[idx], maxAttempts: 0, completed: true,
+                sharedText: "Tango puzzle \(times[idx])s",
                 parsedData: ["puzzleNumber": "\(puzzle)"]
             )
         }
@@ -361,14 +367,14 @@ private enum DebugSeedData {
 
     // LinkedIn Crossclimb — every 4th day offset by 1, 12 results
     private static func crossclimbResults(from today: Date) -> [GameResult] {
-        let times = [90,145,65,180,75,120,55,160,95,110,70,135]
-        return (0..<12).map { i in
-            let puzzle = 450 + i
+        let times = [90, 145, 65, 180, 75, 120, 55, 160, 95, 110, 70, 135]
+        return (0..<12).map { idx in
+            let puzzle = 450 + idx
             return GameResult(
                 gameId: Game.linkedinCrossclimb.id, gameName: Game.linkedinCrossclimb.name,
-                date: ago(i * 4 + 1, from: today),
-                score: times[i], maxAttempts: 0, completed: true,
-                sharedText: "Crossclimb puzzle \(times[i])s",
+                date: ago(idx * 4 + 1, from: today),
+                score: times[idx], maxAttempts: 0, completed: true,
+                sharedText: "Crossclimb puzzle \(times[idx])s",
                 parsedData: ["puzzleNumber": "\(puzzle)"]
             )
         }
@@ -376,14 +382,14 @@ private enum DebugSeedData {
 
     // LinkedIn Zip — every 5th day offset by 3, 10 results
     private static func zipResults(from today: Date) -> [GameResult] {
-        let times = [30,48,65,38,55,42,70,35,60,45]
-        return (0..<10).map { i in
-            let puzzle = 550 + i
+        let times = [30, 48, 65, 38, 55, 42, 70, 35, 60, 45]
+        return (0..<10).map { idx in
+            let puzzle = 550 + idx
             return GameResult(
                 gameId: Game.linkedinZip.id, gameName: Game.linkedinZip.name,
-                date: ago(i * 5 + 3, from: today),
-                score: times[i], maxAttempts: 0, completed: true,
-                sharedText: "Zip puzzle \(times[i])s",
+                date: ago(idx * 5 + 3, from: today),
+                score: times[idx], maxAttempts: 0, completed: true,
+                sharedText: "Zip puzzle \(times[idx])s",
                 parsedData: ["puzzleNumber": "\(puzzle)"]
             )
         }
@@ -392,11 +398,11 @@ private enum DebugSeedData {
     // LinkedIn Mini Sudoku — weekly, 8 results
     // scoringModel is higherIsBetter; score=1 = completed (no time in real share format)
     private static func miniSudokuResults(from today: Date) -> [GameResult] {
-        return (0..<8).map { i in
-            let puzzle = 650 + i
+        return (0..<8).map { idx in
+            let puzzle = 650 + idx
             return GameResult(
                 gameId: Game.linkedinMiniSudoku.id, gameName: Game.linkedinMiniSudoku.name,
-                date: ago(i * 7 + 4, from: today),
+                date: ago(idx * 7 + 4, from: today),
                 score: 1, maxAttempts: 0, completed: true,
                 sharedText: "Mini Sudoku puzzle completed",
                 parsedData: ["puzzleNumber": "\(puzzle)"]

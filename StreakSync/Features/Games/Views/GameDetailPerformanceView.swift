@@ -118,8 +118,8 @@ private struct PerformanceChart: View {
         let today = calendar.startOfDay(for: Date())
         
         var last7Days: [Date] = []
-        for i in 0..<7 {
-            if let date = calendar.date(byAdding: .day, value: -i, to: today) {
+        for dayOffset in 0..<7 {
+            if let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) {
                 last7Days.append(date)
             }
         }
