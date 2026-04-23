@@ -60,7 +60,12 @@ extension GameResult {
         if gameName.lowercased() == Game.Names.octordle {
             return octordleDisplayScore
         }
-        
+
+        // Special handling for LinkedIn Mini Sudoku
+        if gameName.lowercased() == Game.Names.linkedinMiniSudoku {
+            return completed ? "Completed" : "Failed"
+        }
+
         // Standard score display
         guard let score = score else {
             let formatString = NSLocalizedString("game.failed_score", comment: "X/%d")
@@ -123,81 +128,48 @@ extension GameResult {
         return "0/4"
     }
     
+    private static func formatSeconds(_ totalSeconds: Int) -> String {
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return minutes > 0 ? String(format: "%d:%02d", minutes, seconds) : "\(seconds)s"
+    }
+
     private var zipDisplayScore: String {
-        // Get time from parsedData (this is the main score)
-        if let time = parsedData["time"], !time.isEmpty {
-            return time
-        }
-        
-        // Fallback to score converted back to time format
-        if let score = score, score > 0 {
-            let minutes = score / 60
-            let seconds = score % 60
-            return String(format: "%d:%02d", minutes, seconds)
-        }
-        
+        if let time = parsedData["time"], !time.isEmpty { return time }
+        if let score = score, score > 0 { return Self.formatSeconds(score) }
         return "Completed"
     }
-    
+
     private var tangoDisplayScore: String {
-        // Get time from parsedData (this is the main score)
-        if let time = parsedData["time"], !time.isEmpty {
-            return time
-        }
-        
-        // Fallback to score converted back to time format
-        if let score = score, score > 0 {
-            let minutes = score / 60
-            let seconds = score % 60
-            return String(format: "%d:%02d", minutes, seconds)
-        }
-        
+        if let time = parsedData["time"], !time.isEmpty { return time }
+        if let score = score, score > 0 { return Self.formatSeconds(score) }
         return "Completed"
     }
-    
+
     private var queensDisplayScore: String {
-        // Get time from parsedData (this is the main score)
-        if let time = parsedData["time"], !time.isEmpty {
-            return time
-        }
-        
-        // Fallback to score converted back to time format
-        if let score = score, score > 0 {
-            let minutes = score / 60
-            let seconds = score % 60
-            return String(format: "%d:%02d", minutes, seconds)
-        }
-        
+        if let time = parsedData["time"], !time.isEmpty { return time }
+        if let score = score, score > 0 { return Self.formatSeconds(score) }
         return "Completed"
     }
-    
+
     private var crossclimbDisplayScore: String {
-        // Get time from parsedData (this is the main score)
-        if let time = parsedData["time"], !time.isEmpty {
-            return time
-        }
-        
-        // Fallback to score converted back to time format
-        if let score = score, score > 0 {
-            let minutes = score / 60
-            let seconds = score % 60
-            return String(format: "%d:%02d", minutes, seconds)
-        }
-        
+        if let time = parsedData["time"], !time.isEmpty { return time }
+        if let score = score, score > 0 { return Self.formatSeconds(score) }
         return "Completed"
     }
     
     private var pinpointDisplayScore: String {
         // Get guess count from parsedData (this is the main score)
         if let guessCount = parsedData["guessCount"], !guessCount.isEmpty {
-            return "\(guessCount) guesses"
+            let count = Int(guessCount) ?? 0
+            return count == 1 ? "1 guess" : "\(guessCount) guesses"
         }
-        
+
         // Fallback to score converted to guess format
         if let score = score, score > 0 {
-            return "\(score) guesses"
+            return score == 1 ? "1 guess" : "\(score) guesses"
         }
-        
+
         return "Completed"
     }
     
@@ -205,14 +177,14 @@ extension GameResult {
         // Get hint count from parsedData (this is the main score)
         if let hintCount = parsedData["hintCount"], !hintCount.isEmpty {
             let count = Int(hintCount) ?? 0
-            return count == 0 ? "Perfect" : "\(count) hints"
+            return count == 0 ? "Perfect" : (count == 1 ? "1 hint" : "\(count) hints")
         }
-        
+
         // Fallback to score converted to hint format
         if let score = score {
-            return score == 0 ? "Perfect" : "\(score) hints"
+            return score == 0 ? "Perfect" : (score == 1 ? "1 hint" : "\(score) hints")
         }
-        
+
         return "Completed"
     }
     

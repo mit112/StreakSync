@@ -28,6 +28,9 @@ private struct IOS26SettingsContent: View {
     
     enum SettingsSection: String, CaseIterable {
         case account, notifications, appearance, data, about
+        #if DEBUG
+        case developer
+        #endif
     }
     
     var body: some View {
@@ -166,6 +169,28 @@ private struct IOS26SettingsContent: View {
                         hoveredSection = isHovered ? .about : nil
                     }
                 }
+
+                #if DEBUG
+                IOS26SettingsSection(
+                    section: .developer,
+                    isHovered: hoveredSection == .developer
+                ) {
+                    IOS26SettingsNavigationRow(
+                        icon: "hammer.circle.fill",
+                        iconColor: .orange,
+                        title: "Debug Seeder",
+                        subtitle: "Seed realistic test data",
+                        showChevron: true
+                    ) {
+                        DebugDataSeederView()
+                    }
+                }
+                .onHover { isHovered in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        hoveredSection = isHovered ? .developer : nil
+                    }
+                }
+                #endif
             }
             .padding()
         }

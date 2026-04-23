@@ -24,35 +24,22 @@ struct GameDetailPerformanceView: View {
         appState.games.first { $0.id == streak.gameId }
     }
     
-    // Dynamic max value based on game type
+    // Dynamic max value driven by scoring model — no game-name whitelist needed.
     private var chartMaxValue: Int {
-        // Special handling for time-based games like LinkedIn Zip, Tango, Queens, and Crossclimb
-        let timeBasedGames = ["linkedinzip", "linkedintango", "linkedinqueens", "linkedincrossclimb"]
-        if let game = game, timeBasedGames.contains(game.name.lowercased()) {
-            // For Zip, Tango, Queens, and Crossclimb, use actual score values (time in seconds) instead of maxAttempts
-            if let maxScore = results.compactMap(\.score).max() {
-                return maxScore + 5 // Add some padding above the max score
+        switch game?.scoringModel ?? .lowerAttempts {
+        case .lowerTimeSeconds, .higherIsBetter:
+            // maxAttempts is 0 for these games; derive scale from actual scores.
+            if let maxScore = results.compactMap(\.score).max(), maxScore > 0 {
+                return maxScore + max(5, maxScore / 10)
             }
-            return 30 // Default for time-based games if no results
+            return game?.scoringModel == .lowerTimeSeconds ? 120 : 10
+        case .lowerHints:
+            return (results.map(\.maxAttempts).max() ?? 3) + 1
+        case .lowerGuesses:
+            return results.map(\.maxAttempts).max() ?? 5
+        case .lowerAttempts:
+            return (results.map(\.maxAttempts).max() ?? 6) + 1
         }
-        
-        // Special handling for guess-based games like LinkedIn Pinpoint
-        if let game = game, game.name.lowercased() == "linkedinpinpoint" {
-            // For Pinpoint, use maxAttempts (5) as the chart maximum
-            return 5
-        }
-        
-        // Special handling for hint-based games like NYT Strands
-        if let game = game, game.name.lowercased() == "strands" {
-            // For Strands, use maxAttempts (10) as the chart maximum
-            return 10
-        }
-        
-        // Standard games: Use the max attempts from actual results, or default to 6
-        if let maxFromResults = results.map(\.maxAttempts).max() {
-            return maxFromResults + 1 // Add 1 for failed attempts
-        }
-        return 7 // Default for most games
     }
     
     var body: some View {
@@ -161,6 +148,7 @@ private struct PerformanceChart: View {
                 ModernChart(
                     dailyResults: dailyResults,
                     maxValue: maxValue,
+                    scoringModel: scoringModel,
                     selectedBar: $selectedBar,
                     animateChart: animateChart
                 )
@@ -195,78 +183,112 @@ private struct PerformanceChart: View {
 private struct ModernChart: View {
     let dailyResults: [DailyResult]
     let maxValue: Int
+    let scoringModel: ScoringModel
     @Binding var selectedBar: DailyResult?
     let animateChart: Bool
-    
+
+    private var isInverted: Bool {
+        scoringModel.isLowerBetter && scoringModel != .lowerTimeSeconds
+    }
+
+    private var isTimeBased: Bool {
+        scoringModel == .lowerTimeSeconds
+    }
+
     private var dayFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.dateFormat = "E" // Always use weekday for 7 days
+        formatter.dateFormat = "E"
         return formatter
     }
-    
+
+    // For inverted games: tall bar = better score.
+    // lowerHints (min score 0): plotValue = maxValue - score (avoids overflow when score=0).
+    // Other inverted games (min score 1): plotValue = maxValue + 1 - score.
+    // Time/higherIsBetter: raw score.
+    private func plotValue(for result: GameResult) -> Double {
+        if isInverted {
+            guard let score = result.score else { return 0.5 } // failed → stub
+            if scoringModel == .lowerHints {
+                return Double(maxValue - score)
+            }
+            return Double(maxValue + 1 - score)
+        }
+        return Double(result.score ?? (result.maxAttempts + 1))
+    }
+
+    private func axisLabel(for axisValue: Int) -> String {
+        if isTimeBased {
+            let mins = axisValue / 60
+            let secs = axisValue % 60
+            return mins > 0 ? "\(mins):\(String(format: "%02d", secs))" : "\(secs)s"
+        }
+        if isInverted {
+            return scoringModel == .lowerHints
+                ? "\(maxValue - axisValue)"
+                : "\(maxValue + 1 - axisValue)"
+        }
+        return "\(axisValue)"
+    }
+
     var body: some View {
         GeometryReader { geometry in
             Chart(dailyResults.indices, id: \.self) { index in
-            let daily = dailyResults[index]
-            let dayString = dayFormatter.string(from: daily.date)
-            
-            if let result = daily.result {
-                // Use actual score or max+1 for failed
-                let score = result.score ?? (result.maxAttempts + 1)
-                let barColor = result.completed ? Color.green : Color.red
-                
-                BarMark(
-                    x: .value("Day", dayString),
-                    y: .value("Score", animateChart ? score : 0)
-                )
-                .foregroundStyle(barColor.gradient)
-                .opacity(selectedBar == nil || selectedBar?.date == daily.date ? 1 : 0.5)
-                .cornerRadius(4)
-            } else {
-                // Empty day indicator - very small
-                BarMark(
-                    x: .value("Day", dayString),
-                    y: .value("Score", animateChart ? 0.2 : 0)
-                )
-                .foregroundStyle(.tertiary.opacity(0.2))
-                .cornerRadius(2)
+                let daily = dailyResults[index]
+                let dayString = dayFormatter.string(from: daily.date)
+
+                if let result = daily.result {
+                    let plotScore = plotValue(for: result)
+                    let barColor = result.completed ? Color.green : Color.red
+
+                    BarMark(
+                        x: .value("Day", dayString),
+                        y: .value("Score", animateChart ? plotScore : 0)
+                    )
+                    .foregroundStyle(barColor.gradient)
+                    .opacity(selectedBar == nil || selectedBar?.date == daily.date ? 1 : 0.5)
+                    .cornerRadius(4)
+                } else {
+                    BarMark(
+                        x: .value("Day", dayString),
+                        y: .value("Score", animateChart ? 0.2 : 0)
+                    )
+                    .foregroundStyle(.tertiary.opacity(0.2))
+                    .cornerRadius(2)
+                }
             }
+            .chartYScale(domain: 0...maxValue)
+            .chartXAxis {
+                AxisMarks { _ in
+                    AxisGridLine()
+                    AxisValueLabel()
+                        .font(.caption2)
+                }
             }
-        .chartYScale(domain: 0...maxValue) // Dynamic scale!
-        .chartXAxis {
-            AxisMarks { _ in
-                AxisGridLine()
-                AxisValueLabel()
-                    .font(.caption2)
-            }
-        }
-        .chartYAxis {
-            AxisMarks(position: .trailing) { value in
-                if let intValue = value.as(Int.self) {
-                    if intValue > 0 && intValue <= maxValue {
+            .chartYAxis {
+                AxisMarks(position: .trailing) { value in
+                    if let intValue = value.as(Int.self), intValue > 0 {
                         AxisGridLine()
                         AxisValueLabel {
-                            Text("\(intValue)")
+                            Text(axisLabel(for: intValue))
                                 .font(.caption2)
                         }
                     }
                 }
             }
+            .frame(height: 120)
+            .animation(.smooth(duration: 0.6), value: animateChart)
+            .onTapGesture { location in
+                handleTap(at: location, geometry: geometry)
+            }
         }
-        .frame(height: 120)
-        .animation(.smooth(duration: 0.6), value: animateChart)
-        .onTapGesture { location in
-            handleTap(at: location, geometry: geometry)
-        }
-        }
-        .frame(height: 140) // Constrain GeometryReader to prevent background bleed/overlap
+        .frame(height: 140)
     }
-    
+
     private func handleTap(at location: CGPoint, geometry: GeometryProxy) {
-        let width = geometry.size.width - 64 // Account for padding
-        let barWidth = width / 7 // Always 7 days
+        let width = geometry.size.width - 64
+        let barWidth = width / 7
         let index = Int(location.x / barWidth)
-        
+
         if index >= 0 && index < dailyResults.count {
             withAnimation(.smooth) {
                 let daily = dailyResults[index]
@@ -284,7 +306,7 @@ private struct SimpleChartHeader: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
-                Text("\(stats.gamesPlayed) games")
+                Text("\(stats.gamesPlayed) \(stats.gamesPlayed == 1 ? "game" : "games")")
                     .font(.subheadline.weight(.medium))
                 Text("Past week")
                     .font(.caption)
@@ -295,7 +317,7 @@ private struct SimpleChartHeader: View {
             
             HStack(spacing: 16) {
                 StatBadge(label: "Avg", value: stats.averageScore, color: .blue)
-                StatBadge(label: "Best", value: "\(stats.bestScore)", color: .green)
+                StatBadge(label: "Best", value: stats.bestScore, color: .green)
                 StatBadge(label: "Rate", value: stats.successRate, color: .purple)
             }
         }
@@ -371,29 +393,32 @@ private struct SelectedBarDetail: View {
 private struct SimpleStats {
     let gamesPlayed: Int
     let averageScore: String
-    let bestScore: Int
+    let bestScore: String
     let successRate: String
     let completionRatio: Double
-    
+
     init(from dailyResults: [DailyResult], scoringModel: ScoringModel = .lowerAttempts) {
         let results = dailyResults.compactMap(\.result)
         self.gamesPlayed = results.count
 
-        // Calculate average
+        let isTime = scoringModel == .lowerTimeSeconds
         let completedResults = results.filter { $0.completed && $0.score != nil }
-        if !completedResults.isEmpty {
-            let total = completedResults.compactMap(\.score).reduce(0, +)
-            let avg = Double(total) / Double(completedResults.count)
-            self.averageScore = String(format: "%.1f", avg)
+        let scores = completedResults.compactMap(\.score)
+
+        // Average
+        if !scores.isEmpty {
+            let avg = Double(scores.reduce(0, +)) / Double(scores.count)
+            self.averageScore = isTime ? Self.formatTime(Int(avg)) : String(format: "%.1f", avg)
         } else {
             self.averageScore = "—"
         }
 
-        // Best score — direction depends on the game's scoring model
-        if scoringModel.isLowerBetter {
-            self.bestScore = completedResults.compactMap(\.score).min() ?? 0
+        // Best score — direction-aware
+        let rawBest = scoringModel.isLowerBetter ? scores.min() : scores.max()
+        if let best = rawBest {
+            self.bestScore = isTime ? Self.formatTime(best) : "\(best)"
         } else {
-            self.bestScore = completedResults.compactMap(\.score).max() ?? 0
+            self.bestScore = "—"
         }
 
         // Success rate
@@ -407,64 +432,11 @@ private struct SimpleStats {
             self.completionRatio = 0
         }
     }
-}
 
-// MARK: - Performance Chart
-private struct ModernPerformanceChart: View {
-    let dailyResults: [DailyResult]
-    
-    private var dayFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "E" // Mon, Tue, Wed, etc.
-        return formatter
-    }
-    
-    // Dynamic max value based on actual scores
-    private var chartMaxValue: Int {
-        let scores = dailyResults.compactMap { $0.result?.score }
-        if let maxScore = scores.max() {
-            return maxScore + 5 // Add some padding above the max score
-        }
-        return 7 // Default for most games
-    }
-    
-    var body: some View {
-        Chart {
-            ForEach(Array(dailyResults.enumerated()), id: \.offset) { _, daily in
-                if let result = daily.result {
-                    // Show actual result
-                    BarMark(
-                        x: .value("Day", dayFormatter.string(from: daily.date)),
-                        y: .value("Score", result.score ?? result.maxAttempts + 1)
-                    )
-                    .foregroundStyle(result.completed ? .green : .red)
-                    .opacity(0.8)
-                } else {
-                    // Show empty day as minimal indicator
-                    BarMark(
-                        x: .value("Day", dayFormatter.string(from: daily.date)),
-                        y: .value("Score", 0.5)
-                    )
-                    .foregroundStyle(.tertiary.opacity(0.3))
-                }
-            }
-        }
-        .chartYScale(domain: 0...chartMaxValue)
-        .chartXAxis {
-            AxisMarks(values: .automatic) { _ in
-                AxisGridLine()
-                AxisValueLabel()
-                    .font(.caption2)
-            }
-        }
-        .chartYAxis {
-            AxisMarks(position: .trailing, values: Array(1...chartMaxValue)) { _ in
-                AxisGridLine()
-                AxisValueLabel()
-                    .font(.caption2)
-            }
-        }
-        .frame(height: 100)
+    private static func formatTime(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        return mins > 0 ? "\(mins):\(String(format: "%02d", secs))" : "\(secs)s"
     }
 }
 
