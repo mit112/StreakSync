@@ -35,11 +35,8 @@ struct StreakSyncApp: App {
                             _ = container.handleURLScheme(url)
                         }
                         .onAppear {
-                            // Initialize notification delegate
                             NotificationDelegate.shared.appState = container.appState
                             NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
-                            // Bridge container into AppDelegate for remote push handling
-                            appDelegate.container = container
                         }
                 } else if let error = initializationError {
                     InitializationErrorView(error: error) {

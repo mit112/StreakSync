@@ -12,7 +12,6 @@ import OSLog
 import UIKit
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    weak var container: AppContainer?
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AppDelegate")
     
     func application(_ application: UIApplication,
