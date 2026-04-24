@@ -2,7 +2,7 @@
 //  AppDelegate.swift
 //  StreakSync
 //
-//  Handles remote notification registration.
+//  Handles app-level lifecycle events (Firebase configuration).
 //
 
 import FirebaseAppCheck
@@ -34,26 +34,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
  logger.info("Firebase configured in AppDelegate")
         }
         
-        // Register for remote notifications
-        UIApplication.shared.registerForRemoteNotifications()
- logger.info("Requested remote notification registration")
         return true
-    }
-    
-    func application(_ application: UIApplication,
-                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
- logger.info("Registered for remote notifications")
-    }
-    
-    func application(_ application: UIApplication,
-                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
- logger.error("Failed to register for remote notifications: \(error.localizedDescription)")
-    }
-    
-    func application(_ application: UIApplication,
-                     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
-                     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-        // Firebase handles sync via Firestore listeners
-        completionHandler(.noData)
     }
 }

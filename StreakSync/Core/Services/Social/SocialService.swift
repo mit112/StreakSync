@@ -127,6 +127,15 @@ extension Date {
         return y * 10_000 + m * 100 + d
     }
     
-    /// Legacy alias — prefer `localDateInt` going forward.
-    var utcYYYYMMDD: Int { localDateInt }
+    /// Returns an Int in the form yyyyMMdd using the UTC calendar.
+    /// Date is keyed to the UTC date — used for Firestore score dateInt fields and leaderboard queries.
+    var utcYYYYMMDD: Int {
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(identifier: "UTC") ?? .current
+        let comps = utcCalendar.dateComponents([.year, .month, .day], from: self)
+        let y = comps.year ?? 1970
+        let m = comps.month ?? 1
+        let d = comps.day ?? 1
+        return y * 10_000 + m * 100 + d
+    }
 }

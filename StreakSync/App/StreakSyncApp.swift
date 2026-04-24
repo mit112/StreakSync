@@ -57,8 +57,9 @@ struct StreakSyncApp: App {
     
     // MARK: - App Initialization
     private func initializeApp() async {
- logger.info("Starting app initialization")
-        
+        logger.info("Starting app initialization")
+        let isUITesting = ProcessInfo.processInfo.arguments.contains("--uitesting")
+
         // Initialize notification delegate dependencies early
         NotificationDelegate.shared.appState = container.appState
         NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
@@ -76,8 +77,10 @@ struct StreakSyncApp: App {
         // Load app data from local persistence first (instant UX)
         await container.appState.loadPersistedData()
 
-        // Sync game results via Firestore
-        await container.gameResultSyncService.syncIfNeeded()
+        // Sync game results via Firestore (skipped in UI test mode to avoid network delays)
+        if !isUITesting {
+            await container.gameResultSyncService.syncIfNeeded()
+        }
 
         // Rebuild streaks from any newly-synced results
         await container.appState.rebuildStreaksFromResults()
@@ -90,11 +93,14 @@ struct StreakSyncApp: App {
         await container.appState.checkAndScheduleStreakReminders()
 
         // Reconcile recent scores — republishes any dropped by failures, timezone bugs, or offline periods
-        if let socialService = container.socialService as? FirebaseSocialService {
-            await socialService.reconcileRecentScores(
-                results: container.appState.recentResults,
-                streaks: container.appState.streaks
-            )
+        // (skipped in UI test mode to avoid network delays)
+        if !isUITesting {
+            if let socialService = container.socialService as? FirebaseSocialService {
+                await socialService.reconcileRecentScores(
+                    results: container.appState.recentResults,
+                    streaks: container.appState.streaks
+                )
+            }
         }
 
         // Mark as initialized

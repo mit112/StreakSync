@@ -107,12 +107,21 @@ extension AppState {
     
     internal func handleTieredAchievementUnlock(_ unlock: AchievementUnlock) {
  logger.info("Tiered Achievement Unlocked: \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
-        
+
         // Queue celebration directly (deterministic, no fire-and-forget)
         celebrationCoordinator?.queueCelebration(unlock)
-        
+
         // Trigger haptic feedback
         HapticManager.shared.trigger(.achievement)
+
+        // Schedule local notification to surface the unlock
+        Task {
+            await NotificationScheduler.shared.scheduleAchievementNotification(
+                achievementName: unlock.achievement.displayName,
+                tierName: unlock.tier.displayName,
+                achievementId: unlock.achievement.id
+            )
+        }
     }
     
     // MARK: - Persistence

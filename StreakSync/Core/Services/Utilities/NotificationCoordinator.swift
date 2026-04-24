@@ -163,6 +163,15 @@ final class NotificationCoordinator: ObservableObject {
             } else {
                 let reason = !isActive ? "app not active" : !added ? "duplicate/invalid result" : "quiet batch"
  self.logger.debug("Haptics suppressed: \(reason)")
+
+                // Notify the user via local notification when the app is backgrounded
+                // and the result was successfully added (e.g. from Share Extension)
+                if !isActive && added {
+                    await NotificationScheduler.shared.scheduleResultImportedNotification(
+                        gameName: result.gameName,
+                        gameId: result.gameId
+                    )
+                }
             }
         }
     }

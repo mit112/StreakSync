@@ -293,12 +293,66 @@ final class NotificationScheduler {
     }
 
     // MARK: - Cancellation
-    
+
     func cancelAllNotifications() async {
         center.removeAllPendingNotificationRequests()
  logger.info("Cancelled all pending notifications")
     }
-    
+
+    // MARK: - Achievement Notification
+
+    func scheduleAchievementNotification(achievementName: String, tierName: String, achievementId: UUID) async {
+        guard await checkPermissionStatus() == .authorized else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Achievement Unlocked!"
+        content.body = "\(achievementName) — \(tierName)"
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.achievementUnlocked.identifier
+        content.userInfo = ["achievementId": achievementId.uuidString, "type": "achievement_unlocked"]
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "achievement_\(achievementId.uuidString)",
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await center.add(request)
+            logger.info("Scheduled achievement notification: \(achievementName) - \(tierName)")
+        } catch {
+            logger.error("Failed to schedule achievement notification: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Result Imported Notification
+
+    func scheduleResultImportedNotification(gameName: String, gameId: UUID) async {
+        guard await checkPermissionStatus() == .authorized else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Result Added"
+        content.body = "\(gameName) result added to StreakSync"
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.resultImported.identifier
+        content.userInfo = ["gameId": gameId.uuidString, "type": "result_imported"]
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "result_imported_\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await center.add(request)
+            logger.info("Scheduled result imported notification: \(gameName)")
+        } catch {
+            logger.error("Failed to schedule result imported notification: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Settings Management
     
     /// Clean up all existing notifications before applying new settings
