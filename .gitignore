@@ -55,3 +55,9 @@ firestore-debug.log
 
 # Git worktrees
 .worktrees/
+
+# Firebase emulator/CLI debug logs
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-debug.log
