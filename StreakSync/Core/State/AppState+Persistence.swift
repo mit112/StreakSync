@@ -22,6 +22,10 @@ extension AppState {
  logger.info("Guest Mode active – skipping loadPersistedData()")
             return
         }
+        if reviewModeEnabled {
+ logger.info("Review mode active – skipping loadPersistedData()")
+            return
+        }
         // Debounce/guard: avoid overlapping or rapid back-to-back loads
         if isLoading {
  logger.debug("Skipping loadPersistedData - already loading")
@@ -202,6 +206,7 @@ extension AppState {
  logger.debug("Guest Mode active – skipping saveGameResults()")
             return
         }
+        if reviewModeEnabled { return }
         do {
             try persistenceService.save(
                 self.recentResults,
@@ -224,6 +229,7 @@ extension AppState {
  logger.debug("Guest Mode active – skipping saveStreaks()")
             return
         }
+        if reviewModeEnabled { return }
         do {
             try persistenceService.save(
                 self.streaks,
