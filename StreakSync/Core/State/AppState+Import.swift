@@ -232,4 +232,77 @@ extension AppState {
         await saveTieredAchievements()
  logger.info("All data saved successfully")
     }
+
+    // MARK: - App Store Review Mode
+
+    /// Swaps to the demo social service and seeds 14 days of game results.
+    /// Triggered by tapping the version label 5× in Settings → About.
+    @MainActor
+    func activateReviewMode() async {
+        socialService = ReviewModeSocialService()
+        reviewModeEnabled = true
+        await applyReviewSeedData()
+ logger.info("Review mode activated")
+    }
+
+    @MainActor
+    private func applyReviewSeedData() async {
+        let cal = Calendar.current
+        let now = Date()
+
+        func daysAgo(_ n: Int) -> Date {
+            cal.startOfDay(for: cal.date(byAdding: .day, value: -n, to: now) ?? now)
+        }
+
+        let wordleId = UUID(staticString: "550e8400-e29b-41d4-a716-446655440000")
+        let connectionsId = UUID(staticString: "550e8400-e29b-41d4-a716-446655440003")
+        let strandsId = UUID(staticString: "550e8400-e29b-41d4-a716-446655440007")
+        let miniXId = UUID(staticString: "550e8400-e29b-41d4-a716-446655440005")
+
+        // 14-day Wordle streak
+        let wordleScores = [3, 4, 3, 2, 5, 4, 3, 4, 3, 5, 4, 3, 4, 3]
+        var results: [GameResult] = wordleScores.enumerated().map { idx, score in
+            GameResult(
+                gameId: wordleId, gameName: "wordle", date: daysAgo(idx),
+                score: score, maxAttempts: 6, completed: true,
+                sharedText: "Wordle \(1400 - idx) \(score)/6"
+            )
+        }
+
+        // Connections (5 results)
+        for (day, score) in [(0, 4), (1, 4), (3, 4), (5, 3), (7, 4)] {
+            results.append(GameResult(
+                gameId: connectionsId, gameName: "connections", date: daysAgo(day),
+                score: score, maxAttempts: 4, completed: true,
+                sharedText: "Connections Puzzle #\(500 - day) 🟩🟨🟦🟪"
+            ))
+        }
+
+        // Strands (3 results)
+        for (day, hints) in [(0, 1), (2, 0), (4, 2)] {
+            results.append(GameResult(
+                gameId: strandsId, gameName: "strands", date: daysAgo(day),
+                score: hints, maxAttempts: 10, completed: true,
+                sharedText: "Strands #\(400 - day)"
+            ))
+        }
+
+        // Mini Crossword (2 results)
+        for (day, secs) in [(1, 120), (3, 95)] {
+            results.append(GameResult(
+                gameId: miniXId, gameName: "minicrossword", date: daysAgo(day),
+                score: secs, maxAttempts: 600, completed: true,
+                sharedText: "Mini Crossword \(secs / 60):\(String(format: "%02d", secs % 60))"
+            ))
+        }
+
+        results.sort { $0.date > $1.date }
+        setRecentResults(results)
+        buildResultsCache()
+        invalidateCache()
+        await rebuildStreaksFromResults()
+        await normalizeStreaksForMissedDays()
+        await checkAllAchievements()
+ logger.info("Review seed data applied: \(results.count) results")
+    }
 }

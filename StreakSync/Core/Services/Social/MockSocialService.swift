@@ -153,3 +153,91 @@ final class MockSocialService: SocialService {
         return id
     }
 }
+
+// MARK: - Review Mode Social Service
+
+/// Pre-seeded SocialService for App Store review. Activated by tapping the version
+/// label 5× in Settings → About. Returns demo friends and a hardcoded leaderboard
+/// so reviewers can verify social features without a real account.
+@MainActor
+final class ReviewModeSocialService: SocialService {
+    private let meId = "review_user_001"
+
+    nonisolated var pendingScoreCount: Int { 0 }
+    nonisolated var currentUserId: String? { "review_user_001" }
+
+    // MARK: - Profile
+
+    func ensureProfile(displayName: String?) async throws -> UserProfile {
+        UserProfile(id: meId, displayName: "You (Demo)", authProvider: "apple",
+                    createdAt: .distantPast, updatedAt: .distantPast)
+    }
+
+    func myProfile() async throws -> UserProfile { try await ensureProfile(displayName: nil) }
+    func lookupUser(byId userId: String) async throws -> UserProfile? { nil }
+    func updateProfile(displayName: String?, authProvider: String?) async throws { }
+
+    // MARK: - Friends
+
+    func listFriends() async throws -> [UserProfile] {
+        let ts = Date.distantPast
+        return [
+            UserProfile(id: "review_friend_001", displayName: "Alex Chen",
+                        authProvider: "apple", friendCode: "AX7K2P", createdAt: ts, updatedAt: ts),
+            UserProfile(id: "review_friend_002", displayName: "Jordan Kim",
+                        authProvider: "apple", friendCode: "JK4R9M", createdAt: ts, updatedAt: ts),
+            UserProfile(id: "review_friend_003", displayName: "Sam Rivera",
+                        authProvider: "google", friendCode: "SR2L8N", createdAt: ts, updatedAt: ts)
+        ]
+    }
+
+    @discardableResult
+    func sendFriendRequest(toUserId: String) async throws -> Bool { false }
+    func acceptFriendRequest(friendshipId: String) async throws { }
+    func removeFriend(friendshipId: String) async throws { }
+    func removeFriend(userId: String) async throws { }
+    func pendingRequests() async throws -> [Friendship] { [] }
+    func generateFriendCode() async throws -> String { "DEMO01" }
+    func lookupByFriendCode(_ code: String) async throws -> UserProfile? { nil }
+
+    // MARK: - Scores
+
+    func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws { }
+
+    func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
+        let wordle = UUID(staticString: "550e8400-e29b-41d4-a716-446655440000")
+        let connections = UUID(staticString: "550e8400-e29b-41d4-a716-446655440003")
+        let strands = UUID(staticString: "550e8400-e29b-41d4-a716-446655440007")
+        let miniX = UUID(staticString: "550e8400-e29b-41d4-a716-446655440005")
+        return [
+            LeaderboardRow(id: meId, userId: meId, displayName: "You (Demo)", totalPoints: 18,
+                           perGameBreakdown: [wordle: 4, connections: 4, strands: 10],
+                           perGameStreak: [wordle: 14, connections: 5]),
+            LeaderboardRow(id: "review_friend_001", userId: "review_friend_001",
+                           displayName: "Alex Chen", totalPoints: 9,
+                           perGameBreakdown: [wordle: 5, connections: 4],
+                           perGameStreak: [wordle: 22]),
+            LeaderboardRow(id: "review_friend_002", userId: "review_friend_002",
+                           displayName: "Jordan Kim", totalPoints: 8,
+                           perGameBreakdown: [wordle: 3, miniX: 5],
+                           perGameStreak: [wordle: 7, miniX: 3]),
+            LeaderboardRow(id: "review_friend_003", userId: "review_friend_003",
+                           displayName: "Sam Rivera", totalPoints: 3,
+                           perGameBreakdown: [connections: 3],
+                           perGameStreak: [:])
+        ]
+    }
+
+    // MARK: - Account
+
+    func deleteAllUserData() async throws { }
+
+    nonisolated func addScoreListener(
+        startDateInt: Int, endDateInt: Int,
+        onChange: @escaping @MainActor @Sendable () -> Void
+    ) -> SocialServiceListenerHandle? { nil }
+
+    nonisolated func addFriendshipListener(
+        onChange: @escaping @MainActor @Sendable () -> Void
+    ) -> SocialServiceListenerHandle? { nil }
+}

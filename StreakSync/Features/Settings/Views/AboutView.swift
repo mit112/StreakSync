@@ -9,6 +9,10 @@ import SwiftUI
 
 // MARK: - About View
 struct AboutView: View {
+    @Environment(AppState.self) private var appState
+    @State private var versionTapCount = 0
+    @State private var showingReviewModeAlert = false
+
     var body: some View {
         List {
             // App Info Section
@@ -37,7 +41,14 @@ struct AboutView: View {
                     Text("Version")
                     Spacer()
                     Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(appState.reviewModeEnabled ? .orange : .secondary)
+                        .onTapGesture {
+                            versionTapCount += 1
+                            if versionTapCount >= 5 && !appState.reviewModeEnabled {
+                                showingReviewModeAlert = true
+                                Task { await appState.activateReviewMode() }
+                            }
+                        }
                 }
 
                 HStack {
@@ -108,6 +119,11 @@ struct AboutView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Review Mode Active", isPresented: $showingReviewModeAlert) {
+            Button("Got it") { }
+        } message: {
+            Text("Demo data is loading. Navigate to the Friends tab to see social features and the home screen to see streaks.")
+        }
     }
 }
 

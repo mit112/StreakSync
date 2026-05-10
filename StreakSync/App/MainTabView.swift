@@ -51,7 +51,7 @@ struct MainTabView: View {
 
             Tab("Friends", systemImage: "person.2.fill", value: MainTab.friends) {
                 NavigationStack(path: $coordinator.friendsPath) {
-                    LazyFriendsTabContent(socialService: container.socialService)
+                    LazyFriendsTabContent()
                 }
             }
 
@@ -145,14 +145,16 @@ private struct LazyAwardsTabContent: View {
 }
 
 private struct LazyFriendsTabContent: View {
-    let socialService: any SocialService
+    @EnvironmentObject private var container: AppContainer
+    @Environment(AppState.self) private var appState
     @EnvironmentObject private var coordinator: NavigationCoordinator
     @State private var hasBeenSelected = false
 
     var body: some View {
         Group {
             if hasBeenSelected {
-                FriendsView(socialService: socialService)
+                FriendsView(socialService: appState.socialService ?? container.socialService)
+                    .id(appState.reviewModeEnabled)
             } else {
                 Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
             }

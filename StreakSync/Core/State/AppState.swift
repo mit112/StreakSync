@@ -44,6 +44,9 @@ final class AppState {
     /// When true, the app is running in Guest Mode.
     var isGuestMode: Bool = false
 
+    /// When true, App Store review mode is active with demo data.
+    var reviewModeEnabled: Bool = false
+
     // MARK: - Navigation State
     var isNavigatingFromNotification = false
 
