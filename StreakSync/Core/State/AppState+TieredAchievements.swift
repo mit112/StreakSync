@@ -133,6 +133,7 @@ extension AppState {
  logger.debug("Guest Mode active – skipping saveTieredAchievements()")
             return
         }
+        if reviewModeEnabled { return }
         guard let achievements = _tieredAchievements else { return }
         
         do {

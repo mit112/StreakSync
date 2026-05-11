@@ -166,7 +166,7 @@ struct TieredAchievementsGridView: View {
             ForEach(filteredAchievements) { achievement in
                 AchievementCard(
                     achievement: achievement,
-                    onTap: { coordinator.presentSheet(.tieredAchievementDetail(achievement)) }
+                    onTap: { coordinator.navigateTo(.tieredAchievementDetail(achievement)) }
                 )
                 .scrollTransition { content, phase in
                     content
