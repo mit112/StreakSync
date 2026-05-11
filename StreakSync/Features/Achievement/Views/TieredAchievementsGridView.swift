@@ -9,11 +9,11 @@ import SwiftUI
 
 struct TieredAchievementsGridView: View {
     @Environment(AppState.self) private var appState
-    @EnvironmentObject private var coordinator: NavigationCoordinator
     @State private var hasAppeared = false
     @State private var selectedCategory: AchievementCategory?
     @State private var scrollPosition = ScrollPosition()
     @State private var visibleAchievements: Set<UUID> = []
+    @State private var selectedAchievement: TieredAchievement?
     
     // MARK: - Computed Properties
     private var filteredAchievements: [TieredAchievement] {
@@ -121,6 +121,20 @@ struct TieredAchievementsGridView: View {
                 hasAppeared = true
             }
         }
+        .sheet(item: $selectedAchievement) { achievement in
+            NavigationStack {
+                TieredAchievementDetailView(achievement: achievement)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") { selectedAchievement = nil }
+                        }
+                    }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(20)
+            .presentationBackground(.ultraThinMaterial)
+        }
     }
     
     // MARK: - Progress Header
@@ -166,7 +180,7 @@ struct TieredAchievementsGridView: View {
             ForEach(filteredAchievements) { achievement in
                 AchievementCard(
                     achievement: achievement,
-                    onTap: { coordinator.navigateTo(.tieredAchievementDetail(achievement)) }
+                    onTap: { selectedAchievement = achievement }
                 )
                 .scrollTransition { content, phase in
                     content
