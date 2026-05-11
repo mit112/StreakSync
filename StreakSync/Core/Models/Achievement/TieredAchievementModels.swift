@@ -244,21 +244,8 @@ struct AchievementProgress: Codable, Hashable, Sendable {
     func percentageToNextTier(requirements: [TierRequirement]) -> Double {
         guard let nextTier = nextTier(in: requirements) else { return 1.0 }
         guard let nextRequirement = requirements.first(where: { $0.tier == nextTier }) else { return 0.0 }
-        
-        let previousThreshold: Int
-        if let currentTier = currentTier,
-           let currentRequirement = requirements.first(where: { $0.tier == currentTier }) {
-            previousThreshold = currentRequirement.threshold
-        } else {
-            previousThreshold = 0
-        }
-        
-        let range = nextRequirement.threshold - previousThreshold
-        guard range > 0 else { return 0.0 } // Prevent division by zero
-        
-        let progress = currentValue - previousThreshold
-        
-        return min(1.0, max(0.0, Double(progress) / Double(range)))
+        guard nextRequirement.threshold > 0 else { return 0.0 }
+        return min(1.0, max(0.0, Double(currentValue) / Double(nextRequirement.threshold)))
     }
 }
 

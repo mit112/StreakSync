@@ -54,8 +54,9 @@ extension AchievementCheckerTests {
             TierRequirement(tier: .bronze, threshold: 10),
             TierRequirement(tier: .silver, threshold: 20)
         ]
+        // Absolute progress: 15 / 20 = 0.75 (bar matches displayed text "15/20")
         let progress = AchievementProgress(currentValue: 15, currentTier: .bronze)
-        XCTAssertEqual(progress.percentageToNextTier(requirements: requirements), 0.5, accuracy: 0.01)
+        XCTAssertEqual(progress.percentageToNextTier(requirements: requirements), 0.75, accuracy: 0.01)
     }
 
     func testPercentageMaxTierReturns1() {
