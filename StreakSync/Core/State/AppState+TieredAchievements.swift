@@ -169,6 +169,7 @@ extension AppState {
  logger.debug("Guest Mode active – skipping saveUniqueGamesEver()")
             return
         }
+        if reviewModeEnabled { return }
         let setToSave = _uniqueGamesEver ?? []
         do {
             try persistenceService.save(setToSave, forKey: Self.uniqueGamesEverKey)

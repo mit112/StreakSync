@@ -83,7 +83,9 @@ final class AppState {
         get { _cachedFriendCount }
         set {
             _cachedFriendCount = newValue
-            UserDefaults.standard.set(newValue, forKey: "cachedFriendCount")
+            if !reviewModeEnabled {
+                UserDefaults.standard.set(newValue, forKey: "cachedFriendCount")
+            }
         }
     }
     @ObservationIgnored
