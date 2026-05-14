@@ -61,3 +61,6 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 *-debug.log
+
+# Local one-off maintenance scripts (Firebase admin, data cleanup, etc.)
+scripts/
