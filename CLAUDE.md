@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (no code signing needed for simulator)
 xcodebuild build \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=D799B5E4-DB81-40AE-84A2-FA4B44F2A44E' \
+  -destination 'platform=iOS Simulator,id=F21EC641-574B-40EB-93FA-F5F464F006A5' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO --quiet \
   2>&1 | xcsift -w
 
@@ -152,15 +152,15 @@ Rules in `firestore.rules` with a 62-case pen test suite in `firestore-rules-tes
 
 **Always reference simulators by UDID, not by name.**
 
-- iPhone 17 Pro Max: `D799B5E4-DB81-40AE-84A2-FA4B44F2A44E` (preferred for testing)
-- iPhone 17 Pro: `741DAF14-ED20-4EE7-9E29-E81494F05290`
+- iPhone 17 Pro Max: `F21EC641-574B-40EB-93FA-F5F464F006A5` (preferred for testing)
+- iPhone 17 Pro: `F432D1C8-176E-4192-87E1-EC7C4925C069`
 
 Preferred destination string:
-`platform=iOS Simulator,id=D799B5E4-DB81-40AE-84A2-FA4B44F2A44E`
+`platform=iOS Simulator,id=F21EC641-574B-40EB-93FA-F5F464F006A5`
 
 **Always launch apps with:**
 ```bash
-xcrun simctl launch --terminate-running-process --console-pty D799B5E4-DB81-40AE-84A2-FA4B44F2A44E com.mitsheth.StreakSync
+xcrun simctl launch --terminate-running-process --console-pty F21EC641-574B-40EB-93FA-F5F464F006A5 com.mitsheth.StreakSync
 ```
 `--terminate-running-process` is mandatory — without it, launch silently does nothing if the app is already running.
 
