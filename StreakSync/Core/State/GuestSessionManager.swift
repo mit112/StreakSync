@@ -83,6 +83,19 @@ final class GuestSessionManager: ObservableObject {
         exportGuestData: Bool,
         shouldSyncAfterExit: Bool = true
     ) async -> URL? {
+        // Expected flow when exiting guest mode:
+        //   1. If exportGuestData: serialize guest's in-memory results to a JSON file
+        //      and present a share sheet so the user can save or send the file.
+        //   2. Restore host AppState snapshot (recentResults, streaks, achievements)
+        //      from the in-memory HostSnapshot captured at enterGuestMode time.
+        //      If snapshot is absent (crash/force-quit recovery), just reset flags.
+        //   3. Clear guest-mode flag from UserDefaults and flip isGuestMode to false
+        //      on both GuestSessionManager and AppState.
+        //   4. If shouldSyncAfterExit: run Firestore sync via syncService.syncIfNeeded()
+        //      to pull any host-side changes made during the guest session, then call
+        //      rebuildStreaksFromResults() + normalizeStreaksForMissedDays() to refresh
+        //      streak state against the newly-synced data.
+        //   5. Return the exported file URL (or nil if no export was requested/succeeded).
         guard isGuestMode else {
  logger.info("Guest Mode not active – ignoring exitGuestMode()")
             return nil
@@ -117,6 +130,11 @@ final class GuestSessionManager: ObservableObject {
         // (e.g., during an auth state change).
         if shouldSyncAfterExit {
             await syncService.syncIfNeeded()
+            // Rebuild and normalize after sync: the host snapshot restored above
+            // may be stale relative to newly-synced results, so recompute streak
+            // state from scratch and fill any gaps up to today.
+            await appState.rebuildStreaksFromResults()
+            await appState.normalizeStreaksForMissedDays()
         }
         
         return exportedURL

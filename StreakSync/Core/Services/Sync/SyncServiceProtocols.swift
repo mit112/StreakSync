@@ -10,7 +10,7 @@ import Foundation
 // MARK: - Game Result Sync Protocol
 
 @MainActor
-protocol GameResultSyncServiceProtocol {
+protocol GameResultSyncServiceProtocol: AnyObject {
     var syncState: SyncState { get }
     var isGuestModeActive: Bool { get }
     func syncIfNeeded() async

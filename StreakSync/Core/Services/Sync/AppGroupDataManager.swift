@@ -15,15 +15,50 @@ final class AppGroupDataManager {
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AppGroupDataManager")
     
     // MARK: - Decoder/Encoder
+    //
+    // The Share Extension writes dates with fractional seconds
+    // (`ISO8601DateFormatter` with `[.withInternetDateTime, .withFractionalSeconds]`)
+    // while older main-app writes used `.iso8601` which is whole-seconds only.
+    // The custom strategies below accept both shapes on decode and emit fractional
+    // seconds on encode, so the two formats stay round-trip compatible.
+
+    nonisolated(unsafe) private static let iso8601WithFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    nonisolated(unsafe) private static let iso8601WholeSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+            if let date = AppGroupDataManager.iso8601WithFractional.date(from: raw) {
+                return date
+            }
+            if let date = AppGroupDataManager.iso8601WholeSeconds.date(from: raw) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Date string '\(raw)' is not a valid ISO8601 timestamp"
+            )
+        }
         return decoder
     }()
-    
+
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(AppGroupDataManager.iso8601WithFractional.string(from: date))
+        }
         return encoder
     }()
     
@@ -188,6 +223,13 @@ final class AppGroupDataManager {
             for key in resultKeys {
                 userDefaults.removeObject(forKey: key)
             }
+        }
+
+        // Fallback: scan for any gameResult_ prefixed keys the index may have missed
+        // (covers corrupted index or partially-cleaned state).
+        let allKeys = userDefaults.dictionaryRepresentation().keys
+        for key in allKeys where key.hasPrefix("gameResult_") {
+            userDefaults.removeObject(forKey: key)
         }
 
         let staticKeys = ["latestGameResult", "queuedResults", "gameResultQueue", "gameResultKeys"]

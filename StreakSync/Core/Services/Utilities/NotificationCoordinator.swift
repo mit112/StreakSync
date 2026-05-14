@@ -15,6 +15,7 @@ final class NotificationCoordinator: ObservableObject {
     weak var appState: AppState?
     weak var navigationCoordinator: NavigationCoordinator?
     weak var appGroupBridge: AppGroupBridge?
+    weak var gameResultSyncService: (any GameResultSyncServiceProtocol)?
     
     // MARK: - Properties
     private var observers: [NSObjectProtocol] = []
@@ -52,8 +53,9 @@ final class NotificationCoordinator: ObservableObject {
                 forName: .gameResultReceived, object: nil, queue: .main
             ) { [weak self] notification in
                 guard let result = notification.object as? GameResult else { return }
+                let quiet = notification.userInfo?["quiet"] as? Bool ?? false
                 Task { @MainActor [weak self] in
-                    self?.handleGameResult(result, quiet: false)
+                    self?.handleGameResult(result, quiet: quiet)
                 }
             }
         )
@@ -145,17 +147,32 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - Notification Handlers
     
     private func handleGameResult(_ result: GameResult, quiet: Bool) {
+        // Expected flow when a result arrives (Share Extension or in-app):
+        //   1. Route through gameResultSyncService.addResult so it's persisted locally
+        //      AND uploaded to Firestore immediately (falls back to appState.addGameResult
+        //      for preview/test where no sync service is wired).
+        //   2. triggerUIRefresh() to update observing views.
+        //   3. If app is active + result was added + not quiet: fire streak haptic.
+        //   4. If app is backgrounded + result was added: schedule local notification
+        //      via NotificationScheduler.scheduleResultImportedNotification.
  logger.info("Handling game result: \(result.gameName) - \(result.displayScore)")
-        
+
         Task { @MainActor [weak self] in
             guard let self = self else { return }
-            
-            // addGameResult is @MainActor — no actor hop needed
-            let added = self.appState?.addGameResult(result) ?? false
-            
+
+            let added: Bool
+            if let svc = self.gameResultSyncService {
+                // Route via sync service: adds locally AND uploads to Firestore immediately.
+                // Falls back to appState.addGameResult if no sync service is wired (preview/test).
+                svc.addResult(result)
+                added = self.appState?.recentResults.contains(where: { $0.id == result.id }) ?? false
+            } else {
+                added = self.appState?.addGameResult(result) ?? false
+            }
+
             // Trigger UI refresh
             self.triggerUIRefresh()
-            
+
             // Gate haptics: only when app is active and the result was added
             let isActive = UIApplication.shared.applicationState == .active
             if isActive && added && !quiet {

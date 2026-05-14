@@ -204,7 +204,7 @@ final class FirestoreAchievementSyncService {
                 if r.progress.currentValue > l.progress.currentValue {
                     l.progress.currentValue = r.progress.currentValue
                 }
-                // Priority 3: Union unlock dates
+                // Priority 3: Union unlock dates, keeping the earliest (first-earned) date per tier
                 for (tier, date) in r.progress.tierUnlockDates {
                     if let existing = l.progress.tierUnlockDates[tier] {
                         l.progress.tierUnlockDates[tier] = min(existing, date)

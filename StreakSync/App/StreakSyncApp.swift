@@ -54,6 +54,23 @@ struct StreakSyncApp: App {
     
     // MARK: - App Initialization
     private func initializeApp() async {
+        // Expected flow on cold launch:
+        //   1. Wire up NotificationDelegate with appState and navigationCoordinator
+        //      so notification taps can navigate before ContentView appears.
+        //   2. Ensure Firebase Anonymous Auth via firebaseAuthManager.ensureAuthenticated()
+        //      (establishes identity for Firestore reads/writes and social features).
+        //   3. Register UNUserNotification categories if already authorized (streak
+        //      reminders, achievement alerts) — skipped if not yet permitted.
+        //   4. Load persisted UserDefaults data into AppState (instant UX, no network).
+        //   5. Run Firestore game result sync via gameResultSyncService.syncIfNeeded()
+        //      to pull any cloud results missed while offline (skipped in UI test mode).
+        //   6. Rebuild streaks from the full result set with rebuildStreaksFromResults(),
+        //      then normalize for gaps up to today with normalizeStreaksForMissedDays().
+        //   7. Check and schedule streak reminder notifications based on current state.
+        //   8. Reconcile recent scores with FirebaseSocialService.reconcileRecentScores()
+        //      to republish any scores dropped by failures, timezone bugs, or offline
+        //      periods (skipped in UI test mode).
+        //   9. Flip isInitialized = true to swap the loading screen for ContentView.
         logger.info("Starting app initialization")
         let isUITesting = ProcessInfo.processInfo.arguments.contains("--uitesting")
 

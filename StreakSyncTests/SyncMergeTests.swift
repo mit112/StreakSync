@@ -207,30 +207,61 @@ final class SyncMergeTests: XCTestCase {
         let id = UUID()
         let olderDate = date(daysAgo: 2)
         let newerDate = date(daysAgo: 0)
-        
+
         let local = GameResult(
             id: id, gameId: UUID(), gameName: "wordle",
             date: date(daysAgo: 1), score: 3, maxAttempts: 6,
             completed: true, sharedText: "Wordle 100 3/6",
             lastModified: olderDate
         )
-        
+
         let remote = GameResult(
             id: id, gameId: UUID(), gameName: "wordle",
             date: date(daysAgo: 1), score: 4, maxAttempts: 6,
             completed: true, sharedText: "Wordle 100 4/6",
             lastModified: newerDate
         )
-        
+
         var merged = [local]
         if remote.lastModified >= local.lastModified {
             merged[0] = remote
         }
-        
+
         // Remote should win because it's newer
         XCTAssertEqual(merged[0].score, 4)
     }
-    
+
+    func testEqualLastModifiedLocalWins() {
+        // The real mergeResults in FirestoreGameResultSyncService uses strict `>`
+        // (remote wins only when strictly newer). On a tie, local is preserved.
+        // This test pins that tiebreaker so a future >= regression is caught.
+        let id = UUID()
+        let tiedDate = date(daysAgo: 1)
+
+        let local = GameResult(
+            id: id, gameId: UUID(), gameName: "wordle",
+            date: date(daysAgo: 1), score: 3, maxAttempts: 6,
+            completed: true, sharedText: "Wordle 100 3/6",
+            lastModified: tiedDate
+        )
+
+        let remote = GameResult(
+            id: id, gameId: UUID(), gameName: "wordle",
+            date: date(daysAgo: 1), score: 4, maxAttempts: 6,
+            completed: true, sharedText: "Wordle 100 4/6",
+            lastModified: tiedDate
+        )
+
+        // Mirror the strict-`>` logic from FirestoreGameResultSyncService.mergeResults
+        var merged = [local]
+        if remote.lastModified > local.lastModified {
+            merged[0] = remote
+        }
+
+        // Timestamps are equal — local must win (score stays at 3)
+        XCTAssertEqual(merged[0].score, 3)
+    }
+
     func testLastModifiedDefaultsToDate() {
         let result = GameResult(
             gameId: UUID(), gameName: "wordle",

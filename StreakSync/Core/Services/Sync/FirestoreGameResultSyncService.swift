@@ -107,7 +107,7 @@ final class FirestoreGameResultSyncService {
         do {
             let ref = db.collection("users").document(uid).collection("gameResults")
             let remoteResults = try await fetchRemoteResults(from: ref)
-            var merged = mergeResults(local: appState.recentResults, remote: remoteResults)
+            let merged = mergeResults(local: appState.recentResults, remote: remoteResults)
             let toPush = resultsToPush(merged: merged, local: appState.recentResults, remote: remoteResults)
 
             if !toPush.isEmpty {
@@ -117,13 +117,17 @@ final class FirestoreGameResultSyncService {
                 }
             }
 
-            merged.sort { $0.date > $1.date }
-            appState.setRecentResults(merged)
+            // Re-read current results after all async operations — results may have been
+            // added via Share Extension or manual entry during the upload suspension.
+            let currentResults = appState.recentResults
+            let finalMerged = mergeResults(local: currentResults, remote: remoteResults)
+                .sorted { $0.date > $1.date }
+            appState.setRecentResults(finalMerged)
             await appState.saveGameResults()
 
             syncState = .synced(lastSyncDate: Date())
             saveLastSyncTimestamp(Date())
-            logger.info("Game result sync completed. Total: \(merged.count)")
+            logger.info("Game result sync completed. Total: \(finalMerged.count)")
         } catch {
             logger.error("Game result sync failed: \(error.localizedDescription)")
             syncState = .failed(error)
