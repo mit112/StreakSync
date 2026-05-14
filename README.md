@@ -9,6 +9,12 @@
 </p>
 
 <p align="center">
+  <a href="https://apps.apple.com/us/app/streaksync-puzzle-tracker/id6755203446">
+    <img src="https://img.shields.io/badge/Download_on_the-App_Store-0D96F6?logo=apple&logoColor=white" alt="Download on the App Store">
+  </a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Platform-iOS_26-blue?logo=apple" alt="iOS 26">
   <img src="https://img.shields.io/badge/Swift-6.0-orange?logo=swift" alt="Swift 6">
   <img src="https://img.shields.io/badge/UI-SwiftUI-purple" alt="SwiftUI">
@@ -147,6 +153,10 @@ StreakSync/
 - **Privacy manifest** (`PrivacyInfo.xcprivacy`) declares all API usage
 
 ## Getting Started
+
+The app is live on the App Store: **[StreakSync — Puzzle Tracker](https://apps.apple.com/us/app/streaksync-puzzle-tracker/id6755203446)**
+
+To build from source:
 
 ### Prerequisites
 

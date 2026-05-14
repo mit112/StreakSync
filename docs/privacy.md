@@ -2,6 +2,8 @@
 
 **Effective date: April 24, 2026**
 
+StreakSync is available on the [App Store](https://apps.apple.com/us/app/streaksync-puzzle-tracker/id6755203446).
+
 StreakSync ("we," "our," or "the app") is a personal streak-tracking app for daily word games. This policy explains what data we collect, how we use it, and your rights.
 
 ---
