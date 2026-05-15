@@ -1,132 +1,166 @@
 # Account Linking: Anonymous → Social Provider
 
 **Date:** 2026-05-15
-**Status:** Approved
+**Status:** Approved (revised after Opus review)
 
 ---
 
 ## Problem
 
-When an anonymous user signs in with Apple or Google for the first time, Firebase's `user.link(with: credential)` preserves the UID. All Firestore data (game results, friendships, friend code, scores) carries over automatically. However, two things are not done after the link:
+When an anonymous user links their Apple/Google account (same UID preserved via `user.link(with:)`), two things are not done:
 
 1. The Firestore user profile still shows `authProvider: "anonymous"` and `displayName: "Player"`.
-2. `AppContainer`'s auth observer skips the event entirely (`guard newUID != previousUID else { return }`) because the UID didn't change, so no sync runs.
+2. `AppContainer.setupAuthStateObserver()` short-circuits on same-UID auth changes (`guard newUID != previousUID else { return }`), so no sync runs and no profile update fires.
 
-Additionally, `ensureProfile()` hardcodes `"apple"` as the provider string for any non-anonymous user, silently misidentifying Google users.
+Additionally, `ensureProfile()` hardcodes `"apple"` as the provider string for all non-anonymous users, silently misidentifying Google users.
 
-A companion bug: `sendFriendRequest` calls `getDocument()` on a friendship path that doesn't exist yet. The Firestore read rule checks `resource.data.userId1/2`, which evaluates to `null` for non-existent documents, causing "Missing or insufficient permissions" on every first friend request.
+A companion bug (same session): `sendFriendRequest` calls `getDocument()` on a friendship path that doesn't exist yet. The Firestore rule checks `resource.data.userId1/2`, which is `null` for non-existent documents → "Missing or insufficient permissions" on every first friend request.
 
 ---
 
 ## What Does Not Change
 
-- The `user.link(with: credential)` happy path already works. UID is preserved and no data migration is needed.
-- The `credentialAlreadyInUse` path (Apple/Google credential already on a different Firebase account) already switches to the correct existing account. This is correct behavior — social accounts are independent identities. No merging.
-- All Firestore data, friendships, friend codes, and pending scores are tied to the UID and carry over automatically.
+- `user.link(with: credential)` already preserves the UID — all Firestore data (game results, friendships, friend code, pending scores) carries over untouched.
+- `credentialAlreadyInUse` path (credential already linked to a different Firebase account) already switches to the correct existing account. Social accounts are independent identities; no merging.
+- On future reinstall: signing in with the same social account returns the same Firebase UID; Firestore syncs their data back automatically.
 
 ---
 
 ## Architecture
 
-Two Combine subscribers in `AppContainer`, each with one responsibility:
+A single change to `AppContainer.setupAuthStateObserver()` replaces the existing one-signal observer with a **single `$currentUser` subscriber** that tracks both UID changes and provider transitions.
 
-| Subscriber | Signal | Condition | Handler |
-|---|---|---|---|
-| Existing | `$currentUser` | UID changed | `handleAuthUserChanged(from:to:)` — wipes stale data, full sync |
-| New | `$authProvider` | `.anonymous` → social | `handleProviderUpgraded()` — updates Firestore profile, incremental sync |
+**Why not two subscribers (`$currentUser` + `$authProvider`):** The sign-in handlers (`handleAppleSignIn`, `handleGoogleSignIn`) set `authProvider = .apple/.google` *directly* before the Firebase auth state listener fires. On the `credentialAlreadyInUse` path this makes `$authProvider` fire while `currentUser` still holds the old UID — the opposite of the intended ordering. Two independent subscribers also spawn independent `Task { @MainActor }` blocks with no sequencing guarantee, allowing `handleProviderUpgraded` to race with `cleanupForSignOut`.
 
-The new `$authProvider` subscriber tracks `lastKnownProvider` and uses `removeDuplicates()` + `dropFirst()`. It only acts when the provider transitions from `.anonymous` to a social provider. During an account switch (`credentialAlreadyInUse`), both handlers run: `handleAuthUserChanged` does the full sync (correct), and `handleProviderUpgraded` follows with a no-op incremental sync and a harmless profile update. The final state is correct in all cases.
+**The fix:** Remove the direct `authProvider = .X` assignments from `handleAppleSignIn`/`handleGoogleSignIn` (and their `credentialAlreadyInUse` catch blocks). Let `setupAuthListener`'s `detectProvider(for:)` be the single source of truth, guaranteeing `currentUser` and `authProvider` update in one deterministic tick.
 
-**Why not guard `uid == lastKnownUID`:** `$currentUser` fires before `$authProvider` (sequential assignments in `FirebaseAuthStateManager.setupAuthListener`), so by the time `$authProvider` fires during an account switch, `lastKnownUID` has already been updated to the new UID — making the guard always true and useless. Tracking `lastKnownProvider` is the clean signal.
+With that in place, the `$currentUser` subscriber receives an updated `User` object whose `.providerData` already reflects the new provider. We derive the provider from `providerData` directly in the sink — no dependency on when `authProvider` is set on the manager. A single Task is dispatched per event; `handleAuthUserChanged` and `handleProviderUpgraded` never run concurrently.
 
 ---
 
-## Data Flow: Anonymous → Apple/Google (Happy Path)
+## Data Flow: Provider Upgrade (Happy Path)
 
 ```
 User taps "Sign in with Apple"
-    → FirebaseAuthStateManager.handleAppleSignIn()
-        → user.link(with: credential)      ← UID preserved
-        → updateDisplayNameFromApple()     ← sets Firebase Auth displayName
-        → authProvider = .apple            ← @Published fires
+  → FirebaseAuthStateManager.handleAppleSignIn()
+      → user.link(with: credential)        ← UID preserved
+      → updateDisplayNameFromApple()       ← sets Firebase Auth displayName
+      → (authProvider assignment removed)
+      → Firebase auth listener fires
+          → self.currentUser = linkedUser  ← $currentUser emits
+          → self.authProvider = .apple     ← (fires $authProvider but not subscribed)
 
-AppContainer.$authProvider subscriber fires
-    → newProvider == .apple, UID unchanged
-    → handleProviderUpgraded()
-        → socialService.updateProfile(
-              displayName: firebaseAuthManager.displayName,  ← Apple name or nil
-              authProvider: "apple"
-          )                                ← merge: true, safe to call always
-        → gameResultSyncService.syncIfNeeded()
-        → appState.rebuildStreaksFromResults()
-        → achievementSyncService.syncIfEnabled()
+AppContainer.$currentUser sink runs
+  → newUID == previousUID, newProvider == .apple, previousProvider == .anonymous
+  → dispatches handleProviderUpgraded(provider: .apple, displayName: "John")
+      → socialService.updateProfile(displayName: "John", authProvider: "apple")
+      → gameResultSyncService.syncIfNeeded()
+      → appState.rebuildStreaksFromResults()
+      → achievementSyncService.syncIfEnabled()
 ```
-
-After this, the Firestore profile reflects the real provider and name. On a future reinstall, signing in with the same Apple account returns the same Firebase UID and the user's data syncs back from Firestore.
 
 ---
 
-## Data Flow: credentialAlreadyInUse (Existing Account)
+## Data Flow: Account Switch (credentialAlreadyInUse)
 
 ```
-User taps "Sign in with Apple" — credential already linked to UID-B
-    → FirebaseAuthStateManager catches credentialAlreadyInUse
-        → auth.signIn(with: updatedCredential)   ← UID changes: UID-A → UID-B
-        → authProvider = .apple
+User taps "Sign in with Apple" — credential linked to UID-B
+  → FirebaseAuthStateManager catches credentialAlreadyInUse
+      → auth.signIn(with: updatedCredential)   ← UID changes: UID-A → UID-B
+      → (authProvider assignment removed)
+      → Firebase auth listener fires
+          → self.currentUser = uid_B_user      ← $currentUser emits
+          → self.authProvider = .apple
 
-AppContainer.$currentUser subscriber fires first (UID changed)
-    → handleAuthUserChanged(from: UID-A, to: UID-B)
-        → clears stale UID-A data
-        → full sync for UID-B
-
-AppContainer.$authProvider subscriber fires after (on same @MainActor queue)
-    → previousProvider == .anonymous, newProvider == .apple → guard passes
-    → handleProviderUpgraded() runs after handleAuthUserChanged completes
-        → updateProfile(authProvider: "apple") — no-op, profile already correct
-        → syncIfNeeded() — no-op, full sync already ran
+AppContainer.$currentUser sink runs
+  → newUID (UID-B) != previousUID (UID-A)
+  → dispatches handleAuthUserChanged(from: UID-A, to: UID-B)
+      → clears stale UID-A data
+      → full sync for UID-B
+  → (handleProviderUpgraded is NOT dispatched — UID-change branch returns early)
 ```
 
-Both handlers run; the result is correct. `handleAuthUserChanged` does the authoritative work. `handleProviderUpgraded` is redundant but harmless on this path.
+Exactly one Task per event. No interleaving.
 
 ---
 
 ## Component Changes
 
+### `FirebaseAuthStateManager.swift`
+
+Remove the direct `authProvider = .apple/.google` assignments at the end of `handleAppleSignIn` and `handleGoogleSignIn` (including their `credentialAlreadyInUse` catch blocks). `setupAuthListener` already calls `Self.detectProvider(for: user)` and assigns `authProvider` — that remains the single source.
+
+Before removal, these lines appear in:
+- `handleAppleSignIn`: line 139 (`authProvider = .apple`), line 148 (`authProvider = .apple`), line 152 (`authProvider = .apple`)
+- `handleGoogleSignIn`: line 223 (`authProvider = .google`), line 232 (`authProvider = .google`)
+
+The `currentNonce = nil` cleanup lines remain. Only the `authProvider = .X` assignments are removed.
+
 ### `AppContainer.swift`
 
-**`setupAuthStateObserver()`** — add `lastKnownProvider` property and a second subscriber:
-
+**Add `lastKnownProvider` property** alongside `lastKnownUID`:
 ```swift
-// New property alongside lastKnownUID:
-private var lastKnownProvider: AuthProvider = .anonymous
-
-// In setupAuthStateObserver(), initialize alongside lastKnownUID:
-lastKnownProvider = firebaseAuthManager.authProvider
-
-// New subscriber:
-firebaseAuthManager.$authProvider
-    .removeDuplicates()
-    .dropFirst()
-    .sink { [weak self] newProvider in
-        guard let self else { return }
-        let previousProvider = self.lastKnownProvider
-        self.lastKnownProvider = newProvider
-        guard previousProvider == .anonymous, newProvider != .anonymous else { return }
-        Task { @MainActor [weak self] in
-            await self?.handleProviderUpgraded()
-        }
-    }
-    .store(in: &cancellables)
+private var lastKnownUID: String?
+private var lastKnownProvider: AuthProvider = .anonymous  // NEW
 ```
 
-**`handleProviderUpgraded()`** — new private method:
+**Replace `setupAuthStateObserver()`** with a single `$currentUser` subscriber:
 
 ```swift
-private func handleProviderUpgraded() async {
-    let provider = firebaseAuthManager.authProvider.rawValue
-    let displayName = firebaseAuthManager.displayName
-    logger.info("Auth: provider upgraded to \(provider) — updating profile")
-    try? await socialService.updateProfile(displayName: displayName, authProvider: provider)
+private func setupAuthStateObserver() {
+    lastKnownUID = firebaseAuthManager.uid
+    lastKnownProvider = firebaseAuthManager.authProvider  // NEW
+
+    firebaseAuthManager.$currentUser
+        .dropFirst()
+        .sink { [weak self] newUser in
+            guard let self else { return }
+
+            let newUID = newUser?.uid
+            let newProvider = Self.deriveProvider(from: newUser)  // NEW — from providerData
+            let previousUID = self.lastKnownUID
+            let previousProvider = self.lastKnownProvider
+            self.lastKnownUID = newUID
+            self.lastKnownProvider = newProvider  // NEW
+
+            if newUID != previousUID {
+                // Account switch: UID changed — wipe and full sync
+                Task { @MainActor [weak self] in
+                    await self?.handleAuthUserChanged(from: previousUID, to: newUID)
+                }
+            } else if previousProvider == .anonymous, newProvider != .anonymous {
+                // Provider upgrade: same UID, anonymous → social
+                let displayName = newUser?.displayName
+                Task { @MainActor [weak self] in
+                    await self?.handleProviderUpgraded(to: newProvider, displayName: displayName)
+                }
+            }
+            // else: no-op (display name update, re-auth to same anonymous UID, etc.)
+        }
+        .store(in: &cancellables)
+}
+```
+
+**Add `deriveProvider(from:)` static helper** (avoids duplicating `detectProvider` logic; `FirebaseAuthStateManager.detectProvider` is `private static` so we mirror it here):
+
+```swift
+private static func deriveProvider(from user: User?) -> AuthProvider {
+    guard let user, !user.isAnonymous else { return .anonymous }
+    if user.providerData.contains(where: { $0.providerID == "apple.com" }) { return .apple }
+    if user.providerData.contains(where: { $0.providerID == "google.com" }) { return .google }
+    return .anonymous
+}
+```
+
+**Add `handleProviderUpgraded(to:displayName:)`** — new private method. Parameters captured at subscriber time for determinism:
+
+```swift
+private func handleProviderUpgraded(to provider: AuthProvider, displayName: String?) async {
+    logger.info("Auth: provider upgraded to \(provider.rawValue) — updating profile")
+    try? await socialService.updateProfile(
+        displayName: displayName,
+        authProvider: provider.rawValue
+    )
     await gameResultSyncService.syncIfNeeded()
     await appState.rebuildStreaksFromResults()
     await achievementSyncService.syncIfEnabled()
@@ -136,11 +170,18 @@ private func handleProviderUpgraded() async {
 
 ### `FirebaseSocialService.swift`
 
-**`ensureProfile()`** — fix hardcoded provider:
+**`ensureProfile()` — fix provider detection and remove dead `friends` field:**
 
 ```swift
 // Before
 let provider = authUser?.isAnonymous == true ? "anonymous" : "apple"
+try await doc.setData([
+    "displayName": resolvedName,
+    "authProvider": provider,
+    "friends": [String](),       // ← dead field, architecture replaced by friendships collection
+    "createdAt": Timestamp(date: now),
+    "updatedAt": Timestamp(date: now)
+], merge: true)
 
 // After
 let provider: String
@@ -153,11 +194,17 @@ if authUser?.isAnonymous == true {
 } else {
     provider = "anonymous"
 }
+try await doc.setData([
+    "displayName": resolvedName,
+    "authProvider": provider,
+    "createdAt": Timestamp(date: now),
+    "updatedAt": Timestamp(date: now)
+], merge: true)
 ```
 
 ### `firestore.rules`
 
-**Friendship read rule** — allow existence checks on non-existent documents:
+**Friendship read rule — allow existence checks on non-existent documents:**
 
 ```javascript
 // Before
@@ -178,24 +225,32 @@ allow read: if isSignedIn()
 
 ## Error Handling
 
-- **Profile update failure**: `try?` — non-fatal. The user is signed in with the correct UID; the Firestore profile being stale for one session is an acceptable degraded state. It will be corrected on the next `ensureProfile()` call.
-- **Sync failure**: handled by existing `syncIfNeeded()` error handling (same as cold launch).
-- **`$authProvider` double-fire**: `removeDuplicates()` suppresses re-emissions of the same provider value.
+- **Profile update failure**: `try?` — non-fatal. Correct UID is active; stale profile is acceptable degraded state, corrected on next `ensureProfile()` call.
+- **Sync failure**: handled by existing `syncIfNeeded()` error handling (same as cold launch path).
+- **Sign-out → re-auth cycle**: `FirebaseAuthStateManager.setupAuthListener` re-auths anonymously on sign-out. `deriveProvider(from: newAnonymousUser)` → `.anonymous`. `previousProvider` was `.anonymous` (set when signed out). Provider check `previousProvider == .anonymous && newProvider != .anonymous` is false → no-op. Correct.
 
 ---
 
 ## Testing
 
-Existing: `StreakSyncTests` covers auth state manager and sync pipeline independently.
+### Existing coverage
+`StreakSyncTests` covers auth state manager and sync pipeline independently.
 
-New tests to add in `FirebaseAuthStateManagerTests` (or integration test):
-1. Provider upgrade subscriber fires `handleProviderUpgraded` when `authProvider` changes from `.anonymous` to `.apple` with same UID.
-2. Provider subscriber skips when UID also changes (defers to UID-change handler).
-3. `ensureProfile()` stores `"google"` when current user's providerData contains `"google.com"`.
+### New tests
 
-Firestore rules tests (in `firestore-rules-tests/`):
-4. Authenticated user can `getDocument()` on a non-existent friendship path (returns `exists: false`).
-5. Authenticated user cannot `getDocument()` on an existing friendship path where they are not a party.
+**`AppContainerAuthObserverTests`** (or equivalent):
+1. Provider upgrade: `$currentUser` emits with Apple-linked user (same UID, `.isAnonymous == false`) → `handleProviderUpgraded` called, `handleAuthUserChanged` not called.
+2. Account switch: `$currentUser` emits with different UID → `handleAuthUserChanged` called, `handleProviderUpgraded` not called.
+3. Cold launch into existing Apple account: subscriber emits `.apple` as both previous and new provider → no handler called.
+4. Sign-out → anonymous re-auth: `.apple → .anonymous` → no handler called (guard `newProvider != .anonymous` fails).
+
+**`FirebaseSocialServiceTests`**:
+5. `ensureProfile()` stores `"google"` when `providerData` contains `"google.com"`.
+6. `ensureProfile()` does not write `"friends"` field to Firestore.
+
+**Firestore rules tests** (`firestore-rules-tests/`):
+7. Authenticated user can `getDocument()` on a non-existent friendship path → `exists: false`, no error.
+8. `resource == null` change does not bypass party check on existing docs: authenticated user who is not userId1 or userId2 cannot read an existing friendship document.
 
 ---
 
@@ -203,6 +258,7 @@ Firestore rules tests (in `firestore-rules-tests/`):
 
 | File | Change |
 |---|---|
-| `StreakSync/App/AppContainer.swift` | Add `$authProvider` subscriber + `handleProviderUpgraded()` |
-| `StreakSync/Core/Services/Social/FirebaseSocialService.swift` | Fix provider detection in `ensureProfile()` |
+| `StreakSync/Core/Services/Social/FirebaseAuthStateManager.swift` | Remove 5 direct `authProvider = .X` assignments |
+| `StreakSync/App/AppContainer.swift` | Add `lastKnownProvider`, `deriveProvider(from:)`, `handleProviderUpgraded(to:displayName:)`; replace observer |
+| `StreakSync/Core/Services/Social/FirebaseSocialService.swift` | Fix provider detection in `ensureProfile()`; remove dead `friends` field |
 | `firestore.rules` | Add `resource == null` to friendship read rule |
