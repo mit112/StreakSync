@@ -877,6 +877,37 @@ async function main() {
     );
   });
 
+  // ─── Friendship: resource == null fix ───────────────────────
+
+  await runCase(
+    "friendship: authenticated user can getDocument() on a non-existent friendship path (existence check)",
+    async () => {
+      const alice = testEnv.authenticatedContext("alice");
+      // "alice_bob" does not exist — assertSucceeds means we get exists:false, not a permission error
+      await assertSucceeds(
+        getDoc(doc(alice.firestore(), "friendships", "alice_bob"))
+      );
+    }
+  );
+
+  await runCase(
+    "friendship: resource==null does not bypass party check on existing doc — third party cannot read",
+    async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), "friendships", "alice_bob"), {
+          userId1: "alice",
+          userId2: "bob",
+          status: "accepted",
+          createdAt: new Date(),
+        });
+      });
+      const charlie = testEnv.authenticatedContext("charlie");
+      await assertFails(
+        getDoc(doc(charlie.firestore(), "friendships", "alice_bob"))
+      );
+    }
+  );
+
   // ─── SUMMARY ───────────────────────────────────────────────
   await testEnv.cleanup();
 
