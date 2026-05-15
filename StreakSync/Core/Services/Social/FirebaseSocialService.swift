@@ -165,11 +165,11 @@ final class FirebaseSocialService: SocialService {
             let resolvedName = displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
                 ?? authUser?.displayName?.nonEmpty
                 ?? "Player"
-            let provider = authUser?.isAnonymous == true ? "anonymous" : "apple"
+            let providerIDs = authUser?.providerData.map { $0.providerID } ?? []
+            let provider = AppContainer.deriveProvider(fromProviderIDs: providerIDs).rawValue
             try await doc.setData([
                 "displayName": resolvedName,
                 "authProvider": provider,
-                "friends": [String](),
                 "createdAt": Timestamp(date: now),
                 "updatedAt": Timestamp(date: now)
             ], merge: true)

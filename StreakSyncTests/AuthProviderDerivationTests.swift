@@ -32,4 +32,24 @@ final class AuthProviderDerivationTests: XCTestCase {
     func testDeriveProvider_unknownID_returnsAnonymous() {
         XCTAssertEqual(AppContainer.deriveProvider(fromProviderIDs: ["password"]), .anonymous)
     }
+
+    // MARK: - AuthProvider raw values used in Firestore (must not change)
+
+    func testAuthProviderRawValues() {
+        XCTAssertEqual(AuthProvider.anonymous.rawValue, "anonymous")
+        XCTAssertEqual(AuthProvider.apple.rawValue, "apple")
+        XCTAssertEqual(AuthProvider.google.rawValue, "google")
+    }
+
+    func testDeriveProvider_rawValue_forApple() {
+        XCTAssertEqual(AppContainer.deriveProvider(fromProviderIDs: ["apple.com"]).rawValue, "apple")
+    }
+
+    func testDeriveProvider_rawValue_forGoogle() {
+        XCTAssertEqual(AppContainer.deriveProvider(fromProviderIDs: ["google.com"]).rawValue, "google")
+    }
+
+    func testDeriveProvider_rawValue_forAnonymous() {
+        XCTAssertEqual(AppContainer.deriveProvider(fromProviderIDs: []).rawValue, "anonymous")
+    }
 }
