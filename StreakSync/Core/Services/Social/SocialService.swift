@@ -54,11 +54,17 @@ struct Friendship: Identifiable, Codable, Hashable {
     let userId2: String       // The user who received the request
     let status: FriendshipStatus
     let createdAt: Date
-    let senderDisplayName: String? // Display name of userId1 (sender), stored on the doc for pending request UI
-    
+    let senderDisplayName: String?    // Display name of userId1 at send time
+    let recipientDisplayName: String? // Display name of userId2 — set by sender at request time, refreshed by recipient on accept
+
     /// Returns the other user's ID given the current user
     func otherUserId(me: String) -> String {
         userId1 == me ? userId2 : userId1
+    }
+
+    /// Returns the display name of the other party given the current user (best-effort).
+    func otherDisplayName(me: String) -> String? {
+        userId1 == me ? recipientDisplayName : senderDisplayName
     }
 }
 
@@ -83,8 +89,10 @@ protocol SocialService: Sendable {
     // Friends
     func listFriends() async throws -> [UserProfile]
     /// Returns `true` when a mutual pending request was auto-accepted.
+    /// `recipientDisplayName` is the recipient's display name as known to the sender
+    /// (typically from `lookupByFriendCode`), denormalized onto the friendship doc.
     @discardableResult
-    func sendFriendRequest(toUserId: String) async throws -> Bool
+    func sendFriendRequest(toUserId: String, recipientDisplayName: String?) async throws -> Bool
     func acceptFriendRequest(friendshipId: String) async throws
     func removeFriend(friendshipId: String) async throws
     /// Remove a friend by their user ID (looks up the friendship document automatically)

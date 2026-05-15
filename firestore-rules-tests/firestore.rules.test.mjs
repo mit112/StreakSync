@@ -622,6 +622,27 @@ async function main() {
     );
   });
 
+  await runCase("✅ create with optional recipientDisplayName (denormalized)", async () => {
+    const db = authed("alice");
+    await assertSucceeds(
+      setDoc(doc(db, "friendships/f1"), {
+        ...VALID_FRIENDSHIP,
+        senderDisplayName: "Alice",
+        recipientDisplayName: "Bob",
+      })
+    );
+  });
+
+  await runCase("🔴 friendship rejects oversized recipientDisplayName", async () => {
+    const db = authed("alice");
+    await assertFails(
+      setDoc(doc(db, "friendships/f1"), {
+        ...VALID_FRIENDSHIP,
+        recipientDisplayName: "X".repeat(201),
+      })
+    );
+  });
+
   await runCase("✅ cannot create friendship as recipient (userId2 != self)", async () => {
     const db = authed("bob");
     await assertFails(
@@ -656,6 +677,56 @@ async function main() {
     const db = authed("bob");
     await assertSucceeds(
       updateDoc(doc(db, "friendships/f1"), { status: "accepted" })
+    );
+  });
+
+  await runCase("✅ recipient can refresh recipientDisplayName on accept", async () => {
+    await seedDoc("friendships/f1", {
+      ...VALID_FRIENDSHIP,
+      recipientDisplayName: "Old Bob",
+    });
+    const db = authed("bob");
+    await assertSucceeds(
+      updateDoc(doc(db, "friendships/f1"), {
+        status: "accepted",
+        recipientDisplayName: "Bob Updated",
+      })
+    );
+  });
+
+  await runCase("🔴 accept rejects oversized recipientDisplayName", async () => {
+    await seedDoc("friendships/f1", { ...VALID_FRIENDSHIP });
+    const db = authed("bob");
+    await assertFails(
+      updateDoc(doc(db, "friendships/f1"), {
+        status: "accepted",
+        recipientDisplayName: "X".repeat(201),
+      })
+    );
+  });
+
+  await runCase("🔴 accept rejects mutation of senderDisplayName", async () => {
+    await seedDoc("friendships/f1", {
+      ...VALID_FRIENDSHIP,
+      senderDisplayName: "Alice",
+    });
+    const db = authed("bob");
+    await assertFails(
+      updateDoc(doc(db, "friendships/f1"), {
+        status: "accepted",
+        senderDisplayName: "Mallory",
+      })
+    );
+  });
+
+  await runCase("🔴 accept rejects mutation of createdAt", async () => {
+    await seedDoc("friendships/f1", { ...VALID_FRIENDSHIP });
+    const db = authed("bob");
+    await assertFails(
+      updateDoc(doc(db, "friendships/f1"), {
+        status: "accepted",
+        createdAt: 9999999999,
+      })
     );
   });
 
@@ -877,21 +948,22 @@ async function main() {
     );
   });
 
-  // ─── Friendship: resource == null fix ───────────────────────
+  // ─── Friendship: non-party cannot read non-existent doc ─────
 
   await runCase(
-    "friendship: authenticated user can getDocument() on a non-existent friendship path (existence check)",
+    "friendship: getDocument() on a non-existent path is denied (non-party cannot probe for existence)",
     async () => {
+      // alice_bob does not exist. Alice is not a party to this hypothetical doc,
+      // so allow get must deny it — sendFriendRequest uses collection queries instead.
       const alice = testEnv.authenticatedContext("alice");
-      // "alice_bob" does not exist — assertSucceeds means we get exists:false, not a permission error
-      await assertSucceeds(
+      await assertFails(
         getDoc(doc(alice.firestore(), "friendships", "alice_bob"))
       );
     }
   );
 
   await runCase(
-    "friendship: resource==null does not bypass party check on existing doc — third party cannot read",
+    "friendship: third party cannot read an existing friendship document by ID",
     async () => {
       await testEnv.withSecurityRulesDisabled(async (ctx) => {
         await setDoc(doc(ctx.firestore(), "friendships", "alice_bob"), {

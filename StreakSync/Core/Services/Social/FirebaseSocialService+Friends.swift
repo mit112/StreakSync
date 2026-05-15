@@ -7,6 +7,7 @@
 
 import FirebaseFirestore
 import Foundation
+import OSLog
 
 // MARK: - Friends
 
@@ -20,13 +21,48 @@ extension FirebaseSocialService {
         }
 
         let currentUID = try requireUID()
-        let friendIds = try await acceptedFriendIds(for: currentUID)
-        guard !friendIds.isEmpty else {
-            cachedFriends = []
-            friendsCacheTimestamp = Date()
-            return []
+
+        // Derive friend identities AND display names directly from the friendship
+        // documents we own (denormalized via senderDisplayName / recipientDisplayName).
+        // This avoids per-friend reads against /users, whose rule uses areFriends()
+        // (a cross-document get()/exists()) — fragile under Watch streams with
+        // offline persistence, even for individual document reads.
+        let snap1 = try await db.collection("friendships")
+            .whereField("userId1", isEqualTo: currentUID)
+            .whereField("status", isEqualTo: FriendshipStatus.accepted.rawValue)
+            .getDocuments()
+        let snap2 = try await db.collection("friendships")
+            .whereField("userId2", isEqualTo: currentUID)
+            .whereField("status", isEqualTo: FriendshipStatus.accepted.rawValue)
+            .getDocuments()
+
+        let now = Date()
+        var seen: Set<String> = []
+        var profiles: [UserProfile] = []
+
+        for docSnap in snap1.documents {
+            let d = docSnap.data()
+            guard let friendId = d["userId2"] as? String, !seen.contains(friendId) else { continue }
+            seen.insert(friendId)
+            let name = (d["recipientDisplayName"] as? String)?.nonEmpty ?? "Player"
+            profiles.append(UserProfile(
+                id: friendId, displayName: name,
+                createdAt: (d["createdAt"] as? Timestamp)?.dateValue() ?? now,
+                updatedAt: now
+            ))
         }
-        let profiles = await fetchProfiles(for: friendIds)
+        for docSnap in snap2.documents {
+            let d = docSnap.data()
+            guard let friendId = d["userId1"] as? String, !seen.contains(friendId) else { continue }
+            seen.insert(friendId)
+            let name = (d["senderDisplayName"] as? String)?.nonEmpty ?? "Player"
+            profiles.append(UserProfile(
+                id: friendId, displayName: name,
+                createdAt: (d["createdAt"] as? Timestamp)?.dateValue() ?? now,
+                updatedAt: now
+            ))
+        }
+
         cachedFriends = profiles
         friendsCacheTimestamp = Date()
         return profiles
@@ -38,13 +74,32 @@ extension FirebaseSocialService {
     }
 
     @discardableResult
-    func sendFriendRequest(toUserId targetId: String) async throws -> Bool {
+    func sendFriendRequest(toUserId targetId: String, recipientDisplayName: String?) async throws -> Bool {
         let currentUID = try requireUID()
         guard currentUID != targetId else { return false }
-        // Check if friendship already exists via deterministic doc ID (O(1) fetch)
+
+        // Use collection queries instead of getDocument() to check for an existing
+        // friendship. getDocument() on a non-existent doc uses Firestore's Watch/Listen
+        // API internally (with offline persistence enabled), and Firestore evaluates
+        // Watch rules prospectively — resource==null never fires, causing a permission
+        // error even though the document doesn't exist. Collection queries use
+        // allow-list semantics and avoid this issue entirely.
         let docId = [currentUID, targetId].sorted().joined(separator: "_")
-        let existingDoc = try await db.collection("friendships").document(docId).getDocument()
-        if existingDoc.exists, let d = existingDoc.data() {
+
+        // Check both role orderings (either party may have been userId1 as sender)
+        let snap1 = try await db.collection("friendships")
+            .whereField("userId1", isEqualTo: currentUID)
+            .whereField("userId2", isEqualTo: targetId)
+            .limit(to: 1)
+            .getDocuments()
+        let snap2 = try await db.collection("friendships")
+            .whereField("userId1", isEqualTo: targetId)
+            .whereField("userId2", isEqualTo: currentUID)
+            .limit(to: 1)
+            .getDocuments()
+
+        if let existingDoc = snap1.documents.first ?? snap2.documents.first {
+            let d = existingDoc.data()
             // If the other user sent us a pending request, auto-accept it
             if d["userId1"] as? String == targetId,
                d["userId2"] as? String == currentUID,
@@ -57,34 +112,89 @@ extension FirebaseSocialService {
             logger.info("Friendship already exists between \(currentUID) and \(targetId)")
             return false
         }
-        // Resolve sender's display name for pending request UI
+
+        // No existing friendship — create a new pending request
         let senderName = auth.currentUser?.displayName ?? "Player"
+        // Fall back to a friendCodes lookup if the caller didn't pass a name.
+        // Resolved outside the ?? chain because `??` uses an autoclosure RHS that
+        // can't await.
+        let resolvedRecipientName: String
+        if let provided = recipientDisplayName?.nonEmpty {
+            resolvedRecipientName = provided
+        } else if let looked = await Self.fetchRecipientDisplayName(
+            targetId: targetId, db: db, logger: logger
+        ) {
+            resolvedRecipientName = looked
+        } else {
+            resolvedRecipientName = "Player"
+        }
         try await db.collection("friendships").document(docId).setData([
             "userId1": currentUID,
             "userId2": targetId,
             "status": FriendshipStatus.pending.rawValue,
             "senderDisplayName": senderName,
+            "recipientDisplayName": resolvedRecipientName,
             "createdAt": Timestamp(date: Date())
         ])
         logger.info("Sent friend request to \(targetId)")
         return false
     }
 
+    /// Best-effort: look up a user's display name from the publicly-readable
+    /// friendCodes collection (any signed-in user can read it). Returns nil if not found.
+    private static func fetchRecipientDisplayName(
+        targetId: String,
+        db: Firestore,
+        logger: Logger
+    ) async -> String? {
+        do {
+            let snap = try await db.collection("friendCodes")
+                .whereField("userId", isEqualTo: targetId)
+                .limit(to: 1)
+                .getDocuments()
+            return (snap.documents.first?.data()["displayName"] as? String)?.nonEmpty
+        } catch {
+            logger.warning("Failed friendCodes lookup for \(targetId): \(error.localizedDescription)")
+            return nil
+        }
+    }
+
     func acceptFriendRequest(friendshipId: String) async throws {
         let docRef = db.collection("friendships").document(friendshipId)
 
-        // Validate the friendship exists
-        let snapshot = try await docRef.getDocument()
+        // Validate the friendship exists. Use server source to bypass Firestore's
+        // Watch path (offline persistence routes one-shot reads through Watch, and
+        // Watch streams on the friendship rule can produce false permission errors).
+        let snapshot = try await docRef.getDocument(source: .server)
         guard snapshot.exists, snapshot.data() != nil else {
             throw FirebaseSocialError.documentNotFound
         }
 
-        // Update status to accepted
+        // Refresh recipientDisplayName with our current name so the sender sees an
+        // up-to-date label after we accept. This also covers the case where the
+        // sender wrote a stale name at request time.
+        let myFreshName: String = {
+            if let authName = auth.currentUser?.displayName?.nonEmpty {
+                return authName
+            }
+            return "Player"
+        }()
+        // If auth has no displayName, fall back to our own /users doc (always readable by self).
+        let resolvedName: String
+        if myFreshName != "Player" {
+            resolvedName = myFreshName
+        } else if let mine = try? await myProfile() {
+            resolvedName = mine.displayName.nonEmpty ?? "Player"
+        } else {
+            resolvedName = "Player"
+        }
+
         try await docRef.updateData([
-            "status": FriendshipStatus.accepted.rawValue
+            "status": FriendshipStatus.accepted.rawValue,
+            "recipientDisplayName": resolvedName
         ])
 
- logger.info("Accepted friendship \(friendshipId)")
+        logger.info("Accepted friendship \(friendshipId)")
         invalidateFriendsCache()
 
         // Reconcile allowedReaders on recent scores so the new friend
@@ -213,17 +323,18 @@ extension FirebaseSocialService {
     }
 
     func fetchProfiles(for userIds: [String]) async -> [UserProfile] {
+        // Server-source reads to bypass Firestore's Watch path (offline persistence
+        // routes one-shot reads through Watch, where areFriends() in the users rule
+        // can produce false permission denials). Friend display names are now
+        // denormalized on friendship docs, so this is a rarely-used fallback path.
         var profiles: [UserProfile] = []
-        for chunk in userIds.chunked(into: 10) {
+        for userId in userIds {
             do {
-                let snap = try await db.collection("users")
-                    .whereField(FieldPath.documentID(), in: chunk)
-                    .getDocuments()
-                for doc in snap.documents {
-                    profiles.append(Self.parseUserProfile(id: doc.documentID, data: doc.data()))
-                }
+                let doc = try await db.collection("users").document(userId).getDocument(source: .server)
+                guard doc.exists, let data = doc.data() else { continue }
+                profiles.append(Self.parseUserProfile(id: doc.documentID, data: data))
             } catch {
- logger.warning("Failed to fetch profiles: \(error.localizedDescription)")
+                logger.warning("Failed to fetch profile for \(userId): \(error.localizedDescription)")
             }
         }
         return profiles
@@ -254,7 +365,8 @@ extension FirebaseSocialService {
             userId2: u2,
             status: status,
             createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
-            senderDisplayName: data["senderDisplayName"] as? String
+            senderDisplayName: data["senderDisplayName"] as? String,
+            recipientDisplayName: data["recipientDisplayName"] as? String
         )
     }
 

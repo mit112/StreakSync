@@ -61,7 +61,7 @@ private struct PlayGameButton: View {
 // MARK: - Manual Entry Button
 private struct ManualEntryButton: View {
     @Binding var showingManualEntry: Bool
-    
+
     var body: some View {
         Button {
             showingManualEntry = true
@@ -71,9 +71,21 @@ private struct ManualEntryButton: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
         }
-        .buttonStyle(.glass)
+        .modifier(AdaptiveGlassButtonStyle())
         .pressable(hapticType: .buttonTap)
         .hoverable()
+    }
+}
+
+private struct AdaptiveGlassButtonStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        Group {
+            if #available(iOS 26, *) {
+                content.buttonStyle(.glass)
+            } else {
+                content.buttonStyle(.bordered)
+            }
+        }
     }
 }
 

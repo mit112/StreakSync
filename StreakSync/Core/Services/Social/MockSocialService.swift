@@ -50,7 +50,7 @@ final class MockSocialService: SocialService {
     
     // MARK: - Friends
     func listFriends() async throws -> [UserProfile] { return [] }
-    func sendFriendRequest(toUserId: String) async throws -> Bool { false }
+    func sendFriendRequest(toUserId: String, recipientDisplayName: String?) async throws -> Bool { false }
     func acceptFriendRequest(friendshipId: String) async throws { }
     func removeFriend(friendshipId: String) async throws { }
     func removeFriend(userId: String) async throws { }
@@ -192,7 +192,7 @@ final class ReviewModeSocialService: SocialService {
     }
 
     @discardableResult
-    func sendFriendRequest(toUserId: String) async throws -> Bool { false }
+    func sendFriendRequest(toUserId: String, recipientDisplayName: String?) async throws -> Bool { false }
     func acceptFriendRequest(friendshipId: String) async throws { }
     func removeFriend(friendshipId: String) async throws { }
     func removeFriend(userId: String) async throws { }

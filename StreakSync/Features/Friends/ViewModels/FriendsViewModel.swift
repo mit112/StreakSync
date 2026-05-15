@@ -21,6 +21,10 @@ final class FriendsViewModel: ObservableObject {
     @Published var isPresentingDatePicker: Bool = false
     @Published var currentGamePage: Int = 0
     @Published var myUserId: String?
+    /// Monotonically increasing counter bumped whenever the friendship listener
+    /// fires. Views (e.g. `FriendManagementView`) can observe this via `.onChange`
+    /// instead of opening their own redundant Firestore listener.
+    @Published var friendshipChangeTick: Int = 0
     
     // All games with parsers appear on the leaderboard
     var availableGames: [Game] { Game.allAvailableGames }
@@ -165,8 +169,11 @@ final class FriendsViewModel: ObservableObject {
         }
         
         // Friendship listener — triggers full reload when friends are added/removed
+        // and bumps friendshipChangeTick so any open sheet (e.g. FriendManagementView)
+        // can refresh its own state without opening a second Firestore listener.
         friendshipListenerHandle = socialService.addFriendshipListener { [weak self] in
             guard let self else { return }
+            self.friendshipChangeTick &+= 1
             Task { await self.refresh() }
         }
         

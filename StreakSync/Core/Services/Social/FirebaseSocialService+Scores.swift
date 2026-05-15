@@ -194,8 +194,14 @@ extension FirebaseSocialService {
         let cutoffInt = cutoffDate.localDateInt
 
         do {
+            // The score read rule requires `request.auth.uid in resource.data.allowedReaders`.
+            // Firestore validates collection queries against query constraints, so we must
+            // include arrayContains(allowedReaders, currentUID) for the query to be authorized.
+            // Owners are always in allowedReaders by the score create/update rule, so this
+            // returns the same set as a pure ownership query.
             let snapshot = try await db.collection("scores")
                 .whereField("userId", isEqualTo: currentUID)
+                .whereField("allowedReaders", arrayContains: currentUID)
                 .whereField("dateInt", isGreaterThanOrEqualTo: cutoffInt)
                 .getDocuments()
 

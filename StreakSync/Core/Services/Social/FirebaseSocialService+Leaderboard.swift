@@ -86,18 +86,31 @@ extension FirebaseSocialService {
     private func fetchDisplayNames(for userIds: [String]) async -> [String: String] {
         guard !userIds.isEmpty else { return [:] }
         var names: [String: String] = [:]
-        for chunk in userIds.chunked(into: 10) {
-            do {
-                let snap = try await db.collection("users")
-                    .whereField(FieldPath.documentID(), in: chunk)
-                    .getDocuments()
-                for doc in snap.documents {
-                    let name = (doc.data()["displayName"] as? String)?.nonEmpty ?? "Player"
-                    names[doc.documentID] = name
-                }
-            } catch {
- logger.warning("Failed to fetch display names: \(error.localizedDescription)")
+        let currentUID = uid ?? ""
+        let neededIds = Set(userIds)
+
+        // Self: read from auth or own profile (always readable by self).
+        if neededIds.contains(currentUID) {
+            if let authName = auth.currentUser?.displayName?.nonEmpty {
+                names[currentUID] = authName
+            } else if let mine = try? await myProfile() {
+                names[currentUID] = mine.displayName
+            } else {
+                names[currentUID] = "Player"
             }
+        }
+
+        // Friends: derived from denormalized fields on friendship docs (no /users reads).
+        let friends = (try? await listFriends()) ?? []
+        for friend in friends where neededIds.contains(friend.id) {
+            names[friend.id] = friend.displayName
+        }
+
+        // Any leftover IDs (e.g. former friends still visible in `allowedReaders`):
+        // fall back to "Player" rather than triggering a /users read which may be
+        // denied by the areFriends() rule under Watch semantics.
+        for id in neededIds where names[id] == nil {
+            names[id] = "Player"
         }
         return names
     }
@@ -145,6 +158,19 @@ extension FirebaseSocialService {
         guard let currentUID = Auth.auth().currentUser?.uid else { return nil }
         let db = Firestore.firestore()
         let log = Logger(subsystem: "com.streaksync.app", category: "FirebaseSocialService")
+
+        // Wrap onChange so every snapshot change also clears the friends cache.
+        // Without this, remote-driven changes (e.g. recipient accepts on the other
+        // device) wouldn't surface in listFriends() until the 60s TTL expires.
+        // The wrapper is @MainActor + Sendable, so the snapshot closures (which run
+        // off the main actor) don't have to cross isolation themselves — they just
+        // hop to MainActor and invoke this wrapper.
+        let invalidateAndNotify: @MainActor @Sendable () -> Void = { [weak self] in
+            self?.cachedFriends = nil
+            self?.friendsCacheTimestamp = nil
+            onChange()
+        }
+
         var isFirstSnapshot1 = true
         var isFirstSnapshot2 = true
 
@@ -159,7 +185,7 @@ extension FirebaseSocialService {
                 if isFirstSnapshot1 { isFirstSnapshot1 = false; return }
                 guard let snapshot, !snapshot.documentChanges.isEmpty else { return }
                 log.debug("📡 Friendship listener (u1): \(snapshot.documentChanges.count) changes")
-                Task { @MainActor in onChange() }
+                Task { @MainActor in invalidateAndNotify() }
             }
 
         // Listen for friendships where I'm userId2
@@ -173,7 +199,7 @@ extension FirebaseSocialService {
                 if isFirstSnapshot2 { isFirstSnapshot2 = false; return }
                 guard let snapshot, !snapshot.documentChanges.isEmpty else { return }
                 log.debug("📡 Friendship listener (u2): \(snapshot.documentChanges.count) changes")
-                Task { @MainActor in onChange() }
+                Task { @MainActor in invalidateAndNotify() }
             }
 
         log.info("📡 Started friendship listener for user \(currentUID)")

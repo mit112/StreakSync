@@ -172,36 +172,53 @@ service cloud.firestore {
 
     // --- Friendships ---
     match /friendships/{friendshipId} {
-      // Read: either party — or resource==null (non-existent doc) to allow
-      // getDocument() existence checks in sendFriendRequest without exposing content.
-      // Collection queries are unaffected; returned docs always have resource != null.
-      allow read: if isSignedIn()
-        && (resource == null
-            || resource.data.userId1 == request.auth.uid
+      // Read access restricted to parties. resource==null (non-existent doc) is
+      // intentionally NOT handled here — sendFriendRequest uses collection queries
+      // (allow list) for existence checks instead of getDocument(), which avoids
+      // Firestore Watch stream rule evaluation issues on non-existent documents.
+      allow get: if isSignedIn()
+        && (resource.data.userId1 == request.auth.uid
+            || resource.data.userId2 == request.auth.uid);
+
+      allow list: if isSignedIn()
+        && (resource.data.userId1 == request.auth.uid
             || resource.data.userId2 == request.auth.uid);
 
       // Create: sender must be userId1, status must start as pending,
       // required fields present, sender != recipient.
-      // senderDisplayName is size-limited.
+      // sender/recipientDisplayName are denormalized identity labels (size-limited).
+      // recipientDisplayName lets the client render friend names off the friendship
+      // doc itself, avoiding fragile cross-document rule lookups in /users.
       allow create: if isSignedIn()
         && request.resource.data.userId1 == request.auth.uid
         && request.resource.data.userId1 != request.resource.data.userId2
         && request.resource.data.status == 'pending'
-        && hasRequiredAndOnly(['userId1', 'userId2', 'status', 'createdAt'], ['senderDisplayName'])
+        && hasRequiredAndOnly(
+          ['userId1', 'userId2', 'status', 'createdAt'],
+          ['senderDisplayName', 'recipientDisplayName']
+        )
         && request.resource.data.userId1 is string
         && request.resource.data.userId2 is string
         && (!('senderDisplayName' in request.resource.data)
-            || isShortString(request.resource.data.senderDisplayName));
+            || isShortString(request.resource.data.senderDisplayName))
+        && (!('recipientDisplayName' in request.resource.data)
+            || isShortString(request.resource.data.recipientDisplayName));
 
-      // Update: ONLY the recipient (userId2) can accept,
-      // and ONLY the status field may change (to 'accepted').
-      // userId1, userId2 are immutable.
+      // Update: ONLY the recipient (userId2) can accept. status must transition
+      // pending → accepted. userId1, userId2, createdAt, senderDisplayName are
+      // immutable. The recipient may refresh their own recipientDisplayName at
+      // accept time (size-limited).
       allow update: if isSignedIn()
         && resource.data.userId2 == request.auth.uid
         && request.resource.data.status == 'accepted'
         && resource.data.status == 'pending'
         && request.resource.data.userId1 == resource.data.userId1
-        && request.resource.data.userId2 == resource.data.userId2;
+        && request.resource.data.userId2 == resource.data.userId2
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (!('senderDisplayName' in resource.data)
+            || request.resource.data.senderDisplayName == resource.data.senderDisplayName)
+        && (!('recipientDisplayName' in request.resource.data)
+            || isShortString(request.resource.data.recipientDisplayName));
 
       // Delete: either party can remove the friendship
       allow delete: if isSignedIn()

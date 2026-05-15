@@ -10,6 +10,10 @@ import SwiftUI
 @MainActor
 struct FriendManagementView: View {
     let socialService: SocialService
+    /// Bumps whenever the friendship listener (owned by `FriendsViewModel`) fires.
+    /// Observed via `.onChange` to refresh local state without opening a second
+    /// Firestore listener of our own.
+    var friendshipChangeTick: Int = 0
     var initialJoinCode: String?
 
     @State private var friends: [UserProfile] = []
@@ -49,6 +53,11 @@ struct FriendManagementView: View {
                     addCode = code
                     await addFriendByCode()
                 }
+            }
+            // Live friendship updates come via FriendsViewModel's single listener;
+            // we just react to its tick counter to keep this sheet's local state fresh.
+            .onChange(of: friendshipChangeTick) { _, _ in
+                Task { await loadFriendshipState() }
             }
             .alert("Error", isPresented: .constant(errorMessage != nil)) {
                 Button("OK") { errorMessage = nil }
@@ -251,7 +260,10 @@ private extension FriendManagementView {
                 errorMessage = "No user found with that code."
                 return
             }
-            let autoAccepted = try await socialService.sendFriendRequest(toUserId: found.id)
+            let autoAccepted = try await socialService.sendFriendRequest(
+                toUserId: found.id,
+                recipientDisplayName: found.displayName
+            )
             addCode = ""
             if autoAccepted {
                 successMessage = "You're now friends with \(found.displayName)!"
@@ -284,4 +296,24 @@ private extension FriendManagementView {
             errorMessage = error.localizedDescription
         }
     }
+
+    /// Reload only the friendship-driven state (friends list + pending requests),
+    /// leaving the user's typed input (addCode, success/error messages) intact.
+    func loadFriendshipState() async {
+        do {
+            let newFriends = try await socialService.listFriends()
+            let newPending = try await socialService.pendingRequests()
+            friends = newFriends
+            pendingRequests = newPending
+            var names: [String: String] = [:]
+            for request in newPending {
+                names[request.userId1] = request.senderDisplayName ?? "Player"
+            }
+            requesterNames = names
+        } catch {
+            // Listener-driven refresh; keep the previous snapshot on error rather
+            // than blanking the UI or surfacing a transient error to the user.
+        }
+    }
+
 }

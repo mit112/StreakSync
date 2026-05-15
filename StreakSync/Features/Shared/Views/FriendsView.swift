@@ -51,10 +51,14 @@ struct FriendsView: View {
             case .join(let initialCode):
                 FriendManagementView(
                     socialService: viewModel.socialService,
+                    friendshipChangeTick: viewModel.friendshipChangeTick,
                     initialJoinCode: initialCode
                 )
             case .manage:
-                FriendManagementView(socialService: viewModel.socialService)
+                FriendManagementView(
+                    socialService: viewModel.socialService,
+                    friendshipChangeTick: viewModel.friendshipChangeTick
+                )
             }
         }
         .onChange(of: navigationCoordinator.shouldShowJoinSheet) { _, shouldShowJoinSheet in

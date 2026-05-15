@@ -24,8 +24,12 @@ struct MainTabView: View {
 
     @ViewBuilder
     private var tabContent: some View {
-        sharedTabView
-            .tabBarMinimizeBehavior(.onScrollDown)
+        if #available(iOS 26, *) {
+            sharedTabView
+                .tabBarMinimizeBehavior(.onScrollDown)
+        } else {
+            sharedTabView
+        }
     }
 
     private var sharedTabView: some View {

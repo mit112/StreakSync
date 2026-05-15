@@ -57,23 +57,23 @@ final class SocialModelTests: XCTestCase {
     // MARK: - Friendship
 
     func testOtherUserId_asSender() {
-        let f = Friendship(id: "f1", userId1: "alice", userId2: "bob", status: .accepted, createdAt: Date(), senderDisplayName: nil)
+        let f = Friendship(id: "f1", userId1: "alice", userId2: "bob", status: .accepted, createdAt: Date(), senderDisplayName: nil, recipientDisplayName: nil)
         XCTAssertEqual(f.otherUserId(me: "alice"), "bob")
     }
 
     func testOtherUserId_asReceiver() {
-        let f = Friendship(id: "f1", userId1: "alice", userId2: "bob", status: .accepted, createdAt: Date(), senderDisplayName: nil)
+        let f = Friendship(id: "f1", userId1: "alice", userId2: "bob", status: .accepted, createdAt: Date(), senderDisplayName: nil, recipientDisplayName: nil)
         XCTAssertEqual(f.otherUserId(me: "bob"), "alice")
     }
 
     func testFriendshipStatus_pending() {
-        let f = Friendship(id: "f1", userId1: "a", userId2: "b", status: .pending, createdAt: Date(), senderDisplayName: "Alice")
+        let f = Friendship(id: "f1", userId1: "a", userId2: "b", status: .pending, createdAt: Date(), senderDisplayName: "Alice", recipientDisplayName: nil)
         XCTAssertEqual(f.status, .pending)
         XCTAssertEqual(f.senderDisplayName, "Alice")
     }
 
     func testFriendshipStatus_accepted() {
-        let f = Friendship(id: "f1", userId1: "a", userId2: "b", status: .accepted, createdAt: Date(), senderDisplayName: nil)
+        let f = Friendship(id: "f1", userId1: "a", userId2: "b", status: .accepted, createdAt: Date(), senderDisplayName: nil, recipientDisplayName: nil)
         XCTAssertEqual(f.status, .accepted)
     }
 
