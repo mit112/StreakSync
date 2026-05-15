@@ -6,6 +6,7 @@
 //
 
 import Combine
+import FirebaseAuth
 import FirebaseCore
 import FirebaseFirestore
 import OSLog
@@ -49,6 +50,7 @@ final class AppContainer: ObservableObject {
     // data clear + re-sync) from a provider upgrade (anonymous → Apple/Google on
     // the same UID, needs only an incremental sync).
     private var lastKnownUID: String?
+    private var lastKnownProvider: AuthProvider = .anonymous
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Logger
@@ -180,8 +182,8 @@ final class AppContainer: ObservableObject {
     /// subscription. App startup (`initializeApp()`) already ran the full pipeline,
     /// so we must not re-run it here or we'd double-sync on every launch.
     private func setupAuthStateObserver() {
-        // Capture the UID active at subscription time as the baseline.
         lastKnownUID = firebaseAuthManager.uid
+        lastKnownProvider = firebaseAuthManager.authProvider
 
         firebaseAuthManager.$currentUser
             .dropFirst()
@@ -189,71 +191,56 @@ final class AppContainer: ObservableObject {
                 guard let self else { return }
 
                 let newUID = newUser?.uid
+                let newProvider = AppContainer.deriveProvider(from: newUser)
                 let previousUID = self.lastKnownUID
+                let previousProvider = self.lastKnownProvider
                 self.lastKnownUID = newUID
+                self.lastKnownProvider = newProvider
 
-                // Skip if UID did not actually change (e.g. displayName update).
-                guard newUID != previousUID else { return }
-
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    await self.handleAuthUserChanged(from: previousUID, to: newUID)
+                if newUID != previousUID {
+                    // Account switch: UID changed — wipe stale data and full sync.
+                    logger.info("Auth: UID changed (\(previousUID ?? "nil") → \(newUID ?? "nil")) — clearing stale data and re-syncing")
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        await self.handleAuthUserChanged(from: previousUID, to: newUID)
+                    }
+                } else if previousProvider == .anonymous, newProvider != .anonymous {
+                    // Provider upgrade: same UID, anonymous → social.
+                    // Capture values now; auth state may change before the Task runs.
+                    let provider = newProvider
+                    let name = newUser?.displayName
+                    logger.info("Auth: provider upgraded for UID \(newUID ?? "nil")")
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        await self.handleProviderUpgraded(to: provider, displayName: name)
+                    }
                 }
+                // else: no-op (display name update, re-auth to same anonymous UID, etc.)
             }
             .store(in: &cancellables)
     }
 
-    /// Runs the correct sync pipeline for the given UID transition.
+    /// Handles a Firebase UID change (account switch: UID-A → UID-B).
     ///
-    /// - Parameters:
-    ///   - previousUID: The Firebase UID before the auth change, or `nil` if the
-    ///     app was unauthenticated (shouldn't happen in practice, but handled safely).
-    ///   - newUID: The Firebase UID after the auth change, or `nil` if the user
-    ///     signed out (re-auth is handled by `FirebaseAuthStateManager` itself).
-    ///
-    /// Expected flow on UID change:
-    ///   1. If newUID is nil (signed out) → return; FirebaseAuthStateManager re-auths.
-    ///   2. If UID changed (account switch):
-    ///      a. Remove the previous UID's gameResultSync_lastTimestamp_<uid> key.
-    ///      b. cleanupForSignOut: clears AppState data, sync timestamp (new UID, no-op
-    ///         beyond defense-in-depth), and AppGroup queue.
-    ///   3. Else (same UID — provider upgrade): log only, no clear.
+    /// Expected flow:
+    ///   1. If newUID is nil (signed out) → return; FirebaseAuthStateManager re-auths anonymously.
+    ///   2. Remove the previous UID's sync timestamp key (stale — targets the old UID).
+    ///   3. cleanupForSignOut: clears AppState, sync timestamp (new UID, defense-in-depth),
+    ///      and AppGroup queue so Share Extension results from the old session are discarded.
     ///   4. loadPersistedData → syncIfNeeded → rebuildStreaksFromResults →
     ///      normalizeStreaksForMissedDays → achievementSyncService.syncIfEnabled.
     private func handleAuthUserChanged(from previousUID: String?, to newUID: String?) async {
         guard let newUID else {
-            // Signed-out state — FirebaseAuthStateManager re-authenticates anonymously,
-            // which will fire another auth change. Nothing to do here.
             logger.info("Auth: signed out — waiting for re-authentication")
             return
         }
 
         if let previousUID, previousUID != newUID {
-            // ──────────────────────────────────────────────────────────────
-            // Account switch: UID changed. The in-memory and on-disk data
-            // belong to the previous user and must be wiped before syncing.
-            // Remove the old UID's sync timestamp BEFORE cleanupForSignOut()
-            // so we target the correct key (cleanupForSignOut uses the new
-            // UID's key, which is fine as defense-in-depth but not the stale one).
-            // cleanupForSignOut() also flushes the App Group queue so Share
-            // Extension results from the old session don't get ingested into
-            // the new one.
-            // ──────────────────────────────────────────────────────────────
-            logger.info("Auth: UID changed (\(previousUID) → \(newUID)) — clearing stale data and re-syncing")
             let oldKey = "gameResultSync_lastTimestamp_\(previousUID)"
             UserDefaults.standard.removeObject(forKey: oldKey)
             await cleanupForSignOut()
-        } else {
-            // ──────────────────────────────────────────────────────────────
-            // Provider upgrade: anonymous → Apple/Google on the same UID.
-            // Local data is correct. A full sync still runs so any results
-            // recorded on another device are pulled down immediately.
-            // ──────────────────────────────────────────────────────────────
-            logger.info("Auth: provider upgraded for UID \(newUID) — running incremental sync")
         }
 
-        // Re-run the same pipeline as cold-launch initializeApp(), minus the
-        // notification-permission setup (not needed for a mid-session transition).
         await appState.loadPersistedData()
         await gameResultSyncService.syncIfNeeded()
         await appState.rebuildStreaksFromResults()
@@ -261,6 +248,26 @@ final class AppContainer: ObservableObject {
         await achievementSyncService.syncIfEnabled()
 
         logger.info("Auth: post-sign-in sync complete for UID \(newUID)")
+    }
+
+    /// Handles an anonymous → social provider upgrade on the same Firebase UID.
+    ///
+    /// Expected flow:
+    ///   1. updateProfile: writes correct displayName and authProvider to Firestore.
+    ///   2. syncIfNeeded → rebuildStreaksFromResults → achievementSyncService.syncIfEnabled.
+    ///
+    /// Parameters are captured at subscriber time for determinism — auth state may
+    /// change again before this Task executes.
+    private func handleProviderUpgraded(to provider: AuthProvider, displayName: String?) async {
+        logger.info("Auth: provider upgraded to \(provider.rawValue) — updating profile")
+        try? await socialService.updateProfile(
+            displayName: displayName,
+            authProvider: provider.rawValue
+        )
+        await gameResultSyncService.syncIfNeeded()
+        await appState.rebuildStreaksFromResults()
+        await achievementSyncService.syncIfEnabled()
+        logger.info("Auth: provider upgrade complete")
     }
     
     // MARK: - Sign-Out Cleanup
@@ -276,8 +283,25 @@ final class AppContainer: ObservableObject {
         appGroupBridge.clearAllData()
     }
 
+    // MARK: - Provider Derivation
+
+    /// Derives the auth provider from a Firebase User's providerData.
+    /// Called in the $currentUser subscriber — cannot read firebaseAuthManager.authProvider
+    /// because it is set on the line after currentUser in setupAuthListener.
+    private static func deriveProvider(from user: User?) -> AuthProvider {
+        guard let user, !user.isAnonymous else { return .anonymous }
+        return deriveProvider(fromProviderIDs: user.providerData.map { $0.providerID })
+    }
+
+    /// Pure derivation from provider ID strings. `internal nonisolated` for testability.
+    internal nonisolated static func deriveProvider(fromProviderIDs ids: [String]) -> AuthProvider {
+        if ids.contains("apple.com") { return .apple }
+        if ids.contains("google.com") { return .google }
+        return .anonymous
+    }
+
     // MARK: - App Lifecycle
-    
+
     /// Call when app becomes active
     ///
     /// Expected flow on app foreground:
