@@ -172,9 +172,12 @@ service cloud.firestore {
 
     // --- Friendships ---
     match /friendships/{friendshipId} {
-      // Read: either party
+      // Read: either party — or resource==null (non-existent doc) to allow
+      // getDocument() existence checks in sendFriendRequest without exposing content.
+      // Collection queries are unaffected; returned docs always have resource != null.
       allow read: if isSignedIn()
-        && (resource.data.userId1 == request.auth.uid
+        && (resource == null
+            || resource.data.userId1 == request.auth.uid
             || resource.data.userId2 == request.auth.uid);
 
       // Create: sender must be userId1, status must start as pending,
