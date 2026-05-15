@@ -136,7 +136,6 @@ final class FirebaseAuthStateManager: ObservableObject {
  logger.info("Apple Sign-In: uid=\(result.user.uid, privacy: .private)")
                 await updateDisplayNameFromApple(appleCredential.fullName, user: result.user)
             }
-            authProvider = .apple
             currentNonce = nil
         } catch let error as NSError where error.code == AuthErrorCode.credentialAlreadyInUse.rawValue {
             // The Apple credential is already linked to a different Firebase account.
@@ -145,11 +144,9 @@ final class FirebaseAuthStateManager: ObservableObject {
             if let updatedCredential = error.userInfo[AuthErrorUserInfoUpdatedCredentialKey] as? AuthCredential {
                 let result = try await auth.signIn(with: updatedCredential)
  logger.info("Signed in to existing Apple account: uid=\(result.user.uid, privacy: .private)")
-                authProvider = .apple
             } else {
                 // Fallback: try signing in directly
                 let result = try await auth.signIn(with: credential)
-                authProvider = .apple
  logger.info("Fallback Apple sign-in: uid=\(result.user.uid, privacy: .private)")
             }
             currentNonce = nil
@@ -220,7 +217,6 @@ final class FirebaseAuthStateManager: ObservableObject {
  logger.info("Google Sign-In: uid=\(authResult.user.uid, privacy: .private)")
                 await updateDisplayNameFromGoogle(result.user, firebaseUser: authResult.user)
             }
-            authProvider = .google
         } catch let error as GIDSignInError where error.code == .canceled {
             // User cancelled — not an error
  logger.debug("Google Sign-In cancelled by user")
@@ -229,7 +225,6 @@ final class FirebaseAuthStateManager: ObservableObject {
  logger.warning("Google credential already in use — signing in to existing account")
             if let updatedCredential = error.userInfo[AuthErrorUserInfoUpdatedCredentialKey] as? AuthCredential {
                 let authResult = try await auth.signIn(with: updatedCredential)
-                authProvider = .google
  logger.info("Signed in to existing Google account: uid=\(authResult.user.uid, privacy: .private)")
             } else {
                 authError = FirebaseAuthError.accountExistsWithDifferentCredential
