@@ -49,16 +49,16 @@ struct ShareSheetMockup: View {
 
     private func tileRow(colors: [Color]) -> some View {
         HStack(spacing: 4) {
-            ForEach(0..<colors.count, id: \.self) { i in
+            ForEach(0..<colors.count, id: \.self) { index in
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(tileColor(colors[i]))
+                    .fill(tileColor(colors[index]))
                     .frame(width: 22, height: 22)
             }
         }
     }
 
-    private func tileColor(_ c: Color) -> Color {
-        switch c {
+    private func tileColor(_ color: Color) -> Color {
+        switch color {
         case .green: return Color(red: 0.42, green: 0.67, blue: 0.39)
         case .yellow: return Color(red: 0.79, green: 0.71, blue: 0.34)
         default: return Color(red: 0.47, green: 0.49, blue: 0.49)

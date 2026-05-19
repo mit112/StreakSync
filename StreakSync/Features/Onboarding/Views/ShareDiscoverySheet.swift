@@ -26,7 +26,10 @@ struct ShareDiscoverySheet: View {
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.primary)
 
-                        Text("Finish a game in Wordle (or any of 16 supported games). Tap **Share**, then pick **StreakSync**. We'll record the result automatically.")
+                        let bodyText = "Finish a game in Wordle (or any of 16 supported games). "
+                            + "Tap **Share**, then pick **StreakSync**. "
+                            + "We'll record the result automatically."
+                        Text(.init(bodyText))
                             .font(.body)
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)

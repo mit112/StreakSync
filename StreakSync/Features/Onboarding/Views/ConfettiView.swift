@@ -29,8 +29,8 @@ struct ConfettiView: View {
                         let elapsed = timeline.date.timeIntervalSince(startDate)
                         guard elapsed >= 0, elapsed <= duration else { return }
 
-                        for i in 0..<particleCount {
-                            let seed = Double(i)
+                        for index in 0..<particleCount {
+                            let seed = Double(index)
                             let xFrac = (seed * 0.137).truncatingRemainder(dividingBy: 1.0)
                             let xBase = size.width * xFrac
                             let xDrift = sin(elapsed * 1.5 + seed) * 30
@@ -44,7 +44,7 @@ struct ConfettiView: View {
                             let rect = CGRect(x: -4, y: -6, width: 8, height: 12)
                             ctx.fill(
                                 Path(roundedRect: rect, cornerRadius: 1),
-                                with: .color(colors[i % colors.count].opacity(opacity))
+                                with: .color(colors[index % colors.count].opacity(opacity))
                             )
                         }
                     }

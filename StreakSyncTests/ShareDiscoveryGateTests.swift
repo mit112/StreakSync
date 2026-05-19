@@ -5,11 +5,10 @@
 //  Tests for the share-discovery decision gate
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 final class ShareDiscoveryGateTests: XCTestCase {
-
     // MARK: - shouldShowOnboarding
 
     func testShouldShowOnboarding_zeroResultsAndUnseen_returnsTrue() {

@@ -10,7 +10,6 @@ import Foundation
 /// Pure decision logic for share-discovery surfaces. Decoupled from UserDefaults and SwiftUI
 /// so it can be exercised in tests without any system dependencies.
 enum ShareDiscoveryGate {
-
     /// Should the first-launch teaching sheet be presented?
     /// True when the user has never logged a result AND has not yet dismissed the sheet.
     static func shouldShowOnboarding(resultsCount: Int, hasSeen: Bool) -> Bool {

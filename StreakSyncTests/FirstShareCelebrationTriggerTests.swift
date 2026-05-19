@@ -6,13 +6,12 @@
 //  notification exactly once on the 0→1 transition.
 //
 
-import XCTest
 @testable import StreakSync
+import XCTest
 
 @MainActor
 final class FirstShareCelebrationTriggerTests: XCTestCase {
-
-    private var appState: AppState!
+    private var appState: AppState?
     private var observer: NSObjectProtocol?
     private var notificationCount: Int = 0
     private var capturedGameName: String?
@@ -62,21 +61,21 @@ final class FirstShareCelebrationTriggerTests: XCTestCase {
 
     func testFirstResultPostsCelebrationNotification() {
         let result = makeResult(gameName: "Wordle")
-        _ = appState.addGameResult(result)
+        _ = appState?.addGameResult(result)
         XCTAssertEqual(notificationCount, 1)
         XCTAssertEqual(capturedGameName, "Wordle")
         XCTAssertTrue(UserDefaults.standard.bool(forKey: AppConstants.Onboarding.hasSeenFirstShareCelebration))
     }
 
     func testSecondResultDoesNotPostCelebration() {
-        _ = appState.addGameResult(makeResult(gameName: "Wordle"))
-        _ = appState.addGameResult(makeResult(gameName: "Connections"))
+        _ = appState?.addGameResult(makeResult(gameName: "Wordle"))
+        _ = appState?.addGameResult(makeResult(gameName: "Connections"))
         XCTAssertEqual(notificationCount, 1, "Should fire only on the 0→1 transition, not on subsequent adds")
     }
 
     func testCelebrationDoesNotRepeatIfFlagAlreadySet() {
         UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenFirstShareCelebration)
-        _ = appState.addGameResult(makeResult())
+        _ = appState?.addGameResult(makeResult())
         XCTAssertEqual(notificationCount, 0)
     }
 }
