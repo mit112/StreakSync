@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (no code signing needed for simulator)
 xcodebuild build \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=F21EC641-574B-40EB-93FA-F5F464F006A5' \
+  -destination 'platform=iOS Simulator,id=756A6319-D17B-4178-98CC-433136B53668' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO --quiet \
   2>&1 | xcsift -w
 
@@ -152,15 +152,17 @@ Rules in `firestore.rules` with a 62-case pen test suite in `firestore-rules-tes
 
 **Always reference simulators by UDID, not by name.**
 
-- iPhone 17 Pro Max: `F21EC641-574B-40EB-93FA-F5F464F006A5` (preferred for testing)
-- iPhone 17 Pro: `F432D1C8-176E-4192-87E1-EC7C4925C069`
+- iPhone 17 Pro Max: `756A6319-D17B-4178-98CC-433136B53668` (preferred for testing)
+- iPhone 17 Pro: `6DF96BFC-D26F-4995-8149-1A5F3C893492`
+
+> **UDID drift:** These UDIDs change whenever Xcode is reinstalled or simulators are re-created. If `xcodebuild` rejects the destination with "device not found", run `xcrun simctl list devices available | grep "iPhone 17 Pro"` and update this file.
 
 Preferred destination string:
-`platform=iOS Simulator,id=F21EC641-574B-40EB-93FA-F5F464F006A5`
+`platform=iOS Simulator,id=756A6319-D17B-4178-98CC-433136B53668`
 
 **Always launch apps with:**
 ```bash
-xcrun simctl launch --terminate-running-process --console-pty F21EC641-574B-40EB-93FA-F5F464F006A5 com.mitsheth.StreakSync
+xcrun simctl launch --terminate-running-process --console-pty 756A6319-D17B-4178-98CC-433136B53668 com.mitsheth.StreakSync
 ```
 `--terminate-running-process` is mandatory — without it, launch silently does nothing if the app is already running.
 

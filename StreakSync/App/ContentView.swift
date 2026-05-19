@@ -34,6 +34,7 @@ struct ContentView: View {
             )
             
             MainTabView()
+                .firstShareCelebration()
                 .achievementCelebrations(coordinator: container.achievementCelebrationCoordinator)
                 .sheet(item: $navigationCoordinator.presentedSheet) { sheet in
                     sheetView(for: sheet)
