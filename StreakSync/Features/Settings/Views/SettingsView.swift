@@ -130,6 +130,19 @@ private struct IOS26SettingsContent: View {
                 ) {
                     VStack(spacing: 0) {
                         IOS26SettingsNavigationRow(
+                            icon: "square.and.arrow.up.on.square",
+                            iconColor: .accentColor,
+                            title: "How StreakSync works",
+                            subtitle: nil,
+                            showChevron: true
+                        ) {
+                            ShareDiscoverySheet(onDismiss: {})
+                        }
+
+                        Divider()
+                            .padding(.horizontal)
+
+                        IOS26SettingsNavigationRow(
                             icon: "info.circle",
                             iconColor: .gray,
                             title: "About",
