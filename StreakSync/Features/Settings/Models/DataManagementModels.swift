@@ -34,7 +34,6 @@ struct ExportData: Codable {
     let achievements: [TieredAchievement]
     let streaks: [GameStreak]
     let favoriteGameIds: [UUID]
-    let customGames: [Game]
 }
 
 // MARK: - Share Sheet (for Export)

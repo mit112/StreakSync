@@ -115,29 +115,4 @@ final class GameCatalog {
         }
     }
     
-    // MARK: - Game Management (Future)
-    
-    /// Add a new game to the catalog (for future custom games)
-    func addCustomGame(_ game: Game) {
-        guard !allGames.contains(where: { $0.id == game.id }) else {
- logger.warning("Attempted to add duplicate game: \(game.id)")
-            return
-        }
-        allGames.append(game)
- logger.info("Added custom game: \(game.displayName)")
-    }
-    
-    /// Remove a custom game (only custom games can be removed)
-    func removeCustomGame(_ gameId: UUID) {
-        guard let game = allGames.first(where: { $0.id == gameId }),
-              game.isCustom else {
- logger.warning("Cannot remove non-custom game: \(gameId)")
-            return
-        }
-        
-        allGames.removeAll { $0.id == gameId }
-        favoriteGameIDs.remove(gameId)
-        saveFavorites()
- logger.info("Removed custom game: \(game.displayName)")
-    }
 }

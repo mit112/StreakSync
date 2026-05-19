@@ -89,10 +89,6 @@ struct ContentView: View {
     @ViewBuilder
     private func sheetView(for sheet: NavigationCoordinator.SheetDestination) -> some View {
         switch sheet {
-        case .addCustomGame:
-            AddCustomGameView()
-                .environmentObject(container)
-            
         case .gameResult(let result):
             GameResultDetailView(result: result)
                 .environmentObject(container)

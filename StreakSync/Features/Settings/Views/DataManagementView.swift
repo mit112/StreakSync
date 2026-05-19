@@ -349,8 +349,7 @@ private extension DataManagementView {
                     gameResults: appState.recentResults,
                     achievements: appState.tieredAchievements,
                     streaks: appState.streaks,
-                    favoriteGameIds: Array(container.gameCatalog.favoriteGameIDs),
-                    customGames: []
+                    favoriteGameIds: Array(container.gameCatalog.favoriteGameIDs)
                 )
 
                 let jsonData = try encoder.encode(exportPayload)

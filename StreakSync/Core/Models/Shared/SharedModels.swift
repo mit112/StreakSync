@@ -37,9 +37,8 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
     let iconSystemName: String
     let backgroundColor: CodableColor
     let isPopular: Bool
-    let isCustom: Bool
     let scoringModel: ScoringModel
-    
+
     // MARK: - Safe Initializer
     init(
         id: UUID = UUID(),
@@ -51,7 +50,6 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         iconSystemName: String,
         backgroundColor: CodableColor,
         isPopular: Bool,
-        isCustom: Bool,
         scoringModel: ScoringModel = .lowerAttempts
     ) {
         self.id = id
@@ -63,19 +61,14 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         self.iconSystemName = iconSystemName
         self.backgroundColor = backgroundColor
         self.isPopular = isPopular
-        self.isCustom = isCustom
         self.scoringModel = scoringModel
     }
-    
+
     // MARK: - Computed Properties
     var hostDomain: String {
         url.host ?? "Unknown"
     }
-    
-    var isOfficial: Bool {
-        !isCustom
-    }
-    
+
     // MARK: - Sample Data
     static var sample: Game {
         Game(
@@ -86,8 +79,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
             resultPattern: "Wordle \\d+ \\d+/6",
             iconSystemName: "textformat.abc",
             backgroundColor: CodableColor(.green),
-            isPopular: true,
-            isCustom: false
+            isPopular: true
         )
     }
     

@@ -20,8 +20,7 @@ extension Game {
         resultPattern: #"Letter Boxed.*?in \d+ words"#,
         iconSystemName: "square.on.square",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let waffle = Game(
@@ -33,8 +32,7 @@ extension Game {
         resultPattern: #"#waffle\d+ \d+/5"#,
         iconSystemName: "square.grid.2x2",
         backgroundColor: CodableColor(.systemBrown),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     // Math Games
@@ -47,8 +45,7 @@ extension Game {
         resultPattern: #"Mathle \d+ [1-6X]/6"#,
         iconSystemName: "function",
         backgroundColor: CodableColor(.systemIndigo),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let numberle = Game(
@@ -60,8 +57,7 @@ extension Game {
         resultPattern: #"Numberle \d+ [1-6X]/6"#,
         iconSystemName: "number.square",
         backgroundColor: CodableColor(.systemCyan),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     // Geography Games
@@ -74,8 +70,7 @@ extension Game {
         resultPattern: #"#Worldle #\d+ [1-6X]/6"#,
         iconSystemName: "globe",
         backgroundColor: CodableColor(.systemGreen),
-        isPopular: true,
-        isCustom: false
+        isPopular: true
     )
 
     static let globle = Game(
@@ -87,8 +82,7 @@ extension Game {
         resultPattern: #"Globle.*?in \d+ guesses"#,
         iconSystemName: "globe.americas",
         backgroundColor: CodableColor(.systemTeal),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     // Trivia Games
@@ -101,8 +95,7 @@ extension Game {
         resultPattern: #"Contexto \d+.*?in \d+ guesses"#,
         iconSystemName: "lightbulb",
         backgroundColor: CodableColor(.systemRed),
-        isPopular: true,
-        isCustom: false
+        isPopular: true
     )
 
     static let framed = Game(
@@ -114,8 +107,7 @@ extension Game {
         resultPattern: #"Framed #\d+ [1-6X]/6"#,
         iconSystemName: "film",
         backgroundColor: CodableColor(.systemPink),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     // Puzzle Games
@@ -128,8 +120,7 @@ extension Game {
         resultPattern: #"Crosswordle \d+.*?in \d+"#,
         iconSystemName: "square.grid.3x3.fill",
         backgroundColor: CodableColor(.systemGray),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let extendedMiniCrossword = Game(
@@ -141,8 +132,7 @@ extension Game {
         resultPattern: #"Mini Crossword.*?(\d+:\d+|\d+s)"#,
         iconSystemName: "square.grid.2x2",
         backgroundColor: CodableColor(.systemBlue),
-        isPopular: true,
-        isCustom: false
+        isPopular: true
     )
 
     static let sudoku = Game(
@@ -154,8 +144,7 @@ extension Game {
         resultPattern: #"Sudoku.*?in (\d+:\d+|\d+m)"#,
         iconSystemName: "square.grid.3x3.topleft.filled",
         backgroundColor: CodableColor(.systemPurple),
-        isPopular: true,
-        isCustom: false
+        isPopular: true
     )
 
     // Music Games
@@ -168,8 +157,7 @@ extension Game {
         resultPattern: #"Lyricle \d+ [1-6X]/6"#,
         iconSystemName: "music.note.list",
         backgroundColor: CodableColor(.systemPink),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     // More Word Games
@@ -182,8 +170,7 @@ extension Game {
         resultPattern: #"Absurdle.*?in \d+ guesses"#,
         iconSystemName: "questionmark.square",
         backgroundColor: CodableColor(.systemRed),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let semantle = Game(
@@ -195,8 +182,7 @@ extension Game {
         resultPattern: #"Semantle #\d+.*?in \d+ guesses"#,
         iconSystemName: "brain",
         backgroundColor: CodableColor(.systemIndigo),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     // MARK: - More Word Games (21-30)
@@ -210,8 +196,7 @@ extension Game {
         resultPattern: #"Daily Dordle #\d+"#,
         iconSystemName: "square.on.square",
         backgroundColor: CodableColor(.systemOrange),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let sedecordle = Game(
@@ -223,8 +208,7 @@ extension Game {
         resultPattern: #"Daily Sedecordle #\d+"#,
         iconSystemName: "square.grid.3x3.square",
         backgroundColor: CodableColor(.systemRed),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let kilordle = Game(
@@ -236,8 +220,7 @@ extension Game {
         resultPattern: #"Kilordle.*?in \d+ guesses"#,
         iconSystemName: "infinity",
         backgroundColor: CodableColor(.systemIndigo),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let antiwordle = Game(
@@ -249,8 +232,7 @@ extension Game {
         resultPattern: #"Antiwordle.*?in \d+ attempts"#,
         iconSystemName: "arrow.uturn.backward.square",
         backgroundColor: CodableColor(.systemPink),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let wordscapes = Game(
@@ -262,8 +244,7 @@ extension Game {
         resultPattern: #"Wordscapes.*?Level \d+"#,
         iconSystemName: "leaf",
         backgroundColor: CodableColor(.systemGreen),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let wordhurdle = Game(
@@ -275,8 +256,7 @@ extension Game {
         resultPattern: #"Word Hurdle.*?in \d+/6"#,
         iconSystemName: "figure.run.square.stack",
         backgroundColor: CodableColor(.systemBlue),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let xordle = Game(
@@ -288,8 +268,7 @@ extension Game {
         resultPattern: #"Xordle #\d+ [1-9X]/9"#,
         iconSystemName: "xmark.square",
         backgroundColor: CodableColor(.systemGray),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let squareword = Game(
@@ -301,8 +280,7 @@ extension Game {
         resultPattern: #"Squareword.*?in \d+ guesses"#,
         iconSystemName: "square.text.square",
         backgroundColor: CodableColor(.systemMint),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let phrazle = Game(
@@ -314,7 +292,6 @@ extension Game {
         resultPattern: #"Phrazle.*?in \d+/6"#,
         iconSystemName: "text.quote",
         backgroundColor: CodableColor(.systemBrown),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 }

@@ -22,8 +22,7 @@ extension Game {
         resultPattern: #"Primel \d+ [1-6X]/6"#,
         iconSystemName: "number.circle",
         backgroundColor: CodableColor(.systemPurple),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let ooodle = Game(
@@ -35,8 +34,7 @@ extension Game {
         resultPattern: #"Ooodle.*?in \d+ attempts"#,
         iconSystemName: "plus.forwardslash.minus",
         backgroundColor: CodableColor(.systemOrange),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let summle = Game(
@@ -48,8 +46,7 @@ extension Game {
         resultPattern: #"Summle.*?in \d+ tries"#,
         iconSystemName: "sum",
         backgroundColor: CodableColor(.systemYellow),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let timeguessr = Game(
@@ -61,8 +58,7 @@ extension Game {
         resultPattern: #"TimeGuessr.*?Score: \d+"#,
         iconSystemName: "clock.badge.questionmark",
         backgroundColor: CodableColor(.systemTeal),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let rankdle = Game(
@@ -74,8 +70,7 @@ extension Game {
         resultPattern: #"Rankdle.*?in \d+ attempts"#,
         iconSystemName: "list.number",
         backgroundColor: CodableColor(.systemCyan),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     // MARK: - More Music/Audio Games (36-40)
@@ -89,8 +84,7 @@ extension Game {
         resultPattern: #"Songlio.*?in \d+ tries"#,
         iconSystemName: "music.mic",
         backgroundColor: CodableColor(.systemPink),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let binb = Game(
@@ -102,8 +96,7 @@ extension Game {
         resultPattern: #"BINB.*?in \d+ guesses"#,
         iconSystemName: "waveform",
         backgroundColor: CodableColor(.systemRed),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let songle = Game(
@@ -115,8 +108,7 @@ extension Game {
         resultPattern: #"Songle.*?in \d+ attempts"#,
         iconSystemName: "music.quarternote.3",
         backgroundColor: CodableColor(.systemIndigo),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let bandle = Game(
@@ -128,8 +120,7 @@ extension Game {
         resultPattern: #"Bandle.*?\d+/6"#,
         iconSystemName: "guitars",
         backgroundColor: CodableColor(.systemGreen),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let musicle = Game(
@@ -141,8 +132,7 @@ extension Game {
         resultPattern: #"Musicle.*?in \d+ seconds"#,
         iconSystemName: "music.note.tv",
         backgroundColor: CodableColor(.systemBlue),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     // MARK: - More Geography Games (41-45)
@@ -156,8 +146,7 @@ extension Game {
         resultPattern: #"Countryle.*?in \d+ guesses"#,
         iconSystemName: "map",
         backgroundColor: CodableColor(.systemOrange),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let flagle = Game(
@@ -169,8 +158,7 @@ extension Game {
         resultPattern: #"Flagle.*?in \d+/6"#,
         iconSystemName: "flag",
         backgroundColor: CodableColor(.systemRed),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let statele = Game(
@@ -182,8 +170,7 @@ extension Game {
         resultPattern: #"Statele.*?in \d+ guesses"#,
         iconSystemName: "map.circle",
         backgroundColor: CodableColor(.systemPurple),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let citydle = Game(
@@ -195,8 +182,7 @@ extension Game {
         resultPattern: #"Citydle.*?in \d+ attempts"#,
         iconSystemName: "building.2",
         backgroundColor: CodableColor(.systemGray),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let wheretaken = Game(
@@ -208,8 +194,7 @@ extension Game {
         resultPattern: #"WhereTaken.*?in \d+ guesses"#,
         iconSystemName: "camera.on.rectangle",
         backgroundColor: CodableColor(.systemMint),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     // MARK: - More Trivia/Visual Games (46-50)
@@ -223,8 +208,7 @@ extension Game {
         resultPattern: #"Moviedle.*?in \d+ seconds"#,
         iconSystemName: "film",
         backgroundColor: CodableColor(.systemYellow),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let posterdle = Game(
@@ -236,8 +220,7 @@ extension Game {
         resultPattern: #"Posterdle.*?in \d+ guesses"#,
         iconSystemName: "photo.artframe",
         backgroundColor: CodableColor(.systemTeal),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let actorle = Game(
@@ -249,8 +232,7 @@ extension Game {
         resultPattern: #"Actorle.*?in \d+ guesses"#,
         iconSystemName: "person.crop.rectangle",
         backgroundColor: CodableColor(.systemBrown),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let foodguessr = Game(
@@ -262,8 +244,7 @@ extension Game {
         resultPattern: #"FoodGuessr.*?Score: \d+"#,
         iconSystemName: "fork.knife",
         backgroundColor: CodableColor(.systemOrange),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 
     static let artdle = Game(
@@ -275,7 +256,6 @@ extension Game {
         resultPattern: #"Artdle.*?in \d+ guesses"#,
         iconSystemName: "paintpalette",
         backgroundColor: CodableColor(.systemPink),
-        isPopular: false,
-        isCustom: false
+        isPopular: false
     )
 }

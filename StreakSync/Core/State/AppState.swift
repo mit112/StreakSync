@@ -39,7 +39,6 @@ final class AppState {
     private(set) var isLoading = false
     private(set) var errorMessage: String?
     var currentError: AppError?
-    var showingAddCustomGame = false
 
     /// When true, the app is running in Guest Mode.
     var isGuestMode: Bool = false

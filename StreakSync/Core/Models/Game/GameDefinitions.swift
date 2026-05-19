@@ -83,7 +83,6 @@ extension Game {
         iconSystemName: "square.grid.3x3.fill",
         backgroundColor: CodableColor(UIColor(red: 0.345, green: 0.8, blue: 0.008, alpha: 1.0)), // #58CC02
         isPopular: true,
-        isCustom: false,
         scoringModel: .lowerAttempts
     )
     
@@ -97,7 +96,6 @@ extension Game {
         iconSystemName: "square.grid.2x2.fill",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
         isPopular: true,
-        isCustom: false,
         scoringModel: .lowerAttempts
     )
     
@@ -111,7 +109,6 @@ extension Game {
         iconSystemName: "function",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
         isPopular: true,
-        isCustom: false,
         scoringModel: .lowerAttempts
     )
     
@@ -125,7 +122,6 @@ extension Game {
         iconSystemName: "square.grid.2x2.fill",
         backgroundColor: CodableColor(.systemPurple),
         isPopular: true,
-        isCustom: false,
         scoringModel: .lowerTimeSeconds
     )
     
@@ -139,7 +135,6 @@ extension Game {
         iconSystemName: "link",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)), // #007AFF
         isPopular: true,
-        isCustom: false,
         scoringModel: .higherIsBetter
     )
     
@@ -153,7 +148,6 @@ extension Game {
         iconSystemName: "textformat.abc",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0)), // #FFCC00
         isPopular: true,
-        isCustom: false,
         scoringModel: .higherIsBetter
     )
     
@@ -167,7 +161,6 @@ extension Game {
         iconSystemName: "grid",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.6, blue: 0.0, alpha: 1.0)), // #009900
         isPopular: true,
-        isCustom: false,
         scoringModel: .lowerTimeSeconds
     )
     
@@ -181,7 +174,6 @@ extension Game {
         iconSystemName: "lightbulb.fill",
         backgroundColor: CodableColor(UIColor(red: 0.8, green: 0.4, blue: 0.0, alpha: 1.0)), // Orange #CC6600
         isPopular: true,
-        isCustom: false,
         scoringModel: .lowerHints
     )
     
@@ -196,7 +188,6 @@ extension Game {
         iconSystemName: "crown.fill",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)), // LinkedIn Blue #007AFF
         isPopular: false,
-        isCustom: false,
         scoringModel: .lowerTimeSeconds
     )
     
@@ -210,7 +201,6 @@ extension Game {
         iconSystemName: "sun.max.fill",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0)), // Sun/Moon colors #FFCC00
         isPopular: false,
-        isCustom: false,
         scoringModel: .lowerTimeSeconds
     )
     
@@ -224,7 +214,6 @@ extension Game {
         iconSystemName: "arrow.up.arrow.down",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.6, blue: 0.0, alpha: 1.0)), // Green #009900
         isPopular: false,
-        isCustom: false,
         scoringModel: .lowerTimeSeconds
     )
     
@@ -238,7 +227,6 @@ extension Game {
         iconSystemName: "target",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.4, blue: 0.0, alpha: 1.0)), // Orange #FF6600
         isPopular: false,
-        isCustom: false,
         scoringModel: .lowerGuesses
     )
     
@@ -252,7 +240,6 @@ extension Game {
         iconSystemName: "line.3.horizontal",
         backgroundColor: CodableColor(UIColor(red: 0.6, green: 0.0, blue: 1.0, alpha: 1.0)), // Purple #9900FF
         isPopular: false,
-        isCustom: false,
         scoringModel: .lowerTimeSeconds
     )
     
@@ -266,7 +253,6 @@ extension Game {
         iconSystemName: "square.grid.3x3.topleft.filled",
         backgroundColor: CodableColor(UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)), // Gray #808080
         isPopular: false,
-        isCustom: false,
         scoringModel: .higherIsBetter // Share format has no consistent time data; score=1 means completed
     )
     
@@ -281,7 +267,6 @@ extension Game {
         iconSystemName: "8.circle.fill",
         backgroundColor: CodableColor(UIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1.0)), // Blue #3366CC
         isPopular: true,
-        isCustom: false,
         scoringModel: .lowerAttempts
     )
     

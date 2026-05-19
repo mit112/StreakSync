@@ -117,7 +117,7 @@ Deep links use `streaksync://` URL scheme. Payload keys centralized in `AppConst
 
 ### Game System
 
-Games have deterministic UUIDs (hardcoded in `GameDefinitions.swift`). 16 built-in games + custom game support. Each game has a dedicated parser for share text extraction. Game detection and parsing logic lives in the models layer and is tested via `GameDetectionTests` and `GameResultParserTests`.
+Games have deterministic UUIDs (hardcoded in `GameDefinitions.swift`). 15 built-in games, no custom-game creation flow. Each game has a dedicated parser for share text extraction. Game detection and parsing logic lives in the models layer and is tested via `GameDetectionTests` and `GameResultParserTests`.
 
 ### Social & Leaderboard
 

@@ -143,15 +143,12 @@ final class NavigationCoordinator: ObservableObject {
     }
     
     enum SheetDestination: Identifiable {
-        case addCustomGame
         case gameResult(GameResult)
         // Legacy achievement detail removed in favor of tiered only
         case tieredAchievementDetail(TieredAchievement)
-        
+
         var id: String {
             switch self {
-            case .addCustomGame:
-                return "addCustomGame"
             case .gameResult(let result):
                 return "gameResult-\(result.id)"
             case .tieredAchievementDetail(let achievement):
