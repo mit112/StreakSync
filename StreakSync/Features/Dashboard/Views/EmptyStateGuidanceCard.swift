@@ -18,13 +18,13 @@ struct EmptyStateGuidanceCard: View {
             return (
                 icon: "arrow.clockwise",
                 title: "Reignite Your Streaks!",
-                message: "You've played before - tap any game to get back on track"
+                message: "Play a quick game. Tap Share inside the game, then pick StreakSync to log it."
             )
         } else {
             return (
                 icon: "sparkles",
                 title: "Start Your First Streak!",
-                message: "Tap any game and share your results to start tracking"
+                message: "Finish a Wordle. Tap Share inside the game, then pick StreakSync."
             )
         }
     }
