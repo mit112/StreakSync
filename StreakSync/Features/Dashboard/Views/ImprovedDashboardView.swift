@@ -25,6 +25,7 @@ struct ImprovedDashboardView: View {
     @State private var selectedSort: GameSortOption = .lastPlayed
     @State private var sortDirection: SortDirection = .descending
     @State private var hasSeenGuidance = UserDefaults.standard.bool(forKey: "hasSeenEmptyStateGuidance")
+    @State private var isShowingShareDiscovery: Bool = false
 
     // MARK: - Computed Properties
 
@@ -140,6 +141,17 @@ struct ImprovedDashboardView: View {
                     hasInitiallyAppeared = true
                 }
             }
+
+            // Share-discovery teaching sheet — first qualifying launch only
+            let hasSeen = UserDefaults.standard.bool(forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
+            if ShareDiscoveryGate.shouldShowOnboarding(resultsCount: appState.recentResults.count, hasSeen: hasSeen) {
+                isShowingShareDiscovery = true
+            }
+        }
+        .sheet(isPresented: $isShowingShareDiscovery) {
+            ShareDiscoverySheet(onDismiss: {
+                UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
+            })
         }
         .onReceive(NotificationCenter.default.publisher(for: .appNavigateToGame)) { notification in
             if let userInfo = notification.object as? [String: Any],
