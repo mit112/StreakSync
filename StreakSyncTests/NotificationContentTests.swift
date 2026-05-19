@@ -24,8 +24,7 @@ final class NotificationContentTests: XCTestCase {
             resultPattern: "",
             iconSystemName: "square",
             backgroundColor: CodableColor(.blue),
-            isPopular: false,
-            isCustom: false
+            isPopular: false
         )
     }
     

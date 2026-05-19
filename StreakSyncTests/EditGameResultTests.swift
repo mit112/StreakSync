@@ -65,7 +65,6 @@ final class EditGameResultTests: XCTestCase {
             iconSystemName: "square.grid.3x3.fill",
             backgroundColor: CodableColor(.systemGreen),
             isPopular: true,
-            isCustom: false,
             scoringModel: .lowerAttempts
         )
     }

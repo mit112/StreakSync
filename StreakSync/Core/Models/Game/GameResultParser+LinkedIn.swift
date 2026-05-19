@@ -348,35 +348,43 @@ extension GameResultParser {
     
     // MARK: - LinkedIn Mini Sudoku Parser
     func parseLinkedInMiniSudoku(_ text: String, gameId: UUID) throws -> GameResult {
-        // Flexible pattern for Mini Sudoku puzzle results
-        // Expected formats: "Mini Sudoku puzzle completed", "Mini Sudoku puzzle #123", etc.
-        let pattern = #"Mini Sudoku.*?puzzle.*?(?:#(\d+))?.*?(?:completed|solved|finished)?"#
-        
+        // "Mini Sudoku #142 | 0:39 and flawless" or legacy "Mini Sudoku puzzle #45 completed"
+        let pattern = #"Mini Sudoku(?:\s+#|\s+puzzle\s+#)(\d+)"#
+
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) else {
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+              let puzzleRange = Range(match.range(at: 1), in: text) else {
             throw ParsingError.invalidFormat
         }
-        
-        var puzzleNumber = "1" // Default puzzle number
-        if match.numberOfRanges > 1 && match.range(at: 1).location != NSNotFound {
-            if let puzzleRange = Range(match.range(at: 1), in: text) {
-                puzzleNumber = String(text[puzzleRange])
-            }
+
+        let puzzleNumber = String(text[puzzleRange])
+
+        var timeString: String?
+        let timePattern = #"(\d{1,2}:\d{2})"#
+        if let timeRegex = try? NSRegularExpression(pattern: timePattern, options: []),
+           let timeMatch = timeRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+           let timeRange = Range(timeMatch.range(at: 1), in: text) {
+            timeString = String(text[timeRange])
         }
-        
-        // Mini Sudoku is typically completed if we can parse it
+
+        var parsedData: [String: String] = [
+            "puzzleNumber": puzzleNumber,
+            "gameType": "sudoku"
+        ]
+        if let timeString {
+            parsedData["time"] = timeString
+            parsedData["displayScore"] = timeString
+        }
+
         return GameResult(
             gameId: gameId,
             gameName: "linkedinminisudoku",
             date: Date(),
-            score: 1, // Completed
+            score: 1,
             maxAttempts: 1,
             completed: true,
             sharedText: text,
-            parsedData: [
-                "puzzleNumber": puzzleNumber,
-                "gameType": "sudoku"
-            ]
+            parsedData: parsedData
         )
     }
 }

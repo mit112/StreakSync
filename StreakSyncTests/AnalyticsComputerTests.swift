@@ -29,7 +29,6 @@ class AnalyticsComputerTests: XCTestCase {
             iconSystemName: "textformat.abc",
             backgroundColor: CodableColor(.green),
             isPopular: true,
-            isCustom: false,
             scoringModel: scoringModel
         )
     }

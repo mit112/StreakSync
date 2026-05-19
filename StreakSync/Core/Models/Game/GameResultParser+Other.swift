@@ -10,21 +10,22 @@ import Foundation
 extension GameResultParser {
     // MARK: - Quordle Parser
     func parseQuordle(_ text: String, gameId: UUID) throws -> GameResult {
-        // Pattern: "Daily Quordle 1346" or "Weekly Quordle Challenge 143"
-        let pattern = #"(?m)^(Daily Quordle|Weekly Quordle Challenge)\s+(\d+)\s*$"#
-        
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+        // Anchor on the stable title + puzzle number. Quordle may prepend emoji or
+        // other branding before the title — we ignore everything before the marker.
+        let headerPattern = #"(Daily Quordle|Weekly Quordle Challenge)[ \t]*#?[ \t]*(\d+)"#
+
+        guard let regex = try? NSRegularExpression(pattern: headerPattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
               let modeRange = Range(match.range(at: 1), in: text),
               let puzzleRange = Range(match.range(at: 2), in: text) else {
             throw ParsingError.invalidFormat
         }
-        
+
         let modeToken = String(text[modeRange]).lowercased()
         let mode = modeToken.contains("weekly") ? "weekly" : "daily"
         let puzzleNumber = String(text[puzzleRange])
-        
-        // Parse emoji scores (0️⃣-9️⃣) and failures (🟥)
+
+        // Parse scores from non-header lines only (emoji grid and optional digit fallback)
         let scores = extractQuordleScores(from: text)
         let failedPuzzles = scores.filter { $0 == -1 }.count
         let completedPuzzles = scores.filter { $0 > 0 }.count
@@ -72,24 +73,49 @@ extension GameResultParser {
     
     // MARK: - Quordle Helper
     private func extractQuordleScores(from text: String) -> [Int] {
-        // Map emojis to their numeric values
+        let scoreLines = quordleScoreLines(from: text)
+        let scoreSection = scoreLines.joined(separator: "\n")
+
+        let hasEmojiScores = scoreSection.contains("️⃣") || scoreSection.contains("🟥")
+        if hasEmojiScores {
+            return extractQuordleEmojiScores(from: scoreSection)
+        }
+
+        return extractQuordlePlainDigitScores(from: scoreLines)
+    }
+
+    private func quordleScoreLines(from text: String) -> [String] {
+        text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { line in
+                guard !line.isEmpty else { return false }
+                let lower = line.lowercased()
+                if lower.contains("daily quordle") || lower.contains("weekly quordle challenge") {
+                    return false
+                }
+                if lower.contains("quordle") || lower.contains("m-w.com") {
+                    return false
+                }
+                return true
+            }
+    }
+
+    private func extractQuordleEmojiScores(from text: String) -> [Int] {
         let emojiMap: [String: Int] = [
             "0️⃣": 0, "1️⃣": 1, "2️⃣": 2, "3️⃣": 3, "4️⃣": 4,
             "5️⃣": 5, "6️⃣": 6, "7️⃣": 7, "8️⃣": 8, "9️⃣": 9,
             "🟥": -1
         ]
-        
+
         var scores: [Int] = []
-        
-        // Use regex to find all number emojis and failure markers in order
         let pattern = "(0️⃣|1️⃣|2️⃣|3️⃣|4️⃣|5️⃣|6️⃣|7️⃣|8️⃣|9️⃣|🟥)"
-        
+
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
             return scores
         }
-        
+
         let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
-        
+
         for match in matches {
             if let range = Range(match.range, in: text) {
                 let emoji = String(text[range])
@@ -98,7 +124,29 @@ extension GameResultParser {
                 }
             }
         }
-        
+
+        return scores
+    }
+
+    private func extractQuordlePlainDigitScores(from scoreLines: [String]) -> [Int] {
+        var scores: [Int] = []
+        let digitPattern = #"[1-9]"#
+        guard let regex = try? NSRegularExpression(pattern: digitPattern) else { return scores }
+
+        for line in scoreLines {
+            if line.contains("🟥") {
+                scores.append(-1)
+                continue
+            }
+
+            let matches = regex.matches(in: line, options: [], range: NSRange(location: 0, length: line.utf16.count))
+            for match in matches {
+                guard let range = Range(match.range, in: line),
+                      let value = Int(line[range]) else { continue }
+                scores.append(value)
+            }
+        }
+
         return scores
     }
     
@@ -134,21 +182,30 @@ extension GameResultParser {
     
     // MARK: - Pips Parser
     func parsePips(_ text: String, gameId: UUID) throws -> GameResult {
-        // More flexible pattern that handles both formats:
-        // 1. "Pips #46 Easy 🟢" followed by "1:03" (with emoji)
-        // 2. "Pips #46 Easy" followed by "0:54" (without emoji)
-        let pattern = #"Pips #(\d+) (Easy|Medium|Hard)(?:\s*[🟢🟡🟠🟤⚫⚪])?[\s\S]*?(\d{1,2}:\d{2})"#
-        
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
-              let puzzleRange = Range(match.range(at: 1), in: text),
-              let difficultyRange = Range(match.range(at: 2), in: text),
-              let timeRange = Range(match.range(at: 3), in: text) else {
+        let searchRange = NSRange(text.startIndex..., in: text)
+
+        let puzzlePattern = #"Pips\s+#(\d+)"#
+        guard let puzzleRegex = try? NSRegularExpression(pattern: puzzlePattern, options: .caseInsensitive),
+              let puzzleMatch = puzzleRegex.firstMatch(in: text, options: [], range: searchRange),
+              let puzzleRange = Range(puzzleMatch.range(at: 1), in: text) else {
             throw ParsingError.invalidFormat
         }
-        
         let puzzleNumber = String(text[puzzleRange])
+
+        let difficultyPattern = #"\b(Easy|Medium|Hard)\b"#
+        guard let difficultyRegex = try? NSRegularExpression(pattern: difficultyPattern, options: .caseInsensitive),
+              let difficultyMatch = difficultyRegex.firstMatch(in: text, options: [], range: searchRange),
+              let difficultyRange = Range(difficultyMatch.range(at: 1), in: text) else {
+            throw ParsingError.invalidFormat
+        }
         let difficulty = String(text[difficultyRange])
+
+        let timePattern = #"(\d{1,2}:\d{2})"#
+        guard let timeRegex = try? NSRegularExpression(pattern: timePattern, options: []),
+              let timeMatch = timeRegex.firstMatch(in: text, options: [], range: searchRange),
+              let timeRange = Range(timeMatch.range(at: 1), in: text) else {
+            throw ParsingError.invalidFormat
+        }
         let timeString = String(text[timeRange])
         
         // Parse time (MM:SS format)

@@ -63,6 +63,17 @@ extension GameResultParserTests {
         }
     }
 
+    func testParseSpellingBee_NYTShareSentence() throws {
+        let shareText = "Spelling Bee - I found 42 words, including the pangram!"
+        let result = try parser.parse(shareText, for: Game.spellingBee)
+        XCTAssertEqual(result.gameName, "spellingbee")
+        XCTAssertEqual(result.score, 42)
+        XCTAssertTrue(result.completed)
+        XCTAssertEqual(result.parsedData["wordsFound"], "42")
+        XCTAssertEqual(result.parsedData["hasPangram"], "true")
+        XCTAssertEqual(result.parsedData["shareFormat"], "sentence")
+    }
+
     // MARK: - Mini Crossword Tests
 
     func testParseMiniCrossword_Success() throws {
@@ -76,6 +87,18 @@ extension GameResultParserTests {
         XCTAssertThrowsError(try parser.parse("Mini Crossword\nNo time here", for: Game.miniCrossword)) { error in
             XCTAssertTrue(error is ParsingError)
         }
+    }
+
+    func testParseMiniCrossword_NYTAppShareSentence() throws {
+        let shareText = """
+        I solved the 4/28/2025 New York Times
+        Mini Crossword in 0:22!
+        """
+        let result = try parser.parse(shareText, for: Game.miniCrossword)
+        XCTAssertEqual(result.gameName, "minicrossword")
+        XCTAssertEqual(result.score, 22)
+        XCTAssertTrue(result.completed)
+        XCTAssertEqual(result.parsedData["completionTime"], "0:22")
     }
 
     // MARK: - Strands Tests
@@ -170,6 +193,19 @@ extension GameResultParserTests {
         }
     }
 
+    func testParseLinkedInMiniSudoku_CurrentShareFormat() throws {
+        let shareText = """
+        Mini Sudoku #142 | 0:39 and flawless ✏️
+        🏅 I'm smarter than 95% of CEOs today!
+        lnkd.in/minisudoku.
+        """
+        let result = try parser.parse(shareText, for: Game.linkedinMiniSudoku)
+        XCTAssertEqual(result.gameName, "linkedinminisudoku")
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "142")
+        XCTAssertEqual(result.parsedData["time"], "0:39")
+        XCTAssertTrue(result.completed)
+    }
+
     // MARK: - Quordle Tests
 
     func testParseQuordle_Success() throws {
@@ -182,6 +218,66 @@ extension GameResultParserTests {
         XCTAssertEqual(result.parsedData["score2"], "5")
         XCTAssertEqual(result.parsedData["score3"], "9")
         XCTAssertEqual(result.parsedData["score4"], "4")
+    }
+
+    func testParseQuordle_WithLeadingEmoji() throws {
+        let shareText = """
+        🙂 Daily Quordle 1576
+        2️⃣8️⃣
+        7️⃣9️⃣
+        m-w.com/games/quordle/
+        """
+        let result = try parser.parse(shareText, for: Game.quordle)
+        XCTAssertEqual(result.gameName, "quordle")
+        XCTAssertEqual(result.score, 6)
+        XCTAssertTrue(result.completed)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "1576")
+        XCTAssertEqual(result.parsedData["score1"], "2")
+        XCTAssertEqual(result.parsedData["score2"], "8")
+        XCTAssertEqual(result.parsedData["score3"], "7")
+        XCTAssertEqual(result.parsedData["score4"], "9")
+    }
+
+    func testParseQuordle_WithoutLeadingEmoji() throws {
+        let shareText = """
+        Daily Quordle 1576
+        2️⃣8️⃣
+        7️⃣9️⃣
+        m-w.com/games/quordle/
+        """
+        let result = try parser.parse(shareText, for: Game.quordle)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "1576")
+        XCTAssertEqual(result.score, 6)
+        XCTAssertTrue(result.completed)
+    }
+
+    func testParseQuordle_WithDifferentLeadingEmoji() throws {
+        let shareText = "🔥 Daily Quordle 1576\n2️⃣8️⃣\n7️⃣9️⃣"
+        let result = try parser.parse(shareText, for: Game.quordle)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "1576")
+        XCTAssertEqual(result.score, 6)
+    }
+
+    func testParseQuordle_WithHashPuzzleNumber() throws {
+        let shareText = "Daily Quordle #1576\n2️⃣8️⃣\n7️⃣9️⃣"
+        let result = try parser.parse(shareText, for: Game.quordle)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "1576")
+        XCTAssertEqual(result.score, 6)
+    }
+
+    func testParseQuordle_WithPlainDigitScores() throws {
+        let shareText = """
+        Daily Quordle 1576
+        2 8
+        7 9
+        m-w.com/games/quordle/
+        """
+        let result = try parser.parse(shareText, for: Game.quordle)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "1576")
+        XCTAssertEqual(result.score, 6)
+        XCTAssertTrue(result.completed)
+        XCTAssertEqual(result.parsedData["score1"], "2")
+        XCTAssertEqual(result.parsedData["score4"], "9")
     }
 
     func testParseQuordle_WithFailure() throws {
@@ -239,6 +335,24 @@ extension GameResultParserTests {
         XCTAssertEqual(result.parsedData["difficulty"], "Hard")
     }
 
+    func testParsePips_EasyWithDifficultyEmoji() throws {
+        let shareText = """
+        Pips #46 Easy 🟢
+        1:03
+        """
+        let result = try parser.parse(shareText, for: Game.pips)
+        XCTAssertEqual(result.score, 63)
+        XCTAssertEqual(result.parsedData["difficulty"], "Easy")
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "46")
+    }
+
+    func testParsePips_DifficultyOnSeparateLine() throws {
+        let result = try parser.parse("Pips #120\nEasy 🟢 0:22", for: Game.pips)
+        XCTAssertEqual(result.score, 22)
+        XCTAssertEqual(result.parsedData["difficulty"], "Easy")
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "120")
+    }
+
     // MARK: - Octordle Tests
 
     func testParseOctordle_Success() throws {
@@ -284,9 +398,9 @@ extension GameResultParserTests {
         let customGame = Game(
             id: UUID(), name: "testgame", displayName: "Test Game",
             url: URL(string: "https://example.com")!, // swiftlint:disable:this force_unwrapping
-            category: .word, resultPattern: #"TestGame \d+/\d+"#,
+            category: .custom, resultPattern: #"TestGame \d+/\d+"#,
             iconSystemName: "star", backgroundColor: CodableColor(.systemBlue),
-            isPopular: false, isCustom: true
+            isPopular: false
         )
         let result = try parser.parse("TestGame 5/10", for: customGame)
         XCTAssertEqual(result.score, 5)
@@ -298,9 +412,9 @@ extension GameResultParserTests {
         let customGame = Game(
             id: UUID(), name: "testgame", displayName: "Test Game",
             url: URL(string: "https://example.com")!, // swiftlint:disable:this force_unwrapping
-            category: .word, resultPattern: #"TestGame \d+/\d+"#,
+            category: .custom, resultPattern: #"TestGame \d+/\d+"#,
             iconSystemName: "star", backgroundColor: CodableColor(.systemBlue),
-            isPopular: false, isCustom: true
+            isPopular: false
         )
         let result = try parser.parse("TestGame 10/15", for: customGame)
         XCTAssertEqual(result.score, 10)
@@ -312,9 +426,9 @@ extension GameResultParserTests {
         let customGame = Game(
             id: UUID(), name: "testgame", displayName: "Test Game",
             url: URL(string: "https://example.com")!, // swiftlint:disable:this force_unwrapping
-            category: .word, resultPattern: #"TestGame \d+/\d+"#,
+            category: .custom, resultPattern: #"TestGame \d+/\d+"#,
             iconSystemName: "star", backgroundColor: CodableColor(.systemBlue),
-            isPopular: false, isCustom: true
+            isPopular: false
         )
         let result = try parser.parse("TestGame X/6", for: customGame)
         XCTAssertNil(result.score)

@@ -135,59 +135,91 @@ extension GameResultParser {
     
     // MARK: - NYT Spelling Bee Parser
     func parseSpellingBee(_ text: String, gameId: UUID) throws -> GameResult {
-        // Pattern: "Spelling Bee\nScore: 150\nWords: 25\nRank: Genius"
-        let pattern = #"Spelling Bee[\s\S]*?Score:\s*(\d+)[\s\S]*?Words:\s*(\d+)[\s\S]*?Rank:\s*([A-Za-z\s]+)"#
-        
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
-              let scoreRange = Range(match.range(at: 1), in: text),
-              let wordsRange = Range(match.range(at: 2), in: text),
-              let rankRange = Range(match.range(at: 3), in: text) else {
+        // Format 1: "Spelling Bee\nScore: 150\nWords: 25\nRank: Genius"
+        let structuredPattern = #"Spelling Bee[\s\S]*?Score:\s*(\d+)[\s\S]*?Words:\s*(\d+)[\s\S]*?Rank:\s*([A-Za-z\s]+)"#
+
+        if let regex = try? NSRegularExpression(pattern: structuredPattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
+           let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+           let scoreRange = Range(match.range(at: 1), in: text),
+           let wordsRange = Range(match.range(at: 2), in: text),
+           let rankRange = Range(match.range(at: 3), in: text) {
+            let scoreString = String(text[scoreRange])
+            let wordsString = String(text[wordsRange])
+            let rankString = String(text[rankRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let score = Int(scoreString) ?? 0
+            let completed = rankString.lowercased().contains("genius") ||
+                rankString.lowercased().contains("queen bee") ||
+                rankString.lowercased().contains("amazing")
+
+            return GameResult(
+                gameId: gameId,
+                gameName: "spellingbee",
+                date: Date(),
+                score: score,
+                maxAttempts: 1000,
+                completed: completed,
+                sharedText: text,
+                parsedData: [
+                    "score": scoreString,
+                    "wordsFound": wordsString,
+                    "rank": rankString,
+                    "shareFormat": "structured"
+                ]
+            )
+        }
+
+        // Format 2: "Spelling Bee - I found 42 words, including the pangram!" (NYT app share)
+        let sentencePattern = #"Spelling Bee[\s\S]*?I found (\d+) words"#
+        guard let sentenceRegex = try? NSRegularExpression(pattern: sentencePattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
+              let sentenceMatch = sentenceRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+              let wordsRange = Range(sentenceMatch.range(at: 1), in: text) else {
             throw ParsingError.invalidFormat
         }
-        
-        let scoreString = String(text[scoreRange])
+
         let wordsString = String(text[wordsRange])
-        let rankString = String(text[rankRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        let score = Int(scoreString) ?? 0
-        _ = Int(wordsString) ?? 0 // wordsFound - not used in current implementation
-        
-        // Determine completion based on rank (Genius and above are considered "completed")
-        let completed = rankString.lowercased().contains("genius") ||
-                       rankString.lowercased().contains("queen bee") ||
-                       rankString.lowercased().contains("amazing")
-        
+        let wordsFound = Int(wordsString) ?? 0
+        let hasPangram = text.localizedCaseInsensitiveContains("pangram")
+
         return GameResult(
             gameId: gameId,
             gameName: "spellingbee",
             date: Date(),
-            score: score,
-            maxAttempts: 1000, // High number since Spelling Bee has no fixed max
-            completed: completed,
+            score: wordsFound,
+            maxAttempts: 1000,
+            completed: true,
             sharedText: text,
             parsedData: [
-                "score": scoreString,
                 "wordsFound": wordsString,
-                "rank": rankString
+                "hasPangram": hasPangram ? "true" : "false",
+                "shareFormat": "sentence"
             ]
         )
     }
     
     // MARK: - NYT Mini Crossword Parser
     func parseMiniCrossword(_ text: String, gameId: UUID) throws -> GameResult {
-        // Pattern: "Mini Crossword\nCompleted in 2:30"
-        let pattern = #"Mini Crossword[\s\S]*?Completed in (\d+:\d+)"#
-        
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
-              let timeRange = Range(match.range(at: 1), in: text) else {
+        // Format 1: "Mini Crossword\nCompleted in 2:30"
+        // Format 2: "I solved the ... Mini Crossword in 0:22!" (NYT mobile app)
+        let patterns = [
+            #"Mini Crossword[\s\S]*?Completed in (\d+:\d+)"#,
+            #"Mini Crossword in (\d+:\d+)!?"#
+        ]
+
+        var completionTime: String?
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
+                  let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+                  let timeRange = Range(match.range(at: 1), in: text) else {
+                continue
+            }
+            completionTime = String(text[timeRange])
+            break
+        }
+
+        guard let completionTime else {
             throw ParsingError.invalidFormat
         }
-        
-        let completionTime = String(text[timeRange])
-        
-        // Parse completion time (MM:SS format)
+
         let timeComponents = completionTime.split(separator: ":")
         let totalSeconds: Int
         if timeComponents.count == 2,
@@ -197,14 +229,13 @@ extension GameResultParser {
         } else {
             totalSeconds = 0
         }
-        
-        // Mini Crossword is always completed if we can parse the time
+
         return GameResult(
             gameId: gameId,
             gameName: "minicrossword",
             date: Date(),
-            score: totalSeconds, // Use completion time as score (lower is better)
-            maxAttempts: 600, // 10 minutes max (reasonable limit)
+            score: totalSeconds,
+            maxAttempts: 600,
             completed: true,
             sharedText: text,
             parsedData: [
