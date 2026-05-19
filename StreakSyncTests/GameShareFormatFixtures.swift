@@ -140,6 +140,19 @@ enum GameShareFormatFixtures {
             source: "NYT Games app share (GameDetectionTests)",
             shouldParse: true
         ),
+        GameShareFormatFixture(
+            game: .spellingBee,
+            label: "nyt_structured_share",
+            shareText: """
+            NYT Spelling Bee May 19, 2026
+            Rank: Genius
+            Score: 150
+            Words found: 25
+            Pangrams: 1
+            """,
+            source: "canonical spec",
+            shouldParse: true
+        ),
 
         // MARK: - Mini Crossword
         GameShareFormatFixture(
@@ -193,6 +206,13 @@ enum GameShareFormatFixtures {
             label: "header_only",
             shareText: "nerdlegame 728 3/6",
             source: "nerdlegame.com",
+            shouldParse: true
+        ),
+        GameShareFormatFixture(
+            game: .nerdle,
+            label: "nerdle_branded_header",
+            shareText: "Nerdle 728 3/6",
+            source: "canonical spec",
             shouldParse: true
         ),
         GameShareFormatFixture(
@@ -281,6 +301,17 @@ enum GameShareFormatFixtures {
             lnkd.in/queens.
             """,
             source: "LinkedIn Queens #386 comments",
+            shouldParse: true
+        ),
+        GameShareFormatFixture(
+            game: .linkedinQueens,
+            label: "no_hash_with_time_label",
+            shareText: """
+            Queens 522
+            Time: 1:11
+            👑👑👑👑👑
+            """,
+            source: "canonical spec",
             shouldParse: true
         ),
 
@@ -414,6 +445,18 @@ enum GameShareFormatFixtures {
             lnkd.in/minisudoku.
             """,
             source: "LinkedIn Mini Sudoku #142 comments",
+            shouldParse: true
+        ),
+        GameShareFormatFixture(
+            game: .linkedinMiniSudoku,
+            label: "dated_share_block",
+            shareText: """
+            Mini Sudoku - May 19, 2026
+            Score: 95
+            Time: 1:23
+            Perfect Game
+            """,
+            source: "canonical spec",
             shouldParse: true
         )
     ]

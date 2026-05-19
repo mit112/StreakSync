@@ -152,8 +152,8 @@ extension GameResultParser {
     
     // MARK: - Nerdle Parser
     func parseNerdle(_ text: String, gameId: UUID) throws -> GameResult {
-        // Pattern: "nerdlegame 728 3/6"
-        let pattern = #"nerdlegame\s+(\d+)\s+([X1-6])/6"#
+        // "nerdlegame 728 3/6" (site branding) or "Nerdle 728 3/6" (share header)
+        let pattern = #"(?:nerdlegame|nerdle)\s+(\d+)\s+([X1-6])/6"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),

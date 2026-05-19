@@ -74,6 +74,23 @@ extension GameResultParserTests {
         XCTAssertEqual(result.parsedData["shareFormat"], "sentence")
     }
 
+    func testParseSpellingBee_NYTStructuredShare() throws {
+        let shareText = """
+        NYT Spelling Bee May 19, 2026
+        Rank: Genius
+        Score: 150
+        Words found: 25
+        Pangrams: 1
+        """
+        let result = try parser.parse(shareText, for: Game.spellingBee)
+        XCTAssertEqual(result.score, 150)
+        XCTAssertEqual(result.parsedData["wordsFound"], "25")
+        XCTAssertEqual(result.parsedData["rank"], "Genius")
+        XCTAssertEqual(result.parsedData["pangrams"], "1")
+        XCTAssertEqual(result.parsedData["shareFormat"], "structured")
+        XCTAssertTrue(result.completed)
+    }
+
     // MARK: - Mini Crossword Tests
 
     func testParseMiniCrossword_Success() throws {
@@ -129,6 +146,18 @@ extension GameResultParserTests {
     func testParseLinkedInQueens_NoTime() throws {
         let result = try parser.parse("Queens #522\n👑\nlnkd.in/queens.", for: Game.linkedinQueens)
         XCTAssertEqual(result.score, 0)
+    }
+
+    func testParseLinkedInQueens_NoHashWithTimeLabel() throws {
+        let shareText = """
+        Queens 522
+        Time: 1:11
+        👑👑👑👑👑
+        """
+        let result = try parser.parse(shareText, for: Game.linkedinQueens)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "522")
+        XCTAssertEqual(result.score, 71)
+        XCTAssertEqual(result.parsedData["time"], "1:11")
     }
 
     // MARK: - Tango Tests
@@ -203,6 +232,21 @@ extension GameResultParserTests {
         XCTAssertEqual(result.gameName, "linkedinminisudoku")
         XCTAssertEqual(result.parsedData["puzzleNumber"], "142")
         XCTAssertEqual(result.parsedData["time"], "0:39")
+        XCTAssertTrue(result.completed)
+    }
+
+    func testParseLinkedInMiniSudoku_DatedShareBlock() throws {
+        let shareText = """
+        Mini Sudoku - May 19, 2026
+        Score: 95
+        Time: 1:23
+        Perfect Game
+        """
+        let result = try parser.parse(shareText, for: Game.linkedinMiniSudoku)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "May 19, 2026")
+        XCTAssertEqual(result.parsedData["pointsScore"], "95")
+        XCTAssertEqual(result.parsedData["time"], "1:23")
+        XCTAssertEqual(result.parsedData["shareFormat"], "dated")
         XCTAssertTrue(result.completed)
     }
 
@@ -308,6 +352,13 @@ extension GameResultParserTests {
     func testParseNerdle_Success() throws {
         let result = try parser.parse("nerdlegame 728 3/6", for: Game.nerdle)
         XCTAssertEqual(result.gameName, "nerdle")
+        XCTAssertEqual(result.score, 3)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "728")
+        XCTAssertTrue(result.completed)
+    }
+
+    func testParseNerdle_BrandedHeader() throws {
+        let result = try parser.parse("Nerdle 728 3/6", for: Game.nerdle)
         XCTAssertEqual(result.score, 3)
         XCTAssertEqual(result.parsedData["puzzleNumber"], "728")
         XCTAssertTrue(result.completed)

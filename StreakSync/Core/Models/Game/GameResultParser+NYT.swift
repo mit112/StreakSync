@@ -135,21 +135,38 @@ extension GameResultParser {
     
     // MARK: - NYT Spelling Bee Parser
     func parseSpellingBee(_ text: String, gameId: UUID) throws -> GameResult {
-        // Format 1: "Spelling Bee\nScore: 150\nWords: 25\nRank: Genius"
-        let structuredPattern = #"Spelling Bee[\s\S]*?Score:\s*(\d+)[\s\S]*?Words:\s*(\d+)[\s\S]*?Rank:\s*([A-Za-z\s]+)"#
+        guard text.localizedCaseInsensitiveContains("spelling bee") else {
+            throw ParsingError.invalidFormat
+        }
 
-        if let regex = try? NSRegularExpression(pattern: structuredPattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
-           let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
-           let scoreRange = Range(match.range(at: 1), in: text),
-           let wordsRange = Range(match.range(at: 2), in: text),
-           let rankRange = Range(match.range(at: 3), in: text) {
-            let scoreString = String(text[scoreRange])
-            let wordsString = String(text[wordsRange])
-            let rankString = String(text[rankRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Structured stats (field order may vary): Score, Words/Words found, Rank, optional Pangrams
+        if let scoreString = parserFirstCapture(#"Score:\s*(\d+)"#, in: text),
+           let wordsString = parserFirstCapture(#"Words(?:\s+found)?:\s*(\d+)"#, in: text) {
             let score = Int(scoreString) ?? 0
-            let completed = rankString.lowercased().contains("genius") ||
-                rankString.lowercased().contains("queen bee") ||
-                rankString.lowercased().contains("amazing")
+            let rankString = parserFirstCapture(#"Rank:\s*([^\n]+)"#, in: text)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let pangramCount = parserFirstCapture(#"Pangrams?:\s*(\d+)"#, in: text)
+            let completed: Bool
+            if rankString.isEmpty {
+                completed = true
+            } else {
+                let rankLower = rankString.lowercased()
+                completed = rankLower.contains("genius") ||
+                    rankLower.contains("queen bee") ||
+                    rankLower.contains("amazing")
+            }
+
+            var parsedData: [String: String] = [
+                "score": scoreString,
+                "wordsFound": wordsString,
+                "shareFormat": "structured"
+            ]
+            if !rankString.isEmpty {
+                parsedData["rank"] = rankString
+            }
+            if let pangramCount {
+                parsedData["pangrams"] = pangramCount
+            }
 
             return GameResult(
                 gameId: gameId,
@@ -159,17 +176,12 @@ extension GameResultParser {
                 maxAttempts: 1000,
                 completed: completed,
                 sharedText: text,
-                parsedData: [
-                    "score": scoreString,
-                    "wordsFound": wordsString,
-                    "rank": rankString,
-                    "shareFormat": "structured"
-                ]
+                parsedData: parsedData
             )
         }
 
-        // Format 2: "Spelling Bee - I found 42 words, including the pangram!" (NYT app share)
-        let sentencePattern = #"Spelling Bee[\s\S]*?I found (\d+) words"#
+        // "Spelling Bee - I found 42 words…" or "NYT Spelling Bee … I found 42 words…"
+        let sentencePattern = #"(?:NYT\s+)?Spelling Bee[\s\S]*?I found (\d+) words"#
         guard let sentenceRegex = try? NSRegularExpression(pattern: sentencePattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
               let sentenceMatch = sentenceRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
               let wordsRange = Range(sentenceMatch.range(at: 1), in: text) else {
@@ -195,7 +207,17 @@ extension GameResultParser {
             ]
         )
     }
-    
+
+    private func parserFirstCapture(_ pattern: String, in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
+              match.numberOfRanges > 1,
+              let range = Range(match.range(at: 1), in: text) else {
+            return nil
+        }
+        return String(text[range])
+    }
+
     // MARK: - NYT Mini Crossword Parser
     func parseMiniCrossword(_ text: String, gameId: UUID) throws -> GameResult {
         // Format 1: "Mini Crossword\nCompleted in 2:30"

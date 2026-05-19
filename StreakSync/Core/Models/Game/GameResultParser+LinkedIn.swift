@@ -12,29 +12,17 @@ extension GameResultParser {
     
     // MARK: - LinkedIn Queens Parser
     func parseLinkedInQueens(_ text: String, gameId: UUID) throws -> GameResult {
-        // Pattern for Queens results with time
-        // Format: "Queens #522\n1:11 👑\nlnkd.in/queens."
-        let pattern = #"Queens\s+#(\d+)(?:[\s\S]*?(\d{1,2}:\d{2}))?"#
-        
+        // "Queens #522" or "Queens 522"; time may be on the next line or after "Time:"
+        let pattern = #"Queens\s+#?(\d+)"#
+
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) else {
-            throw ParsingError.invalidFormat
-        }
-        
-        // Extract puzzle number
-        guard match.range(at: 1).location != NSNotFound,
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
               let puzzleRange = Range(match.range(at: 1), in: text) else {
             throw ParsingError.invalidFormat
         }
+
         let puzzleNumber = String(text[puzzleRange])
-        
-        // Extract time
-        var timeString: String?
-        if match.range(at: 2).location != NSNotFound {
-            if let timeRange = Range(match.range(at: 2), in: text) {
-                timeString = String(text[timeRange])
-            }
-        }
+        let timeString = linkedInFirstCapture(#"(?:Time:\s*)?(\d{1,2}:\d{2})"#, in: text)
         
         // For Queens, score is the actual time in seconds
         var score = 0
@@ -348,32 +336,70 @@ extension GameResultParser {
     
     // MARK: - LinkedIn Mini Sudoku Parser
     func parseLinkedInMiniSudoku(_ text: String, gameId: UUID) throws -> GameResult {
-        // "Mini Sudoku #142 | 0:39 and flawless" or legacy "Mini Sudoku puzzle #45 completed"
-        let pattern = #"Mini Sudoku(?:\s+#|\s+puzzle\s+#)(\d+)"#
+        let searchRange = NSRange(text.startIndex..., in: text)
 
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
-              let puzzleRange = Range(match.range(at: 1), in: text) else {
+        // Numbered: "Mini Sudoku #142 | …" or legacy "Mini Sudoku puzzle #45 completed"
+        let numberedPattern = #"Mini Sudoku(?:\s+#|\s+puzzle\s+#)(\d+)"#
+        if let numberedRegex = try? NSRegularExpression(pattern: numberedPattern, options: .caseInsensitive),
+           let match = numberedRegex.firstMatch(in: text, options: [], range: searchRange),
+           let puzzleRange = Range(match.range(at: 1), in: text) {
+            return makeLinkedInMiniSudokuResult(
+                gameId: gameId,
+                text: text,
+                puzzleIdentifier: String(text[puzzleRange]),
+                pointsScore: linkedInFirstCapture(#"Score:\s*(\d+)"#, in: text),
+                timeString: linkedInFirstCapture(#"(?:Time:\s*)?(\d{1,2}:\d{2})"#, in: text),
+                shareFormat: "numbered"
+            )
+        }
+
+        // Dated block: "Mini Sudoku - May 19, 2026\nScore: 95\nTime: 1:23"
+        let datedPattern = #"Mini Sudoku\s*-\s*([^\n]+)"#
+        guard let datedRegex = try? NSRegularExpression(pattern: datedPattern, options: .caseInsensitive),
+              let datedMatch = datedRegex.firstMatch(in: text, options: [], range: searchRange),
+              let dateRange = Range(datedMatch.range(at: 1), in: text) else {
             throw ParsingError.invalidFormat
         }
 
-        let puzzleNumber = String(text[puzzleRange])
+        let puzzleDate = String(text[dateRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let pointsScore = linkedInFirstCapture(#"Score:\s*(\d+)"#, in: text)
+        let timeString = linkedInFirstCapture(#"Time:\s*(\d{1,2}:\d{2})"#, in: text)
 
-        var timeString: String?
-        let timePattern = #"(\d{1,2}:\d{2})"#
-        if let timeRegex = try? NSRegularExpression(pattern: timePattern, options: []),
-           let timeMatch = timeRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
-           let timeRange = Range(timeMatch.range(at: 1), in: text) {
-            timeString = String(text[timeRange])
+        guard pointsScore != nil || timeString != nil else {
+            throw ParsingError.invalidFormat
         }
 
+        return makeLinkedInMiniSudokuResult(
+            gameId: gameId,
+            text: text,
+            puzzleIdentifier: puzzleDate,
+            pointsScore: pointsScore,
+            timeString: timeString,
+            shareFormat: "dated"
+        )
+    }
+
+    private func makeLinkedInMiniSudokuResult(
+        gameId: UUID,
+        text: String,
+        puzzleIdentifier: String,
+        pointsScore: String?,
+        timeString: String?,
+        shareFormat: String
+    ) -> GameResult {
         var parsedData: [String: String] = [
-            "puzzleNumber": puzzleNumber,
-            "gameType": "sudoku"
+            "puzzleNumber": puzzleIdentifier,
+            "gameType": "sudoku",
+            "shareFormat": shareFormat
         ]
+        if let pointsScore {
+            parsedData["pointsScore"] = pointsScore
+        }
         if let timeString {
             parsedData["time"] = timeString
             parsedData["displayScore"] = timeString
+        } else if let pointsScore {
+            parsedData["displayScore"] = pointsScore
         }
 
         return GameResult(
@@ -386,5 +412,15 @@ extension GameResultParser {
             sharedText: text,
             parsedData: parsedData
         )
+    }
+
+    private func linkedInFirstCapture(_ pattern: String, in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
+              match.numberOfRanges > 1,
+              let range = Range(match.range(at: 1), in: text) else {
+            return nil
+        }
+        return String(text[range])
     }
 }
