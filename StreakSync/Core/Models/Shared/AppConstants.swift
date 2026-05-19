@@ -60,6 +60,12 @@ enum AppConstants {
         static let migrationCompleted = "notificationSystemMigrated_v2"
     }
 
+    // MARK: - Onboarding Keys
+    enum Onboarding {
+        static let hasSeenShareOnboarding = "hasSeenShareOnboarding"
+        static let hasSeenFirstShareCelebration = "hasSeenFirstShareCelebration"
+    }
+
     // MARK: - Animation Durations
     enum Animation {
         static let standardDuration = 0.3
@@ -80,4 +86,5 @@ extension Notification.Name {
     static let appNavigateToGame = Notification.Name("NavigateToGame")
     static let appHandleNewGameResult = Notification.Name("HandleNewGameResult")
     static let appUIRefreshNeeded = Notification.Name("UIRefreshNeeded")
+    static let firstShareCelebrationRequested = Notification.Name("firstShareCelebrationRequested")
 }
