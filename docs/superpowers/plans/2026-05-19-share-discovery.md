@@ -55,7 +55,7 @@ In `AppConstants.swift`, after the `NotificationSettings` enum (around line 61),
 Then in the `extension Notification.Name` block at the bottom of the file (around line 78), append:
 
 ```swift
-    static let firstShareCelebrationRequested = Notification.Name("firstShareCelebrationRequested")
+    static let appFirstShareCelebrationRequested = Notification.Name("firstShareCelebrationRequested")
 ```
 
 - [ ] **Step 2: Build to verify compilation**
@@ -749,7 +749,7 @@ Create `StreakSync/Features/Onboarding/Views/FirstShareCelebrationOverlay.swift`
 //  FirstShareCelebrationOverlay.swift
 //  StreakSync
 //
-//  Listens for .firstShareCelebrationRequested and renders confetti + a transient banner.
+//  Listens for .appFirstShareCelebrationRequested and renders confetti + a transient banner.
 //
 
 import SwiftUI
@@ -769,7 +769,7 @@ struct FirstShareCelebrationOverlay: ViewModifier {
                 ConfettiView(isActive: isCelebrating, duration: displayDuration)
                     .ignoresSafeArea()
             }
-            .onReceive(NotificationCenter.default.publisher(for: .firstShareCelebrationRequested)) { note in
+            .onReceive(NotificationCenter.default.publisher(for: .appFirstShareCelebrationRequested)) { note in
                 handleNotification(note)
             }
     }
@@ -870,7 +870,7 @@ Create `StreakSyncTests/FirstShareCelebrationTriggerTests.swift`:
 //  FirstShareCelebrationTriggerTests.swift
 //  StreakSync
 //
-//  Verifies that AppState.addGameResult posts the firstShareCelebrationRequested
+//  Verifies that AppState.addGameResult posts the appFirstShareCelebrationRequested
 //  notification exactly once on the 0→1 transition.
 //
 
@@ -895,7 +895,7 @@ final class FirstShareCelebrationTriggerTests: XCTestCase {
         appState = AppState.makeForTesting()  // Use existing test factory; see note below.
 
         observer = NotificationCenter.default.addObserver(
-            forName: .firstShareCelebrationRequested,
+            forName: .appFirstShareCelebrationRequested,
             object: nil,
             queue: .main
         ) { [weak self] note in
@@ -974,7 +974,7 @@ Then, immediately AFTER the existing `postResultAddedNotifications(for: result)`
         if shouldFireCelebration {
             UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenFirstShareCelebration)
             NotificationCenter.default.post(
-                name: .firstShareCelebrationRequested,
+                name: .appFirstShareCelebrationRequested,
                 object: nil,
                 userInfo: ["gameName": result.gameName]
             )

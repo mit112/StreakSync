@@ -86,5 +86,5 @@ extension Notification.Name {
     static let appNavigateToGame = Notification.Name("NavigateToGame")
     static let appHandleNewGameResult = Notification.Name("HandleNewGameResult")
     static let appUIRefreshNeeded = Notification.Name("UIRefreshNeeded")
-    static let firstShareCelebrationRequested = Notification.Name("firstShareCelebrationRequested")
+    static let appFirstShareCelebrationRequested = Notification.Name("firstShareCelebrationRequested")
 }
