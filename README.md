@@ -20,24 +20,24 @@
   <img src="https://img.shields.io/badge/UI-SwiftUI-purple" alt="SwiftUI">
   <img src="https://img.shields.io/badge/Backend-Firebase-yellow?logo=firebase" alt="Firebase">
   <img src="https://img.shields.io/badge/Architecture-MVVM-green" alt="MVVM">
-  <img src="https://img.shields.io/badge/Tests-193-brightgreen" alt="193 Tests">
+  <img src="https://img.shields.io/badge/Tests-335-brightgreen" alt="335 Tests">
 </p>
 
 ---
 
-StreakSync is a native iOS app for tracking daily puzzle game streaks across 40+ games including Wordle, Connections, Strands, LinkedIn Queens, and more. Share your game results using the iOS Share Extension, and StreakSync automatically parses scores, tracks streaks, unlocks achievements, and lets you compete with friends on real-time leaderboards.
+StreakSync is a native iOS app for tracking daily puzzle game streaks across 15 built-in games including Wordle, Connections, Strands, LinkedIn Queens, and more. Share your game results using the iOS Share Extension, and StreakSync automatically parses scores, tracks streaks, unlocks achievements, and lets you compete with friends on real-time leaderboards.
 
 ## Why This Project
 
 This isn't a tutorial app — it's a production-grade iOS application built from scratch with real architectural complexity:
 
-- **Share Extension ingestion pipeline** that parses unstructured text from 40+ games into structured data
+- **Share Extension ingestion pipeline** that parses unstructured text from 15 supported games into structured data
 - **Real-time social features** with Firestore snapshot listeners, friend codes, and daily leaderboards
 - **Tiered achievement system** (Bronze → Diamond) with particle effects and celebration animations
 - **Analytics engine** with interactive charts, trend analysis, and CSV export
 - **Smart notification scheduling** that learns when you play and reminds you at the right time
-- **Security-hardened Firestore rules** with field validation, ownership checks, and a 55-case penetration test suite
-- **193 unit and UI tests** covering streak logic, sync merge, game detection, analytics computation, and more
+- **Security-hardened Firestore rules** with field validation, ownership checks, and a 100-case penetration test suite
+- **335 unit and UI tests** covering streak logic, sync merge, game detection, analytics computation, and more
 - **CI pipeline** via GitHub Actions with automated build + test on every push
 
 ## Features
@@ -60,7 +60,7 @@ This isn't a tutorial app — it's a production-grade iOS application built from
 
 ## Supported Games
 
-16 built-in games with dedicated parsers, plus support for custom game tracking:
+15 built-in games with dedicated parsers, plus support for custom game tracking:
 
 | NYT Games | LinkedIn Games | Other |
 |-----------|---------------|-------|
@@ -93,10 +93,10 @@ StreakSyncApp (@main)
 - **MVVM** with a centralized `AppContainer` for dependency injection — no service locators, no singletons for business logic
 - **Protocol-oriented services** — `SocialService` protocol backed by `FirebaseSocialService` (production) and `MockSocialService` (testing)
 - **Swift Concurrency** — `async/await` throughout, `GameResultIngestionActor` for thread-safe share extension processing, structured concurrency with `async let` in analytics
-- **@Observable** (Swift 5.9 Observation) for `AppState` and `GameCatalog`
+- **@Observable** (Swift Observation framework) for `AppState` and `GameCatalog`
 - **Extension-based decomposition** — `AppState` split into 7 focused files (GameLogic, Persistence, Achievements, Reminders, etc.)
 - **Pure computation extraction** — `AnalyticsComputer` and `TieredAchievementChecker` are testable structs with zero UI dependencies
-- **Security-first Firestore rules** — field validation, ownership enforcement, `allowedReaders` arrays for score privacy, with a 55-case penetration test suite
+- **Security-first Firestore rules** — field validation, ownership enforcement, `allowedReaders` arrays for score privacy, with a 100-case penetration test suite
 
 ## Project Structure
 
@@ -120,11 +120,11 @@ StreakSync/
 │   ├── Streaks/                  # All streaks view, streak history
 │   └── Shared/                   # Reusable components (GradientAvatar, GameIconCarousel)
 ├── StreakSyncShareExtension/     # iOS Share Extension for result import
-├── StreakSyncTests/              # 183 unit tests across 15 files
+├── StreakSyncTests/              # 325 unit tests across 24 files
 └── StreakSyncUITests/            # 10 UI tests for launch + navigation
 ```
 
-**169 Swift source files · ~33k lines of production code · 17 test files**
+**165 Swift source files · ~31k lines of production code · 26 test files**
 
 ## Tech Stack
 
@@ -139,13 +139,13 @@ StreakSync/
 | Storage | UserDefaults + App Group + Keychain |
 | Notifications | UNUserNotificationCenter with smart scheduling |
 | Linting | SwiftLint (strict mode) |
-| Testing | XCTest (193 tests) |
+| Testing | XCTest (335 tests) |
 | CI | GitHub Actions |
 
 ## Security
 
 - **Firestore security rules** enforce ownership, field validation, string size limits, and `allowedReaders` arrays for score privacy
-- **55-case penetration test suite** (`firestore-rules-tests/`) validates all rules against attack vectors including hijacking, spoofing, enumeration, and privilege escalation
+- **100-case penetration test suite** (`firestore-rules-tests/`) validates all rules against attack vectors including hijacking, spoofing, enumeration, and privilege escalation
 - **Friendship rules** prevent arbitrary modification — only sender creates, only recipient accepts, user IDs are immutable after creation
 - **Account deletion** flow removes all user data across 6 Firestore collections (App Store requirement)
 - **Sensitive data** stored in Keychain (not UserDefaults)
@@ -188,21 +188,31 @@ To build from source:
 
 ## Testing
 
-193 tests across 17 files:
+335 tests across 26 files:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|---------|
-| AnalyticsComputerTests | 34 | All pure analytics computation functions |
+| AchievementCheckerTests + Extended | 66 | All 10 achievement categories, edge cases, sync merge |
+| GameResultParserTests + Games | 44 | Per-game result parsing for all 15 supported games |
+| AnalyticsComputerTests + Extended | 41 | All pure analytics computation functions |
 | LeaderboardScoringTests | 23 | All 5 scoring models + metric labels |
-| AchievementCheckerTests | 18 | All 10 achievement categories + sync merge |
-| SocialModelTests | 18 | UserProfile, Friendship, DailyGameScore, Date |
-| GameDetectionTests | 18 | Share extension game detection |
-| StreakLogicTests | 15 | Core streak calculation edge cases |
-| NotificationContentTests | 13 | Notification content builder |
-| SyncMergeTests | 13 | Sync merge conflict resolution |
-| GameResultParserTests | 10 | Per-game result parsing |
+| EditGameResultTests | 22 | Result editing flows, validation, persistence |
+| GameDetectionTests | 21 | Share extension game detection across all games |
+| SocialModelTests | 18 | UserProfile, Friendship, DailyGameScore, date encoding |
+| StreakLogicTests | 16 | Core streak calculation and safe skip edge cases |
+| SyncMergeTests | 14 | Conflict resolution across sync merge scenarios |
+| NotificationContentTests | 13 | Notification content builder for all result types |
+| AuthProviderDerivationTests | 9 | Auth provider detection + anonymous→Apple upgrade |
 | NormalizeStreaksTests | 9 | Streak normalization edge cases |
-| + 5 more suites | 12 | Ingestion, social settings, scheduling, load |
+| PendingSaveStoreTests | 6 | Offline Keychain queue for score retry |
+| LoadAndAchievementsTests | 4 | App load + achievement recompute on cold start |
+| SyncServiceConversionTests | 5 | Firestore ↔ local model round-trip conversion |
+| ShareExtensionIngestionTests | 3 | End-to-end share extension pipeline |
+| NotificationSchedulingDateTests | 3 | Smart reminder date calculation |
+| FriendsViewModelTests | 2 | Friend management view model state |
+| GameUUIDUniquenessTests | 2 | Deterministic UUID collision prevention |
+| NotificationPermissionFlowTests | 2 | Permission request flow |
+| SocialSettingsServiceTests | 2 | Social settings persistence |
 | **UI Tests** | **10** | Launch, tab navigation, accessibility |
 
 ```bash
