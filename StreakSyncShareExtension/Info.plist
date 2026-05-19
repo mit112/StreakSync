@@ -4,6 +4,10 @@
 <dict>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>streaksync</string>
+    </array>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionAttributes</key>

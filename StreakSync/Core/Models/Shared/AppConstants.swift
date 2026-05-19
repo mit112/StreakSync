@@ -29,6 +29,11 @@ enum AppConstants {
         static let queuedResultsKey = "gameResults"
         static let lastSaveTimestampKey = "lastShareExtensionSave"
         static let processingFlagKey = "isProcessingShare"
+        /// Set by the Share Extension when the user taps "Show" to deep-link
+        /// into a specific game. Consumed by the main app on next activation,
+        /// providing a fallback path when iOS blocks the extension from
+        /// launching the host app directly via URL scheme.
+        static let pendingDeepLinkGameIdKey = "pendingDeepLinkGameId"
     }
     
     // MARK: - Notification Names

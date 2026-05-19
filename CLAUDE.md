@@ -111,7 +111,9 @@ Protocol-oriented with production and mock implementations:
 
 Queue cleanup uses targeted key removal (only processed keys) to avoid cross-process TOCTOU races with the Share Extension.
 
-Deep links use `streaksync://` URL scheme. Payload keys centralized in `AppConstants.DeepLinkKeys`. Notification UserDefaults keys centralized in `AppConstants.NotificationSettings`.
+`ShareViewController` presents a SwiftUI confirmation sheet (processing/success/failure states) instead of `UIAlertController`. Success card shows game icon (tinted via `Game.backgroundColor`), `displayName`, `displayScore` (parser-provided or fallback), and a single primary "Done" button. **iOS 26 blocks Share Extensions from foregrounding the host app** (`extensionContext.open` and the `perform(openURL:)` responder-chain trick both fail), so tapping Done writes a `pendingDeepLinkGameId` key into the App Group; on the main app's next activation, `AppGroupBridge.consumePendingDeepLinkIfNeeded()` fires `.openGameRequested` and routes the user to the game detail. Result-imported local notifications (`NotificationDelegate.handleOpenGame`) provide the actual one-tap transition path.
+
+Deep links use `streaksync://` URL scheme. Payload keys centralized in `AppConstants.DeepLinkKeys`. Notification UserDefaults keys centralized in `AppConstants.NotificationSettings`. App Group keys (including `pendingDeepLinkGameId`) centralized in `AppConstants.AppGroup` — but the Share Extension target hardcodes them (`"group.com.mitsheth.StreakSync"`, `"pendingDeepLinkGameId"`) because it doesn't have `AppConstants` in its file membership.
 
 ### Game System
 

@@ -113,10 +113,16 @@ final class AppGroupBridge: ObservableObject {
     // MARK: - Result Management
     func checkForNewResults() async {
         guard !isProcessing else { return }
-        
+
         isProcessing = true
         defer { isProcessing = false }
-        
+
+        // Consume a pending deep-link gameId set by the Share Extension's
+        // "Show" button. This is the fallback path when iOS blocks the
+        // extension from launching the host app directly via URL scheme —
+        // whenever the app activates we honor the intent.
+        consumePendingDeepLinkIfNeeded()
+
         // Check for queued results first
         let queuedResults = await resultMonitor.processQueuedResults()
         
@@ -188,6 +194,23 @@ final class AppGroupBridge: ObservableObject {
     // MARK: - Private Methods
     private func processNewResult() async {
         await checkForNewResults()
+    }
+
+    /// Reads and clears the Share Extension's pending deep-link gameId.
+    /// Fires `.openGameRequested` so the existing NotificationCoordinator
+    /// routing path (used by URL schemes and notification taps) handles it.
+    private func consumePendingDeepLinkIfNeeded() {
+        let defaults = UserDefaults(suiteName: AppConstants.AppGroup.identifier)
+        guard let raw = defaults?.string(forKey: AppConstants.AppGroup.pendingDeepLinkGameIdKey),
+              let gameId = UUID(uuidString: raw) else {
+            return
+        }
+        defaults?.removeObject(forKey: AppConstants.AppGroup.pendingDeepLinkGameIdKey)
+        logger.info("Consuming pending deep link from Share Extension: \(gameId)")
+        NotificationCenter.default.post(
+            name: .openGameRequested,
+            object: [AppConstants.DeepLinkKeys.gameId: gameId]
+        )
     }
 }
 
