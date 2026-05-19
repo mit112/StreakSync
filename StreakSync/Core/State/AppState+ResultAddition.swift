@@ -32,6 +32,14 @@ extension AppState {
             return false
         }
 
+        // Capture state BEFORE insert for first-share celebration detection
+        let celebrationFlagSeen = UserDefaults.standard.bool(forKey: AppConstants.Onboarding.hasSeenFirstShareCelebration)
+        let shouldFireCelebration = ShareDiscoveryGate.shouldFireCelebration(
+            preInsertCount: self.recentResults.count,
+            hasSeen: celebrationFlagSeen,
+            isGuest: self.isGuestMode
+        )
+
         // Add result
         self.recentResults.insert(result, at: 0)
 
@@ -62,6 +70,16 @@ extension AppState {
 
         // Post notifications synchronously to prevent race conditions
         postResultAddedNotifications(for: result)
+
+        // First-share celebration — fires exactly once on the 0→1 transition (host mode)
+        if shouldFireCelebration {
+            UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenFirstShareCelebration)
+            NotificationCenter.default.post(
+                name: .appFirstShareCelebrationRequested,
+                object: nil,
+                userInfo: ["gameName": result.gameName]
+            )
+        }
 
         // Capture logger for async tasks
         let logger = self.logger
