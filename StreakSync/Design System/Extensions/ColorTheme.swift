@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - Hex Color Support
 extension Color {
@@ -24,5 +25,14 @@ extension Color {
         let b = Double(rgb & 0xFF) / 255.0
 
         self.init(red: r, green: g, blue: b)
+    }
+
+    /// Resolves to `lightHex` in light mode and `darkHex` in dark mode.
+    /// Used by the achievement tier ladder so vivid tiers desaturate on near-black
+    /// instead of neon-glowing (DESIGN_AUDIT §3-B).
+    init(lightHex: String, darkHex: String) {
+        self.init(uiColor: UIColor { traits in
+            UIColor(Color(hex: traits.userInterfaceStyle == .dark ? darkHex : lightHex))
+        })
     }
 }

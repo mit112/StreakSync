@@ -97,7 +97,8 @@ struct AchievementCard: View {
     
     @State private var isHovered = false
     @State private var showUnlockAnimation = false
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     private var progressPercentage: Double {
         achievement.progress.percentageToNextTier(requirements: achievement.requirements)
     }
@@ -117,7 +118,7 @@ struct AchievementCard: View {
                             .fill(
                                 RadialGradient(
                                     colors: [
-                                        achievement.displayColor.opacity(0.4),
+                                        achievement.displayColor.opacity(colorScheme == .dark ? 0.25 : 0.4),
                                         achievement.displayColor.opacity(0.05)
                                     ],
                                     center: .center,
@@ -234,7 +235,7 @@ struct AchievementCard: View {
                     }
                     .shadow(
                         color: achievement.isUnlocked
-                            ? achievement.displayColor.opacity(0.12)
+                            ? achievement.displayColor.opacity(colorScheme == .dark ? 0.07 : 0.12)
                             : .black.opacity(0.06),
                         radius: 6, x: 0, y: 2
                     )

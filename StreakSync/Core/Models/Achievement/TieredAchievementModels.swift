@@ -37,14 +37,16 @@ enum AchievementTier: Int, CaseIterable, Codable, Sendable {
         }
     }
     
+    /// Metal→gem ladder (DESIGN_AUDIT §3-B): on-brand, WCAG-safe, with desaturated
+    /// dark variants so the top tiers stop neon-glowing on near-black.
     var color: Color {
         switch self {
-        case .bronze: return Color(red: 0.80, green: 0.50, blue: 0.20)
-        case .silver: return Color(red: 0.75, green: 0.75, blue: 0.75)
-        case .gold: return Color(red: 1.0, green: 0.84, blue: 0.0)
-        case .diamond: return Color(red: 0.73, green: 0.91, blue: 1.0)
-        case .master: return Color(red: 0.58, green: 0.0, blue: 0.83)
-        case .legendary: return Color(red: 1.0, green: 0.0, blue: 0.5)
+        case .bronze: return Color(lightHex: "B0783C", darkHex: "C79A66")
+        case .silver: return Color(lightHex: "8E99A3", darkHex: "AEB6BE")
+        case .gold: return Color(lightHex: "C9A227", darkHex: "D8B84E")
+        case .diamond: return Color(lightHex: "3EAEC9", darkHex: "6FC6DB")
+        case .master: return Color(lightHex: "3B5BDB", darkHex: "6E86E8")
+        case .legendary: return Color(lightHex: "0CA678", darkHex: "2FBF93")
         }
     }
     
@@ -67,8 +69,8 @@ enum AchievementTier: Int, CaseIterable, Codable, Sendable {
         case .silver: return 0.3
         case .gold: return 0.4
         case .diamond: return 0.5
-        case .master: return 0.6
-        case .legendary: return 0.8
+        case .master: return 0.4
+        case .legendary: return 0.4
         }
     }
 }
