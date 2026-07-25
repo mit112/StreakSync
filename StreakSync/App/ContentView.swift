@@ -24,7 +24,8 @@ struct ContentView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
                 .background(Color.orange)
-                .foregroundStyle(.white)
+                // Black on orange is ~9.5:1 (WCAG AA); white was ~2.2:1 and failed.
+                .foregroundStyle(.black)
             }
             
             // Sync status banner — shows when offline or scores are pending
