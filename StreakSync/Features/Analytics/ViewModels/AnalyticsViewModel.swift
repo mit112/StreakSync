@@ -297,7 +297,7 @@ extension AnalyticsViewModel {
         guard let overview = overview else { return "No data available" }
         
         let rate = overview.averageCompletionRate * 100
-        return String(format: "%.1f%% completion rate", rate)
+        return String(format: "%.0f%% completion rate", rate)
     }
     
     /// Get formatted streak consistency summary
@@ -305,6 +305,6 @@ extension AnalyticsViewModel {
         guard let overview = overview else { return "No data available" }
         
         let consistency = overview.streakConsistency * 100
-        return String(format: "%.1f%% consistency", consistency)
+        return String(format: "%.0f%% consistency", consistency)
     }
 }

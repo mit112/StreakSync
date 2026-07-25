@@ -182,7 +182,7 @@ struct AchievementAnalytics: Sendable {
     }
     
     var completionPercentage: String {
-        String(format: "%.1f%%", unlockRate * 100)
+        String(format: "%.0f%%", unlockRate * 100)
     }
 }
 
@@ -291,11 +291,11 @@ struct AnalyticsOverview: Sendable {
     }
     
     var overallCompletionRate: String {
-        String(format: "%.1f%%", averageCompletionRate * 100)
+        String(format: "%.0f%%", averageCompletionRate * 100)
     }
     
     var streakConsistencyPercentage: String {
-        String(format: "%.1f%%", streakConsistency * 100)
+        String(format: "%.0f%%", streakConsistency * 100)
     }
 }
 

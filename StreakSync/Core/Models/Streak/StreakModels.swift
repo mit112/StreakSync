@@ -89,7 +89,7 @@ struct GameStreak: Identifiable, Codable, Hashable, Sendable {
     }
     
     var completionPercentage: String {
-        String(format: "%.1f%%", completionRate * 100)
+        String(format: "%.0f%%", completionRate * 100)
     }
     
     var isActive: Bool {

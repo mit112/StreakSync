@@ -311,7 +311,7 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
             if let next = nextTierRequirement {
                 return "\(progress.currentValue)/\(next.threshold)"
             } else {
-                return "\(progress.currentValue) (Max)"
+                return "\(progress.currentValue) · Max tier"
             }
         } else if let next = nextTierRequirement {
             return "\(progress.currentValue)/\(next.threshold)"
