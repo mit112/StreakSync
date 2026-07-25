@@ -98,7 +98,8 @@ struct StatCard: View {
                 
                 VStack(alignment: .leading, spacing: 0) {
                     Text(value)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        // Text style (not fixed size) so the stat value scales with Dynamic Type.
+                        .font(.system(.title3, design: .rounded).weight(.bold))
                         .foregroundStyle(.primary)
                         .contentTransition(.numericText())
                     
