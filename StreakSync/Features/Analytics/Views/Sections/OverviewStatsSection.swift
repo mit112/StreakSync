@@ -98,7 +98,7 @@ struct AnalyticsStatCard: View {
         .padding()
         .frame(maxWidth: .infinity, minHeight: 110, alignment: .leading)
         .background {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: CornerRadius.card)
                 .fill(Color(.secondarySystemGroupedBackground))
                 .strokeBorder(Color(.separator), lineWidth: 0.5)
         }
@@ -144,7 +144,7 @@ struct AnalyticsStatCardWithTooltip: View {
         .padding()
         .frame(maxWidth: .infinity, minHeight: 110, alignment: .leading)
         .background {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: CornerRadius.card)
                 .fill(Color(.secondarySystemGroupedBackground))
                 .strokeBorder(Color(.separator), lineWidth: 0.5)
         }

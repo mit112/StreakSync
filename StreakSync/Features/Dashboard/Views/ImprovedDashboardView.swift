@@ -247,7 +247,7 @@ struct ImprovedDashboardView: View {
         RecentActivitySection(filteredStreaks: filteredStreaks)
             .padding(.horizontal)
             .padding(.vertical)
-            .cardStyle(cornerRadius: 20)
+            .cardStyle()
             .padding(.horizontal)
             .scrollTransition { content, phase in
                 content

@@ -40,7 +40,7 @@ struct ContentView: View {
                 .sheet(item: $navigationCoordinator.presentedSheet) { sheet in
                     sheetView(for: sheet)
                         .presentationDragIndicator(.visible)
-                        .presentationCornerRadius(20)
+                        .presentationCornerRadius(CornerRadius.sheet)
                         .presentationBackground(.ultraThinMaterial)
                 }
         }

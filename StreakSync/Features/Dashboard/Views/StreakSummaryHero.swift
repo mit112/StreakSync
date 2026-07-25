@@ -74,7 +74,7 @@ struct StreakSummaryHero: View {
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
             .background {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                     // Use a brighter surface so the hero stands out against the grouped dashboard background.
                     .fill(Color(.systemBackground))
                     .strokeBorder(colorScheme == .dark ? Color(.separator) : Color.black.opacity(0.08), lineWidth: 0.75)

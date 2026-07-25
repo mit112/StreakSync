@@ -112,10 +112,10 @@ struct StatCard: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: CornerRadius.card)
                     .fill(Color(.secondarySystemGroupedBackground))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14)
+                        RoundedRectangle(cornerRadius: CornerRadius.card)
                             .strokeBorder(
                                 adaptedGradient.opacity(0.3),
                                 lineWidth: 1

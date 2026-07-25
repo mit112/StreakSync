@@ -194,11 +194,11 @@ struct GameCompactCardView: View {
     private var enhancedCardBackground: some View {
         ZStack {
             // Base card background
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
             
             // Subtle gradient overlay
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                 .fill(
                     LinearGradient(
                         stops: [
@@ -211,7 +211,7 @@ struct GameCompactCardView: View {
                 )
             
             // Border with consistent styling
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                 .strokeBorder(
                     colorScheme == .dark ?
                         Color(.separator).opacity(0.4) :
@@ -221,7 +221,7 @@ struct GameCompactCardView: View {
             
             // Active state overlay for games with current streaks
             if isActive {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                     .strokeBorder(
                         LinearGradient(
                             colors: [

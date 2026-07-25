@@ -207,12 +207,12 @@ struct AchievementCard: View {
             .frame(height: 220)
             .frame(maxWidth: .infinity)
             .background {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                     .fill(Color(.secondarySystemGroupedBackground))
                     .overlay {
                         // Subtle tier-colored tint for unlocked achievements
                         if achievement.isUnlocked {
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                                 .fill(
                                     LinearGradient(
                                         stops: [
@@ -226,7 +226,7 @@ struct AchievementCard: View {
                         }
                     }
                     .overlay {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                             .stroke(
                                 achievement.isUnlocked
                                 ? achievement.displayColor.opacity(0.35)

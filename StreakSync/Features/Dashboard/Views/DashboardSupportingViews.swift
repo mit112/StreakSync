@@ -79,7 +79,7 @@ struct MiniStreakCard: View {
             }
             .frame(width: 80)
             .padding(.vertical, 12)
-            .cardStyle(cornerRadius: 12)
+            .cardStyle()
         }
         .buttonStyle(.plain)
         .scaleEffect(isHovered ? 1.05 : 1.0)

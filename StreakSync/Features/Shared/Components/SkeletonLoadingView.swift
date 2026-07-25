@@ -72,7 +72,7 @@ struct SkeletonLoadingView: View {
                 .frame(height: 8)
         }
         .padding()
-        .cardStyle(cornerRadius: 12)
+        .cardStyle()
     }
     
     // MARK: - List Skeleton

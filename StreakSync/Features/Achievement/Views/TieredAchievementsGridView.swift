@@ -132,7 +132,7 @@ struct TieredAchievementsGridView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-            .presentationCornerRadius(20)
+            .presentationCornerRadius(CornerRadius.sheet)
             .presentationBackground(.ultraThinMaterial)
         }
     }

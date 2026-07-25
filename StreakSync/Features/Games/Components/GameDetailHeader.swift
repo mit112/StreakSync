@@ -33,7 +33,7 @@ struct GameDetailHeader: View {
         }
         .padding(Spacing.xl)
         .background {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: CornerRadius.sheet, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
                 .strokeBorder(Color(.separator), lineWidth: 0.5)
         }

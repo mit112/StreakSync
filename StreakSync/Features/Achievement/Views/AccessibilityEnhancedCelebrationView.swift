@@ -105,7 +105,7 @@ struct ReducedMotionCelebrationView: View {
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: CornerRadius.sheet)
                     .fill(.regularMaterial)
             )
             .opacity(opacity)

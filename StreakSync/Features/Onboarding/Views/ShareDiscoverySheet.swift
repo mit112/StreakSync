@@ -46,7 +46,7 @@ struct ShareDiscoverySheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                             .fill(Color.accentColor)
                     )
                     .foregroundStyle(.white)

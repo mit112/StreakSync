@@ -158,7 +158,7 @@ struct StreakHistoryView: View {
             }
         }
         .padding(20)
-        .cardStyle(cornerRadius: 20)
+        .cardStyle()
         .scrollTransition { content, phase in
             content.opacity(phase.isIdentity ? 1 : 0.9)
         }

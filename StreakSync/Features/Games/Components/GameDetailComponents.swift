@@ -35,7 +35,7 @@ struct AnimatedStatPill: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.sm)
-        .cardStyle(cornerRadius: 20)
+        .cardStyle()
         .pressable(hapticType: .buttonTap, scaleAmount: 0.95)
     }
 }
@@ -111,7 +111,7 @@ struct EmptyResultsCard: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
         .background {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
                 .strokeBorder(Color(.separator), lineWidth: 0.5)
         }
