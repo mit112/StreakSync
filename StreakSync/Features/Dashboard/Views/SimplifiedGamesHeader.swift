@@ -14,18 +14,27 @@ struct SimplifiedGamesHeader: View {
     @Binding var selectedCategory: GameCategory?
     
     let navigateToGameManagement: () -> Void
-    
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         VStack(spacing: 12) {
-            // Row 1: Title and Browse button
-            HStack {
+            // Row 1: Title and Browse button — reflow to a vertical stack at
+            // accessibility text sizes so "Browse" no longer clips mid-word (§4.4).
+            let headerLayout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(spacing: 8))
+
+            headerLayout {
                 Text("Your Games")
                     .font(.title2.bold())
                     .foregroundStyle(.primary)
                     .accessibilityAddTraits(.isHeader)
-                
-                Spacer()
-                
+
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Spacer()
+                }
+
                 // Primary CTA: Browse Games
                 Button {
                     navigateToGameManagement()
@@ -33,6 +42,7 @@ struct SimplifiedGamesHeader: View {
                 } label: {
                     Label("Browse", systemImage: "plus.circle.fill")
                         .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)

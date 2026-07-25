@@ -92,7 +92,7 @@ struct StreakSummaryHero: View {
         VStack(spacing: 4) {
             HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(iconColor)
                 Text(value)
                     .font(.title2.weight(.bold).monospacedDigit())

@@ -152,7 +152,7 @@ struct GameCompactCardView: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.8)
-                        .frame(height: 32)
+                        .frame(minHeight: 32)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 12) // Add horizontal padding to main content
@@ -174,12 +174,13 @@ struct GameCompactCardView: View {
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.9)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, 14)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 180) // Keep the same height
+            .frame(minHeight: 180) // Grow with Dynamic Type instead of clipping (§4.4)
             .background {
                 enhancedCardBackground
             }

@@ -75,7 +75,7 @@ private struct AppearanceOptionRow: View {
                 
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.accentColor)
                 }
             }

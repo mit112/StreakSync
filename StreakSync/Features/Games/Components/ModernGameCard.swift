@@ -15,8 +15,9 @@ struct ModernGameCard: View {
     let action: () -> Void
     
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var isPressed = false
-    
+
     // Computed properties
     private var gameColor: Color {
         game.backgroundColor.color
@@ -70,8 +71,13 @@ struct ModernGameCard: View {
                         }
                     }
                     
-                    // Single metadata line
-                    HStack(spacing: 8) {
+                    // Single metadata line — reflows to a vertical stack (no bullets)
+                    // at accessibility text sizes so it stops truncating (§4.4).
+                    let metadataLayout = dynamicTypeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                        : AnyLayout(HStackLayout(spacing: 8))
+
+                    metadataLayout {
                         // Streak indicator — prominent when active
                         if streak.currentStreak > 0 {
                             HStack(spacing: 3) {
@@ -96,11 +102,15 @@ struct ModernGameCard: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        
-                        Text("•")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        
+
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            // Decorative separator — hidden from VoiceOver (§4.13).
+                            Text("•")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+
                         // Completion rate
                         HStack(spacing: 3) {
                             Image(systemName: hasPlayedToday ? "checkmark.circle.fill" : "circle")
@@ -110,17 +120,24 @@ struct ModernGameCard: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        
-                        Text("•")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        
+
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+
                         // Last played
                         Text(daysAgo)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        
-                        Spacer()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.9)
+
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            Spacer()
+                        }
                     }
                     
                     // Progress bar

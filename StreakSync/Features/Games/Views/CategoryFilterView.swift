@@ -54,6 +54,9 @@ struct CategoryFilterView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 4)
             }
+            // Keep the row scrollable with a visible cue; clamp chip size so it
+            // doesn't balloon at accessibility text sizes (§4.4).
+            .scrollIndicators(.visible)
             .onChange(of: selectedCategory) { _, newValue in
                 withAnimation {
                     if let category = newValue {
@@ -111,6 +114,7 @@ private struct CategoryChip: View {
                     .font(.subheadline.weight(.medium))
             }
             .foregroundStyle(isSelected ? .white : .primary)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(

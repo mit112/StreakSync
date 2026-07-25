@@ -305,7 +305,7 @@ private struct IOS26SettingsNavigationRow<Destination: View>: View {
                 // Chevron
                 if showChevron {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.tertiary)
                         .scaleEffect(isPressed ? 0.8 : 1)
                         .accessibilityHidden(true)
@@ -368,7 +368,7 @@ private struct IOS26SettingsLinkRow: View {
                 
                 // External Link Icon
                 Image(systemName: "arrow.up.right.square")
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundStyle(.tertiary)
                     .scaleEffect(isPressed ? 0.8 : 1)
                     .accessibilityHidden(true)
