@@ -104,6 +104,8 @@ struct FilterChip: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .minTapTarget()
+            .accessibilityLabel("Remove \(label) filter")
         }
         .foregroundStyle(color)
         .padding(.leading, 8)

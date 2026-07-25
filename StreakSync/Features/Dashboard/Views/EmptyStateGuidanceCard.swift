@@ -75,6 +75,7 @@ struct EmptyStateGuidanceCard: View {
                     .symbolRenderingMode(.hierarchical)
             }
             .buttonStyle(.plain)
+            .minTapTarget()
             .accessibilityLabel("Dismiss tip")
         }
         .padding(16)

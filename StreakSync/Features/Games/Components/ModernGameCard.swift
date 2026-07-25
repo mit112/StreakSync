@@ -68,6 +68,8 @@ struct ModernGameCard: View {
                                     .contentTransition(.symbolEffect(.replace))
                             }
                             .buttonStyle(.plain)
+                            .minTapTarget()
+                            .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
                         }
                     }
                     

@@ -61,4 +61,11 @@ extension View {
             .accessibilityHint(hint ?? "")
             .accessibilityAddTraits(.isButton)
     }
+
+    /// Enforces the HIG 44pt minimum hit area (WCAG 2.5.8) without growing the
+    /// visible glyph. Apply to icon-only controls (DESIGN_AUDIT §4.12).
+    func minTapTarget() -> some View {
+        frame(minWidth: Layout.minTouchTarget, minHeight: Layout.minTouchTarget)
+            .contentShape(Rectangle())
+    }
 }
