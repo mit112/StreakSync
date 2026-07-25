@@ -61,7 +61,6 @@ final class EditGameResultTests: XCTestCase {
             displayName: "Wordle",
             url: url,
             category: .nytGames,
-            resultPattern: #"Wordle \d+ [1-6X]/6"#,
             iconSystemName: "square.grid.3x3.fill",
             backgroundColor: CodableColor(.systemGreen),
             isPopular: true,

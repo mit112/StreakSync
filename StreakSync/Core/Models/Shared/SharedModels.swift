@@ -33,7 +33,6 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
     let displayName: String
     let url: URL
     let category: GameCategory
-    let resultPattern: String
     let iconSystemName: String
     let backgroundColor: CodableColor
     let isPopular: Bool
@@ -46,7 +45,6 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         displayName: String,
         url: URL,
         category: GameCategory,
-        resultPattern: String,
         iconSystemName: String,
         backgroundColor: CodableColor,
         isPopular: Bool,
@@ -57,7 +55,6 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         self.displayName = displayName
         self.url = url
         self.category = category
-        self.resultPattern = resultPattern
         self.iconSystemName = iconSystemName
         self.backgroundColor = backgroundColor
         self.isPopular = isPopular
@@ -76,7 +73,6 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
             displayName: "Wordle",
             url: URL(string: "https://www.nytimes.com/games/wordle") ?? URL(fileURLWithPath: "/"),
             category: .word,
-            resultPattern: "Wordle \\d+ \\d+/6",
             iconSystemName: "textformat.abc",
             backgroundColor: CodableColor(.green),
             isPopular: true

@@ -449,7 +449,7 @@ extension GameResultParserTests {
         let customGame = Game(
             id: UUID(), name: "testgame", displayName: "Test Game",
             url: URL(string: "https://example.com")!, // swiftlint:disable:this force_unwrapping
-            category: .custom, resultPattern: #"TestGame \d+/\d+"#,
+            category: .custom,
             iconSystemName: "star", backgroundColor: CodableColor(.systemBlue),
             isPopular: false
         )
@@ -463,7 +463,7 @@ extension GameResultParserTests {
         let customGame = Game(
             id: UUID(), name: "testgame", displayName: "Test Game",
             url: URL(string: "https://example.com")!, // swiftlint:disable:this force_unwrapping
-            category: .custom, resultPattern: #"TestGame \d+/\d+"#,
+            category: .custom,
             iconSystemName: "star", backgroundColor: CodableColor(.systemBlue),
             isPopular: false
         )
@@ -477,7 +477,7 @@ extension GameResultParserTests {
         let customGame = Game(
             id: UUID(), name: "testgame", displayName: "Test Game",
             url: URL(string: "https://example.com")!, // swiftlint:disable:this force_unwrapping
-            category: .custom, resultPattern: #"TestGame \d+/\d+"#,
+            category: .custom,
             iconSystemName: "star", backgroundColor: CodableColor(.systemBlue),
             isPopular: false
         )

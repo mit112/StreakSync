@@ -25,7 +25,6 @@ class AnalyticsComputerTests: XCTestCase {
             displayName: name,
             url: URL(staticString: "https://example.com"),
             category: .word,
-            resultPattern: ".*",
             iconSystemName: "textformat.abc",
             backgroundColor: CodableColor(.green),
             isPopular: true,

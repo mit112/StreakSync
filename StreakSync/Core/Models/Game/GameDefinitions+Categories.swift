@@ -19,7 +19,6 @@ extension Game {
         displayName: "Primel",
         url: URL(staticString: "https://converged.yt/primel"),
         category: .math,
-        resultPattern: #"Primel \d+ [1-6X]/6"#,
         iconSystemName: "number.circle",
         backgroundColor: CodableColor(.systemPurple),
         isPopular: false
@@ -31,7 +30,6 @@ extension Game {
         displayName: "Ooodle",
         url: URL(staticString: "https://ooodle.live"),
         category: .math,
-        resultPattern: #"Ooodle.*?in \d+ attempts"#,
         iconSystemName: "plus.forwardslash.minus",
         backgroundColor: CodableColor(.systemOrange),
         isPopular: false
@@ -43,7 +41,6 @@ extension Game {
         displayName: "Summle",
         url: URL(staticString: "https://summle.com"),
         category: .math,
-        resultPattern: #"Summle.*?in \d+ tries"#,
         iconSystemName: "sum",
         backgroundColor: CodableColor(.systemYellow),
         isPopular: false
@@ -55,7 +52,6 @@ extension Game {
         displayName: "TimeGuessr",
         url: URL(staticString: "https://timeguessr.com"),
         category: .math,
-        resultPattern: #"TimeGuessr.*?Score: \d+"#,
         iconSystemName: "clock.badge.questionmark",
         backgroundColor: CodableColor(.systemTeal),
         isPopular: false
@@ -67,7 +63,6 @@ extension Game {
         displayName: "Rankdle",
         url: URL(staticString: "https://rankdle.com"),
         category: .math,
-        resultPattern: #"Rankdle.*?in \d+ attempts"#,
         iconSystemName: "list.number",
         backgroundColor: CodableColor(.systemCyan),
         isPopular: false
@@ -81,7 +76,6 @@ extension Game {
         displayName: "Songlio",
         url: URL(staticString: "https://songlio.com"),
         category: .music,
-        resultPattern: #"Songlio.*?in \d+ tries"#,
         iconSystemName: "music.mic",
         backgroundColor: CodableColor(.systemPink),
         isPopular: false
@@ -93,7 +87,6 @@ extension Game {
         displayName: "BINB",
         url: URL(staticString: "https://binb.co"),
         category: .music,
-        resultPattern: #"BINB.*?in \d+ guesses"#,
         iconSystemName: "waveform",
         backgroundColor: CodableColor(.systemRed),
         isPopular: false
@@ -105,7 +98,6 @@ extension Game {
         displayName: "Songle",
         url: URL(staticString: "https://songle.io"),
         category: .music,
-        resultPattern: #"Songle.*?in \d+ attempts"#,
         iconSystemName: "music.quarternote.3",
         backgroundColor: CodableColor(.systemIndigo),
         isPopular: false
@@ -117,7 +109,6 @@ extension Game {
         displayName: "Bandle",
         url: URL(staticString: "https://bandle.app"),
         category: .music,
-        resultPattern: #"Bandle.*?\d+/6"#,
         iconSystemName: "guitars",
         backgroundColor: CodableColor(.systemGreen),
         isPopular: false
@@ -129,7 +120,6 @@ extension Game {
         displayName: "Musicle",
         url: URL(staticString: "https://musicle.app"),
         category: .music,
-        resultPattern: #"Musicle.*?in \d+ seconds"#,
         iconSystemName: "music.note.tv",
         backgroundColor: CodableColor(.systemBlue),
         isPopular: false
@@ -143,7 +133,6 @@ extension Game {
         displayName: "Countryle",
         url: URL(staticString: "https://countryle.com"),
         category: .geography,
-        resultPattern: #"Countryle.*?in \d+ guesses"#,
         iconSystemName: "map",
         backgroundColor: CodableColor(.systemOrange),
         isPopular: false
@@ -155,7 +144,6 @@ extension Game {
         displayName: "Flagle",
         url: URL(staticString: "https://flagle.io"),
         category: .geography,
-        resultPattern: #"Flagle.*?in \d+/6"#,
         iconSystemName: "flag",
         backgroundColor: CodableColor(.systemRed),
         isPopular: false
@@ -167,7 +155,6 @@ extension Game {
         displayName: "Statele",
         url: URL(staticString: "https://statele.com"),
         category: .geography,
-        resultPattern: #"Statele.*?in \d+ guesses"#,
         iconSystemName: "map.circle",
         backgroundColor: CodableColor(.systemPurple),
         isPopular: false
@@ -179,7 +166,6 @@ extension Game {
         displayName: "Citydle",
         url: URL(staticString: "https://citydle.com"),
         category: .geography,
-        resultPattern: #"Citydle.*?in \d+ attempts"#,
         iconSystemName: "building.2",
         backgroundColor: CodableColor(.systemGray),
         isPopular: false
@@ -191,7 +177,6 @@ extension Game {
         displayName: "WhereTaken",
         url: URL(staticString: "https://wheretaken.com"),
         category: .geography,
-        resultPattern: #"WhereTaken.*?in \d+ guesses"#,
         iconSystemName: "camera.on.rectangle",
         backgroundColor: CodableColor(.systemMint),
         isPopular: false
@@ -205,7 +190,6 @@ extension Game {
         displayName: "Moviedle",
         url: URL(staticString: "https://moviedle.app"),
         category: .trivia,
-        resultPattern: #"Moviedle.*?in \d+ seconds"#,
         iconSystemName: "film",
         backgroundColor: CodableColor(.systemYellow),
         isPopular: false
@@ -217,7 +201,6 @@ extension Game {
         displayName: "Posterdle",
         url: URL(staticString: "https://posterdle.com"),
         category: .trivia,
-        resultPattern: #"Posterdle.*?in \d+ guesses"#,
         iconSystemName: "photo.artframe",
         backgroundColor: CodableColor(.systemTeal),
         isPopular: false
@@ -229,7 +212,6 @@ extension Game {
         displayName: "Actorle",
         url: URL(staticString: "https://actorle.com"),
         category: .trivia,
-        resultPattern: #"Actorle.*?in \d+ guesses"#,
         iconSystemName: "person.crop.rectangle",
         backgroundColor: CodableColor(.systemBrown),
         isPopular: false
@@ -241,7 +223,6 @@ extension Game {
         displayName: "FoodGuessr",
         url: URL(staticString: "https://foodguessr.com"),
         category: .trivia,
-        resultPattern: #"FoodGuessr.*?Score: \d+"#,
         iconSystemName: "fork.knife",
         backgroundColor: CodableColor(.systemOrange),
         isPopular: false
@@ -253,7 +234,6 @@ extension Game {
         displayName: "Artdle",
         url: URL(staticString: "https://artdle.com"),
         category: .trivia,
-        resultPattern: #"Artdle.*?in \d+ guesses"#,
         iconSystemName: "paintpalette",
         backgroundColor: CodableColor(.systemPink),
         isPopular: false

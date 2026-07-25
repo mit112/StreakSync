@@ -21,7 +21,6 @@ final class NotificationContentTests: XCTestCase {
             displayName: name,
             url: url,
             category: .word,
-            resultPattern: "",
             iconSystemName: "square",
             backgroundColor: CodableColor(.blue),
             isPopular: false

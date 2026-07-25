@@ -17,7 +17,6 @@ extension Game {
         displayName: "Letter Boxed",
         url: URL(staticString: "https://www.nytimes.com/puzzles/letter-boxed"),
         category: .word,
-        resultPattern: #"Letter Boxed.*?in \d+ words"#,
         iconSystemName: "square.on.square",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
         isPopular: false
@@ -29,7 +28,6 @@ extension Game {
         displayName: "Waffle",
         url: URL(staticString: "https://wafflegame.net"),
         category: .word,
-        resultPattern: #"#waffle\d+ \d+/5"#,
         iconSystemName: "square.grid.2x2",
         backgroundColor: CodableColor(.systemBrown),
         isPopular: false
@@ -42,7 +40,6 @@ extension Game {
         displayName: "Mathle",
         url: URL(staticString: "https://www.mathle.com"),
         category: .math,
-        resultPattern: #"Mathle \d+ [1-6X]/6"#,
         iconSystemName: "function",
         backgroundColor: CodableColor(.systemIndigo),
         isPopular: false
@@ -54,7 +51,6 @@ extension Game {
         displayName: "Numberle",
         url: URL(staticString: "https://numberle.com"),
         category: .math,
-        resultPattern: #"Numberle \d+ [1-6X]/6"#,
         iconSystemName: "number.square",
         backgroundColor: CodableColor(.systemCyan),
         isPopular: false
@@ -67,7 +63,6 @@ extension Game {
         displayName: "Worldle",
         url: URL(staticString: "https://worldle.teuteuf.fr"),
         category: .geography,
-        resultPattern: #"#Worldle #\d+ [1-6X]/6"#,
         iconSystemName: "globe",
         backgroundColor: CodableColor(.systemGreen),
         isPopular: true
@@ -79,7 +74,6 @@ extension Game {
         displayName: "Globle",
         url: URL(staticString: "https://globle-game.com"),
         category: .geography,
-        resultPattern: #"Globle.*?in \d+ guesses"#,
         iconSystemName: "globe.americas",
         backgroundColor: CodableColor(.systemTeal),
         isPopular: false
@@ -92,7 +86,6 @@ extension Game {
         displayName: "Contexto",
         url: URL(staticString: "https://contexto.me"),
         category: .trivia,
-        resultPattern: #"Contexto \d+.*?in \d+ guesses"#,
         iconSystemName: "lightbulb",
         backgroundColor: CodableColor(.systemRed),
         isPopular: true
@@ -104,7 +97,6 @@ extension Game {
         displayName: "Framed",
         url: URL(staticString: "https://framed.wtf"),
         category: .trivia,
-        resultPattern: #"Framed #\d+ [1-6X]/6"#,
         iconSystemName: "film",
         backgroundColor: CodableColor(.systemPink),
         isPopular: false
@@ -117,7 +109,6 @@ extension Game {
         displayName: "Crosswordle",
         url: URL(staticString: "https://crosswordle.serializer.ca"),
         category: .puzzle,
-        resultPattern: #"Crosswordle \d+.*?in \d+"#,
         iconSystemName: "square.grid.3x3.fill",
         backgroundColor: CodableColor(.systemGray),
         isPopular: false
@@ -129,7 +120,6 @@ extension Game {
         displayName: "Mini Crossword",
         url: URL(staticString: "https://www.nytimes.com/crosswords/game/mini"),
         category: .puzzle,
-        resultPattern: #"Mini Crossword.*?(\d+:\d+|\d+s)"#,
         iconSystemName: "square.grid.2x2",
         backgroundColor: CodableColor(.systemBlue),
         isPopular: true
@@ -141,7 +131,6 @@ extension Game {
         displayName: "Sudoku",
         url: URL(staticString: "https://www.nytimes.com/puzzles/sudoku"),
         category: .puzzle,
-        resultPattern: #"Sudoku.*?in (\d+:\d+|\d+m)"#,
         iconSystemName: "square.grid.3x3.topleft.filled",
         backgroundColor: CodableColor(.systemPurple),
         isPopular: true
@@ -154,7 +143,6 @@ extension Game {
         displayName: "Lyricle",
         url: URL(staticString: "https://www.lyricle.app"),
         category: .music,
-        resultPattern: #"Lyricle \d+ [1-6X]/6"#,
         iconSystemName: "music.note.list",
         backgroundColor: CodableColor(.systemPink),
         isPopular: false
@@ -167,7 +155,6 @@ extension Game {
         displayName: "Absurdle",
         url: URL(staticString: "https://absurdle.online"),
         category: .word,
-        resultPattern: #"Absurdle.*?in \d+ guesses"#,
         iconSystemName: "questionmark.square",
         backgroundColor: CodableColor(.systemRed),
         isPopular: false
@@ -179,7 +166,6 @@ extension Game {
         displayName: "Semantle",
         url: URL(staticString: "https://semantle.com"),
         category: .word,
-        resultPattern: #"Semantle #\d+.*?in \d+ guesses"#,
         iconSystemName: "brain",
         backgroundColor: CodableColor(.systemIndigo),
         isPopular: false
@@ -193,7 +179,6 @@ extension Game {
         displayName: "Dordle",
         url: URL(staticString: "https://zaratustra.itch.io/dordle"),
         category: .word,
-        resultPattern: #"Daily Dordle #\d+"#,
         iconSystemName: "square.on.square",
         backgroundColor: CodableColor(.systemOrange),
         isPopular: false
@@ -205,7 +190,6 @@ extension Game {
         displayName: "Sedecordle",
         url: URL(staticString: "https://sedecordle.com"),
         category: .word,
-        resultPattern: #"Daily Sedecordle #\d+"#,
         iconSystemName: "square.grid.3x3.square",
         backgroundColor: CodableColor(.systemRed),
         isPopular: false
@@ -217,7 +201,6 @@ extension Game {
         displayName: "Kilordle",
         url: URL(staticString: "https://kilordle.com"),
         category: .word,
-        resultPattern: #"Kilordle.*?in \d+ guesses"#,
         iconSystemName: "infinity",
         backgroundColor: CodableColor(.systemIndigo),
         isPopular: false
@@ -229,7 +212,6 @@ extension Game {
         displayName: "Antiwordle",
         url: URL(staticString: "https://antiwordle.com"),
         category: .word,
-        resultPattern: #"Antiwordle.*?in \d+ attempts"#,
         iconSystemName: "arrow.uturn.backward.square",
         backgroundColor: CodableColor(.systemPink),
         isPopular: false
@@ -241,7 +223,6 @@ extension Game {
         displayName: "Wordscapes",
         url: URL(staticString: "https://wordscapes.com"),
         category: .word,
-        resultPattern: #"Wordscapes.*?Level \d+"#,
         iconSystemName: "leaf",
         backgroundColor: CodableColor(.systemGreen),
         isPopular: false
@@ -253,7 +234,6 @@ extension Game {
         displayName: "Word Hurdle",
         url: URL(staticString: "https://wordhurdle.com"),
         category: .word,
-        resultPattern: #"Word Hurdle.*?in \d+/6"#,
         iconSystemName: "figure.run.square.stack",
         backgroundColor: CodableColor(.systemBlue),
         isPopular: false
@@ -265,7 +245,6 @@ extension Game {
         displayName: "Xordle",
         url: URL(staticString: "https://xordle.xyz"),
         category: .word,
-        resultPattern: #"Xordle #\d+ [1-9X]/9"#,
         iconSystemName: "xmark.square",
         backgroundColor: CodableColor(.systemGray),
         isPopular: false
@@ -277,7 +256,6 @@ extension Game {
         displayName: "Squareword",
         url: URL(staticString: "https://squareword.org"),
         category: .word,
-        resultPattern: #"Squareword.*?in \d+ guesses"#,
         iconSystemName: "square.text.square",
         backgroundColor: CodableColor(.systemMint),
         isPopular: false
@@ -289,7 +267,6 @@ extension Game {
         displayName: "Phrazle",
         url: URL(staticString: "https://phrazle.com"),
         category: .word,
-        resultPattern: #"Phrazle.*?in \d+/6"#,
         iconSystemName: "text.quote",
         backgroundColor: CodableColor(.systemBrown),
         isPopular: false
