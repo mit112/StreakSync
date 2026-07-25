@@ -86,9 +86,33 @@ service cloud.firestore {
           && (!('score' in request.resource.data) || request.resource.data.score is int);
       }
 
-      // --- Sync data (achievements, private per-user) ---
+      // --- Sync data (private per-user) ---
+      // Two known documents, each with a fixed shape:
+      //   sync/achievements    — FirestoreAchievementSyncService
+      //   sync/deletedResults  — FirestoreGameResultSyncService tombstones
+      // Reads/deletes stay owner-gated (pull, connectivity check, account
+      // cleanup). Creates/updates additionally validate the per-docId shape so
+      // a compromised client can't stash arbitrary documents in this private
+      // subcollection.
       match /sync/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, delete: if isSignedIn() && request.auth.uid == userId;
+
+        allow create, update: if isSignedIn()
+          && request.auth.uid == userId
+          && (
+            (docId == 'achievements'
+              && hasRequiredAndOnly(['payload', 'summary', 'lastUpdated', 'version'], [])
+              && request.resource.data.payload is string
+              && request.resource.data.summary is map
+              && request.resource.data.lastUpdated is timestamp
+              && request.resource.data.version is int)
+            ||
+            // deletedResults: element type of `ids` can't be asserted in rules
+            // (no per-element list-type check); Firestore's 1MB doc limit caps size.
+            (docId == 'deletedResults'
+              && hasRequiredAndOnly(['ids'], [])
+              && request.resource.data.ids is list)
+          );
       }
     }
 
