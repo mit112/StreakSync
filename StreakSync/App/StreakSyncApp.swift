@@ -54,73 +54,70 @@ struct StreakSyncApp: App {
     
     // MARK: - App Initialization
     private func initializeApp() async {
-        // Expected flow on cold launch:
+        // Expected flow on cold launch (local-first — DESIGN_AUDIT §4.7):
         //   1. Wire up NotificationDelegate with appState and navigationCoordinator
-        //      so notification taps can navigate before ContentView appears.
-        //   2. Ensure Firebase Anonymous Auth via firebaseAuthManager.ensureAuthenticated()
-        //      (establishes identity for Firestore reads/writes and social features).
-        //   3. Register UNUserNotification categories if already authorized (streak
-        //      reminders, achievement alerts) — skipped if not yet permitted.
-        //   4. Load persisted UserDefaults data into AppState (instant UX, no network).
-        //   5. Run Firestore game result sync via gameResultSyncService.syncIfNeeded()
-        //      to pull any cloud results missed while offline (skipped in UI test mode).
-        //   6. Rebuild streaks from the full result set with rebuildStreaksFromResults(),
-        //      then normalize for gaps up to today with normalizeStreaksForMissedDays().
-        //   7. Check and schedule streak reminder notifications based on current state.
-        //   8. Reconcile recent scores with FirebaseSocialService.reconcileRecentScores()
-        //      to republish any scores dropped by failures, timezone bugs, or offline
-        //      periods (skipped in UI test mode).
-        //   9. Flip isInitialized = true to swap the loading screen for ContentView.
-        logger.info("Starting app initialization")
+        //      so notification taps can navigate before ContentView appears (local).
+        //   2. Load persisted UserDefaults data into AppState and normalize streaks
+        //      for missed days — all local, no network.
+        //   3. Flip isInitialized = true immediately so ContentView paints from
+        //      cache; the dashboard skeleton covers the sub-second gap.
+        //   4. In a detached Task AFTER paint: ensure Firebase Anonymous Auth,
+        //      register notification categories if authorized, run the Firestore
+        //      result sync, rebuild streaks from the merged set, re-check reminders,
+        //      and reconcile recent social scores. AppState is @Observable, so the
+        //      UI updates reactively when the background sync lands.
+        logger.info("Starting app initialization (local-first)")
         let isUITesting = ProcessInfo.processInfo.arguments.contains("--uitesting")
 
-        // Initialize notification delegate dependencies early
+        // Initialize notification delegate dependencies early (local, instant)
         NotificationDelegate.shared.appState = container.appState
         NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
 
-        // Ensure Firebase Anonymous Auth for social backend
-        // Uses the AuthStateManager which also handles re-authentication on sign-out
-        await container.firebaseAuthManager.ensureAuthenticated()
-
-        // Register categories on launch if already authorized
-        let authStatus = await NotificationScheduler.shared.checkPermissionStatus()
-        if authStatus == .authorized {
-            await NotificationScheduler.shared.registerCategories()
-        }
-
-        // Load app data from local persistence first (instant UX)
+        // 1) Local-first paint: load cached data and normalize before any network.
         await container.appState.loadPersistedData()
-
-        // Sync game results via Firestore (skipped in UI test mode to avoid network delays)
-        if !isUITesting {
-            await container.gameResultSyncService.syncIfNeeded()
-        }
-
-        // Rebuild streaks from any newly-synced results
-        await container.appState.rebuildStreaksFromResults()
-
-        // Normalize streaks again after rebuild to check for gaps up to today
-        // (rebuildStreaksFromResults only checks gaps between results, not gaps to today)
         await container.appState.normalizeStreaksForMissedDays()
 
-        // Check for streak reminders on app launch
-        await container.appState.checkAndScheduleStreakReminders()
-
-        // Reconcile recent scores — republishes any dropped by failures, timezone bugs, or offline periods
-        // (skipped in UI test mode to avoid network delays)
-        if !isUITesting {
-            if let socialService = container.socialService as? FirebaseSocialService {
-                await socialService.reconcileRecentScores(
-                    results: container.appState.recentResults,
-                    streaks: container.appState.streaks
-                )
-            }
-        }
-
-        // Mark as initialized
         await MainActor.run {
             isInitialized = true
-            logger.info("App initialization completed")
+            logger.info("Local data loaded — UI painted; syncing in background")
+        }
+
+        // 2) Background sync — runs after paint, applied reactively via @Observable.
+        Task {
+            // Ensure Firebase Anonymous Auth for social backend.
+            // Uses the AuthStateManager which also re-authenticates on sign-out.
+            await container.firebaseAuthManager.ensureAuthenticated()
+
+            // Register categories on launch if already authorized.
+            let authStatus = await NotificationScheduler.shared.checkPermissionStatus()
+            if authStatus == .authorized {
+                await NotificationScheduler.shared.registerCategories()
+            }
+
+            // Sync game results via Firestore (skipped in UI test mode).
+            if !isUITesting {
+                await container.gameResultSyncService.syncIfNeeded()
+            }
+
+            // Rebuild streaks from newly-synced results, then normalize gaps to today
+            // (rebuildStreaksFromResults only checks gaps between results, not to today).
+            await container.appState.rebuildStreaksFromResults()
+            await container.appState.normalizeStreaksForMissedDays()
+
+            // Check for streak reminders once the merged set is known.
+            await container.appState.checkAndScheduleStreakReminders()
+
+            // Reconcile recent scores — republishes any dropped by failures,
+            // timezone bugs, or offline periods (skipped in UI test mode).
+            if !isUITesting {
+                if let socialService = container.socialService as? FirebaseSocialService {
+                    await socialService.reconcileRecentScores(
+                        results: container.appState.recentResults,
+                        streaks: container.appState.streaks
+                    )
+                }
+            }
+            logger.info("Background sync completed")
         }
     }
     
