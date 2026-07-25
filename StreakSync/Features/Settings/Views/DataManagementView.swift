@@ -128,9 +128,18 @@ private extension DataManagementView {
             )) {
                 Label("Cloud Sync", systemImage: "arrow.triangle.2.circlepath.icloud")
             }
-            Text("Sync tiered achievements across your devices. Requires sign-in; safe to leave off.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            .disabled(container.firebaseAuthManager.isAnonymous)
+
+            if container.firebaseAuthManager.isAnonymous {
+                // Don't offer sync (or show a stale "Last synced") to signed-out users (§5.6).
+                Label("Sign in to sync across devices", systemImage: "person.crop.circle.badge.plus")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Sync tiered achievements across your devices. Safe to leave off.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             // Status
             do {
@@ -150,9 +159,11 @@ private extension DataManagementView {
                         return "Sync paused: \(message)"
                     }
                 }()
-                Text(statusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if !container.firebaseAuthManager.isAnonymous {
+                    Text(statusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 HStack(spacing: 12) {
                     Button {
                         Task {
