@@ -148,10 +148,12 @@ struct ImprovedDashboardView: View {
                 isShowingShareDiscovery = true
             }
         }
-        .sheet(isPresented: $isShowingShareDiscovery) {
-            ShareDiscoverySheet(onDismiss: {
-                UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
-            })
+        .sheet(isPresented: $isShowingShareDiscovery, onDismiss: {
+            // Fires on ANY dismissal (swipe-to-dismiss OR "Got it"), so the sheet
+            // doesn't re-trigger on every Home appearance for users who swipe it away.
+            UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
+        }) {
+            ShareDiscoverySheet(onDismiss: {})
         }
         .onReceive(NotificationCenter.default.publisher(for: .appNavigateToGame)) { notification in
             if let userInfo = notification.object as? [String: Any],
