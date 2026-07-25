@@ -65,16 +65,32 @@ struct ReducedMotionCelebrationView: View {
         let iconName = unlock.achievement.iconSystemName
         return iconName.isEmpty ? "star.fill" : iconName
     }
-    
+
+    // Batch progress mirrors the full celebration view (DESIGN_AUDIT §4.10) so
+    // Reduce Motion users also see "N of M" and get a Skip-all escape hatch.
+    private var celebrationTotal: Int { celebrationCoordinator?.celebrationTotal ?? 0 }
+    private var celebrationIndex: Int { celebrationCoordinator?.celebrationIndex ?? 0 }
+    private var isBatch: Bool { celebrationTotal > 1 }
+
     var body: some View {
         ZStack {
             // Simple fade background
             Color.black.opacity(0.8)
                 .ignoresSafeArea()
                 .opacity(opacity)
-            
+
             // Content without animations
             VStack(spacing: 24) {
+                if isBatch {
+                    Text("\(celebrationIndex) of \(celebrationTotal)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(.regularMaterial))
+                        .accessibilityLabel("Achievement \(celebrationIndex) of \(celebrationTotal)")
+                }
+
                 // Icon
                 Image.safeSystemName(safeIconName, fallback: "star.fill")
                     .font(.system(size: 60))
@@ -96,12 +112,22 @@ struct ReducedMotionCelebrationView: View {
                         .padding(.horizontal)
                 }
                 
-                // Dismiss button
-                Button("Continue") {
-                    dismissCelebration()
+                // Dismiss button(s)
+                VStack(spacing: 12) {
+                    Button(isBatch ? "Next" : "Continue") {
+                        dismissCelebration()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+
+                    if isBatch {
+                        Button("Skip all") {
+                            celebrationCoordinator?.dismissAll()
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
             }
             .padding()
             .background(
