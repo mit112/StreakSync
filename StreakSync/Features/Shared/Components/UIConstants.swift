@@ -28,13 +28,16 @@ enum Spacing {
     static let xxl: CGFloat = 24
 }
 
-// MARK: - Corner Radius System (Simplified to 2 options)
+// MARK: - Corner Radius System (3 tokens: control / card / sheet)
 enum CornerRadius {
-    /// 10pt - Standard radius for buttons
-    static let button: CGFloat = 10
-    
-    /// 12pt - Standard radius for cards and containers
-    static let card: CGFloat = 12
+    /// 12pt - buttons, chips, inputs, small pills
+    static let control: CGFloat = 12
+
+    /// 16pt - ALL content/stat/game/achievement cards
+    static let card: CGFloat = 16
+
+    /// 20pt - bottom sheets + large hero surfaces
+    static let sheet: CGFloat = 20
 }
 
 // MARK: - Layout Constants

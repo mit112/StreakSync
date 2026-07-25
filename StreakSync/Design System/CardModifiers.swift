@@ -60,7 +60,7 @@ struct CardBackgroundModifier: ViewModifier {
 }
 
 extension View {
-    func cardStyle(cornerRadius: CGFloat = 16) -> some View {
+    func cardStyle(cornerRadius: CGFloat = CornerRadius.card) -> some View {
         modifier(CardBackgroundModifier(cornerRadius: cornerRadius))
     }
 }

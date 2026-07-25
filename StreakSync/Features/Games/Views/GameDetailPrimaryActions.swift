@@ -44,7 +44,7 @@ private struct PlayGameButton: View {
                 .padding(.vertical, Spacing.md)
                 .background(game.backgroundColor.color)
                 .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.button))
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.control))
         }
         .pressable(hapticType: .buttonTap)
         .hoverable()
