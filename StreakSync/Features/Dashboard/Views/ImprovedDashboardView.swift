@@ -154,6 +154,9 @@ struct ImprovedDashboardView: View {
             UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
         }) {
             ShareDiscoverySheet(onDismiss: {})
+                // Size to content instead of a full-height sheet with a void (§5.7).
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
         .onReceive(NotificationCenter.default.publisher(for: .appNavigateToGame)) { notification in
             if let userInfo = notification.object as? [String: Any],

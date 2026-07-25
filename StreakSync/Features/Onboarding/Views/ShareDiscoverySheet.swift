@@ -31,7 +31,9 @@ struct ShareDiscoverySheet: View {
                             + "We'll record the result automatically."
                         Text(.init(bodyText))
                             .font(.body)
-                            .multilineTextAlignment(.center)
+                            // Left-align the paragraph; keep the short heading centered (§5.7).
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 16)
                     }
