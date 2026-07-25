@@ -15,6 +15,7 @@ struct GameLeaderboardPage: View {
     let metricText: (Int) -> String
     let myUserId: String?
     let onRefresh: (() async -> Void)?
+    let hasFriends: Bool
     @State private var pressedIndex: Int?
     @ScaledMetric(relativeTo: .title3) private var rankWidth: CGFloat = 32
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 38
@@ -29,7 +30,8 @@ struct GameLeaderboardPage: View {
         onManageFriends: @escaping () -> Void,
         metricText: @escaping (Int) -> String,
         myUserId: String?,
-        onRefresh: (() async -> Void)?
+        onRefresh: (() async -> Void)?,
+        hasFriends: Bool = false
     ) {
         self.game = game
         self.rows = rows
@@ -40,6 +42,7 @@ struct GameLeaderboardPage: View {
         self.metricText = metricText
         self.myUserId = myUserId
         self.onRefresh = onRefresh
+        self.hasFriends = hasFriends
     }
     
     var body: some View {
@@ -163,17 +166,43 @@ struct GameLeaderboardPage: View {
                     .padding(.vertical, 8)
                 }
             }
-            HStack(spacing: 8) {
-                Image(systemName: "person.2.fill")
-                    .foregroundStyle(.secondary)
-                Text("Manage friends")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+            // Bottom action — a real ≥44pt button, not a faint text link (§5.5).
+            if !rows.isEmpty {
+                if !hasFriends {
+                    // Solo user who has a score: give them a primary reason to add friends.
+                    VStack(spacing: 12) {
+                        Image(systemName: "person.2.badge.plus")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                        Text("Add friends to compete")
+                            .font(.headline)
+                        Text("See how your scores stack up against friends.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button {
+                            onManageFriends()
+                        } label: {
+                            Label("Add Friends", systemImage: "person.badge.plus")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 28)
+                } else {
+                    Button {
+                        onManageFriends()
+                    } label: {
+                        Label("Manage friends", systemImage: "person.2.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .padding(.top, 24)
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 28)
-            .contentShape(Rectangle())
-            .onTapGesture { onManageFriends() }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 4)

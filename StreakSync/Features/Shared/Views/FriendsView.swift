@@ -219,7 +219,8 @@ private extension FriendsView {
                                 LeaderboardScoring.metricLabel(for: game, points: points)
                             },
                             myUserId: viewModel.myUserId,
-                            onRefresh: { await viewModel.refresh() }
+                            onRefresh: { await viewModel.refresh() },
+                            hasFriends: container.appState.cachedFriendCount > 0
                         )
                         .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                         .accessibilityElement(children: .contain)
