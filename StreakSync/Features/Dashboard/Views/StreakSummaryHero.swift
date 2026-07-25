@@ -22,24 +22,26 @@ struct StreakSummaryHero: View {
     var body: some View {
         if hasAnyActivity {
             HStack(spacing: 0) {
-                // Flame + longest streak
+                // Flame + longest streak — the hero metric. Flame keeps the
+                // streak-fire orange (§3-C); the number is bumped for primacy (§5.1).
                 heroMetric(
                     icon: "flame.fill",
                     iconColor: .orange,
                     value: "\(longestCurrentStreak)",
-                    label: longestCurrentStreak == 1 ? "day streak" : "day streak"
+                    label: "day streak",
+                    valueFont: .title.weight(.bold).monospacedDigit()
                 )
 
                 Divider()
                     .frame(height: 32)
                     .padding(.horizontal, 4)
 
-                // Active streaks
+                // Active streaks — neutral icon so the bar isn't four competing hues (§5.1).
                 heroMetric(
                     icon: "gamecontroller.fill",
-                    iconColor: .accentColor,
+                    iconColor: .secondary,
                     value: "\(activeStreakCount)",
-                    label: activeStreakCount == 1 ? "active" : "active"
+                    label: "active"
                 )
 
                 if atRiskCount > 0 {
@@ -88,14 +90,20 @@ struct StreakSummaryHero: View {
         }
     }
 
-    private func heroMetric(icon: String, iconColor: Color, value: String, label: String) -> some View {
+    private func heroMetric(
+        icon: String,
+        iconColor: Color,
+        value: String,
+        label: String,
+        valueFont: Font = .title2.weight(.bold).monospacedDigit()
+    ) -> some View {
         VStack(spacing: 4) {
             HStack(spacing: 5) {
                 Image(systemName: icon)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(iconColor)
                 Text(value)
-                    .font(.title2.weight(.bold).monospacedDigit())
+                    .font(valueFont)
                     .contentTransition(.numericText())
             }
             Text(label)
