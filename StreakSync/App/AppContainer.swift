@@ -281,6 +281,9 @@ final class AppContainer: ObservableObject {
         // Clear App Group queue so stale Share Extension results
         // aren't ingested by the next user session.
         appGroupBridge.clearAllData()
+        // Clear the pending-score Keychain queue so a signed-out user's scores
+        // aren't retried (and rejected) under the next session.
+        await socialService.clearPendingScores()
     }
 
     // MARK: - Provider Derivation

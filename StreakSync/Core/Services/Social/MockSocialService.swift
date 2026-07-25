@@ -139,6 +139,7 @@ final class MockSocialService: SocialService {
     
     // MARK: - Account Deletion (no-op in mock)
     func deleteAllUserData() async throws { }
+    func clearPendingScores() async { }
 
     // MARK: - Real-time Listeners (not supported in mock — returns nil, caller falls back to polling)
     nonisolated func addScoreListener(startDateInt: Int, endDateInt: Int, onChange: @escaping @MainActor @Sendable () -> Void) -> SocialServiceListenerHandle? { nil }
@@ -231,6 +232,7 @@ final class ReviewModeSocialService: SocialService {
     // MARK: - Account
 
     func deleteAllUserData() async throws { }
+    func clearPendingScores() async { }
 
     nonisolated func addScoreListener(
         startDateInt: Int, endDateInt: Int,

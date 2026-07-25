@@ -97,6 +97,13 @@ final class FirebaseSocialService: SocialService {
 
     nonisolated var pendingScoreCount: Int { PendingScoreStore().load().count }
 
+    /// Clears the pending-score queue from memory and Keychain. Used on sign-out.
+    func clearPendingScores() async {
+        pendingScores.removeAll()
+        pendingScoreStore.save(pendingScores)
+ logger.info("Cleared pending scores queue")
+    }
+
     /// The current authenticated user ID, safe to read from any isolation context.
     nonisolated var currentUserId: String? {
         Auth.auth().currentUser?.uid
