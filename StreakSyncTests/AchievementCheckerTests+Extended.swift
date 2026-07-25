@@ -362,7 +362,7 @@ extension AchievementCheckerTests {
     func testProgressDescriptionMaxTier() {
         var achievement = AchievementFactory.createGameCollectorAchievement()
         achievement.updateProgress(value: 250)
-        XCTAssertEqual(achievement.progressDescription, "250 (Max)")
+        XCTAssertEqual(achievement.progressDescription, "250 · Max tier")
     }
 
     func testSnapshotCountsAllMetricsCorrectly() {
