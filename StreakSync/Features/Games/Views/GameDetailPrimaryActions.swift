@@ -37,15 +37,17 @@ private struct PlayGameButton: View {
     let action: () -> Void
     
     var body: some View {
+        // One prominent accent-blue action (DESIGN_AUDIT §5.2, decision A): white
+        // text on the game's own color failed WCAG contrast (~1.5–2.1:1 for the
+        // light games). Per-game identity stays on the hero icon/title.
         Button(action: action) {
             Label("Play \(game.displayName)", systemImage: "play.fill")
                 .font(.body.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
-                .background(game.backgroundColor.color)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.control))
         }
+        .buttonStyle(.borderedProminent)
+        .tint(.accentColor)
         .pressable(hapticType: .buttonTap)
         .hoverable()
         .disabled(isLoading)
