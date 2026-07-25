@@ -66,28 +66,7 @@ struct SignInBanner: View {
                 Button {
                     Task { await handleGoogleSignIn() }
                 } label: {
-                    HStack(spacing: 6) {
-                        Text("G")
-                            .font(.callout.bold())
-                            .foregroundStyle(
-                                .linearGradient(
-                                    colors: [.blue, .green, .yellow, .red],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                        Text("Google")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.primary)
-                    }
-                    .frame(height: 44)
-                    .frame(maxWidth: .infinity)
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(.separator), lineWidth: 0.5)
-                    )
+                    GoogleSignInButtonLabel(height: 44)
                 }
                 .buttonStyle(.plain)
             }

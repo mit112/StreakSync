@@ -133,34 +133,10 @@ private extension AccountView {
         Button {
             Task { await handleGoogleSignIn() }
         } label: {
-            googleButtonLabel
+            GoogleSignInButtonLabel(height: 50)
         }
         .buttonStyle(.plain)
         .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
-    }
-
-    var googleButtonLabel: some View {
-        HStack(spacing: 0) {
-            Spacer()
-            // Google "G" logo approximation
-            Text("G")
-                .font(.title2.bold())
-                .foregroundStyle(
-                    .linearGradient(
-                        colors: [.blue, .green, .yellow, .red],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .padding(.trailing, 8)
-            Text("Sign in with Google")
-                .font(.body.weight(.medium))
-                .foregroundStyle(colorScheme == .dark ? .black : .white)
-            Spacer()
-        }
-        .frame(height: 50)
-        .background(colorScheme == .dark ? Color.white : Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -289,7 +265,7 @@ private extension AccountView {
                     Button {
                         Task { await handleReauthGoogle() }
                     } label: {
-                        googleButtonLabel
+                        GoogleSignInButtonLabel(height: 50)
                     }
                     .buttonStyle(.plain)
                 } else {
