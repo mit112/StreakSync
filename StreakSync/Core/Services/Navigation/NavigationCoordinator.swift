@@ -75,7 +75,6 @@ final class NavigationCoordinator: ObservableObject {
     enum Destination: Hashable {
         case gameDetail(Game)
         case streakHistory(GameStreak)
-        case allStreaks
         case achievements
         case settings
         case gameManagement
@@ -92,8 +91,6 @@ final class NavigationCoordinator: ObservableObject {
             case .streakHistory(let streak):
                 hasher.combine("streakHistory")
                 hasher.combine(streak.id)
-            case .allStreaks:
-                hasher.combine("allStreaks")
             case .achievements:
                 hasher.combine("achievements")
             case .settings:
@@ -120,8 +117,6 @@ final class NavigationCoordinator: ObservableObject {
                 return lhsGame.id == rhsGame.id
             case (.streakHistory(let lhsStreak), .streakHistory(let rhsStreak)):
                 return lhsStreak.id == rhsStreak.id
-            case (.allStreaks, .allStreaks):
-                return true
             case (.achievements, .achievements):
                 return true
             case (.settings, .settings):
