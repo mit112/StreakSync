@@ -215,7 +215,11 @@ logger.info("Recomputing tiered achievements from all results...")
                     id: existing.id,
                     category: current[i].category,
                     requirements: current[i].requirements,
-                    progress: current[i].progress
+                    // Seed from the EXISTING progress (not the fresh default), so recompute
+                    // preserves historical per-tier unlock dates. updateProgress only stamps
+                    // a date for genuinely-new tiers; using the default here collapsed every
+                    // earned tier's date to "now" on every launch/delete/edit.
+                    progress: existing.progress
                 )
             }
         }
