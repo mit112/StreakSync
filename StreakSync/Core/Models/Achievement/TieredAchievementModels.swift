@@ -243,6 +243,15 @@ struct AchievementProgress: Codable, Hashable, Sendable {
         return requirements.first { $0.tier.rawValue > current.rawValue }?.tier
     }
 
+    /// Whether `tier` has been earned. Derives from `currentTier` (the source of
+    /// truth) so it stays correct for data persisted before every crossed tier was
+    /// dated; `tierUnlockDates` is only a bonus signal (DESIGN_AUDIT bug B2).
+    func isTierUnlocked(_ tier: AchievementTier) -> Bool {
+        if tierUnlockDates[tier] != nil { return true }
+        guard let currentTier else { return false }
+        return currentTier.rawValue >= tier.rawValue
+    }
+
     func percentageToNextTier(requirements: [TierRequirement]) -> Double {
         guard let nextTier = nextTier(in: requirements) else { return 1.0 }
         guard let nextRequirement = requirements.first(where: { $0.tier == nextTier }) else { return 0.0 }

@@ -26,15 +26,25 @@ struct TieredAchievementsGridView: View {
     private var unlockedCount: Int {
         appState.tieredAchievements.filter { $0.isUnlocked }.count
     }
-    
-    private var totalTiers: Int {
-        appState.tieredAchievements.reduce(0) { $0 + $1.progress.tierUnlockDates.count }
+
+    private var totalAchievements: Int {
+        appState.tieredAchievements.count
     }
-    
+
+    /// Completion = achievements unlocked / total, matching the Analytics tab
+    /// (DESIGN_AUDIT §4.8). The old "tiers dated / total requirements" produced a
+    /// different denominator (18% here vs 90% in Analytics for the same account).
     private var completionPercentage: Int {
-        let total = appState.tieredAchievements.reduce(0) { $0 + $1.requirements.count }
-        guard total > 0 else { return 0 }
-        return Int((Double(totalTiers) / Double(total)) * 100)
+        guard totalAchievements > 0 else { return 0 }
+        return Int((Double(unlockedCount) / Double(totalAchievements)) * 100)
+    }
+
+    /// Highest tier reached across all achievements, for the summary header.
+    private var highestTierName: String {
+        appState.tieredAchievements
+            .compactMap { $0.progress.currentTier }
+            .max { $0.rawValue < $1.rawValue }?
+            .displayName ?? "—"
     }
     
     private var availableCategories: [AchievementCategory] {
@@ -141,10 +151,10 @@ struct TieredAchievementsGridView: View {
     private var progressHeader: some View {
         HStack(spacing: 12) {
             AchievementStatCard(
-                icon: "trophy.fill", value: "\(unlockedCount)", label: "Unlocked", accentColor: .accentColor
+                icon: "trophy.fill", value: "\(unlockedCount)/\(totalAchievements)", label: "Unlocked", accentColor: .accentColor
             )
             AchievementStatCard(
-                icon: "star.fill", value: "\(totalTiers)", label: "Total Tiers", accentColor: .accentColor
+                icon: "star.fill", value: highestTierName, label: "Highest Tier", accentColor: .accentColor
             )
             AchievementStatCard(
                 icon: "percent", value: "\(completionPercentage)%", label: "Complete", accentColor: .accentColor

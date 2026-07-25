@@ -43,7 +43,16 @@ struct GradientAvatar: View {
             [Color.yellow.opacity(0.8), Color.orange.opacity(0.8), Color.black]
         ]
         let palettes = colorScheme == .dark ? palettesDark : palettesLight
-        let idx = abs(key.hashValue) % palettes.count
-        return palettes[idx]
+        return palettes[Self.paletteIndex(for: key, count: palettes.count)]
+    }
+
+    /// Deterministic palette index so an avatar's gradient stays the same across
+    /// launches. `String.hashValue` is seeded per process, so it can't be used
+    /// as a stable identity anchor (DESIGN_AUDIT bug B3). Uses a djb2 hash of the
+    /// UTF-8 bytes instead.
+    static func paletteIndex(for key: String, count: Int) -> Int {
+        guard count > 0 else { return 0 }
+        let hash = key.utf8.reduce(UInt64(5381)) { ($0 &* 33) &+ UInt64($1) }
+        return Int(hash % UInt64(count))
     }
 }

@@ -108,7 +108,7 @@ struct TieredAchievementDetailView: View {
                     
                     HStack(spacing: 2) {
                         ForEach(achievement.requirements, id: \.tier) { requirement in
-                            let isUnlocked = achievement.progress.tierUnlockDates[requirement.tier] != nil
+                            let isUnlocked = achievement.progress.isTierUnlocked(requirement.tier)
                             let isCurrent = achievement.progress.currentTier == requirement.tier
                             
                             RoundedRectangle(cornerRadius: 4)

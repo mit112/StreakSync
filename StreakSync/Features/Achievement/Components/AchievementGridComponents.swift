@@ -28,6 +28,8 @@ struct AchievementStatCard: View {
             Text(value)
                 .font(.title3.weight(.bold))
                 .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
                 .contentTransition(.numericText())
             
             Text(label)
