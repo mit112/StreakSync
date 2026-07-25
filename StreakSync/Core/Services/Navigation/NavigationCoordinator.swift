@@ -200,9 +200,10 @@ final class NavigationCoordinator: ObservableObject {
     /// Switch to tab and navigate
     func switchToTabAndNavigate(_ tab: MainTab, destination: Destination) {
         selectedTab = tab
-        // Small delay to ensure tab switch completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            self.navigateTo(destination)
+        // Small delay to ensure tab switch completes before navigating.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(0.1))
+            self?.navigateTo(destination)
         }
     }
     
@@ -288,7 +289,8 @@ final class NavigationCoordinator: ObservableObject {
         pendingJoinCode = code
         switchToTab(.friends)
         // Slight delay to ensure tab switch completes before showing sheet
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(0.2))
             self?.shouldShowJoinSheet = true
         }
     }

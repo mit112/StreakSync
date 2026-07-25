@@ -294,7 +294,8 @@ struct GameResultDetailView: View {
         UIPasteboard.general.string = formatShareText()
         copiedToClipboard = true
         HapticManager.shared.trigger(.achievement)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        Task {
+            try? await Task.sleep(for: .seconds(2))
             copiedToClipboard = false
         }
     }
