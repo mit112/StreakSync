@@ -222,7 +222,9 @@ extension FirebaseSocialService {
         let currentUID = try requireUID()
         let docId = [currentUID, targetId].sorted().joined(separator: "_")
         let friendshipDoc = db.collection("friendships").document(docId)
-        let snapshot = try await friendshipDoc.getDocument()
+        // source:.server, matching acceptFriendRequest — a default-source getDocument on
+        // a friendship doc can hit the Watch/offline-persistence false-denial bug class.
+        let snapshot = try await friendshipDoc.getDocument(source: .server)
         guard snapshot.exists else {
  logger.warning("No friendship found between \(currentUID) and \(targetId)")
             return
