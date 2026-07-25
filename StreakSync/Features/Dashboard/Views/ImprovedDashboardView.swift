@@ -282,7 +282,8 @@ struct ImprovedDashboardView: View {
             } label: {
                 Image.compatibleSystemName("chart.line.uptrend.xyaxis")
                     .font(.body)
-                    .foregroundStyle(hasActiveStreaks ? .blue : .secondary)
+                    // Match the sort/filter menu so the toolbar reads as one control group (§5.1).
+                    .foregroundStyle(.secondary)
             }
             .accessibilityLabel("View Analytics")
         }

@@ -236,6 +236,7 @@ struct GameCompactCardView: View {
                     )
             }
         }
+        // Single elevation shadow — the second ambient shadow was overload (§5.4).
         .shadow(
             color: isActive ?
             gameColor.opacity(0.15) :
@@ -243,12 +244,6 @@ struct GameCompactCardView: View {
             radius: isActive ? 8 : 6,
             x: 0,
             y: isActive ? 3 : 2
-        )
-        .shadow(
-            color: colorScheme == .dark ? .clear : .black.opacity(0.04),
-            radius: 14,
-            x: 0,
-            y: 6
         )
     }
 }

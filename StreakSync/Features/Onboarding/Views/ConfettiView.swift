@@ -19,7 +19,7 @@ struct ConfettiView: View {
     @State private var startDate: Date = .distantPast
 
     private let particleCount = 40
-    private let colors: [Color] = [.red, .yellow, .green, .blue, .purple, .pink, .orange]
+    private let colors: [Color] = [Color.accentColor, .green, .orange, .yellow] // brand-scoped, not a 7-color rainbow (§5.4)
 
     var body: some View {
         Group {

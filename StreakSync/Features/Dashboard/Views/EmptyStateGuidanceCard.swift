@@ -83,15 +83,9 @@ struct EmptyStateGuidanceCard: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [.blue.opacity(0.3), .purple.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
+                    RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
+                        // One neutral hairline, not a blue→purple gradient border (§5.1).
+                        .strokeBorder(Color(.separator), lineWidth: 1)
                 }
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.08),
                        radius: 12, x: 0, y: 4)
