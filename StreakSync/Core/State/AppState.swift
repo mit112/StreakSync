@@ -327,13 +327,6 @@ logger.info("Completed checking all achievements")
         if loading { errorMessage = nil }
     }
 
-    func setError(_ message: String) {
-        errorMessage = message
-        currentError = mapStringToAppError(message)
-        isLoading = false
- logger.error("App error: \(message)")
-    }
-
     func setError(_ error: AppError) {
         currentError = error
         errorMessage = error.errorDescription
@@ -344,19 +337,6 @@ logger.info("Completed checking all achievements")
     func clearError() {
         errorMessage = nil
         currentError = nil
-    }
-
-    private func mapStringToAppError(_ message: String) -> AppError? {
-        switch message {
-        case let msg where msg.contains("Failed to save"):
-            return .persistence(.saveFailed(dataType: "data", underlying: nil))
-        case let msg where msg.contains("Failed to load"):
-            return .persistence(.loadFailed(dataType: "data", underlying: nil))
-        case let msg where msg.contains("Network"):
-            return .sync(.syncTimeout)
-        default:
-            return .ui(.stateInconsistency(description: message))
-        }
     }
 
     // MARK: - Internal Setters for Extensions
