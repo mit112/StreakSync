@@ -246,7 +246,7 @@ private struct ModernChart: View {
                         x: .value("Day", dayString),
                         y: .value("Score", animateChart ? plotScore : 0)
                     )
-                    .foregroundStyle(barColor.gradient)
+                    .foregroundStyle(barColor)
                     .opacity(selectedBar == nil || selectedBar?.date == daily.date ? 1 : 0.5)
                     .cornerRadius(4)
                 } else {
@@ -260,8 +260,8 @@ private struct ModernChart: View {
             }
             .chartYScale(domain: 0...maxValue)
             .chartXAxis {
+                // Bar charts don't need vertical gridlines (DESIGN_AUDIT §5.2).
                 AxisMarks { _ in
-                    AxisGridLine()
                     AxisValueLabel()
                         .font(.caption2)
                 }
@@ -276,6 +276,13 @@ private struct ModernChart: View {
                         }
                     }
                 }
+            }
+            // The Y axis is inverted so a better score is a taller bar; label it
+            // so the direction isn't left unexplained (DESIGN_AUDIT §5.2).
+            .chartYAxisLabel(position: .trailing, alignment: .center) {
+                Text("Taller = better")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
             .frame(height: 120)
             .animation(.smooth(duration: 0.6), value: animateChart)
@@ -318,27 +325,13 @@ private struct SimpleChartHeader: View {
             Spacer()
             
             HStack(spacing: 16) {
-                StatBadge(label: "Avg", value: stats.averageScore, color: .blue)
-                StatBadge(label: "Best", value: stats.bestScore, color: .green)
-                StatBadge(label: "Rate", value: stats.successRate, color: .purple)
+                StatBadge(label: "Avg", value: stats.averageScore)
+                StatBadge(label: "Best", value: stats.bestScore)
+                StatBadge(label: "Rate", value: stats.successRate)
             }
         }
-        
-        // Simple progress bar
-        if stats.gamesPlayed > 0 {
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(.quaternary)
-                        .frame(height: 3)
-                    
-                    Capsule()
-                        .fill(Color.green.gradient)
-                        .frame(width: geometry.size.width * stats.completionRatio, height: 3)
-                }
-            }
-            .frame(height: 3)
-        }
+        // Removed the redundant green success-rate meter — it duplicated the
+        // "Rate" badge above it (DESIGN_AUDIT §5.2, chartjunk).
     }
 }
 
@@ -346,13 +339,12 @@ private struct SimpleChartHeader: View {
 private struct StatBadge: View {
     let label: String
     let value: String
-    let color: Color
-    
+
     var body: some View {
         VStack(spacing: 2) {
             Text(value)
                 .font(.caption.bold())
-                .foregroundStyle(color)
+                .foregroundStyle(.primary)
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
