@@ -99,8 +99,7 @@ final class NotificationSettingsViewModel: ObservableObject {
 struct NotificationSettingsView: View {
     @StateObject private var viewModel: NotificationSettingsViewModel
     @Environment(AppState.self) private var appState
-    @Environment(\.dismiss) private var dismiss
-    
+
     init() {
         self._viewModel = StateObject(wrappedValue: NotificationSettingsViewModel())
     }
@@ -115,17 +114,14 @@ struct NotificationSettingsView: View {
         }
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") {
-                    viewModel.saveSettings()
-                    dismiss()
-                }
-            }
-        }
         .task {
             viewModel.setAppState(appState)
             viewModel.loadSettings()
+        }
+        // Pushed detail in a NavigationStack — no redundant "Done"; persist on
+        // pop instead (DESIGN_AUDIT §4.5).
+        .onDisappear {
+            viewModel.saveSettings()
         }
         .sheet(isPresented: $viewModel.showPermissionFlow) {
             NotificationPermissionFlowView()

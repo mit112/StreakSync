@@ -11,9 +11,7 @@ import SwiftUI
 struct AppearanceSettingsView: View {
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @Environment(\.colorScheme) private var currentColorScheme
-    
-    @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         List {
             // Theme Selection Section
@@ -44,13 +42,7 @@ struct AppearanceSettingsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
-        }
+        // Pushed detail — system back only; appearance persists via @AppStorage (§4.5).
     }
 }
 
