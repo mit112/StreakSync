@@ -92,15 +92,20 @@ struct AnalyticsComputer {
         // Also index results before the range for streak lookback (up to 30 days before start)
         let lookbackStart = calendar.date(byAdding: .day, value: -30, to: startDate) ?? startDate
         let lookbackResults = results.filter { $0.date >= lookbackStart && $0.date < startDate }
+        // Seed BOTH indexes from the lookback window. Seeding only gameDays left the
+        // range's first day (and the sole point for .today) undercounting active streaks,
+        // because the "yesterday" check reads resultsByDay, which had no pre-range days.
         if let game = game {
             for r in lookbackResults.filter({ $0.gameId == game.id }) {
                 let day = calendar.startOfDay(for: r.date)
                 gameDays[r.gameId, default: []].insert(day)
+                resultsByDay[day, default: []].append(r)
             }
         } else {
             for r in lookbackResults {
                 let day = calendar.startOfDay(for: r.date)
                 gameDays[r.gameId, default: []].insert(day)
+                resultsByDay[day, default: []].append(r)
             }
         }
         for r in relevantResults {

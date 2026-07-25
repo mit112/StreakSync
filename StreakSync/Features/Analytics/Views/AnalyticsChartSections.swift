@@ -195,17 +195,23 @@ struct GamePerformanceChartView: View {
         return formatter
     }
     
-    // Dynamic max value based on actual scores
+    // The 7 most recent results. `results` is sorted newest-first, so the last 7
+    // (suffix) were the OLDEST 7 — prefix(7) gives the recent ones the chart intends.
+    private var displayedResults: [GameResult] {
+        Array(results.prefix(7))
+    }
+
+    // Dynamic max value based on the scores actually plotted (not the full range).
     private var chartMaxValue: Int {
-        let scores = results.compactMap { $0.score }
+        let scores = displayedResults.compactMap { $0.score }
         if let maxScore = scores.max() {
             return maxScore + 5 // Add some padding above the max score
         }
         return 7 // Default for most games
     }
-    
+
     var body: some View {
-        Chart(results.suffix(7)) { result in
+        Chart(displayedResults) { result in
             BarMark(
                 x: .value("Date", result.date),
                 y: .value("Score", Double(result.score ?? (result.maxAttempts + 1)))
