@@ -270,6 +270,13 @@ final class NavigationCoordinator: ObservableObject {
         )
     }
     
+    /// Navigate to the Home dashboard. Used when a streak reminder covers multiple
+    /// games and therefore carries no single target gameId.
+    func navigateToDashboard() {
+        switchToTab(.home)
+        popToRoot(in: .home)
+    }
+
     /// Navigate to achievements with optional highlight
     func navigateToAchievements(highlightId: UUID? = nil) {
         self.highlightedAchievementId = highlightId

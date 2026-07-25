@@ -118,7 +118,11 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
     @MainActor private func handleOpenGame(gameIdString: String?) async {
         guard let gameIdString = gameIdString,
               let gameId = UUID(uuidString: gameIdString) else {
- logger.warning("Missing or invalid gameId in notification")
+            // Multi-game streak reminders (2+ games at risk) carry no single gameId.
+            // Route to the dashboard so the tap / "Play Now" isn't a dead no-op.
+ logger.info("No gameId in notification - routing to dashboard")
+            appState?.isNavigatingFromNotification = true
+            navigationCoordinator?.navigateToDashboard()
             return
         }
         
