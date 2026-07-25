@@ -59,7 +59,7 @@ extension GameResultParser {
         let pattern = #"Tango\s+#(\d+)(?:[\s\S]*?(\d{1,2}:\d{2}))?"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) else {
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) else {
             throw ParsingError.invalidFormat
         }
         
@@ -113,7 +113,7 @@ extension GameResultParser {
         let pattern = #"Crossclimb\s+#(\d+)(?:[\s\S]*?(\d{1,2}:\d{2}))?"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) else {
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) else {
             throw ParsingError.invalidFormat
         }
         
@@ -173,7 +173,7 @@ extension GameResultParser {
         let emojiPattern = #"Pinpoint\s+#(\d+)[\s\S]*?(?:[🤔📌⬜⬛🟩🟨🟧🟦🟪🟫⚫⚪\s]+)?\((\d+)/(\d+)\)"#
         
         if let emojiRegex = try? NSRegularExpression(pattern: emojiPattern, options: .caseInsensitive),
-           let emojiMatch = emojiRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) {
+           let emojiMatch = emojiRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) {
             // Extract puzzle number
             guard emojiMatch.range(at: 1).location != NSNotFound,
                   let puzzleRange = Range(emojiMatch.range(at: 1), in: text) else {
@@ -216,7 +216,7 @@ extension GameResultParser {
         let originalPattern = #"Pinpoint\s+#(\d+)(?:\s*\|\s*(\d+)\s+guesses)?[\s\S]*?(?:(\d+)\s+guesses)?"#
         
         guard let regex = try? NSRegularExpression(pattern: originalPattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) else {
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) else {
             throw ParsingError.invalidFormat
         }
         
@@ -241,7 +241,7 @@ extension GameResultParser {
         if guessCount == 0 {
             let emojiPattern = #"(\d+️⃣)"#
             if let emojiRegex = try? NSRegularExpression(pattern: emojiPattern, options: .caseInsensitive) {
-                let emojiMatches = emojiRegex.matches(in: text, options: [], range: NSRange(location: 0, length: text.count))
+                let emojiMatches = emojiRegex.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
                 guessCount = emojiMatches.count
             }
         }
@@ -278,7 +278,7 @@ extension GameResultParser {
         let pattern = #"Zip\s+#(\d+)(?:[\s\S]*?(\d{1,2}:\d{2}))?[\s\S]*?(?:With\s+(\d+)\s+backtrack)?"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) else {
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) else {
             throw ParsingError.invalidFormat
         }
         
