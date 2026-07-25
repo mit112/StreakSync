@@ -11,6 +11,7 @@ import SwiftUI
 struct RecentActivitySection: View {
     let filteredStreaks: [GameStreak]
     @Environment(AppState.self) private var appState
+    @EnvironmentObject private var coordinator: NavigationCoordinator
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -27,7 +28,7 @@ struct RecentActivitySection: View {
                                 streak: streak,
                                 game: game,
                                 action: {
-                                    // Navigate to game detail
+                                    coordinator.navigateTo(.gameDetail(game))
                                 }
                             )
                         }
