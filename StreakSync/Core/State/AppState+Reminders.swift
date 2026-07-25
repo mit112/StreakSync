@@ -45,8 +45,11 @@ extension AppState {
         // Find all games at risk (active streaks, not played today)
         let gamesAtRisk = getGamesAtRisk()
 
-        // Debounce/coalesce: if the set of at-risk games hasn't changed and we scheduled recently, skip
-        let signature = gamesAtRisk.map(\.id.uuidString).sorted().joined(separator: "|")
+        // Debounce/coalesce: if the set of at-risk games AND the preferred time haven't
+        // changed and we scheduled recently, skip. Including hour/minute ensures a reminder-
+        // time change in Settings within the debounce window isn't silently dropped.
+        let signature = "\(preferredHour):\(preferredMinute)|"
+            + gamesAtRisk.map(\.id.uuidString).sorted().joined(separator: "|")
         let now = Date()
         if let lastSig = lastAtRiskGamesSignature,
            lastSig == signature,
