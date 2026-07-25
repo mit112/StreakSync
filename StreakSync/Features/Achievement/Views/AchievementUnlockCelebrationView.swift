@@ -48,6 +48,7 @@ struct AchievementUnlockCelebrationView: View {
             
             VStack(spacing: 32) {
                 Spacer()
+                queueIndicator
                 achievementBadge.scaleEffect(badgeScale).opacity(badgeOpacity)
                 achievementText.opacity(textOpacity)
                 progressInfo.opacity(progressOpacity)
@@ -224,19 +225,46 @@ struct AchievementUnlockCelebrationView: View {
         .accessibilityElement(children: .combine)
     }
     
+    // MARK: - Queue Indicator (N of M)
+    private var celebrationTotal: Int { celebrationCoordinator?.celebrationTotal ?? 0 }
+    private var celebrationIndex: Int { celebrationCoordinator?.celebrationIndex ?? 0 }
+    private var isBatch: Bool { celebrationTotal > 1 }
+
+    @ViewBuilder
+    private var queueIndicator: some View {
+        if isBatch && phase >= .textRevealing {
+            Text("\(celebrationIndex) of \(celebrationTotal)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(.ultraThinMaterial))
+                .accessibilityLabel("Achievement \(celebrationIndex) of \(celebrationTotal)")
+        }
+    }
+
     // MARK: - Action Buttons
     private var actionButtons: some View {
-        HStack(spacing: 16) {
-            ShareLink(
-                item: "I just unlocked \(unlock.tier.displayName) \(unlock.achievement.displayName) in StreakSync! 🎉",
-                label: { Label("Share", systemImage: "square.and.arrow.up").frame(maxWidth: .infinity) }
-            )
-            .buttonStyle(.borderedProminent)
-            
-            Button { dismissCelebration() } label: {
-                Label("Continue", systemImage: "arrow.forward").frame(maxWidth: .infinity)
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                ShareLink(
+                    item: "I just unlocked \(unlock.tier.displayName) \(unlock.achievement.displayName) in StreakSync! 🎉",
+                    label: { Label("Share", systemImage: "square.and.arrow.up").frame(maxWidth: .infinity) }
+                )
+                .buttonStyle(.borderedProminent)
+
+                Button { dismissCelebration() } label: {
+                    Label(isBatch ? "Next" : "Continue", systemImage: "arrow.forward").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
+
+            // Batch escape hatch so users aren't stuck tapping through N unlocks (§4.10).
+            if isBatch {
+                Button("Skip all") { celebrationCoordinator?.dismissAll() }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.horizontal)
     }

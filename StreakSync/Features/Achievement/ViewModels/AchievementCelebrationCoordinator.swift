@@ -16,7 +16,11 @@ final class AchievementCelebrationCoordinator {
     // MARK: - Observable Properties
     var currentCelebration: AchievementUnlock?
     var isShowingCelebration = false
-    
+    /// 1-based position of the current celebration within the active batch.
+    var celebrationIndex = 0
+    /// Total celebrations in the active batch (grows as more queue in) for the "N of M" label.
+    var celebrationTotal = 0
+
     // MARK: - Private Properties
     @ObservationIgnored private var celebrationQueue: [AchievementUnlock] = []
     @ObservationIgnored private let logger = Logger(subsystem: "com.streaksync.app", category: "AchievementCelebration")
@@ -45,7 +49,8 @@ final class AchievementCelebrationCoordinator {
  logger.info("Queueing celebration for \(unlock.achievement.displayName) - \(unlock.tier.displayName)")
 
         celebrationQueue.append(unlock)
-        
+        celebrationTotal = max(celebrationTotal, celebrationIndex + celebrationQueue.count)
+
         if !isShowingCelebration && !isProcessingQueue {
             processCelebrationQueue()
         }
@@ -84,6 +89,8 @@ final class AchievementCelebrationCoordinator {
         guard !celebrationQueue.isEmpty else {
  logger.info("All celebrations completed")
             isProcessingQueue = false
+            celebrationIndex = 0
+            celebrationTotal = 0
             return
         }
         
@@ -121,8 +128,10 @@ final class AchievementCelebrationCoordinator {
 
         currentCelebration = nextUnlock
         isShowingCelebration = true
+        celebrationIndex += 1
+        celebrationTotal = max(celebrationTotal, celebrationIndex + celebrationQueue.count)
     }
-    
+
     func dismissCurrentCelebration() {
  logger.info("Dismissing current celebration")
         
@@ -138,9 +147,26 @@ final class AchievementCelebrationCoordinator {
         } else {
  logger.info("Celebration queue completed")
             self.isProcessingQueue = false
+            self.celebrationIndex = 0
+            self.celebrationTotal = 0
         }
     }
-    
+
+    /// Skips every remaining queued celebration at once (DESIGN_AUDIT §4.10).
+    func dismissAll() {
+        logger.info("Skipping all remaining celebrations (\(self.celebrationQueue.count))")
+        for unlock in celebrationQueue {
+            processedAchievements.insert("\(unlock.achievement.id)-\(unlock.tier.rawValue)")
+        }
+        persistProcessedCache()
+        celebrationQueue.removeAll()
+        celebrationIndex = 0
+        celebrationTotal = 0
+        isShowingCelebration = false
+        currentCelebration = nil
+        isProcessingQueue = false
+    }
+
     // MARK: - Binding Helper
     func celebrationBinding() -> Binding<AchievementUnlock?> {
         Binding(
