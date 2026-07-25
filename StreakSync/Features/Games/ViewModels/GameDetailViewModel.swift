@@ -17,8 +17,10 @@ final class GameDetailViewModel: ObservableObject {
     private weak var appState: AppState?
     private let logger = Logger(subsystem: "com.streaksync.app", category: "GameDetailViewModel")
     
-    // Add notification observers
-    private var notificationObservers: [NSObjectProtocol] = []
+    // Block-based observers must be removed manually. nonisolated(unsafe) mirrors
+    // AppState.dayChangeObserver so deinit (nonisolated) can tear them down;
+    // NotificationCenter.removeObserver is thread-safe.
+    nonisolated(unsafe) private var notificationObservers: [NSObjectProtocol] = []
     
     init(gameId: UUID) {
         self.gameId = gameId
@@ -36,8 +38,12 @@ final class GameDetailViewModel: ObservableObject {
     }
     
     deinit {
-        // Note: notificationObservers cleanup happens automatically
-        // Cannot access mutable state in deinit under strict concurrency
+        // Block-based observers are NOT removed automatically; a fresh VM is created
+        // per game-detail navigation, so failing to remove them leaks one registration
+        // each visit.
+        for observer in notificationObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
     
     func setup(with appState: AppState) {
