@@ -14,6 +14,7 @@ struct EditGameResultView: View {
 
     /// Called after a successful save so the parent can react.
     var onSaved: (() -> Void)?
+    @State private var showSaveError = false
 
     init(result: GameResult, game: Game?, onSaved: (() -> Void)? = nil) {
         _viewModel = StateObject(
@@ -43,6 +44,11 @@ struct EditGameResultView: View {
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        .alert("Couldn't Save", isPresented: $showSaveError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Something went wrong saving your changes. Please try again.")
+        }
     }
 
     // MARK: - Context (Read-Only)
@@ -98,6 +104,9 @@ struct EditGameResultView: View {
                 HapticManager.shared.trigger(.buttonTap)
                 onSaved?()
                 dismiss()
+            } else {
+                HapticManager.shared.trigger(.error)
+                showSaveError = true
             }
         }
     }

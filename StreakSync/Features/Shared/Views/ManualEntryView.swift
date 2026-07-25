@@ -179,6 +179,7 @@ struct GameSelectionRow: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

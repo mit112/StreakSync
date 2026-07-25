@@ -99,7 +99,7 @@ struct GroupedGameResultRow: View {
                 }
             }
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if let onDelete = onDelete {
                 Button(role: .destructive) {
                     onDelete()
