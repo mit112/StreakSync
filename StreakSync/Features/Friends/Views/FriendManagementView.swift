@@ -160,7 +160,12 @@ private extension FriendManagementView {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(friends) { friend in
-                    Label(friend.displayName, systemImage: "person.fill")
+                    HStack(spacing: 12) {
+                        // Same GradientAvatar as the leaderboard so a friend reads as
+                        // one identity across screens (§5.5).
+                        GradientAvatar(initials: String(friend.displayName.prefix(1)), size: 28)
+                        Text(friend.displayName)
+                    }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 friendToRemove = friend

@@ -83,21 +83,18 @@ private struct GameIconView: View {
     @State private var isPressed = false
     
     var body: some View {
-        VStack(spacing: 4) {
-            Image.safeSystemName(gameIconName, fallback: "gamecontroller")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(isActive ? .primary : .secondary)
-                .frame(width: 28, height: 28)
-                .background(
-                    Circle()
-                        .fill(isActive ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
-                )
-            Text(game.displayName)
-                .font(.caption2)
-                .foregroundStyle(isActive ? .primary : .secondary)
-                .lineLimit(1)
-        }
-        .scaleEffect(isActive ? 1.1 : 1.0)
+        // Icon-only strip — the leaderboard title already names the game (§5.5).
+        // Drive the glyph from the game's own iconSystemName instead of an
+        // incomplete name switch that fell back to a generic controller (bug B6).
+        Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
+            .font(.system(size: 20, weight: .medium))
+            .foregroundStyle(isActive ? .primary : .secondary)
+            .frame(width: 40, height: 40)
+            .background(
+                Circle()
+                    .fill(isActive ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+            )
+            .scaleEffect(isActive ? 1.1 : 1.0)
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .opacity(isActive ? 1.0 : 0.7)
         .animation(.smooth(duration: 0.3), value: isActive)
@@ -111,22 +108,5 @@ private struct GameIconView: View {
             perform: { }
         )
         .accessibilityLabel(Text("\(game.displayName) \(isActive ? "selected" : "" )"))
-    }
-    
-    private var gameIconName: String {
-        switch game.displayName.lowercased() {
-        case "wordle": return "textformat.abc"
-        case "connections": return "puzzlepiece"
-        case "mini": return "square.grid.3x3"
-        case "spelling bee": return "hexagon"
-        case "letter boxed": return "square.stack.3d.up"
-        case "vertex": return "triangle"
-        case "strands": return "link"
-        case "dordle": return "textformat.123"
-        case "quordle": return "textformat.123"
-        case "octordle": return "textformat.123"
-        case "absurdle": return "textformat.abc"
-        default: return "gamecontroller"
-        }
     }
 }
