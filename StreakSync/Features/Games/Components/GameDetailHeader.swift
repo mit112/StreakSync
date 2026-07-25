@@ -106,21 +106,18 @@ private struct StatsRow: View {
             AnimatedStatPill(
                 value: "\(streak.currentStreak)",
                 label: "Current",
-                color: streak.currentStreak > 0 ? .green : .orange,
                 isActive: streak.isActive && !isScrolling
             )
-            
+
             AnimatedStatPill(
                 value: "\(streak.maxStreak)",
                 label: "Best",
-                color: .blue,
                 isActive: false
             )
-            
+
             AnimatedStatPill(
                 value: streak.completionPercentage,
                 label: "Success",
-                color: .purple,
                 isActive: false
             )
         }

@@ -11,14 +11,15 @@ import SwiftUI
 struct AnimatedStatPill: View {
     let value: String
     let label: String
-    let color: Color
     let isActive: Bool
-    
+
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
+                // Numbers stay neutral — hue is reserved for state/identity, not decoration
+                // (DESIGN_AUDIT §3-C). Also removes the orange→green cross-fade smear (§4.2).
                 .font(.title3.bold())
-                .foregroundStyle(color)
+                .foregroundStyle(.primary)
                 .contentTransition(.numericText())
                 .scaleEffect(isActive ? 1.1 : 1.0)
                 .animation(

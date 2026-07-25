@@ -29,7 +29,7 @@ struct OverviewStatsSection: View {
                     title: "Total Games",
                     value: "\(overview.totalGamesPlayed)",
                     icon: "gamecontroller.fill",
-                    color: .blue
+                    color: .accentColor
                 )
 
                 AnalyticsStatCardWithTooltip(
@@ -52,7 +52,7 @@ struct OverviewStatsSection: View {
                     title: "Consistency",
                     value: overview.streakConsistencyPercentage,
                     icon: "calendar.badge.checkmark",
-                    color: .purple,
+                    color: .green,
                     tooltip: {
                         let consistencyDays = analyticsService.getConsistencyDays(for: timeRange, game: selectedGame)
                         return "\(consistencyDays.active) of \(consistencyDays.total) days active"

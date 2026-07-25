@@ -67,12 +67,13 @@ struct AchievementsSummarySection: View {
 
     private func summaryPill(title: String, value: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(value).font(.title3).fontWeight(.bold).foregroundStyle(color)
+            // Number stays neutral; hue only tints the pill chrome (DESIGN_AUDIT §3-C).
+            Text(value).font(.title3).fontWeight(.bold).foregroundStyle(.primary)
             Text(title).font(.caption).foregroundStyle(.secondary)
         }
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10).fill(color.opacity(0.08)))
+        .background(RoundedRectangle(cornerRadius: CornerRadius.control).fill(color.opacity(0.08)))
     }
 }
 

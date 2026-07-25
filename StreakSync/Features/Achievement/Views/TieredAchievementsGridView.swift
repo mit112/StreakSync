@@ -140,9 +140,15 @@ struct TieredAchievementsGridView: View {
     // MARK: - Progress Header
     private var progressHeader: some View {
         HStack(spacing: 12) {
-            AchievementStatCard(icon: "trophy.fill", value: "\(unlockedCount)", label: "Unlocked", accentColor: .yellow)
-            AchievementStatCard(icon: "star.fill", value: "\(totalTiers)", label: "Total Tiers", accentColor: .purple)
-            AchievementStatCard(icon: "percent", value: "\(completionPercentage)%", label: "Complete", accentColor: .blue)
+            AchievementStatCard(
+                icon: "trophy.fill", value: "\(unlockedCount)", label: "Unlocked", accentColor: .accentColor
+            )
+            AchievementStatCard(
+                icon: "star.fill", value: "\(totalTiers)", label: "Total Tiers", accentColor: .accentColor
+            )
+            AchievementStatCard(
+                icon: "percent", value: "\(completionPercentage)%", label: "Complete", accentColor: .accentColor
+            )
         }
         .modifier(AchievementHeaderAnimation(hasAppeared: hasAppeared))
     }

@@ -28,8 +28,9 @@ struct StatCard: View {
         self.icon = icon
         self.value = value
         self.label = label
-        // For backward compatibility, we'll store placeholder colors
-        self.gradientColors = [Color.blue, Color.purple]
+        // Legacy gradient path is unused; keep it on one neutral accent
+        // instead of the old blue→purple rainbow (DESIGN_AUDIT §4.1 / B5).
+        self.gradientColors = [Color.accentColor]
         self.action = action
     }
     
