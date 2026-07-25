@@ -43,25 +43,29 @@ struct GameDetailHeader: View {
 
 // MARK: - Animated Game Icon
 private struct AnimatedGameIcon: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let game: Game
     let isActive: Bool
     @State private var isAnimating = false
-    
+
+    private var breathing: Bool { isActive && !reduceMotion }
+
     var body: some View {
         ZStack {
             Circle()
                 .fill(game.backgroundColor.color.opacity(0.15))
                 .frame(width: 100, height: 100)
-                .scaleEffect(isAnimating && isActive ? 1.1 : 1.0)
-                .animation(isActive ? Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true) : .default, value: isAnimating)
-            
+                // Breathing loop is disabled under Reduce Motion (§4.10).
+                .scaleEffect(isAnimating && breathing ? 1.1 : 1.0)
+                .animation(breathing ? Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true) : .default, value: isAnimating)
+
             Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
                 .font(.system(size: 44))
                 .foregroundStyle(game.backgroundColor.color)
         }
         .hoverable()
         .onAppear {
-            if isActive {
+            if breathing {
                 isAnimating = true
             }
         }

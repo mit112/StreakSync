@@ -13,15 +13,17 @@ struct AchievementStatCard: View {
     let value: String
     let label: String
     let accentColor: Color
-    
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Image.safeSystemName(icon, fallback: "star.fill")
                 .font(.title2)
                 .foregroundStyle(accentColor)
-                .symbolEffect(.pulse, options: .repeating.speed(0.5), value: isHovered)
+                // Repeating pulse is disabled under Reduce Motion (§4.10).
+                .symbolEffect(.pulse, options: .repeating.speed(0.5), isActive: isHovered && !reduceMotion)
             
             Text(value)
                 .font(.title3.weight(.bold))
@@ -258,15 +260,17 @@ struct AchievementCard: View {
 
 // MARK: - Header Animation Modifier
 struct AchievementHeaderAnimation: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let hasAppeared: Bool
-    
+
     func body(content: Content) -> some View {
         content
             .opacity(hasAppeared ? 1 : 0)
-            .offset(y: hasAppeared ? 0 : -20)
+            .offset(y: reduceMotion ? 0 : (hasAppeared ? 0 : -20))
             .animation(
-                .smooth(duration: 0.6)
-                .delay(0.1),
+                reduceMotion
+                    ? .easeOut(duration: 0.15)
+                    : .smooth(duration: 0.6).delay(0.1),
                 value: hasAppeared
             )
     }

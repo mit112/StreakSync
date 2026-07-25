@@ -26,22 +26,24 @@ enum SpringPreset {
 
 // MARK: - Pressable Modifier
 struct PressableModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isPressed = false
-    
+
     let hapticType: HapticManager.HapticType
     let hapticEnabled: Bool
     let scaleAmount: CGFloat
-    
+
     init(hapticType: HapticManager.HapticType = .buttonTap, hapticEnabled: Bool = true, scaleAmount: CGFloat = 0.95) {
         self.hapticType = hapticType
         self.hapticEnabled = hapticEnabled
         self.scaleAmount = scaleAmount
     }
-    
+
     func body(content: Content) -> some View {
         content
-            .scaleEffect(isPressed ? scaleAmount : 1.0)
-            .animation(SpringPreset.snappy, value: isPressed)
+            // Drop the press-scale under Reduce Motion but keep the haptic feedback (§4.10).
+            .scaleEffect(reduceMotion ? 1.0 : (isPressed ? scaleAmount : 1.0))
+            .animation(reduceMotion ? nil : SpringPreset.snappy, value: isPressed)
             .onTapGesture {
                 // Empty - actual action handled by button
             }
@@ -49,7 +51,7 @@ struct PressableModifier: ViewModifier {
                 minimumDuration: 0,
                 maximumDistance: .infinity,
                 pressing: { pressing in
-                    withAnimation(SpringPreset.snappy) {
+                    withAnimation(reduceMotion ? nil : SpringPreset.snappy) {
                         isPressed = pressing
                     }
                     if pressing && hapticEnabled {
@@ -96,16 +98,20 @@ extension View {
 
 // MARK: - Staggered Animation Helper
 struct StaggeredAnimationModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let index: Int
     let totalCount: Int
     @State private var appeared = false
-    
+
     func body(content: Content) -> some View {
         content
             .opacity(appeared ? 1 : 0)
-            .offset(y: appeared ? 0 : 20)
+            // Under Reduce Motion drop the slide + stagger; keep a quick fade (§4.10).
+            .offset(y: reduceMotion ? 0 : (appeared ? 0 : 20))
             .animation(
-                SpringPreset.smooth.delay(Double(index) * 0.05),
+                reduceMotion
+                    ? .easeOut(duration: 0.15)
+                    : SpringPreset.smooth.delay(Double(index) * 0.05),
                 value: appeared
             )
             .onAppear {
@@ -127,6 +133,7 @@ extension View {
 // MARK: - Initial Animation Modifier
 /// Drives staggered entrance animations on first appearance. Shared by StatCard and DashboardGamesContent.
 struct InitialAnimationModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let hasAppeared: Bool
     let index: Int
     let totalCount: Int
@@ -134,10 +141,11 @@ struct InitialAnimationModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(hasAppeared ? 1 : 0)
-            .offset(y: hasAppeared ? 0 : 20)
+            .offset(y: reduceMotion ? 0 : (hasAppeared ? 0 : 20))
             .animation(
-                .smooth(duration: 0.5)
-                .delay(Double(index) * 0.05),
+                reduceMotion
+                    ? .easeOut(duration: 0.15)
+                    : .smooth(duration: 0.5).delay(Double(index) * 0.05),
                 value: hasAppeared
             )
     }

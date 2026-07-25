@@ -9,9 +9,12 @@ import SwiftUI
 
 // MARK: - Animated Stat Pill
 struct AnimatedStatPill: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let value: String
     let label: String
     let isActive: Bool
+
+    private var pulsing: Bool { isActive && !reduceMotion }
 
     var body: some View {
         VStack(spacing: 4) {
@@ -21,12 +24,13 @@ struct AnimatedStatPill: View {
                 .font(.title3.bold())
                 .foregroundStyle(.primary)
                 .contentTransition(.numericText())
-                .scaleEffect(isActive ? 1.1 : 1.0)
+                // Perpetual pulse is disabled under Reduce Motion (§4.10).
+                .scaleEffect(pulsing ? 1.1 : 1.0)
                 .animation(
-                    isActive ?
+                    pulsing ?
                     Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true) :
                     .default,
-                    value: isActive
+                    value: pulsing
                 )
             
             Text(label)

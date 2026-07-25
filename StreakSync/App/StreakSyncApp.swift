@@ -136,12 +136,14 @@ struct StreakSyncApp: App {
 
 // MARK: - Initialization Views
 struct InitializationView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "gamecontroller.fill")
                 .font(.system(size: 60))
                 .foregroundStyle(.blue)
-                .symbolEffect(.pulse)
+                .symbolEffect(.pulse, isActive: !reduceMotion)
             
             Text("StreakSync")
                 .font(.largeTitle.weight(.bold))

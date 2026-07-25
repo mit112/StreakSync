@@ -12,6 +12,7 @@ struct EnhancedParticleSystem: View {
     let tier: AchievementTier
     @Binding var isActive: Bool
     @State private var particles: [Particle] = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     struct Particle: Identifiable {
         let id = UUID()
@@ -37,6 +38,9 @@ struct EnhancedParticleSystem: View {
                     .rotationEffect(Angle(degrees: particle.rotation))
             }
             .onAppear {
+                // Robustness guard: don't emit moving particles under Reduce Motion,
+                // even though the celebration flow already swaps in a static variant (§4.10).
+                guard !reduceMotion else { return }
                 createParticles(geometry: geometry)
                 animateParticles()
             }
