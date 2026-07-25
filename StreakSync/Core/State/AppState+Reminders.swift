@@ -32,6 +32,16 @@ extension AppState {
         let preferredHour = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.reminderHour) as? Int ?? 19
         let preferredMinute = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.reminderMinute) as? Int ?? 0
 
+        // Respect an active snooze: keep the daily reminder suppressed until it elapses.
+        // The daily was already cancelled at snooze time; resume only once the window passes.
+        if let snoozedUntil = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.snoozedUntil) as? Date {
+            if snoozedUntil > Date() {
+ logger.info("Reminder snoozed until \(snoozedUntil) - skipping daily reminder scheduling")
+                return
+            }
+            UserDefaults.standard.removeObject(forKey: AppConstants.NotificationSettings.snoozedUntil)
+        }
+
         // Find all games at risk (active streaks, not played today)
         let gamesAtRisk = getGamesAtRisk()
 
