@@ -177,53 +177,6 @@ extension AppState {
         defaults.set(true, forKey: "connectionsFixV2Complete")
     }
     
-    /// Force fix all Connections results (for debugging/manual trigger)
-    @MainActor
-    public func forceFixConnectionsResults() async {
- logger.info("FORCE FIXING Connections results...")
-        await fixExistingConnectionsResults()
-    }
-    
-    /// Force rebuild all streaks from scratch (for debugging/manual trigger)
-    @MainActor
-    public func forceRebuildAllStreaks() async {
- logger.info("FORCE REBUILDING all streaks from scratch...")
-        await rebuildStreaksFromResults()
-        await saveStreaks()
-        
-        // Notify UI
-        invalidateCache()
-        NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
-        
- logger.info("All streaks rebuilt and saved")
-    }
-    
-    /// Debug function to check Connections results
-    @MainActor
-    public func debugConnectionsResults() {
- logger.info("DEBUG: Checking all Connections results")
-        
-        let connectionsResults = recentResults.filter { $0.gameName.lowercased() == "connections" }
- logger.info("Found \(connectionsResults.count) Connections results")
-        
-        for (index, result) in connectionsResults.enumerated() {
- logger.info("Result \(index + 1):")
- logger.info("- Display Score: \(result.displayScore)")
- logger.info("- Score: \(result.score ?? -1)")
- logger.info("- Max Attempts: \(result.maxAttempts)")
- logger.info("- Completed: \(result.completed)")
- logger.info("- Date: \(result.date)")
- logger.info("- Shared Text: \(result.sharedText)")
-        }
-        
-        // Check if Connections game exists
-        if let game = games.first(where: { $0.name.lowercased() == "connections" }) {
- logger.info("Connections game found: \(game.displayName)")
-        } else {
- logger.warning("Connections game not found in games list")
-        }
-    }
-    
     /// Save all data to persistence using the canonical save methods
     @MainActor
     func saveAllData() async {

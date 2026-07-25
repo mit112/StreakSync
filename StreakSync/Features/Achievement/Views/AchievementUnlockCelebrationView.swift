@@ -52,7 +52,14 @@ struct AchievementUnlockCelebrationView: View {
                 achievementText.opacity(textOpacity)
                 progressInfo.opacity(progressOpacity)
                 Spacer()
-                actionButtons.opacity(buttonsOpacity).padding(.bottom, 50)
+                actionButtons
+                    .opacity(buttonsOpacity)
+                    // Invisible (opacity 0) buttons are still hit-testable; block taps
+                    // until the sequence completes so an early tap can't tear the view
+                    // down mid-animation and race the next queued celebration.
+                    .allowsHitTesting(phase == .complete)
+                    .disabled(phase != .complete)
+                    .padding(.bottom, 50)
             }
             .padding()
             
@@ -66,7 +73,7 @@ struct AchievementUnlockCelebrationView: View {
             }
         }
         .statusBarHidden(!voiceOverEnabled)
-        .onAppear { startCelebrationSequence() }
+        .task { await runCelebrationSequence() }
     }
     
     // MARK: - Background
@@ -251,12 +258,15 @@ struct AchievementUnlockCelebrationView: View {
     private var buttonsOpacity: Double { phase == .complete ? 1 : 0 }
     
     // MARK: - Animation Sequence
-    private func startCelebrationSequence() {
-        Task {
+    // Driven by `.task`, so it's cancelled automatically when the view disappears.
+    // Each sleep uses `try await` (not `try?`) so cancellation propagates to the do/catch
+    // and stops firing sounds/haptics/phase mutations instead of racing a torn-down view.
+    private func runCelebrationSequence() async {
+        do {
             if UIApplication.shared.applicationState != .active {
                 var waited: UInt64 = 0
                 while UIApplication.shared.applicationState != .active && waited < 5_000_000_000 {
-                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    try await Task.sleep(nanoseconds: 200_000_000)
                     waited += 200_000_000
                 }
             }
@@ -264,40 +274,42 @@ struct AchievementUnlockCelebrationView: View {
             withAnimation(.easeOut(duration: 0.3)) { phase = .dimming }
             SoundManager.shared.play(.woosh)
             HapticManager.shared.trigger(.achievement)
-            
-            try? await Task.sleep(nanoseconds: 200_000_000)
+
+            try await Task.sleep(nanoseconds: 200_000_000)
             withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) { phase = .badgeAppearing }
             SoundManager.shared.play(.pop)
             badgePulse = true
-            
-            try? await Task.sleep(nanoseconds: 400_000_000)
+
+            try await Task.sleep(nanoseconds: 400_000_000)
             withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                 phase = .badgeScaling
                 particlesActive = true
             }
-            
-            try? await Task.sleep(nanoseconds: 300_000_000)
+
+            try await Task.sleep(nanoseconds: 300_000_000)
             withAnimation(.easeOut(duration: 0.4)) { phase = .textRevealing }
             if voiceOverEnabled { announceAchievement() }
-            
-            try? await Task.sleep(nanoseconds: 500_000_000)
+
+            try await Task.sleep(nanoseconds: 500_000_000)
             withAnimation(.spring()) {
                 phase = .confettiExploding
                 confettiCounter += 1
             }
             SoundManager.shared.play(.confetti)
-            
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+
+            try await Task.sleep(nanoseconds: 1_000_000_000)
             withAnimation(.easeOut(duration: 0.3)) { phase = .complete }
             SoundManager.shared.play(.success)
             if voiceOverEnabled { announceCompletion() }
-            
+
             let autoDismissEnabled = UserDefaults.standard.bool(forKey: "achievementAutoDismissEnabled")
             if autoDismissEnabled {
                 let dismissDelay = voiceOverEnabled ? 8_000_000_000 : 5_000_000_000
-                try? await Task.sleep(nanoseconds: UInt64(dismissDelay))
+                try await Task.sleep(nanoseconds: UInt64(dismissDelay))
                 if UIApplication.shared.applicationState == .active { dismissCelebration() }
             }
+        } catch {
+            // Cancelled (view dismissed) — stop the sequence.
         }
     }
     

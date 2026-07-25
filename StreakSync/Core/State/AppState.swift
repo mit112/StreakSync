@@ -34,6 +34,12 @@ final class AppState {
     var streaks: [GameStreak] = []
     var recentResults: [GameResult] = []
 
+    /// IDs of results the user has deleted. Persisted locally and synced to Firestore
+    /// (users/{uid}/sync/deletedResults) so a full/cold resync — reinstall, sign-out/in,
+    /// or Reset App Data — can't resurrect a deleted result.
+    @ObservationIgnored
+    var deletedResultIds: Set<UUID> = []
+
     // MARK: - UI State (Not Persisted)
     var selectedGame: Game?
     private(set) var isLoading = false
@@ -132,6 +138,14 @@ final class AppState {
     }
 
     private func handleDayChange() {
+        // In Guest Mode the day-change handlers would operate on host data:
+        // checkAllAchievements unions host uniqueGamesEver (bogus celebrations) and
+        // checkAndScheduleStreakReminders rewrites the OS daily reminder with guest
+        // at-risk games. Skip entirely until the host session resumes.
+        guard !isGuestMode else {
+ logger.info("Day changed during Guest Mode - skipping refresh")
+            return
+        }
  logger.info("Day changed - refreshing UI data")
         invalidateCache()
 
@@ -215,6 +229,11 @@ final class AppState {
         let beforeCount = recentResults.count
         recentResults.removeAll { $0.id == resultId }
         guard recentResults.count != beforeCount else { return }
+
+        // Record a tombstone so the next sync deletes the remote doc and no
+        // full/cold resync can resurrect this result.
+        deletedResultIds.insert(resultId)
+        saveDeletedResultIds()
 
         buildResultsCache()
 
@@ -308,13 +327,6 @@ logger.info("Completed checking all achievements")
         if loading { errorMessage = nil }
     }
 
-    func setError(_ message: String) {
-        errorMessage = message
-        currentError = mapStringToAppError(message)
-        isLoading = false
- logger.error("App error: \(message)")
-    }
-
     func setError(_ error: AppError) {
         currentError = error
         errorMessage = error.errorDescription
@@ -325,19 +337,6 @@ logger.info("Completed checking all achievements")
     func clearError() {
         errorMessage = nil
         currentError = nil
-    }
-
-    private func mapStringToAppError(_ message: String) -> AppError? {
-        switch message {
-        case let msg where msg.contains("Failed to save"):
-            return .persistence(.saveFailed(dataType: "data", underlying: nil))
-        case let msg where msg.contains("Failed to load"):
-            return .persistence(.loadFailed(dataType: "data", underlying: nil))
-        case let msg where msg.contains("Network"):
-            return .sync(.syncTimeout)
-        default:
-            return .ui(.stateInconsistency(description: message))
-        }
     }
 
     // MARK: - Internal Setters for Extensions

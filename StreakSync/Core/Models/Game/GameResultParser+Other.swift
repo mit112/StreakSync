@@ -15,7 +15,7 @@ extension GameResultParser {
         let headerPattern = #"(Daily Quordle|Weekly Quordle Challenge)[ \t]*#?[ \t]*(\d+)"#
 
         guard let regex = try? NSRegularExpression(pattern: headerPattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
               let modeRange = Range(match.range(at: 1), in: text),
               let puzzleRange = Range(match.range(at: 2), in: text) else {
             throw ParsingError.invalidFormat
@@ -156,7 +156,7 @@ extension GameResultParser {
         let pattern = #"(?:nerdlegame|nerdle)\s+(\d+)\s+([X1-6])/6"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
               let puzzleRange = Range(match.range(at: 1), in: text),
               let scoreRange = Range(match.range(at: 2), in: text) else {
             throw ParsingError.invalidFormat
@@ -251,7 +251,7 @@ extension GameResultParser {
         let pattern = #"Daily Octordle #(\d+)"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) else {
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) else {
             throw ParsingError.invalidFormat
         }
         
@@ -266,7 +266,7 @@ extension GameResultParser {
         var totalScore = 0
         let scorePattern = #"Score:\s*(\d+)"#
         if let scoreRegex = try? NSRegularExpression(pattern: scorePattern, options: .caseInsensitive),
-           let scoreMatch = scoreRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+           let scoreMatch = scoreRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
            scoreMatch.range(at: 1).location != NSNotFound,
            let scoreRange = Range(scoreMatch.range(at: 1), in: text) {
             totalScore = Int(String(text[scoreRange])) ?? 0

@@ -79,7 +79,6 @@ extension Game {
         displayName: "Wordle",
         url: GameURLs.wordle,
         category: .nytGames,
-        resultPattern: #"Wordle \d+ [1-6X]/6"#,
         iconSystemName: "square.grid.3x3.fill",
         backgroundColor: CodableColor(UIColor(red: 0.345, green: 0.8, blue: 0.008, alpha: 1.0)), // #58CC02
         isPopular: true,
@@ -92,7 +91,6 @@ extension Game {
         displayName: "Quordle",
         url: GameURLs.quordle,
         category: .word,
-        resultPattern: #"(Daily Quordle \d+|Weekly Quordle Challenge \d+)"#,
         iconSystemName: "square.grid.2x2.fill",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
         isPopular: true,
@@ -105,7 +103,6 @@ extension Game {
         displayName: "Nerdle",
         url: GameURLs.nerdle,
         category: .math,
-        resultPattern: #"nerdlegame \d+ [1-6]/6"#,
         iconSystemName: "function",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.588, blue: 0.0, alpha: 1.0)), // #FF9600
         isPopular: true,
@@ -118,7 +115,6 @@ extension Game {
         displayName: "Pips",
         url: URL(staticString: "https://www.nytimes.com/games/pips"),
         category: .puzzle,
-        resultPattern: #"Pips #\d+ (Easy|Medium|Hard)"#,
         iconSystemName: "square.grid.2x2.fill",
         backgroundColor: CodableColor(.systemPurple),
         isPopular: true,
@@ -131,7 +127,6 @@ extension Game {
         displayName: "Connections",
         url: GameURLs.connections,
         category: .nytGames,
-        resultPattern: #"Connections Puzzle #\d+ [🟩🟨🟦🟪\s]+"#,
         iconSystemName: "link",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)), // #007AFF
         isPopular: true,
@@ -144,7 +139,6 @@ extension Game {
         displayName: "Spelling Bee",
         url: GameURLs.spellingBee,
         category: .nytGames,
-        resultPattern: #"Spelling Bee"#,
         iconSystemName: "textformat.abc",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0)), // #FFCC00
         isPopular: true,
@@ -157,7 +151,6 @@ extension Game {
         displayName: "Mini Crossword",
         url: GameURLs.miniCrossword,
         category: .nytGames,
-        resultPattern: #"Mini Crossword"#,
         iconSystemName: "grid",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.6, blue: 0.0, alpha: 1.0)), // #009900
         isPopular: true,
@@ -170,7 +163,6 @@ extension Game {
         displayName: "Strands",
         url: GameURLs.strands,
         category: .nytGames,
-        resultPattern: #"Strands.*?#"#,
         iconSystemName: "lightbulb.fill",
         backgroundColor: CodableColor(UIColor(red: 0.8, green: 0.4, blue: 0.0, alpha: 1.0)), // Orange #CC6600
         isPopular: true,
@@ -184,7 +176,6 @@ extension Game {
         displayName: "Queens",
         url: GameURLs.linkedinQueens,
         category: .linkedinGames,
-        resultPattern: #"Queens.*?puzzle"#,
         iconSystemName: "crown.fill",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)), // LinkedIn Blue #007AFF
         isPopular: false,
@@ -197,7 +188,6 @@ extension Game {
         displayName: "Tango",
         url: GameURLs.linkedinTango,
         category: .linkedinGames,
-        resultPattern: #"Tango.*?puzzle"#,
         iconSystemName: "sun.max.fill",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0)), // Sun/Moon colors #FFCC00
         isPopular: false,
@@ -210,7 +200,6 @@ extension Game {
         displayName: "Crossclimb",
         url: GameURLs.linkedinCrossclimb,
         category: .linkedinGames,
-        resultPattern: #"Crossclimb.*?puzzle"#,
         iconSystemName: "arrow.up.arrow.down",
         backgroundColor: CodableColor(UIColor(red: 0.0, green: 0.6, blue: 0.0, alpha: 1.0)), // Green #009900
         isPopular: false,
@@ -223,7 +212,6 @@ extension Game {
         displayName: "Pinpoint",
         url: GameURLs.linkedinPinpoint,
         category: .linkedinGames,
-        resultPattern: #"Pinpoint.*?puzzle"#,
         iconSystemName: "target",
         backgroundColor: CodableColor(UIColor(red: 1.0, green: 0.4, blue: 0.0, alpha: 1.0)), // Orange #FF6600
         isPopular: false,
@@ -236,7 +224,6 @@ extension Game {
         displayName: "Zip",
         url: GameURLs.linkedinZip,
         category: .linkedinGames,
-        resultPattern: #"Zip.*?puzzle"#,
         iconSystemName: "line.3.horizontal",
         backgroundColor: CodableColor(UIColor(red: 0.6, green: 0.0, blue: 1.0, alpha: 1.0)), // Purple #9900FF
         isPopular: false,
@@ -249,7 +236,6 @@ extension Game {
         displayName: "Mini Sudoku",
         url: GameURLs.linkedinMiniSudoku,
         category: .linkedinGames,
-        resultPattern: #"Mini Sudoku.*?puzzle"#,
         iconSystemName: "square.grid.3x3.topleft.filled",
         backgroundColor: CodableColor(UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)), // Gray #808080
         isPopular: false,
@@ -263,7 +249,6 @@ extension Game {
         displayName: "Octordle",
         url: GameURLs.octordle,
         category: .word,
-        resultPattern: #"Daily Octordle #\d+"#,
         iconSystemName: "8.circle.fill",
         backgroundColor: CodableColor(UIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1.0)), // Blue #3366CC
         isPopular: true,

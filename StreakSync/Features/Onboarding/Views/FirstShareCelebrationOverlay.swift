@@ -61,6 +61,10 @@ struct FirstShareCelebrationOverlay: ViewModifier {
         let name = (note.userInfo?["gameName"] as? String) ?? ""
         gameName = name
         HapticManager.shared.trigger(.achievement)
+        // The confetti/banner/haptic posted nothing to VoiceOver; announce the milestone.
+        AccessibilityNotification.Announcement(
+            name.isEmpty ? "First streak started!" : "First streak started in \(name)"
+        ).post()
         withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
             isCelebrating = true
         }

@@ -203,7 +203,7 @@ struct GameResultDetailView: View {
 
     private var shouldShowAttempts: Bool {
         let name = result.gameName.lowercased()
-        let excluded = ["linkedinzip", "linkedintango", "linkedinqueens", "linkedincrossclimb"]
+        let excluded = ["linkedinzip", "linkedintango", "linkedinqueens", "linkedincrossclimb", "linkedinminisudoku"]
         return !excluded.contains(name)
     }
 
@@ -294,7 +294,8 @@ struct GameResultDetailView: View {
         UIPasteboard.general.string = formatShareText()
         copiedToClipboard = true
         HapticManager.shared.trigger(.achievement)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        Task {
+            try? await Task.sleep(for: .seconds(2))
             copiedToClipboard = false
         }
     }

@@ -24,7 +24,7 @@ struct FriendsView: View {
     @StateObject private var viewModel: FriendsViewModel
     @EnvironmentObject private var container: AppContainer
     @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
-    @ScaledMetric(relativeTo: .body) private var chevronSize: CGFloat = 36
+    @ScaledMetric(relativeTo: .body) private var chevronSize: CGFloat = 44
     @State private var activeSheet: ActiveFriendsSheet?
     
     init(socialService: SocialService) {
@@ -136,6 +136,7 @@ private extension FriendsView {
                     .background(.ultraThinMaterial, in: Circle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Previous day")
             .disabled(!viewModel.canIncrementDay(-1))
             .opacity(viewModel.canIncrementDay(-1) ? 1.0 : 0.3)
 
@@ -160,6 +161,7 @@ private extension FriendsView {
                     .background(.ultraThinMaterial, in: Circle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Next day")
             .disabled(!viewModel.canIncrementDay(1))
             .opacity(viewModel.canIncrementDay(1) ? 1.0 : 0.3)
         }

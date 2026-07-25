@@ -195,11 +195,13 @@ private struct ModernChart: View {
         scoringModel == .lowerTimeSeconds
     }
 
-    private var dayFormatter: DateFormatter {
+    // Hoisted to static: a computed property allocated a new DateFormatter per chart
+    // bar per re-render.
+    private static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "E"
         return formatter
-    }
+    }()
 
     // For inverted games: tall bar = better score.
     // lowerHints (min score 0): plotValue = maxValue - score (avoids overflow when score=0).
@@ -234,7 +236,7 @@ private struct ModernChart: View {
         GeometryReader { geometry in
             Chart(dailyResults.indices, id: \.self) { index in
                 let daily = dailyResults[index]
-                let dayString = dayFormatter.string(from: daily.date)
+                let dayString = Self.dayFormatter.string(from: daily.date)
 
                 if let result = daily.result {
                     let plotScore = plotValue(for: result)

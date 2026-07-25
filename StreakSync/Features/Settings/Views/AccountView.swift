@@ -20,6 +20,7 @@ struct AccountView: View {
     @State private var errorMessage: String?
     @State private var showSignOutConfirmation = false
     @State private var showDeleteConfirmation = false
+    @State private var showReauthSheet = false
     @State private var isDeletingAccount = false
     @State private var signInSuccess = false
 
@@ -47,6 +48,7 @@ struct AccountView: View {
         .navigationTitle("Account")
         .disabled(isLoading)
         .task { await loadProfile() }
+        .sheet(isPresented: $showReauthSheet) { reauthDeleteSheet }
         .overlay {
             if isLoading {
                 ZStack {
@@ -131,30 +133,34 @@ private extension AccountView {
         Button {
             Task { await handleGoogleSignIn() }
         } label: {
-            HStack(spacing: 0) {
-                Spacer()
-                // Google "G" logo approximation
-                Text("G")
-                    .font(.title2.bold())
-                    .foregroundStyle(
-                        .linearGradient(
-                            colors: [.blue, .green, .yellow, .red],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .padding(.trailing, 8)
-                Text("Sign in with Google")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(colorScheme == .dark ? .black : .white)
-                Spacer()
-            }
-            .frame(height: 50)
-            .background(colorScheme == .dark ? Color.white : Color.black)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            googleButtonLabel
         }
         .buttonStyle(.plain)
         .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+    }
+
+    var googleButtonLabel: some View {
+        HStack(spacing: 0) {
+            Spacer()
+            // Google "G" logo approximation
+            Text("G")
+                .font(.title2.bold())
+                .foregroundStyle(
+                    .linearGradient(
+                        colors: [.blue, .green, .yellow, .red],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .padding(.trailing, 8)
+            Text("Sign in with Google")
+                .font(.body.weight(.medium))
+                .foregroundStyle(colorScheme == .dark ? .black : .white)
+            Spacer()
+        }
+        .frame(height: 50)
+        .background(colorScheme == .dark ? Color.white : Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -236,7 +242,9 @@ private extension AccountView {
             }
             .confirmationDialog("Delete Account", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete Everything", role: .destructive) {
-                    Task { await handleDeleteAccount() }
+                    // Reauthenticate FIRST so account deletion can't fail with
+                    // requiresRecentLogin after data is already destroyed.
+                    showReauthSheet = true
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
@@ -258,6 +266,54 @@ private extension AccountView {
             return "\(f)\(l)".uppercased()
         }
         return String(name.prefix(1)).uppercased()
+    }
+}
+
+// MARK: - Reauthentication Sheet
+
+private extension AccountView {
+    var reauthDeleteSheet: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Image(systemName: "lock.shield")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.red)
+                    .accessibilityHidden(true)
+                Text("Confirm It's You")
+                    .font(.title2.bold())
+                Text("For your security, sign in again to permanently delete your account and all its data.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                if authManager.authProvider == .google {
+                    Button {
+                        Task { await handleReauthGoogle() }
+                    } label: {
+                        googleButtonLabel
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    SignInWithAppleButton(.signIn) { request in
+                        request.requestedScopes = [.fullName, .email]
+                        request.nonce = authManager.prepareAppleNonce()
+                    } onCompletion: { result in
+                        Task { await handleReauthApple(result) }
+                    }
+                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                    .frame(height: 50)
+                }
+                Spacer()
+            }
+            .padding(24)
+            .navigationTitle("Delete Account")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showReauthSheet = false }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 
@@ -343,18 +399,51 @@ private extension AccountView {
 
     // MARK: - Delete Account (H1: App Store requirement)
 
-    func handleDeleteAccount() async {
+    func handleReauthApple(_ result: Result<ASAuthorization, Error>) async {
+        switch result {
+        case .success(let authorization):
+            do {
+                try await authManager.reauthenticateWithApple(authorization: authorization)
+                await runDeleteSequence()
+            } catch {
+                showReauthSheet = false
+                errorMessage = "Couldn't verify it's you: \(error.localizedDescription)"
+            }
+        case .failure(let error):
+            showReauthSheet = false
+            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func handleReauthGoogle() async {
+        do {
+            try await authManager.reauthenticateWithGoogle()
+            await runDeleteSequence()
+        } catch {
+            showReauthSheet = false
+            errorMessage = "Couldn't verify it's you: \(error.localizedDescription)"
+        }
+    }
+
+    /// Destroys all remote + local data and deletes the Auth account.
+    /// PRECONDITION: the caller has just reauthenticated, so the account exists
+    /// and `deleteAccount()` won't fail with requiresRecentLogin — data is never
+    /// destroyed unless the account can actually be deleted.
+    func runDeleteSequence() async {
+        showReauthSheet = false
         isDeletingAccount = true
         errorMessage = nil
 
         do {
-            // 1. Delete all Firestore data (scores, friendships, friendCodes, gameResults, sync, profile)
+            // 1. Delete all Firestore data (still authenticated as this user)
             try await container.socialService.deleteAllUserData()
 
             // 2. Clear all local data and sync timestamps
             await container.cleanupForSignOut()
 
-            // 3. Delete the Firebase Auth account (requires recent authentication)
+            // 3. Delete the Firebase Auth account
             try await authManager.deleteAccount()
 
             // 4. Sign in anonymously as a fresh user

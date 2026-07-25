@@ -83,10 +83,6 @@ struct MainTabView: View {
             StreakHistoryView(streak: streak)
                 .environmentObject(container)
 
-        case .allStreaks:
-            AllStreaksView()
-                .environmentObject(container)
-
         case .achievements:
             TieredAchievementsGridView()
                 .environmentObject(container)

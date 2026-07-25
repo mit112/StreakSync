@@ -57,6 +57,11 @@ struct DataManagementView: View {
             Button("Clear", role: .destructive) {
                 Task {
                     await appState.clearAllData()
+                    // Delete the cloud achievement doc too, otherwise the next pull
+                    // (syncIfEnabled has no timestamp gate) re-hydrates achievements
+                    // and undoes the wipe. Results are safe already: their background
+                    // sync is incremental and won't re-pull cleared history.
+                    await container.achievementSyncService.deleteRemoteData()
                     HapticManager.shared.trigger(.error)
                 }
             }

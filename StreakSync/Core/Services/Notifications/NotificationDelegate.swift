@@ -118,7 +118,11 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
     @MainActor private func handleOpenGame(gameIdString: String?) async {
         guard let gameIdString = gameIdString,
               let gameId = UUID(uuidString: gameIdString) else {
- logger.warning("Missing or invalid gameId in notification")
+            // Multi-game streak reminders (2+ games at risk) carry no single gameId.
+            // Route to the dashboard so the tap / "Play Now" isn't a dead no-op.
+ logger.info("No gameId in notification - routing to dashboard")
+            appState?.isNavigatingFromNotification = true
+            navigationCoordinator?.navigateToDashboard()
             return
         }
         
@@ -138,10 +142,17 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
         
         // Build content from today's at-risk games if available
         let gamesAtRisk = appState?.getGamesAtRisk() ?? []
-        
-        // Clean up existing reminders before rescheduling
+
+        // Persist the snooze deadline so the daily reminder stays suppressed until it
+        // elapses (checkAndScheduleStreakReminders reads this). Resumes automatically
+        // on the next reschedule after the window passes.
+        if let snoozedUntil = Self.snoozeDeadline(daysFromNow: days, hour: hour, minute: minute) {
+            UserDefaults.standard.set(snoozedUntil, forKey: AppConstants.NotificationSettings.snoozedUntil)
+        }
+
+        // Clean up existing reminders (including the daily) before rescheduling
         await NotificationScheduler.shared.cleanupAndRescheduleNotifications()
-        
+
         // Schedule a one-off snooze reminder for the requested day
         await NotificationScheduler.shared.scheduleOneOffSnoozeReminder(
             games: gamesAtRisk,
@@ -149,15 +160,18 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
             hour: hour,
             minute: minute
         )
-        
-        // Re-schedule the daily repeating reminder so it resumes automatically.
-        // Without this, the daily reminder would be permanently cancelled after a snooze
-        // since there's no callback when the one-off fires.
-        await NotificationScheduler.shared.scheduleDailyStreakReminder(
-            games: gamesAtRisk,
-            hour: hour,
-            minute: minute
-        )
+
+        // Intentionally do NOT re-arm the daily reminder here. Re-arming would fire the
+        // daily every day during the snooze window and duplicate on the target day,
+        // defeating the snooze. The daily resumes via checkAndScheduleStreakReminders
+        // once snoozedUntil elapses.
+    }
+
+    /// The moment a `days`-from-now snooze elapses, at the user's preferred reminder time.
+    private static func snoozeDeadline(daysFromNow days: Int, hour: Int, minute: Int) -> Date? {
+        let calendar = Calendar.current
+        guard let dayStart = calendar.date(byAdding: .day, value: days, to: Date()) else { return nil }
+        return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: dayStart)
     }
     
     @MainActor private func handleDismissAndReschedule(gameIdString: String?) async {

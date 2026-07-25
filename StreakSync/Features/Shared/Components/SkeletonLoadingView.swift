@@ -11,6 +11,7 @@ import SwiftUI
 struct SkeletonLoadingView: View {
     let style: SkeletonStyle
     @State private var isAnimating = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     init(style: SkeletonStyle = .card) {
         self.style = style
@@ -30,10 +31,15 @@ struct SkeletonLoadingView: View {
             }
         }
         .onAppear {
+            // Respect Reduce Motion — a repeatForever shimmer is exactly the kind of
+            // continuous animation that setting is meant to suppress.
+            guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false)) {
                 isAnimating = true
             }
         }
+        // Decorative loading placeholder — nothing for VoiceOver to read.
+        .accessibilityHidden(true)
     }
     
     // MARK: - Card Skeleton

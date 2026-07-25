@@ -184,7 +184,7 @@ private extension FriendManagementView {
             Button("Cancel", role: .cancel) { friendToRemove = nil }
         } message: {
             if let friend = friendToRemove {
-                Text("\(friend.displayName) will no longer see your scores, and you won't see theirs.")
+                Text("\(friend.displayName) will lose access to your recent scores (from the last 30 days), and you won't see theirs.")
             }
         }
     }

@@ -285,6 +285,7 @@ private struct IOS26SettingsNavigationRow<Destination: View>: View {
                         Circle()
                             .fill(iconColor.opacity(0.1))
                     }
+                    .accessibilityHidden(true)
                 
                 // Text Content
                 VStack(alignment: .leading, spacing: 2) {
@@ -307,6 +308,7 @@ private struct IOS26SettingsNavigationRow<Destination: View>: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.tertiary)
                         .scaleEffect(isPressed ? 0.8 : 1)
+                        .accessibilityHidden(true)
                 }
             }
             .padding(.horizontal, 16)
@@ -355,6 +357,7 @@ private struct IOS26SettingsLinkRow: View {
                         Circle()
                             .fill(iconColor.opacity(0.1))
                     }
+                    .accessibilityHidden(true)
                 
                 // Title
                 Text(title)
@@ -368,6 +371,7 @@ private struct IOS26SettingsLinkRow: View {
                     .font(.system(size: 14))
                     .foregroundStyle(.tertiary)
                     .scaleEffect(isPressed ? 0.8 : 1)
+                    .accessibilityHidden(true)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

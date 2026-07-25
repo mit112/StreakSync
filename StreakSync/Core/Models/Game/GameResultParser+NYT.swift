@@ -22,7 +22,7 @@ extension GameResultParser {
         let pattern = #"Wordle\s+(\d+(?:,\d+)*)\s+([X1-6])/6"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
               let puzzleRange = Range(match.range(at: 1), in: text),
               let scoreRange = Range(match.range(at: 2), in: text) else {
             throw ParsingError.invalidFormat
@@ -56,7 +56,7 @@ extension GameResultParser {
         // Extract puzzle number using a simple approach
         let puzzleNumberPattern = #"Puzzle #(\d+)"#
         guard let puzzleRegex = try? NSRegularExpression(pattern: puzzleNumberPattern, options: .caseInsensitive),
-              let puzzleMatch = puzzleRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+              let puzzleMatch = puzzleRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
               let puzzleRange = Range(puzzleMatch.range(at: 1), in: text) else {
             throw ParsingError.invalidFormat
         }
@@ -183,7 +183,7 @@ extension GameResultParser {
         // "Spelling Bee - I found 42 words…" or "NYT Spelling Bee … I found 42 words…"
         let sentencePattern = #"(?:NYT\s+)?Spelling Bee[\s\S]*?I found (\d+) words"#
         guard let sentenceRegex = try? NSRegularExpression(pattern: sentencePattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
-              let sentenceMatch = sentenceRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+              let sentenceMatch = sentenceRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
               let wordsRange = Range(sentenceMatch.range(at: 1), in: text) else {
             throw ParsingError.invalidFormat
         }
@@ -230,7 +230,7 @@ extension GameResultParser {
         var completionTime: String?
         for pattern in patterns {
             guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
-                  let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+                  let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
                   let timeRange = Range(match.range(at: 1), in: text) else {
                 continue
             }
@@ -274,7 +274,7 @@ extension GameResultParser {
         let pattern = #"Strands\s+#(\d+)"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) else {
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) else {
             throw ParsingError.invalidFormat
         }
         
@@ -289,7 +289,7 @@ extension GameResultParser {
         var theme = ""
         let themePattern = #""([^"]+)""#
         if let themeRegex = try? NSRegularExpression(pattern: themePattern, options: .caseInsensitive),
-           let themeMatch = themeRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+           let themeMatch = themeRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
            themeMatch.range(at: 1).location != NSNotFound,
            let themeRange = Range(themeMatch.range(at: 1), in: text) {
             theme = String(text[themeRange])

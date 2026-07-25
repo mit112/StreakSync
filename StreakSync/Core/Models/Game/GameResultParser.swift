@@ -45,7 +45,7 @@ struct GameResultParser {
         let scorePattern = #"(\d+|X)/(\d+)"#
 
         guard let regex = try? NSRegularExpression(pattern: scorePattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)),
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
               let scoreRange = Range(match.range(at: 1), in: text),
               let maxRange = Range(match.range(at: 2), in: text) else {
             throw ParsingError.invalidFormat

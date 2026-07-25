@@ -313,13 +313,19 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
     mutating func updateProgress(value: Int) {
         progress.currentValue = value
         progress.lastUpdated = Date()
-        
-        // Check for tier unlocks
+
+        // Capture the tier held BEFORE this update once. Re-reading currentTier inside the
+        // loop (after mutating it) meant crossing several tiers in a single update only
+        // stamped the highest tier's unlock date; the lower newly-crossed tiers were skipped.
+        let previousTier = progress.currentTier
+        let previousRaw = previousTier?.rawValue ?? 0
         for requirement in requirements.reversed() {
-            let currentRaw = progress.currentTier?.rawValue ?? 0
-            if value >= requirement.threshold && (progress.currentTier == nil || requirement.tier.rawValue > currentRaw) {
-                // Unlock new tier
-                progress.currentTier = requirement.tier
+            if value >= requirement.threshold && (previousTier == nil || requirement.tier.rawValue > previousRaw) {
+                // Raise to the highest newly-crossed tier (reversed → highest first).
+                if requirement.tier.rawValue > (progress.currentTier?.rawValue ?? 0) {
+                    progress.currentTier = requirement.tier
+                }
+                // Stamp each newly-crossed tier's unlock date (once).
                 if progress.tierUnlockDates[requirement.tier] == nil {
                     progress.tierUnlockDates[requirement.tier] = Date()
                 }

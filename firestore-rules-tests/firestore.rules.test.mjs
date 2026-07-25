@@ -26,6 +26,7 @@ import {
   collection,
   getDocs,
   query,
+  serverTimestamp,
   where,
 } from "firebase/firestore";
 
@@ -120,6 +121,25 @@ const VALID_GAME_RESULT = {
   parsedData: { puzzleNumber: "1234" },
   lastModified: { seconds: 1708128000, nanoseconds: 0 },
   score: 3,
+};
+
+// Mirrors FirestoreAchievementSyncService.syncIfEnabled():
+// setData({ payload: base64 String, summary: [String: Int] map,
+//           lastUpdated: serverTimestamp, version: Int })
+const VALID_ACHIEVEMENT_SYNC = {
+  payload: "eyJhY2hpZXZlbWVudHMiOltdfQ==",
+  summary: { total: 12, unlocked: 5 },
+  lastUpdated: serverTimestamp(),
+  version: 2,
+};
+
+// Mirrors FirestoreGameResultSyncService.syncIfNeeded() tombstone write:
+// setData({ ids: arrayUnion(...) }, merge: true) → doc is exactly { ids: [String] }
+const VALID_DELETED_RESULTS_SYNC = {
+  ids: [
+    "550e8400-e29b-41d4-a716-446655440000",
+    "660e8400-e29b-41d4-a716-446655440001",
+  ],
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -284,6 +304,17 @@ async function main() {
     );
   });
 
+  await runCase("✅ cannot write gameResults with oversized parsedData", async () => {
+    const bigParsed = {};
+    for (let i = 0; i < 60; i++) bigParsed["k" + i] = "v";
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {
+        ...VALID_GAME_RESULT,
+        parsedData: bigParsed,
+      })
+    );
+  });
+
   await runCase("✅ other user cannot write gameResults", async () => {
     await assertFails(
       setDoc(doc(authed("bob"), "users/alice/gameResults/r1"), {
@@ -377,10 +408,33 @@ async function main() {
   // ─── 4. SYNC DATA (private subcollection) ─────────────────
   console.log("\n── Sync Data ──");
 
-  await runCase("✅ owner can write/read own sync doc", async () => {
-    const db = authed("alice");
+  await runCase("✅ owner can write valid achievements sync doc", async () => {
     await assertSucceeds(
-      setDoc(doc(db, "users/alice/sync/achievements"), { payload: "data" })
+      setDoc(doc(authed("alice"), "users/alice/sync/achievements"), {
+        ...VALID_ACHIEVEMENT_SYNC,
+      })
+    );
+  });
+
+  await runCase("✅ owner can write valid deletedResults sync doc", async () => {
+    await assertSucceeds(
+      setDoc(doc(authed("alice"), "users/alice/sync/deletedResults"), {
+        ...VALID_DELETED_RESULTS_SYNC,
+      })
+    );
+  });
+
+  await runCase("✅ owner can read own sync doc", async () => {
+    await seedDoc("users/alice/sync/achievements", { payload: "x" });
+    await assertSucceeds(
+      getDoc(doc(authed("alice"), "users/alice/sync/achievements"))
+    );
+  });
+
+  await runCase("✅ owner can delete own sync doc (account cleanup)", async () => {
+    await seedDoc("users/alice/sync/achievements", { payload: "x" });
+    await assertSucceeds(
+      deleteDoc(doc(authed("alice"), "users/alice/sync/achievements"))
     );
   });
 
@@ -388,6 +442,59 @@ async function main() {
     await seedDoc("users/alice/sync/achievements", { payload: "data" });
     await assertFails(
       getDoc(doc(authed("bob"), "users/alice/sync/achievements"))
+    );
+  });
+
+  await runCase("🔴 rejects achievements sync with disallowed extra field", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/sync/achievements"), {
+        ...VALID_ACHIEVEMENT_SYNC,
+        isAdmin: true,
+      })
+    );
+  });
+
+  await runCase("🔴 rejects achievements sync missing required field", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/sync/achievements"), {
+        payload: "x",
+        summary: {},
+        version: 2,
+      })
+    );
+  });
+
+  await runCase("🔴 rejects achievements sync with wrong-typed version", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/sync/achievements"), {
+        ...VALID_ACHIEVEMENT_SYNC,
+        version: "2",
+      })
+    );
+  });
+
+  await runCase("🔴 rejects deletedResults sync with non-list ids", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/sync/deletedResults"), {
+        ids: "not-a-list",
+      })
+    );
+  });
+
+  await runCase("🔴 rejects deletedResults sync with disallowed extra field", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/sync/deletedResults"), {
+        ...VALID_DELETED_RESULTS_SYNC,
+        evil: true,
+      })
+    );
+  });
+
+  await runCase("🔴 rejects write to unknown sync docId", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/sync/rogue"), {
+        payload: "x",
+      })
     );
   });
 

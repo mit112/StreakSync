@@ -303,6 +303,67 @@ final class FirebaseAuthStateManager: ObservableObject {
         }
     }
 
+    // MARK: - Reauthentication (required before account deletion)
+
+    /// Re-authenticates the current user with a fresh Apple credential, refreshing the
+    /// recent-login window so a subsequent `deleteAccount()` won't fail with
+    /// `requiresRecentLogin`. Throws on cancel/failure — callers must NOT destroy any
+    /// data unless this succeeds.
+    func reauthenticateWithApple(authorization: ASAuthorization) async throws {
+        guard let user = auth.currentUser else { throw FirebaseAuthError.notAuthenticated }
+        guard let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let nonce = currentNonce,
+              let identityToken = appleCredential.identityToken,
+              let tokenString = String(data: identityToken, encoding: .utf8) else {
+            throw FirebaseAuthError.invalidCredential
+        }
+        let credential = OAuthProvider.appleCredential(
+            withIDToken: tokenString,
+            rawNonce: nonce,
+            fullName: appleCredential.fullName
+        )
+        currentNonce = nil
+        do {
+            try await user.reauthenticate(with: credential)
+ logger.info("Reauthenticated with Apple for account deletion")
+        } catch {
+            throw FirebaseAuthError.from(error)
+        }
+    }
+
+    /// Re-authenticates the current user with a fresh Google credential (presents the
+    /// Google sign-in sheet). Throws on cancel/failure.
+    func reauthenticateWithGoogle() async throws {
+        guard let user = auth.currentUser else { throw FirebaseAuthError.notAuthenticated }
+        guard let clientID = FirebaseApp.app()?.options.clientID else {
+            throw FirebaseAuthError.operationNotAllowed
+        }
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
+            throw FirebaseAuthError.operationNotAllowed
+        }
+        var topVC = rootVC
+        while let presented = topVC.presentedViewController {
+            topVC = presented
+        }
+        let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: topVC)
+        guard let idToken = result.user.idToken?.tokenString else {
+            throw FirebaseAuthError.invalidCredential
+        }
+        let credential = GoogleAuthProvider.credential(
+            withIDToken: idToken,
+            accessToken: result.user.accessToken.tokenString
+        )
+        do {
+            try await user.reauthenticate(with: credential)
+ logger.info("Reauthenticated with Google for account deletion")
+        } catch {
+            throw FirebaseAuthError.from(error)
+        }
+    }
+
     // MARK: - Private: Auth Listener
 
     private func setupAuthListener() {

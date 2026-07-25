@@ -255,6 +255,8 @@ final class FriendsViewModel: ObservableObject {
     }
     
     func cleanup() {
+        refreshDebounceTask?.cancel()
+        refreshDebounceTask = nil
         tearDownListeners()
         if let obs = backgroundObserver {
             NotificationCenter.default.removeObserver(obs)

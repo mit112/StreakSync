@@ -32,11 +32,24 @@ extension AppState {
         let preferredHour = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.reminderHour) as? Int ?? 19
         let preferredMinute = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.reminderMinute) as? Int ?? 0
 
+        // Respect an active snooze: keep the daily reminder suppressed until it elapses.
+        // The daily was already cancelled at snooze time; resume only once the window passes.
+        if let snoozedUntil = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.snoozedUntil) as? Date {
+            if snoozedUntil > Date() {
+ logger.info("Reminder snoozed until \(snoozedUntil) - skipping daily reminder scheduling")
+                return
+            }
+            UserDefaults.standard.removeObject(forKey: AppConstants.NotificationSettings.snoozedUntil)
+        }
+
         // Find all games at risk (active streaks, not played today)
         let gamesAtRisk = getGamesAtRisk()
 
-        // Debounce/coalesce: if the set of at-risk games hasn't changed and we scheduled recently, skip
-        let signature = gamesAtRisk.map(\.id.uuidString).sorted().joined(separator: "|")
+        // Debounce/coalesce: if the set of at-risk games AND the preferred time haven't
+        // changed and we scheduled recently, skip. Including hour/minute ensures a reminder-
+        // time change in Settings within the debounce window isn't silently dropped.
+        let signature = "\(preferredHour):\(preferredMinute)|"
+            + gamesAtRisk.map(\.id.uuidString).sorted().joined(separator: "|")
         let now = Date()
         if let lastSig = lastAtRiskGamesSignature,
            lastSig == signature,

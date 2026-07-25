@@ -95,8 +95,8 @@ struct ImprovedDashboardView: View {
                     (streak1.lastPlayedDate ?? .distantPast) < (streak2.lastPlayedDate ?? .distantPast)
             case .name:
                 return sortDirection == .descending ?
-                    streak1.gameName < streak2.gameName :
-                    streak1.gameName > streak2.gameName
+                    streak1.gameName > streak2.gameName :
+                    streak1.gameName < streak2.gameName
             case .streakLength:
                 return sortDirection == .descending ?
                     streak1.currentStreak > streak2.currentStreak :
@@ -148,10 +148,12 @@ struct ImprovedDashboardView: View {
                 isShowingShareDiscovery = true
             }
         }
-        .sheet(isPresented: $isShowingShareDiscovery) {
-            ShareDiscoverySheet(onDismiss: {
-                UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
-            })
+        .sheet(isPresented: $isShowingShareDiscovery, onDismiss: {
+            // Fires on ANY dismissal (swipe-to-dismiss OR "Got it"), so the sheet
+            // doesn't re-trigger on every Home appearance for users who swipe it away.
+            UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
+        }) {
+            ShareDiscoverySheet(onDismiss: {})
         }
         .onReceive(NotificationCenter.default.publisher(for: .appNavigateToGame)) { notification in
             if let userInfo = notification.object as? [String: Any],
@@ -312,8 +314,8 @@ struct ImprovedDashboardView: View {
                 return ascending ? (date1 < date2) : (date1 > date2)
             case .name:
                 return ascending ?
-                    game1.displayName > game2.displayName :
-                    game1.displayName < game2.displayName
+                    game1.displayName < game2.displayName :
+                    game1.displayName > game2.displayName
             case .streakLength:
                 let s1 = streakByGame[game1.id]?.currentStreak ?? 0
                 let s2 = streakByGame[game2.id]?.currentStreak ?? 0

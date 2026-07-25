@@ -106,9 +106,22 @@ final class FirestoreGameResultSyncService {
 
         do {
             let ref = db.collection("users").document(uid).collection("gameResults")
+            let tombstoneRef = db.collection("users").document(uid)
+                .collection("sync").document("deletedResults")
+
+            // Reconcile deletion tombstones: union this device's deletions with those
+            // recorded remotely (by this or other devices) so a deleted result can't be
+            // resurrected via merge, re-push, or full/cold resync.
+            let remoteDeleted = try await fetchRemoteDeletedIds(from: tombstoneRef)
+            let localDeleted = appState.deletedResultIds
+            let allDeleted = localDeleted.union(remoteDeleted)
+            let newTombstones = localDeleted.subtracting(remoteDeleted)
+
             let remoteResults = try await fetchRemoteResults(from: ref)
             let merged = mergeResults(local: appState.recentResults, remote: remoteResults)
+                .filter { !allDeleted.contains($0.id) }
             let toPush = resultsToPush(merged: merged, local: appState.recentResults, remote: remoteResults)
+                .filter { !allDeleted.contains($0.id) }
 
             if !toPush.isEmpty {
                 logger.info("Uploading \(toPush.count) results to Firestore")
@@ -117,10 +130,27 @@ final class FirestoreGameResultSyncService {
                 }
             }
 
+            // Propagate this device's deletions to Firestore: delete the result docs and
+            // record the tombstones so other devices and full resyncs suppress them.
+            if !newTombstones.isEmpty {
+                for id in newTombstones {
+                    try? await ref.document(id.uuidString).delete()
+                }
+                try? await tombstoneRef.setData(
+                    ["ids": FieldValue.arrayUnion(newTombstones.map { $0.uuidString })],
+                    merge: true
+                )
+                logger.info("Propagated \(newTombstones.count) deletion tombstone(s) to Firestore")
+            }
+            if allDeleted != localDeleted {
+                appState.setDeletedResultIds(allDeleted)
+            }
+
             // Re-read current results after all async operations — results may have been
             // added via Share Extension or manual entry during the upload suspension.
             let currentResults = appState.recentResults
             let finalMerged = mergeResults(local: currentResults, remote: remoteResults)
+                .filter { !allDeleted.contains($0.id) }
                 .sorted { $0.date > $1.date }
             appState.setRecentResults(finalMerged)
             await appState.saveGameResults()
@@ -147,6 +177,14 @@ final class FirestoreGameResultSyncService {
         let mode = lastSyncTimestamp != nil ? " (incremental)" : " (full)"
         logger.info("Fetched \(results.count) game results from Firestore\(mode)")
         return results
+    }
+
+    /// Reads the set of deleted result IDs recorded in Firestore. Returns an empty set
+    /// if the tombstone doc doesn't exist yet.
+    private func fetchRemoteDeletedIds(from ref: DocumentReference) async throws -> Set<UUID> {
+        let snapshot = try await ref.getDocument()
+        guard let ids = snapshot.data()?["ids"] as? [String] else { return [] }
+        return Set(ids.compactMap { UUID(uuidString: $0) })
     }
 
     private func mergeResults(local: [GameResult], remote: [GameResult]) -> [GameResult] {

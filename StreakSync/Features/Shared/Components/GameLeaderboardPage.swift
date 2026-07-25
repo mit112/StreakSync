@@ -54,7 +54,14 @@ struct GameLeaderboardPage: View {
     
     private var contentView: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if rows.isEmpty {
+            if isLoading && rows.isEmpty {
+                // Show a skeleton while loading instead of the "no scores / invite
+                // friends" empty state, which otherwise flashed a misleading CTA on
+                // first load and every date change.
+                SkeletonLoadingView(style: .list)
+                    .frame(maxWidth: .infinity, minHeight: 260)
+                    .padding(.vertical, 8)
+            } else if rows.isEmpty {
                 VStack(spacing: 16) {
                     // Game icon as visual anchor
                     ZStack {

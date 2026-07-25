@@ -75,7 +75,6 @@ final class NavigationCoordinator: ObservableObject {
     enum Destination: Hashable {
         case gameDetail(Game)
         case streakHistory(GameStreak)
-        case allStreaks
         case achievements
         case settings
         case gameManagement
@@ -92,8 +91,6 @@ final class NavigationCoordinator: ObservableObject {
             case .streakHistory(let streak):
                 hasher.combine("streakHistory")
                 hasher.combine(streak.id)
-            case .allStreaks:
-                hasher.combine("allStreaks")
             case .achievements:
                 hasher.combine("achievements")
             case .settings:
@@ -120,8 +117,6 @@ final class NavigationCoordinator: ObservableObject {
                 return lhsGame.id == rhsGame.id
             case (.streakHistory(let lhsStreak), .streakHistory(let rhsStreak)):
                 return lhsStreak.id == rhsStreak.id
-            case (.allStreaks, .allStreaks):
-                return true
             case (.achievements, .achievements):
                 return true
             case (.settings, .settings):
@@ -200,9 +195,10 @@ final class NavigationCoordinator: ObservableObject {
     /// Switch to tab and navigate
     func switchToTabAndNavigate(_ tab: MainTab, destination: Destination) {
         selectedTab = tab
-        // Small delay to ensure tab switch completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            self.navigateTo(destination)
+        // Small delay to ensure tab switch completes before navigating.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(0.1))
+            self?.navigateTo(destination)
         }
     }
     
@@ -270,6 +266,13 @@ final class NavigationCoordinator: ObservableObject {
         )
     }
     
+    /// Navigate to the Home dashboard. Used when a streak reminder covers multiple
+    /// games and therefore carries no single target gameId.
+    func navigateToDashboard() {
+        switchToTab(.home)
+        popToRoot(in: .home)
+    }
+
     /// Navigate to achievements with optional highlight
     func navigateToAchievements(highlightId: UUID? = nil) {
         self.highlightedAchievementId = highlightId
@@ -281,7 +284,8 @@ final class NavigationCoordinator: ObservableObject {
         pendingJoinCode = code
         switchToTab(.friends)
         // Slight delay to ensure tab switch completes before showing sheet
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(0.2))
             self?.shouldShowJoinSheet = true
         }
     }

@@ -32,27 +32,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (no code signing needed for simulator)
 xcodebuild build \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=756A6319-D17B-4178-98CC-433136B53668' \
-  -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO --quiet \
+  -destination 'platform=iOS Simulator,id=39E4040B-9C07-4BAE-9D41-C077B2A2AB0E' \
+  -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO -quiet \
   2>&1 | xcsift -w
 
 # Run all tests (unit + UI)
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+  -destination 'platform=iOS Simulator,id=39E4040B-9C07-4BAE-9D41-C077B2A2AB0E' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
 
 # Run a single test class
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+  -destination 'platform=iOS Simulator,id=39E4040B-9C07-4BAE-9D41-C077B2A2AB0E' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests
 
 # Run a single test method
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+  -destination 'platform=iOS Simulator,id=39E4040B-9C07-4BAE-9D41-C077B2A2AB0E' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests/testStreakContinuation
 
@@ -154,17 +154,16 @@ Rules in `firestore.rules` with a 62-case pen test suite in `firestore-rules-tes
 
 **Always reference simulators by UDID, not by name.**
 
-- iPhone 17 Pro Max: `756A6319-D17B-4178-98CC-433136B53668` (preferred for testing)
-- iPhone 17 Pro: `6DF96BFC-D26F-4995-8149-1A5F3C893492`
+- iPhone 17 Pro: `39E4040B-9C07-4BAE-9D41-C077B2A2AB0E` (iOS 27.0 — preferred; only simulator currently installed, no Pro Max)
 
 > **UDID drift:** These UDIDs change whenever Xcode is reinstalled or simulators are re-created. If `xcodebuild` rejects the destination with "device not found", run `xcrun simctl list devices available | grep "iPhone 17 Pro"` and update this file.
 
 Preferred destination string:
-`platform=iOS Simulator,id=756A6319-D17B-4178-98CC-433136B53668`
+`platform=iOS Simulator,id=39E4040B-9C07-4BAE-9D41-C077B2A2AB0E`
 
 **Always launch apps with:**
 ```bash
-xcrun simctl launch --terminate-running-process --console-pty 756A6319-D17B-4178-98CC-433136B53668 com.mitsheth.StreakSync
+xcrun simctl launch --terminate-running-process --console-pty 39E4040B-9C07-4BAE-9D41-C077B2A2AB0E com.mitsheth.StreakSync
 ```
 `--terminate-running-process` is mandatory — without it, launch silently does nothing if the app is already running.
 

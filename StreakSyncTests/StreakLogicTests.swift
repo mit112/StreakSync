@@ -152,10 +152,30 @@ final class StreakLogicTests: XCTestCase {
     func testFirstPlayWithNoLastPlayedDate() {
         let streak = makeStreak(current: 3, max: 3, played: 3, completed: 3, lastPlayed: nil)
         let result = makeResult(date: Date(), completed: true)
-        
+
         let updated = appState.calculateUpdatedStreak(current: streak, with: result)
-        
+
         XCTAssertEqual(updated.currentStreak, 1) // reset because no lastPlayed
+    }
+
+    func testBackfilledOlderResultDoesNotResetStreakOrBackdate() {
+        let yesterday = date(daysAgo: 1)
+        let today = date(daysAgo: 0)
+        let fiveDaysAgo = date(daysAgo: 5)
+        // Active 4-day streak, last played today.
+        let streak = makeStreak(current: 4, max: 4, played: 10, completed: 9, lastPlayed: today, start: yesterday)
+        // A completed result from five days ago is added late (backfill / out-of-order import).
+        let result = makeResult(date: fiveDaysAgo, completed: true)
+
+        let updated = appState.calculateUpdatedStreak(current: streak, with: result)
+
+        // Negative daysBetween must NOT hit the "streak broken" branch.
+        XCTAssertEqual(updated.currentStreak, 4, "Backfilled older result must not reset the streak")
+        XCTAssertEqual(updated.maxStreak, 4)
+        XCTAssertEqual(updated.totalGamesPlayed, 11)
+        XCTAssertEqual(updated.totalGamesCompleted, 10)
+        XCTAssertEqual(updated.lastPlayedDate, today, "lastPlayedDate must not move backwards")
+        XCTAssertEqual(updated.streakStartDate, yesterday, "streakStartDate must not be backdated")
     }
     
     // MARK: - Duplicate Detection Tests

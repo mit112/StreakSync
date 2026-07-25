@@ -118,17 +118,33 @@ struct NotificationPermissionFlowView: View {
                 
                 // Controls
                 VStack(spacing: 12) {
-                    Button("Enable Notifications") {
-                        Task {
-                            let granted = await viewModel.requestPermission()
-                            if granted {
-                                dismiss()
+                    if viewModel.permissionStatus == .denied {
+                        // iOS won't re-prompt once denied, so the request button would be
+                        // inert. Route to Settings instead.
+                        Text("Notifications are turned off. Enable them in Settings to get streak reminders.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Open Settings") {
+                            viewModel.openSystemSettings()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                    } else {
+                        Button("Enable Notifications") {
+                            Task {
+                                let granted = await viewModel.requestPermission()
+                                if granted {
+                                    dismiss()
+                                }
+                                // On denial, requestPermission updates permissionStatus to
+                                // .denied and this view re-renders into the Settings branch.
                             }
                         }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    
+
                     Button("Not Now") {
                         dismiss()
                     }

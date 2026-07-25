@@ -112,6 +112,10 @@ protocol SocialService: Sendable {
     /// Deletes ALL Firestore data for the current user (scores, friendships, friendCodes, gameResults, sync, profile).
     /// Call this before deleting the Firebase Auth account.
     func deleteAllUserData() async throws
+
+    /// Clears the local queue of pending (failed-to-publish) scores from the Keychain.
+    /// Call on sign-out so a signed-out user's scores aren't retried under the next session.
+    func clearPendingScores() async
     
     // Sync status (nonisolated for Sendable conformance)
     nonisolated var pendingScoreCount: Int { get }
