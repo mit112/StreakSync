@@ -47,7 +47,16 @@ extension AppState {
         var newCurrentStreak = current.currentStreak
         var newMaxStreak = current.maxStreak
         var newStreakStartDate = current.streakStartDate
-        
+
+        // Never move lastPlayedDate backwards — a backfilled (older) result must not
+        // overwrite a more recent play date.
+        let newLastPlayedDate: Date
+        if let last = current.lastPlayedDate {
+            newLastPlayedDate = max(last, result.date)
+        } else {
+            newLastPlayedDate = result.date
+        }
+
         if result.completed {
             if current.currentStreak == 0 {
                 // Starting a new streak
@@ -71,13 +80,16 @@ extension AppState {
                         #if DEBUG
  logger.info("Extending streak to \(newCurrentStreak)")
                         #endif
-                    } else if daysBetween == 0 {
-                        // Same day - don't increment streak
+                    } else if daysBetween <= 0 {
+                        // Same day, or a historical backfill (result older than the last
+                        // play, daysBetween < 0): maintain the streak. Without the <= 0
+                        // guard, a backdated result fell through to the "broken" branch,
+                        // resetting the streak to 1 and backdating streakStartDate.
                         #if DEBUG
- logger.info("Same day play - maintaining streak at \(newCurrentStreak)")
+ logger.info("Same-day or backfilled play - maintaining streak at \(newCurrentStreak)")
                         #endif
                     } else {
-                        // Streak broken - start new one
+                        // Gap of more than one day - streak broken, start new one
                         newCurrentStreak = 1
                         newStreakStartDate = result.date
                         #if DEBUG
@@ -113,7 +125,7 @@ extension AppState {
             maxStreak: newMaxStreak,
             totalGamesPlayed: newTotalPlayed,
             totalGamesCompleted: newTotalCompleted,
-            lastPlayedDate: result.date,
+            lastPlayedDate: newLastPlayedDate,
             streakStartDate: newStreakStartDate
         )
         
