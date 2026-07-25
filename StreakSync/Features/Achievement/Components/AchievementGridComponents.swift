@@ -35,13 +35,14 @@ struct AchievementStatCard: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
         .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            // Neutral card chrome; hue lives only on the icon (DESIGN_AUDIT §4.1).
+            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(accentColor.opacity(0.3), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
+                        .stroke(Color(.separator), lineWidth: 0.5)
                 }
-                .shadow(color: accentColor.opacity(0.1), radius: 6, x: 0, y: 2)
+                .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
         }
         .hoverEffect(.lift)
         .onHover { hovering in
