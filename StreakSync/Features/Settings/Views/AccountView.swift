@@ -105,6 +105,13 @@ private extension AccountView {
                 .padding(.vertical, 8)
             }
 
+            // Fill the space with the value of signing in instead of a void (§4.6).
+            Section("Why sign in?") {
+                Label("Sync your streaks and scores across devices", systemImage: "arrow.triangle.2.circlepath")
+                Label("Appear by name on friends' leaderboards", systemImage: "person.2")
+                Label("Back up your progress so it's never lost", systemImage: "checkmark.shield")
+            }
+
             Section {
                 SignInWithAppleButton(.signIn) { request in
                     request.requestedScopes = [.fullName, .email]

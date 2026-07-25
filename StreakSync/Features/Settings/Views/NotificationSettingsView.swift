@@ -138,6 +138,7 @@ struct NotificationSettingsView: View {
     }
     
     // MARK: - Permission Section
+    @ViewBuilder
     private var permissionSection: some View {
         Section {
             VStack(spacing: 16) {
@@ -164,8 +165,14 @@ struct NotificationSettingsView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical)
         }
+
+        // Inform the choice instead of leaving a void beneath the card (§4.6).
+        Section("What you'll get") {
+            Label("A gentle daily reminder when a streak is at risk", systemImage: "bell.badge")
+            Label("A nudge when you unlock a new achievement tier", systemImage: "trophy")
+        }
     }
-    
+
     // MARK: - Settings Section
     private var settingsSection: some View {
         Section {
