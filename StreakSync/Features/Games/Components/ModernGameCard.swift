@@ -141,11 +141,8 @@ struct ModernGameCard: View {
                             Spacer()
                         }
                     }
-                    
-                    // Progress bar
-                    progressBar
                 }
-                
+
                 // Chevron
                 Image(systemName: "chevron.right")
                     .font(.caption)
@@ -190,41 +187,6 @@ struct ModernGameCard: View {
         }
     }
     
-    // MARK: - Progress Bar
-    private var progressBar: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                // Background
-                Capsule()
-                    .fill(Color(.quaternarySystemFill))
-                    .frame(height: 6)
-                
-                // Progress
-                if streak.currentStreak > 0 {
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    gameColor,
-                                    gameColor.opacity(0.7)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(
-                            width: min(
-                                geometry.size.width * (Double(streak.currentStreak) / 30.0),
-                                geometry.size.width
-                            ),
-                            height: 6
-                        )
-                        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: streak.currentStreak)
-                }
-            }
-        }
-        .frame(height: 6)
-    }
 }
 
 // MARK: - Modern Card Button Style
