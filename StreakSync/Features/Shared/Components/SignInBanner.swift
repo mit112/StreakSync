@@ -18,6 +18,7 @@ struct SignInBanner: View {
 
     @State private var errorMessage: String?
     @State private var isLoading = false
+    @State private var isExpanded = false
 
     init(authManager: FirebaseAuthStateManager) {
         self._authManager = ObservedObject(wrappedValue: authManager)
@@ -31,9 +32,15 @@ struct SignInBanner: View {
     }
 
     private var bannerContent: some View {
+        // Compact single row by default; the sign-in buttons expand on tap so the
+        // banner stops eating prime leaderboard space while dismissed (§5.5).
         VStack(spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: "person.crop.circle.badge.plus")
+                    .font(.title3)
+                    .foregroundStyle(Color.accentColor)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Sign in to show your name")
                         .font(.subheadline.weight(.semibold))
                     Text("Friends see you as \"Player\" on the leaderboard.")
@@ -41,6 +48,13 @@ struct SignInBanner: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
+                if !isExpanded {
+                    Button("Sign in") {
+                        withAnimation(.snappy) { isExpanded = true }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
                 Button {
                     withAnimation(.easeOut(duration: 0.25)) { dismissed = true }
                 } label: {
@@ -51,35 +65,38 @@ struct SignInBanner: View {
                         .background(.ultraThinMaterial, in: Circle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss sign-in prompt")
             }
 
-            HStack(spacing: 10) {
-                SignInWithAppleButton(.signIn) { request in
-                    request.requestedScopes = [.fullName, .email]
-                    request.nonce = authManager.prepareAppleNonce()
-                } onCompletion: { result in
-                    Task { await handleAppleSignIn(result) }
-                }
-                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 44)
+            if isExpanded {
+                HStack(spacing: 10) {
+                    SignInWithAppleButton(.signIn) { request in
+                        request.requestedScopes = [.fullName, .email]
+                        request.nonce = authManager.prepareAppleNonce()
+                    } onCompletion: { result in
+                        Task { await handleAppleSignIn(result) }
+                    }
+                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                    .frame(height: 44)
 
-                Button {
-                    Task { await handleGoogleSignIn() }
-                } label: {
-                    GoogleSignInButtonLabel(height: 44)
+                    Button {
+                        Task { await handleGoogleSignIn() }
+                    } label: {
+                        GoogleSignInButtonLabel(height: 44)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-            }
 
-            if let error = errorMessage {
-                Text(error)
-                    .font(.caption2)
-                    .foregroundStyle(.red)
+                if let error = errorMessage {
+                    Text(error)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                }
             }
         }
         .padding(14)
         .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
                 .strokeBorder(Color(.separator), lineWidth: 0.5)
         }

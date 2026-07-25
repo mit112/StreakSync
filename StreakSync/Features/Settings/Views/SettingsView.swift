@@ -227,10 +227,12 @@ private struct IOS26SettingsSection<Content: View>: View {
     var body: some View {
         content
             .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                // One radius token, one shadow, no scroll blur — the doubled shadow
+                // + blur read as glassmorphism slop (DESIGN_AUDIT §5.6).
+                RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                     .fill(isHovered ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                             .strokeBorder(
                                 colorScheme == .dark ?
                                     Color(.separator).opacity(0.3) :
@@ -243,17 +245,11 @@ private struct IOS26SettingsSection<Content: View>: View {
                         radius: isHovered ? 12 : 6,
                         y: isHovered ? 6 : 2
                     )
-                    .shadow(
-                        color: colorScheme == .dark ? .clear : .black.opacity(0.04),
-                        radius: 14,
-                        y: 6
-                    )
             }
             .scrollTransition { content, phase in
                 content
                     .opacity(phase.isIdentity ? 1 : 0.8)
                     .scaleEffect(phase.isIdentity ? 1 : 0.98)
-                    .blur(radius: phase.isIdentity ? 0 : 0.5)
             }
     }
 }
