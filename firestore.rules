@@ -82,6 +82,7 @@ service cloud.firestore {
           && request.resource.data.sharedText is string
           && request.resource.data.sharedText.size() <= 2500
           && request.resource.data.parsedData is map
+          && request.resource.data.parsedData.size() <= 50
           && (!('score' in request.resource.data) || request.resource.data.score is int);
       }
 

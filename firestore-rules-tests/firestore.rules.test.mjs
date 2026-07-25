@@ -284,6 +284,17 @@ async function main() {
     );
   });
 
+  await runCase("✅ cannot write gameResults with oversized parsedData", async () => {
+    const bigParsed = {};
+    for (let i = 0; i < 60; i++) bigParsed["k" + i] = "v";
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {
+        ...VALID_GAME_RESULT,
+        parsedData: bigParsed,
+      })
+    );
+  });
+
   await runCase("✅ other user cannot write gameResults", async () => {
     await assertFails(
       setDoc(doc(authed("bob"), "users/alice/gameResults/r1"), {
