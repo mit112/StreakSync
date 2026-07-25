@@ -36,7 +36,9 @@ struct TieredAchievementsGridView: View {
     /// different denominator (18% here vs 90% in Analytics for the same account).
     private var completionPercentage: Int {
         guard totalAchievements > 0 else { return 0 }
-        return Int((Double(unlockedCount) / Double(totalAchievements)) * 100)
+        // Round (not truncate) so this matches the Analytics tab's "%.0f" rendering
+        // of the same ratio exactly — round-half-to-even mirrors printf's default.
+        return Int((Double(unlockedCount) / Double(totalAchievements) * 100).rounded(.toNearestOrEven))
     }
 
     /// Highest tier reached across all achievements, for the summary header.
