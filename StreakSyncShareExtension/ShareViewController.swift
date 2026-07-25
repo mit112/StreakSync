@@ -300,6 +300,9 @@ struct ShareResultRootView: View {
                 .padding(.horizontal, 24)
                 .transition(.scale(scale: 0.92).combined(with: .opacity))
         }
+        // Treat the hosted sheet as a modal and let VoiceOver dismiss it (§5.8).
+        .accessibilityAddTraits(.isModal)
+        .accessibilityAction(.escape) { onDone() }
     }
 
     @ViewBuilder
@@ -315,27 +318,39 @@ struct ShareResultRootView: View {
             }
         }
         .frame(maxWidth: 360)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        // Opaque-ish material + a visible separator stroke (the old white 0.08
+        // stroke vanished in light mode); align the radius to the app (§5.8).
+        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color(.separator), lineWidth: 0.5)
         )
         .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 12)
     }
 }
 
 private struct ProcessingCard: View {
+    // Parsing is local/synchronous, so a spinner would flash in and out. Only
+    // reveal it if parsing somehow takes longer than a beat (§5.8).
+    @State private var showSpinner = false
+
     var body: some View {
         VStack(spacing: 14) {
-            ProgressView()
-                .scaleEffect(1.2)
-            Text("Reading your result…")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            if showSpinner {
+                ProgressView()
+                    .scaleEffect(1.2)
+                Text("Reading your result…")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 96)
         .padding(.vertical, 32)
         .padding(.horizontal, 24)
+        .task {
+            try? await Task.sleep(for: .milliseconds(400))
+            showSpinner = true
+        }
     }
 }
 
@@ -355,11 +370,23 @@ private struct SuccessCard: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.primary)
 
+            // Scale with Dynamic Type and shrink to fit long scores like "1:23:45"
+            // instead of a frozen 44pt (§5.8).
             Text(info.displayScore)
-                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .font(.system(.largeTitle, design: .rounded).weight(.bold))
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                 .foregroundStyle(info.completed ? Color.primary : Color.secondary)
                 .padding(.vertical, 2)
+
+            // Don't signal completion by color alone (§5.8 / a11y-color-not-sole).
+            if !info.completed {
+                Text("Did not finish")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.circle.fill")
@@ -377,12 +404,15 @@ private struct SuccessCard: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .tint(info.accentColor)
+            .tint(Color.accentColor)
             .padding(.top, 6)
         }
         .padding(.top, 24)
         .padding(.bottom, 18)
         .padding(.horizontal, 22)
+        .onAppear {
+            UIAccessibility.post(notification: .announcement, argument: "Saved to StreakSync")
+        }
     }
 
     private var iconBadge: some View {
@@ -417,7 +447,7 @@ private struct FailureCard: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button("OK", action: onDone)
+            Button("Close", action: onDone)
                 .font(.headline)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
@@ -428,5 +458,8 @@ private struct FailureCard: View {
         .padding(.top, 24)
         .padding(.bottom, 18)
         .padding(.horizontal, 22)
+        .onAppear {
+            UIAccessibility.post(notification: .announcement, argument: "Couldn't save. \(message)")
+        }
     }
 }
