@@ -120,6 +120,23 @@ final class FirestoreAchievementSyncService {
         }
     }
 
+    /// Deletes the user's cloud achievement document. Called from "Clear All Data" so a
+    /// local wipe isn't immediately undone by the next pull — `syncIfEnabled` has no
+    /// timestamp gate and would otherwise re-hydrate achievements from Firestore.
+    /// No-op when signed out or in Guest Mode. Leaves the user's `cloudSyncEnabled`
+    /// preference untouched.
+    func deleteRemoteData() async {
+        guard let appState, !appState.isGuestMode, let uid = currentUserId else { return }
+        do {
+            try await db.collection("users").document(uid)
+                .collection("sync").document("achievements").delete()
+            status = .idle
+ logger.info("Deleted remote achievement data")
+        } catch {
+ logger.error("Failed to delete remote achievement data: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Diagnostics
 
     func runConnectivityTest() async -> String {
