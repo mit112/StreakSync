@@ -17,14 +17,17 @@ struct SyncStatusBanner: View {
             HStack(spacing: 8) {
                 Image(systemName: info.icon)
                     .font(.subheadline)
+                    .foregroundStyle(info.color)
                 Text(info.message)
                     .font(.subheadline)
+                    // High-contrast text; icon color still conveys state (not color-only).
+                    // Orange-on-orange-tint text was ~2.2:1 and failed WCAG AA.
+                    .foregroundStyle(.primary)
                 Spacer()
             }
             .padding(.horizontal)
             .padding(.vertical, 6)
             .background(info.color.opacity(0.15))
-            .foregroundStyle(info.color)
         }
     }
     

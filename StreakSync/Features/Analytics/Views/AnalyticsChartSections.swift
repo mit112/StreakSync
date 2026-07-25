@@ -212,6 +212,8 @@ struct GamePerformanceChartView: View {
             )
             .foregroundStyle(result.completed ? .green : .red)
             .cornerRadius(4)
+            .accessibilityLabel(result.date.formatted(date: .abbreviated, time: .omitted))
+            .accessibilityValue(result.completed ? "Score \(result.score ?? result.maxAttempts + 1)" : "Failed")
             .annotation(position: .overlay, alignment: .top) {
                 // For failed results, show an "X" overlay for quick recognition
                 if !result.completed {
