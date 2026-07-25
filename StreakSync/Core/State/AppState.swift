@@ -138,6 +138,14 @@ final class AppState {
     }
 
     private func handleDayChange() {
+        // In Guest Mode the day-change handlers would operate on host data:
+        // checkAllAchievements unions host uniqueGamesEver (bogus celebrations) and
+        // checkAndScheduleStreakReminders rewrites the OS daily reminder with guest
+        // at-risk games. Skip entirely until the host session resumes.
+        guard !isGuestMode else {
+ logger.info("Day changed during Guest Mode - skipping refresh")
+            return
+        }
  logger.info("Day changed - refreshing UI data")
         invalidateCache()
 
