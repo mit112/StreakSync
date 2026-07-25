@@ -81,6 +81,8 @@ extension AppState {
     private func loadGameResults() async {
  logger.debug("Loading game results...")
 
+        loadDeletedResultIds()
+
         if let results = persistenceService.load(
             [GameResult].self,
             forKey: UserDefaultsPersistenceService.Keys.gameResults
@@ -221,7 +223,33 @@ extension AppState {
             )
         }
     }
-    
+
+    // MARK: - Deletion Tombstones
+
+    func saveDeletedResultIds() {
+        if isGuestMode || reviewModeEnabled { return }
+        try? persistenceService.save(
+            deletedResultIds.map { $0.uuidString },
+            forKey: UserDefaultsPersistenceService.Keys.deletedResultIds
+        )
+    }
+
+    private func loadDeletedResultIds() {
+        if let ids = persistenceService.load(
+            [String].self,
+            forKey: UserDefaultsPersistenceService.Keys.deletedResultIds
+        ) {
+            deletedResultIds = Set(ids.compactMap { UUID(uuidString: $0) })
+        }
+    }
+
+    /// Replaces the tombstone set (e.g. after unioning in remote tombstones during sync)
+    /// and persists it.
+    func setDeletedResultIds(_ ids: Set<UUID>) {
+        deletedResultIds = ids
+        saveDeletedResultIds()
+    }
+
     func saveStreaks() async {
         // In Guest Mode we never persist streaks – host streaks are preserved
         // in memory and restored when Guest Mode exits.
@@ -350,6 +378,7 @@ extension AppState {
     // MARK: - Data Management
     func clearAllData() async {
         setRecentResults([])
+        deletedResultIds.removeAll()
         // Clear tiered achievements to defaults and save
         _tieredAchievements = AchievementFactory.createDefaultAchievements()
         await saveTieredAchievements()

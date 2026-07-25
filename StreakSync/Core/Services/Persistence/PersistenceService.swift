@@ -41,6 +41,7 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
         static let gameResults = "streaksync_game_results"
         static let achievements = "streaksync_achievements"
         static let streaks = "streaksync_streaks"
+        static let deletedResultIds = "streaksync_deleted_result_ids"
     }
     
     /// File URL for game results (Documents directory)
@@ -102,7 +103,7 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
     }
     
     func clearAll() {
-        let keys = [Keys.gameResults, Keys.achievements, Keys.streaks]
+        let keys = [Keys.gameResults, Keys.achievements, Keys.streaks, Keys.deletedResultIds]
         for key in keys {
             remove(forKey: key)
         }

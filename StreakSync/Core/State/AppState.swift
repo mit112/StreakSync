@@ -34,6 +34,12 @@ final class AppState {
     var streaks: [GameStreak] = []
     var recentResults: [GameResult] = []
 
+    /// IDs of results the user has deleted. Persisted locally and synced to Firestore
+    /// (users/{uid}/sync/deletedResults) so a full/cold resync — reinstall, sign-out/in,
+    /// or Reset App Data — can't resurrect a deleted result.
+    @ObservationIgnored
+    var deletedResultIds: Set<UUID> = []
+
     // MARK: - UI State (Not Persisted)
     var selectedGame: Game?
     private(set) var isLoading = false
@@ -215,6 +221,11 @@ final class AppState {
         let beforeCount = recentResults.count
         recentResults.removeAll { $0.id == resultId }
         guard recentResults.count != beforeCount else { return }
+
+        // Record a tombstone so the next sync deletes the remote doc and no
+        // full/cold resync can resurrect this result.
+        deletedResultIds.insert(resultId)
+        saveDeletedResultIds()
 
         buildResultsCache()
 
