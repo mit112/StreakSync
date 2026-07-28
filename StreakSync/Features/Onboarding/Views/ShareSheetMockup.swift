@@ -100,22 +100,10 @@ struct ShareSheetMockup: View {
 
     private var streakSyncIcon: some View {
         VStack(spacing: 6) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [Color(red: 0.39, green: 0.4, blue: 0.95), Color(red: 0.55, green: 0.36, blue: 0.96)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(.white)
-                    )
-                    .shadow(color: Color.purple.opacity(pulse ? 0.6 : 0.2),
-                            radius: pulse ? 14 : 4, x: 0, y: 0)
-                    .scaleEffect(pulse ? 1.08 : 1.0)
-            }
+            StreakSyncBrandMark(size: 44)
+                .shadow(color: StreakSyncBrand.primary.opacity(pulse ? 0.6 : 0.2),
+                        radius: pulse ? 14 : 4, x: 0, y: 0)
+                .scaleEffect(pulse ? 1.08 : 1.0)
             Text("StreakSync")
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.primary)

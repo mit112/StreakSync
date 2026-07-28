@@ -134,13 +134,19 @@ struct StreakSyncApp: App {
 // MARK: - Initialization Views
 struct InitializationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulse = false
 
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "gamecontroller.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.blue)
-                .symbolEffect(.pulse, isActive: !reduceMotion)
+            StreakSyncBrandMark(size: 64)
+                .accessibilityLabel("StreakSync")
+                .scaleEffect(pulse ? 1.05 : 1)
+                .onAppear {
+                    guard !reduceMotion else { return }
+                    withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                        pulse = true
+                    }
+                }
             
             Text("StreakSync")
                 .font(.largeTitle.weight(.bold))

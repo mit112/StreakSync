@@ -336,6 +336,7 @@ private struct ProcessingCard: View {
 
     var body: some View {
         VStack(spacing: 14) {
+            ShareExtensionBrandMark(size: 40)
             if showSpinner {
                 ProgressView()
                     .scaleEffect(1.2)
@@ -416,14 +417,18 @@ private struct SuccessCard: View {
     }
 
     private var iconBadge: some View {
-        ZStack {
-            Circle()
-                .fill(info.accentColor.opacity(0.18))
-                .frame(width: 64, height: 64)
-            Image(systemName: info.iconSystemName)
-                .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(info.accentColor)
-        }
+        ShareExtensionBrandMark(size: 64)
+            .overlay(alignment: .bottomTrailing) {
+                Image(systemName: info.iconSystemName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 22, height: 22)
+                    .background(info.accentColor, in: Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(.background, lineWidth: 2)
+                    }
+            }
     }
 }
 

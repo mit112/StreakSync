@@ -33,13 +33,17 @@ struct EmptyStateGuidanceCard: View {
         HStack(alignment: .top, spacing: 12) {
             // Icon
             ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.15))
-                    .frame(width: 40, height: 40)
-                
-                Image.safeSystemName(cardContent.icon, fallback: "questionmark.circle")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.blue)
+                if isReturningUser {
+                    Circle()
+                        .fill(Color.blue.opacity(0.15))
+                        .frame(width: 40, height: 40)
+
+                    Image.safeSystemName(cardContent.icon, fallback: "questionmark.circle")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.blue)
+                } else {
+                    StreakSyncBrandMark(size: 40, showsBackground: false, accessibilityLabel: nil)
+                }
             }
             
             // Content

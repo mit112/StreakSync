@@ -18,9 +18,8 @@ struct AboutView: View {
             // App Info Section
             Section {
                 VStack(alignment: .center, spacing: Spacing.lg) {
-                    Image(systemName: "gamecontroller.fill")
-                        .font(.system(size: 64))
-                        .foregroundStyle(.blue)
+                    StreakSyncBrandMark(size: 64)
+                        .accessibilityLabel("StreakSync")
 
                     VStack(spacing: Spacing.xs) {
                         Text("StreakSync")
