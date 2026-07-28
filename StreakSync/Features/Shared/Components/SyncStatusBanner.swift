@@ -14,7 +14,7 @@ struct SyncStatusBanner: View {
     
     var body: some View {
         if let info = bannerInfo {
-            HStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: info.icon)
                     .font(.subheadline)
                     .foregroundStyle(info.color)
@@ -23,6 +23,7 @@ struct SyncStatusBanner: View {
                     // High-contrast text; icon color still conveys state (not color-only).
                     // Orange-on-orange-tint text was ~2.2:1 and failed WCAG AA.
                     .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer()
             }
             .padding(.horizontal)

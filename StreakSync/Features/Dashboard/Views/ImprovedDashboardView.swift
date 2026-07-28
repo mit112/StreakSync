@@ -118,7 +118,7 @@ struct ImprovedDashboardView: View {
 
     var body: some View {
         Group {
-            dashboardScrollView(spacing: 24)
+            dashboardScrollView(spacing: Spacing.lg)
                 .scrollBounceBehavior(.automatic)
                 .skeletonLoading(isLoading: appState.isLoading && !hasInitiallyAppeared, style: .card)
         }
@@ -127,7 +127,7 @@ struct ImprovedDashboardView: View {
         .background(Color(.systemGroupedBackground))
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("StreakSync")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar { dashboardToolbar }
         .searchable(
             text: $searchText,
