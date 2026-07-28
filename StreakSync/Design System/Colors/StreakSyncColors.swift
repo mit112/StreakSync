@@ -5,6 +5,7 @@
 //  Decorative gradient colors used by stat cards and dashboard elements.
 //  NOTE: These are NOT structural colors — all card/background/border colors
 //  should use semantic system colors (Color(.systemGroupedBackground), etc.)
+//  New product chrome must use StreakSyncBrand; PaletteColor remains only for legacy decorative gradients.
 //
 
 import SwiftUI
