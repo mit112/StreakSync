@@ -142,10 +142,10 @@ struct InitializationView: View {
                 .accessibilityLabel("StreakSync")
                 .scaleEffect(pulse ? 1.05 : 1)
                 .onAppear {
-                    guard !reduceMotion else { return }
-                    withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                        pulse = true
-                    }
+                    updatePulse(for: reduceMotion)
+                }
+                .onChange(of: reduceMotion) { _, isReduceMotionEnabled in
+                    updatePulse(for: isReduceMotionEnabled)
                 }
             
             Text("StreakSync")
@@ -169,6 +169,18 @@ struct InitializationView: View {
         .padding(40)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("StreakSync is loading your data")
+    }
+
+    private func updatePulse(for isReduceMotionEnabled: Bool) {
+        if isReduceMotionEnabled {
+            withAnimation(.none) {
+                pulse = false
+            }
+        } else {
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
     }
 }
 
