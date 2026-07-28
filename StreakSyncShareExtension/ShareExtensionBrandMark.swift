@@ -1,6 +1,6 @@
 //
 //  ShareExtensionBrandMark.swift
-//  StreakSync
+//  StreakSyncShareExtension
 //
 //  Extension-local rendering of the approved StreakSync brand mark.
 //
