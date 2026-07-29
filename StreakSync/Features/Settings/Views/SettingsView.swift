@@ -2,8 +2,7 @@
 //  SettingsView.swift
 //  StreakSync
 //
-//  Modernized Settings with iOS 26 native list styles and effects
-//  Maintains backward compatibility with iOS 25 and earlier
+//  Settings on native grouped surfaces with a restrained two-colour row palette
 //
 
 import SwiftUI
@@ -22,235 +21,118 @@ struct SettingsView: View {
 private struct IOS26SettingsContent: View {
     @ObservedObject var viewModel: SettingsViewModel
     @EnvironmentObject private var container: AppContainer
-    
-    @State private var scrollPosition = ScrollPosition()
-    @State private var hoveredSection: SettingsSection?
-    
-    enum SettingsSection: String, CaseIterable {
-        case account, notifications, appearance, data, about
-        #if DEBUG
-        case developer
-        #endif
+
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
-    
+
+    // Ordinary navigation rows are brand blue; About is the one neutral row. Orange, red,
+    // and emerald now live only inside destinations that report a real state
+    // (anonymous/warning, destructive, success), not on a row for variety (§4.9).
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 20) {
-                // Account Section
-                IOS26SettingsSection(
-                    section: .account,
-                    isHovered: hoveredSection == .account
+        List {
+            Section {
+                IOS26SettingsNavigationRow(
+                    icon: container.firebaseAuthManager.isAnonymous
+                        ? "person.crop.circle.badge.questionmark"
+                        : "person.crop.circle.fill",
+                    iconColor: StreakSyncBrand.primary,
+                    title: "Account",
+                    subtitle: container.firebaseAuthManager.isAnonymous
+                        ? "Sign in to set your name"
+                        : (container.firebaseAuthManager.displayName ?? "Signed in")
                 ) {
-                    IOS26SettingsNavigationRow(
-                        icon: container.firebaseAuthManager.isAnonymous ? "person.crop.circle.badge.questionmark" : "person.crop.circle.fill",
-                        iconColor: container.firebaseAuthManager.isAnonymous ? .orange : .blue,
-                        title: "Account",
-                        subtitle: container.firebaseAuthManager.isAnonymous
-                            ? "Sign in to set your name"
-                            : (container.firebaseAuthManager.displayName ?? "Signed in"),
-                        showChevron: true
-                    ) {
-                        AccountView(authManager: container.firebaseAuthManager)
-                            .environmentObject(container)
-                    }
+                    AccountView(authManager: container.firebaseAuthManager)
+                        .environmentObject(container)
                 }
-                .onHover { isHovered in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        hoveredSection = isHovered ? .account : nil
-                    }
-                }
-
-                // Notifications Section
-                IOS26SettingsSection(
-                    section: .notifications,
-                    isHovered: hoveredSection == .notifications
-                ) {
-                    IOS26SettingsNavigationRow(
-                        icon: "bell.badge",
-                        iconColor: .blue,
-                        title: "Notifications",
-                        subtitle: viewModel.notificationsEnabled ? "Enabled" : "Disabled",
-                        showChevron: true
-                    ) {
-                        NotificationSettingsView()
-                    }
-                }
-                .onHover { isHovered in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        hoveredSection = isHovered ? .notifications : nil
-                    }
-                }
-                
-                // Appearance Section
-                IOS26SettingsSection(
-                    section: .appearance,
-                    isHovered: hoveredSection == .appearance
-                ) {
-                    IOS26SettingsNavigationRow(
-                        icon: "moon.circle",
-                        iconColor: .indigo,
-                        title: "Appearance",
-                        subtitle: viewModel.appearanceMode.displayName,
-                        showChevron: true
-                    ) {
-                        AppearanceSettingsView()
-                    }
-                }
-                .onHover { isHovered in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        hoveredSection = isHovered ? .appearance : nil
-                    }
-                }
-                
-                // Data Section
-                IOS26SettingsSection(
-                    section: .data,
-                    isHovered: hoveredSection == .data
-                ) {
-                    IOS26SettingsNavigationRow(
-                        icon: "square.and.arrow.down.on.square",
-                        iconColor: .green,
-                        title: "Data & Privacy",
-                        subtitle: "Export, import, or clear data",
-                        showChevron: true
-                    ) {
-                        DataManagementView()
-                    }
-                }
-                .onHover { isHovered in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        hoveredSection = isHovered ? .data : nil
-                    }
-                }
-                
-                // About Section
-                IOS26SettingsSection(
-                    section: .about,
-                    isHovered: hoveredSection == .about
-                ) {
-                    VStack(spacing: 0) {
-                        IOS26SettingsNavigationRow(
-                            icon: "square.and.arrow.up.on.square",
-                            iconColor: .accentColor,
-                            title: "How StreakSync works",
-                            subtitle: nil,
-                            showChevron: true
-                        ) {
-                            ShareDiscoverySheet(onDismiss: {})
-                        }
-
-                        Divider()
-                            .padding(.horizontal)
-
-                        IOS26SettingsNavigationRow(
-                            icon: "info.circle",
-                            iconColor: .gray,
-                            title: "About",
-                            subtitle: "Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")",
-                            showChevron: true
-                        ) {
-                            AboutView()
-                        }
-
-                        if let privacyURL = URL(string: "https://streaksync.app/privacy") {
-                            Divider()
-                                .padding(.horizontal)
-
-                            IOS26SettingsLinkRow(
-                                icon: "hand.raised.circle",
-                                iconColor: .purple,
-                                title: "Privacy Policy",
-                                url: privacyURL
-                            )
-                        }
-
-                        if let supportURL = URL(string: "mailto:support@streaksync.app") {
-                            Divider()
-                                .padding(.horizontal)
-
-                            IOS26SettingsLinkRow(
-                                icon: "envelope.circle",
-                                iconColor: .orange,
-                                title: "Contact Support",
-                                url: supportURL
-                            )
-                        }
-                    }
-                }
-                .onHover { isHovered in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        hoveredSection = isHovered ? .about : nil
-                    }
-                }
-
-                #if DEBUG
-                IOS26SettingsSection(
-                    section: .developer,
-                    isHovered: hoveredSection == .developer
-                ) {
-                    IOS26SettingsNavigationRow(
-                        icon: "hammer.circle.fill",
-                        iconColor: .orange,
-                        title: "Debug Seeder",
-                        subtitle: "Seed realistic test data",
-                        showChevron: true
-                    ) {
-                        DebugDataSeederView()
-                    }
-                }
-                .onHover { isHovered in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        hoveredSection = isHovered ? .developer : nil
-                    }
-                }
-                #endif
             }
-            .padding()
+
+            Section {
+                IOS26SettingsNavigationRow(
+                    icon: "bell.badge",
+                    iconColor: StreakSyncBrand.primary,
+                    title: "Notifications",
+                    subtitle: viewModel.notificationsEnabled ? "Enabled" : "Disabled"
+                ) {
+                    NotificationSettingsView()
+                }
+
+                IOS26SettingsNavigationRow(
+                    icon: "moon.circle",
+                    iconColor: StreakSyncBrand.primary,
+                    title: "Appearance",
+                    subtitle: viewModel.appearanceMode.displayName
+                ) {
+                    AppearanceSettingsView()
+                }
+
+                IOS26SettingsNavigationRow(
+                    icon: "square.and.arrow.down.on.square",
+                    iconColor: StreakSyncBrand.primary,
+                    title: "Data & Privacy",
+                    subtitle: "Export, import, or clear data"
+                ) {
+                    DataManagementView()
+                }
+            }
+
+            Section {
+                IOS26SettingsNavigationRow(
+                    icon: "square.and.arrow.up.on.square",
+                    iconColor: StreakSyncBrand.primary,
+                    title: "How StreakSync works",
+                    subtitle: nil
+                ) {
+                    ShareDiscoverySheet(onDismiss: {})
+                }
+
+                IOS26SettingsNavigationRow(
+                    icon: "info.circle",
+                    iconColor: .secondary,
+                    title: "About",
+                    subtitle: "Version \(appVersion)"
+                ) {
+                    AboutView()
+                }
+
+                if let privacyURL = URL(string: "https://streaksync.app/privacy") {
+                    IOS26SettingsLinkRow(
+                        icon: "hand.raised.circle",
+                        iconColor: StreakSyncBrand.primary,
+                        title: "Privacy Policy",
+                        url: privacyURL
+                    )
+                }
+
+                if let supportURL = URL(string: "mailto:support@streaksync.app") {
+                    IOS26SettingsLinkRow(
+                        icon: "envelope.circle",
+                        iconColor: StreakSyncBrand.primary,
+                        title: "Contact Support",
+                        url: supportURL
+                    )
+                }
+            }
+
+            #if DEBUG
+            Section {
+                IOS26SettingsNavigationRow(
+                    icon: "hammer.circle.fill",
+                    iconColor: StreakSyncBrand.primary,
+                    title: "Debug Seeder",
+                    subtitle: "Seed realistic test data"
+                ) {
+                    DebugDataSeederView()
+                }
+            }
+            #endif
         }
-        .scrollPosition($scrollPosition)
-        .scrollBounceBehavior(.automatic)
+        .listStyle(.insetGrouped)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.loadSettings()
         }
-    }
-}
-
-// MARK: - iOS 26 Settings Section Container
-private struct IOS26SettingsSection<Content: View>: View {
-    let section: IOS26SettingsContent.SettingsSection
-    let isHovered: Bool
-    @ViewBuilder let content: Content
-    @Environment(\.colorScheme) private var colorScheme
-    
-    var body: some View {
-        content
-            .background {
-                // One radius token, one shadow, no scroll blur — the doubled shadow
-                // + blur read as glassmorphism slop (DESIGN_AUDIT §5.6).
-                RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
-                    .fill(isHovered ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
-                            .strokeBorder(
-                                colorScheme == .dark ?
-                                    Color(.separator).opacity(0.3) :
-                                    Color(.separator).opacity(0.6),
-                                lineWidth: colorScheme == .dark ? 0.5 : 1
-                            )
-                    }
-                    .shadow(
-                        color: .black.opacity(isHovered ? 0.1 : (colorScheme == .dark ? 0.05 : 0.07)),
-                        radius: isHovered ? 12 : 6,
-                        y: isHovered ? 6 : 2
-                    )
-            }
-            .scrollTransition { content, phase in
-                content
-                    .opacity(phase.isIdentity ? 1 : 0.8)
-                    .scaleEffect(phase.isIdentity ? 1 : 0.98)
-            }
     }
 }
 
@@ -260,73 +142,31 @@ private struct IOS26SettingsNavigationRow<Destination: View>: View {
     let iconColor: Color
     let title: String
     let subtitle: String?
-    let showChevron: Bool
     @ViewBuilder let destination: Destination
-    
-    @State private var isPressed = false
-    @State private var iconBounce = false
-    
+
+    // No layered onTapGesture, press scaling, or hover lift: the List row supplies the
+    // chevron, the highlight, and the 44pt hit area natively.
     var body: some View {
         NavigationLink {
             destination
         } label: {
-            HStack(spacing: 12) {
-                // Animated Icon
-                Image.safeSystemName(icon, fallback: "gear")
-                    .font(.system(size: 22))
-                    .foregroundStyle(iconColor)
-                    .symbolEffect(.bounce, value: iconBounce)
-                    .frame(width: 32, height: 32)
-                    .background {
-                        Circle()
-                            .fill(iconColor.opacity(0.1))
-                    }
-                    .accessibilityHidden(true)
-                
-                // Text Content
-                VStack(alignment: .leading, spacing: 2) {
+            Label {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(title)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                    
-                    if let subtitle = subtitle {
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let subtitle {
                         Text(subtitle)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                
-                Spacer()
-                
-                // Chevron
-                if showChevron {
-                    Image(systemName: "chevron.right")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .scaleEffect(isPressed ? 0.8 : 1)
-                        .accessibilityHidden(true)
-                }
+            } icon: {
+                Image.safeSystemName(icon, fallback: "gear")
+                    .foregroundStyle(iconColor)
+                    .frame(width: 28)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(PlainButtonStyle())
-        .hoverEffect(.lift)
-        .onTapGesture {
-            iconBounce.toggle()
-        }
-        .scaleEffect(isPressed ? 0.98 : 1)
-        .onLongPressGesture(
-            minimumDuration: 0,
-            maximumDistance: .infinity,
-            pressing: { pressing in
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isPressed = pressing
-                }
-            },
-            perform: {}
-        )
     }
 }
 
@@ -336,58 +176,26 @@ private struct IOS26SettingsLinkRow: View {
     let iconColor: Color
     let title: String
     let url: URL
-    
-    @State private var isPressed = false
-    @State private var iconRotation = false
-    
+
     var body: some View {
         Link(destination: url) {
-            HStack(spacing: 12) {
-                // Animated Icon
-                Image.safeSystemName(icon, fallback: "gear")
-                    .font(.system(size: 22))
-                    .foregroundStyle(iconColor)
-                    .symbolEffect(.rotate, value: iconRotation)
-                    .frame(width: 32, height: 32)
-                    .background {
-                        Circle()
-                            .fill(iconColor.opacity(0.1))
-                    }
-                    .accessibilityHidden(true)
-                
-                // Title
-                Text(title)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                
-                Spacer()
-                
-                // External Link Icon
-                Image(systemName: "arrow.up.right.square")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-                    .scaleEffect(isPressed ? 0.8 : 1)
-                    .accessibilityHidden(true)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .contentShape(Rectangle())
-        }
-        .hoverEffect(.highlight)
-        .onTapGesture {
-            iconRotation.toggle()
-        }
-        .scaleEffect(isPressed ? 0.98 : 1)
-        .onLongPressGesture(
-            minimumDuration: 0,
-            maximumDistance: .infinity,
-            pressing: { pressing in
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isPressed = pressing
+            Label {
+                HStack {
+                    Text(title)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: Spacing.sm)
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
                 }
-            },
-            perform: {}
-        )
+            } icon: {
+                Image.safeSystemName(icon, fallback: "gear")
+                    .foregroundStyle(iconColor)
+                    .frame(width: 28)
+            }
+        }
     }
 }
 

@@ -92,7 +92,12 @@ final class StreakSyncUITests: XCTestCase {
         XCTAssertTrue(friendsContentExists, "Friends content missing")
 
         tabBar.buttons["Settings"].tap()
-        XCTAssertTrue(app.scrollViews.firstMatch.waitForExistence(timeout: 5), "Settings content missing")
+        // Settings is a grouped `List`, which XCUITest surfaces as a collection view or a
+        // table rather than a scroll view.
+        let settingsContentExists = app.collectionViews.firstMatch.waitForExistence(timeout: 5)
+            || app.tables.firstMatch.waitForExistence(timeout: 5)
+            || app.scrollViews.firstMatch.waitForExistence(timeout: 5)
+        XCTAssertTrue(settingsContentExists, "Settings content missing")
 
         tabBar.buttons["Home"].tap()
         XCTAssertTrue(app.scrollViews.firstMatch.waitForExistence(timeout: 5), "Home content missing")
