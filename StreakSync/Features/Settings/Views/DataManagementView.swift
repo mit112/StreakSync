@@ -12,6 +12,7 @@ import SwiftUI
 struct DataManagementView: View {
     @Environment(AppState.self) private var appState
     @EnvironmentObject private var container: AppContainer
+    @EnvironmentObject private var coordinator: NavigationCoordinator
     @EnvironmentObject private var guestSessionManager: GuestSessionManager
     @State private var showExportSheet = false
     @State private var showImportPicker = false
@@ -112,115 +113,135 @@ struct DataManagementView: View {
 // MARK: - Body Sections
 
 private extension DataManagementView {
+    /// Anonymous and signed-in are mutually exclusive: an anonymous account has no cloud
+    /// sync, so it must not see a toggle, a "Last synced" value, Sync Now, Test Connection,
+    /// or Offline/Failed indicators at all (DESIGN_AUDIT §4.6).
     @ViewBuilder
     var cloudSyncSection: some View {
         Section("Cloud Sync") {
-            Toggle(isOn: Binding(
-                get: { container.achievementSyncService.isSyncEnabled },
-                set: {
-                    container.achievementSyncService.enableSync($0)
-                    if $0 {
-                        Task {
-                            await container.achievementSyncService.syncIfEnabled()
-                        }
+            switch CloudSyncPresentation.resolve(isAnonymous: container.firebaseAuthManager.isAnonymous) {
+            case .signInRequired:
+                cloudSyncSignInRows
+            case .available:
+                cloudSyncAvailableRows
+            }
+        }
+    }
+
+    @ViewBuilder
+    var cloudSyncSignInRows: some View {
+        LabeledContent("Cloud Sync", value: "Sign in required")
+
+        Text("Signing in keeps your streaks and achievements on every device you use.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+        Button {
+            coordinator.navigateTo(.account)
+        } label: {
+            Label("Sign In", systemImage: "person.crop.circle.badge.plus")
+        }
+    }
+
+    @ViewBuilder
+    var cloudSyncAvailableRows: some View {
+        Toggle(isOn: Binding(
+            get: { container.achievementSyncService.isSyncEnabled },
+            set: {
+                container.achievementSyncService.enableSync($0)
+                if $0 {
+                    Task {
+                        await container.achievementSyncService.syncIfEnabled()
                     }
                 }
-            )) {
-                Label("Cloud Sync", systemImage: "arrow.triangle.2.circlepath.icloud")
             }
-            .disabled(container.firebaseAuthManager.isAnonymous)
+        )) {
+            Label("Cloud Sync", systemImage: "arrow.triangle.2.circlepath.icloud")
+        }
 
-            if container.firebaseAuthManager.isAnonymous {
-                // Don't offer sync (or show a stale "Last synced") to signed-out users (§5.6).
-                Label("Sign in to sync across devices", systemImage: "person.crop.circle.badge.plus")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Sync tiered achievements across your devices. Safe to leave off.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        Text("Sync tiered achievements across your devices. Safe to leave off.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
 
-            // Status
-            do {
-                let svc = container.achievementSyncService
-                let statusText: String = {
-                    switch svc.status {
-                    case .idle:
-                        return "Status: Idle"
-                    case .syncing:
-                        return "Status: Syncing..."
-                    case .success(let date):
-                        let formatter = RelativeDateTimeFormatter()
-                        formatter.unitsStyle = .short
-                        let rel = formatter.localizedString(for: date, relativeTo: Date())
-                        return "Last synced: \(rel)"
-                    case .error(let message):
-                        return "Sync paused: \(message)"
+        // Status
+        do {
+            let svc = container.achievementSyncService
+            let statusText: String = {
+                switch svc.status {
+                case .idle:
+                    return "Status: Idle"
+                case .syncing:
+                    return "Status: Syncing..."
+                case .success(let date):
+                    let formatter = RelativeDateTimeFormatter()
+                    formatter.unitsStyle = .short
+                    let rel = formatter.localizedString(for: date, relativeTo: Date())
+                    return "Last synced: \(rel)"
+                case .error(let message):
+                    return "Sync paused: \(message)"
+                }
+            }()
+            Text(statusText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                Button {
+                    Task {
+                        await container.achievementSyncService.syncIfEnabled()
                     }
-                }()
-                if !container.firebaseAuthManager.isAnonymous {
-                    Text(statusText)
+                } label: {
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Sync Now")
+                    }
+                }
+                #if DEBUG
+                Button {
+                    Task {
+                        testMessage = await container.achievementSyncService.runConnectivityTest()
+                        showTestAlert = true
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "checkmark.icloud")
+                        Text("Test Connection")
+                    }
+                }
+                #endif
+            }
+
+            // User data (GameResult) sync status
+            HStack {
+                Label("Game Results Sync", systemImage: "arrow.up.arrow.down.circle")
+                Spacer()
+                switch container.gameResultSyncService.syncState {
+                case .syncing:
+                    ProgressView()
+                        .scaleEffect(0.8)
+                case .synced(let date):
+                    Text(date.formatted(.relative(presentation: .named)))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                case .offline:
+                    Text("Offline")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                case .failed:
+                    Text("Failed")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                case .notStarted:
+                    Text("Not started")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                HStack(spacing: 12) {
-                    Button {
-                        Task {
-                            await container.achievementSyncService.syncIfEnabled()
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.clockwise")
-                            Text("Sync Now")
-                        }
-                    }
-                    #if DEBUG
-                    Button {
-                        Task {
-                            testMessage = await container.achievementSyncService.runConnectivityTest()
-                            showTestAlert = true
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "checkmark.icloud")
-                            Text("Test Connection")
-                        }
-                    }
-                    #endif
-                }
-
-                // User data (GameResult) sync status
-                HStack {
-                    Label("Game Results Sync", systemImage: "arrow.up.arrow.down.circle")
-                    Spacer()
-                    switch container.gameResultSyncService.syncState {
-                    case .syncing:
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    case .synced(let date):
-                        Text(date.formatted(.relative(presentation: .named)))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    case .offline:
-                        Text("Offline")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    case .failed:
-                        Text("Failed")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    case .notStarted:
-                        Text("Not started")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Text("Game results sync automatically across your devices. Data is private to your account.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
             }
+
+            Text("Game results sync automatically across your devices. Data is private to your account.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 
