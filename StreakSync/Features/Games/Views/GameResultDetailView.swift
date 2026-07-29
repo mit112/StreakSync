@@ -256,7 +256,10 @@ struct GameResultDetailView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .tint(StreakSyncBrand.primary)
-            .disabled(copiedToClipboard)
+            // Deliberately NOT .disabled() while confirming: a disabled prominent button
+            // drops its tint and dims its label to 1.44:1 in light and 2.53:1 in dark +
+            // Increased Contrast, so the confirmation was the least legible thing on the
+            // screen. Re-tapping simply copies again.
             .accessibilityLabel(copiedToClipboard ? "Copied to clipboard" : "Copy result to clipboard")
         }
         .padding()
