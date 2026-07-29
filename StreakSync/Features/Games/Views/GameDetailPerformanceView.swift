@@ -58,8 +58,11 @@ struct GameDetailPerformanceView: View {
                     Image(systemName: "square.and.arrow.up")
                         .font(.caption)
                         .foregroundStyle(.blue)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Export performance data")
             }
             
             // Chart - always 7 days for clarity
