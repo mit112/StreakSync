@@ -79,76 +79,105 @@ struct ReducedMotionCelebrationView: View {
                 .ignoresSafeArea()
                 .opacity(opacity)
 
-            // Content without animations
-            VStack(spacing: 24) {
-                if isBatch {
-                    Text("\(celebrationIndex) of \(celebrationTotal)")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(.regularMaterial))
-                        .accessibilityLabel("Achievement \(celebrationIndex) of \(celebrationTotal)")
+            // Content without animations. It scrolls and the dismiss controls own a
+            // reserved strip below it, matching the full celebration so Accessibility XL
+            // copy is never truncated or hidden behind the buttons (DESIGN_AUDIT §4.2).
+            VStack(spacing: 0) {
+                GeometryReader { proxy in
+                    ScrollView {
+                        celebrationCard
+                            .frame(minHeight: proxy.size.height, alignment: .center)
+                    }
+                    .scrollBounceBehavior(.basedOnSize)
                 }
 
-                // Icon
-                Image.safeSystemName(safeIconName, fallback: "star.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(unlock.tier.color)
-                
-                // Text
-                VStack(spacing: 12) {
-                    Text("\(unlock.tier.displayName) Unlocked!")
-                        .font(.title2.bold())
-                        .foregroundStyle(unlock.tier.color)
-                    
-                    Text(unlock.achievement.displayName)
-                        .font(.title3)
-                    
-                    Text(unlock.achievement.description)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-                
-                // Dismiss button(s)
-                VStack(spacing: 12) {
-                    Button(isBatch ? "Next" : "Continue") {
-                        dismissCelebration()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-
-                    if isBatch {
-                        Button("Skip all") {
-                            celebrationCoordinator?.dismissAll()
-                        }
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    }
-                }
+                dismissControls
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: CornerRadius.sheet)
-                    .fill(.regularMaterial)
-            )
             .opacity(opacity)
         }
         .onAppear {
             withAnimation(.easeIn(duration: 0.3)) {
                 opacity = 1
             }
-            
+
             // Play sound
             SoundManager.shared.play(.achievementUnlock)
-            
+
             // Haptic
             HapticManager.shared.trigger(.achievement)
         }
     }
-    
+
+    // MARK: - Card
+    private var celebrationCard: some View {
+        VStack(spacing: 24) {
+            if isBatch {
+                Text("\(celebrationIndex) of \(celebrationTotal)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(.regularMaterial))
+                    .accessibilityLabel("Achievement \(celebrationIndex) of \(celebrationTotal)")
+            }
+
+            // Icon
+            Image.safeSystemName(safeIconName, fallback: "star.fill")
+                .font(.system(size: 60))
+                .foregroundStyle(unlock.tier.color)
+
+            // Text
+            VStack(spacing: 12) {
+                Text("\(unlock.tier.displayName) Unlocked!")
+                    .font(.title2.bold())
+                    .foregroundStyle(unlock.tier.color)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(unlock.achievement.displayName)
+                    .font(.title3)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(unlock.achievement.description)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: CornerRadius.sheet)
+                .fill(.regularMaterial)
+        )
+    }
+
+    // MARK: - Dismiss Controls
+    /// Keeps its own material behind it: the controls now sit on the dimmed backdrop
+    /// rather than inside the card, and `.secondary` on bare black is unreadable in
+    /// light appearance (DESIGN_AUDIT §4.10).
+    private var dismissControls: some View {
+        VStack(spacing: 12) {
+            Button(isBatch ? "Next" : "Continue", action: dismissCelebration)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+
+            if isBatch {
+                Button("Skip all") {
+                    celebrationCoordinator?.dismissAll()
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, Spacing.lg)
+        .frame(maxWidth: .infinity)
+        .background(.regularMaterial)
+    }
+
     private func dismissCelebration() {
         withAnimation(.easeOut(duration: 0.3)) {
             opacity = 0

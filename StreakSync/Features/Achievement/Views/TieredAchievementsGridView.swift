@@ -9,6 +9,7 @@ import SwiftUI
 
 struct TieredAchievementsGridView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var hasAppeared = false
     @State private var selectedCategory: AchievementCategory?
     @State private var scrollPosition = ScrollPosition()
@@ -150,8 +151,16 @@ struct TieredAchievementsGridView: View {
     }
     
     // MARK: - Progress Header
+    /// Three cards abreast at default sizes; stacked at accessibility sizes so the
+    /// labels reflow instead of being scaled down or clipped (DESIGN_AUDIT §4.2).
+    private var summaryLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: Spacing.md))
+            : AnyLayout(HStackLayout(spacing: Spacing.md))
+    }
+
     private var progressHeader: some View {
-        HStack(spacing: 12) {
+        summaryLayout {
             AchievementStatCard(
                 icon: "trophy.fill", value: "\(unlockedCount)/\(totalAchievements)", label: "Unlocked", accentColor: .accentColor
             )
@@ -190,10 +199,20 @@ struct TieredAchievementsGridView: View {
     }
     
     // MARK: - Achievements Grid
+    /// One column at accessibility sizes — two half-width columns cannot hold a
+    /// title, description, and progress line without truncating (DESIGN_AUDIT §4.2).
+    private var achievementColumns: [GridItem] {
+        if dynamicTypeSize.isAccessibilitySize {
+            [GridItem(.flexible(), spacing: Spacing.lg)]
+        } else {
+            [GridItem(.flexible(), spacing: Spacing.lg), GridItem(.flexible(), spacing: Spacing.lg)]
+        }
+    }
+
     private var achievementsGrid: some View {
         LazyVGrid(
-            columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)],
-            spacing: 16
+            columns: achievementColumns,
+            spacing: Spacing.lg
         ) {
             ForEach(filteredAchievements) { achievement in
                 AchievementCard(

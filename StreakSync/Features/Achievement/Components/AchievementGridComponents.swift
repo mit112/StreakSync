@@ -103,6 +103,7 @@ struct AchievementCard: View {
     @State private var isHovered = false
     @State private var showUnlockAnimation = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var progressPercentage: Double {
         achievement.progress.percentageToNextTier(requirements: achievement.requirements)
@@ -166,18 +167,24 @@ struct AchievementCard: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                    
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    // Three lines keeps normal-size cards compact; accessibility sizes
+                    // get as many lines as the copy needs (DESIGN_AUDIT §4.2).
                     Text(achievement.description)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                        .lineLimit(2)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, 8)
-                
-                Spacer()
-                
+
+                // Zero-minimum, so it never inflates a card on its own but does bottom-align
+                // the progress block when a grid row is taller than this card's copy.
+                Spacer(minLength: 0)
+
                 VStack(spacing: 8) {
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
@@ -205,11 +212,14 @@ struct AchievementCard: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .contentTransition(.numericText())
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .layoutPriority(1)
             }
             .padding()
-            .frame(height: 220)
-            .frame(maxWidth: .infinity)
+            // Content-driven height: a fixed 220pt frame clipped descriptions and
+            // progress copy at accessibility sizes (DESIGN_AUDIT §4.2).
+            .frame(maxWidth: .infinity, alignment: .top)
             .background {
                 RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                     .fill(Color(.secondarySystemGroupedBackground))

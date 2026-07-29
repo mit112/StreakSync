@@ -79,7 +79,8 @@ struct TieredAchievementDetailView: View {
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            
+                .fixedSize(horizontal: false, vertical: true)
+
             VStack(spacing: 4) {
                 Text("Current Progress")
                     .font(.caption)

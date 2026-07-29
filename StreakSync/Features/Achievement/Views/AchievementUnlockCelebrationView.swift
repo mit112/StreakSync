@@ -45,14 +45,34 @@ struct AchievementUnlockCelebrationView: View {
     private var fullCelebrationView: some View {
         ZStack {
             backgroundDimmer
-            
-            VStack(spacing: 32) {
-                Spacer()
-                queueIndicator
-                achievementBadge.scaleEffect(badgeScale).opacity(badgeOpacity)
-                achievementText.opacity(textOpacity)
-                progressInfo.opacity(progressOpacity)
-                Spacer()
+
+            // Celebration copy scrolls and the buttons own a reserved strip below it, so
+            // Accessibility XL descriptions can neither truncate nor end up behind the
+            // actions (DESIGN_AUDIT §4.2). The buttons sit outside the scroll container
+            // rather than in a safe-area inset, because an inset overlays the centred
+            // content instead of shrinking the height it centres within — that put the
+            // progress capsule underneath the buttons at Accessibility XL.
+            VStack(spacing: 0) {
+                GeometryReader { proxy in
+                    ScrollView {
+                        VStack(spacing: Spacing.xl) {
+                            queueIndicator
+                            achievementBadge.scaleEffect(badgeScale).opacity(badgeOpacity)
+                            achievementText.opacity(textOpacity)
+                            progressInfo.opacity(progressOpacity)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        // `minHeight` keeps the badge centred whenever the content fits.
+                        .frame(minHeight: proxy.size.height, alignment: .center)
+                        // The scroll view hit-tests its whole bounds, so it would otherwise
+                        // swallow the backgroundDimmer's tap-to-dismiss (§4.10).
+                        .contentShape(Rectangle())
+                        .onTapGesture { if phase == .complete { dismissCelebration() } }
+                    }
+                    .scrollBounceBehavior(.basedOnSize)
+                }
+
                 actionButtons
                     .opacity(buttonsOpacity)
                     // Invisible (opacity 0) buttons are still hit-testable; block taps
@@ -60,10 +80,9 @@ struct AchievementUnlockCelebrationView: View {
                     // down mid-animation and race the next queued celebration.
                     .allowsHitTesting(phase == .complete)
                     .disabled(phase != .complete)
-                    .padding(.bottom, 50)
+                    .padding(.bottom, Spacing.xl)
             }
-            .padding()
-            
+
             if particlesActive && !UIAccessibility.isReduceTransparencyEnabled {
                 EnhancedParticleSystem(tier: unlock.tier, isActive: $particlesActive)
                     .allowsHitTesting(false)
@@ -190,6 +209,7 @@ struct AchievementUnlockCelebrationView: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: 300)
                     .transition(.opacity.animation(.easeIn(duration: 0.5).delay(0.3)))
             }
