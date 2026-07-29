@@ -15,7 +15,9 @@ struct GameLeaderboardPage: View {
     let metricText: (Int) -> String
     let myUserId: String?
     let onRefresh: (() async -> Void)?
-    let hasFriends: Bool
+    /// False when the Friends header already shows Manage, so a state never offers two
+    /// friend-management actions at once (DESIGN_AUDIT §4.5).
+    let showsInviteAction: Bool
     @State private var pressedIndex: Int?
     @ScaledMetric(relativeTo: .title3) private var rankWidth: CGFloat = 32
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 38
@@ -31,7 +33,7 @@ struct GameLeaderboardPage: View {
         metricText: @escaping (Int) -> String,
         myUserId: String?,
         onRefresh: (() async -> Void)?,
-        hasFriends: Bool = false
+        showsInviteAction: Bool = false
     ) {
         self.game = game
         self.rows = rows
@@ -42,7 +44,7 @@ struct GameLeaderboardPage: View {
         self.metricText = metricText
         self.myUserId = myUserId
         self.onRefresh = onRefresh
-        self.hasFriends = hasFriends
+        self.showsInviteAction = showsInviteAction
     }
     
     var body: some View {
@@ -85,14 +87,16 @@ struct GameLeaderboardPage: View {
                             .multilineTextAlignment(.center)
                     }
                     
-                    Button {
-                        onManageFriends()
-                    } label: {
-                        Label("Invite friends", systemImage: "person.badge.plus")
-                            .font(.subheadline.weight(.medium))
+                    if showsInviteAction {
+                        Button {
+                            onManageFriends()
+                        } label: {
+                            Label("Invite friends", systemImage: "person.badge.plus")
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
                 }
                 .frame(maxWidth: .infinity, minHeight: 260)
                 .padding(.vertical, 8)
@@ -100,7 +104,6 @@ struct GameLeaderboardPage: View {
                 ForEach(rows.indices, id: \.self) { index in
                     let entry = rows[index]
                     let isMe = entry.row.userId == myUserId
-                    let displayName = isMe ? "Me" : entry.row.displayName
                     HStack(spacing: rowSpacing) {
                         Text("\(index + 1)")
                             .font(.title3.weight(.semibold))
@@ -108,9 +111,19 @@ struct GameLeaderboardPage: View {
                             .frame(width: rankWidth, alignment: .trailing)
                         GradientAvatar(initials: String(entry.row.displayName.prefix(1)), size: avatarSize)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(displayName)
+                            Text(entry.row.displayName)
                                 .font(.body.weight(isMe ? .semibold : .regular))
                                 .lineLimit(1)
+                        }
+                        // Text plus tint, so the current user stays identifiable under
+                        // Differentiate Without Color (DESIGN_AUDIT §4.5).
+                        if isMe {
+                            Text("Me")
+                                .font(.caption.bold())
+                                .foregroundStyle(StreakSyncBrand.primary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(StreakSyncBrand.primary.opacity(0.12), in: Capsule())
                         }
                         Spacer()
                         Text(metricText(entry.points))
@@ -131,9 +144,11 @@ struct GameLeaderboardPage: View {
                     }
                     .padding(.vertical, 14)
                     .padding(.horizontal, 4)
+                    // Open rows for everyone else; a rounded tinted surface is reserved for
+                    // the current user, so the zebra striping no longer competes with it.
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.secondary.opacity(pressedIndex == index ? 0.12 : (index % 2 == 0 ? 0.03 : 0.0)))
+                        RoundedRectangle(cornerRadius: CornerRadius.control)
+                            .fill(rowBackground(isMe: isMe, isPressed: pressedIndex == index))
                     )
                     .contentShape(Rectangle())
                     .onLongPressGesture(minimumDuration: .infinity, maximumDistance: 50, pressing: { pressing in
@@ -141,6 +156,10 @@ struct GameLeaderboardPage: View {
                     }, perform: {})
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(Text(accessibilityLabelForRow(index: index, entry: entry)))
+
+                    if index < rows.count - 1 {
+                        Divider()
+                    }
                 }
             }
             // Friends who haven't played this game yet
@@ -166,43 +185,9 @@ struct GameLeaderboardPage: View {
                     .padding(.vertical, 8)
                 }
             }
-            // Bottom action — a real ≥44pt button, not a faint text link (§5.5).
-            if !rows.isEmpty {
-                if !hasFriends {
-                    // Solo user who has a score: give them a primary reason to add friends.
-                    VStack(spacing: 12) {
-                        Image(systemName: "person.2.badge.plus")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                        Text("Add friends to compete")
-                            .font(.headline)
-                        Text("See how your scores stack up against friends.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button {
-                            onManageFriends()
-                        } label: {
-                            Label("Add Friends", systemImage: "person.badge.plus")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 28)
-                } else {
-                    Button {
-                        onManageFriends()
-                    } label: {
-                        Label("Manage friends", systemImage: "person.2.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-                    .padding(.top, 24)
-                }
-            }
+            // No bottom management block: the header Manage button (populated) and this
+            // page's own "Invite friends" empty state are the only friend-management
+            // actions, so a state never offers two of them (DESIGN_AUDIT §4.5).
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 4)
@@ -211,10 +196,17 @@ struct GameLeaderboardPage: View {
 }
 
 private extension GameLeaderboardPage {
+    func rowBackground(isMe: Bool, isPressed: Bool) -> Color {
+        if isPressed {
+            return Color.secondary.opacity(0.12)
+        }
+        return isMe ? StreakSyncBrand.primary.opacity(0.10) : .clear
+    }
+
     func accessibilityLabelForRow(index: Int, entry: (row: LeaderboardRow, points: Int)) -> String {
         let rankPart = "Rank \(index + 1)"
         let isMe = entry.row.userId == myUserId
-        let namePart = isMe ? "Me" : entry.row.displayName
+        let namePart = isMe ? "\(entry.row.displayName), Me" : entry.row.displayName
         let metricPart = metricText(entry.points)
         var streakPart = ""
         if let streak = entry.row.perGameStreak[game.id], streak >= 2 {

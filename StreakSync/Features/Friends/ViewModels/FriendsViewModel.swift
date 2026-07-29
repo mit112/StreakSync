@@ -57,6 +57,9 @@ final class FriendsViewModel: ObservableObject {
     
     func load() async {
         isLoading = true
+        // Clear first and only re-assign in `catch`, so a successful Retry actually
+        // leaves the error state instead of being trapped behind a stale message.
+        errorMessage = nil
         defer { isLoading = false }
         do {
             let me = try await socialService.ensureProfile(displayName: nil)
@@ -73,6 +76,7 @@ final class FriendsViewModel: ObservableObject {
     }
     
     func refresh() async {
+        errorMessage = nil
         do {
             friends = try await socialService.listFriends()
             let (start, end) = dateRange()

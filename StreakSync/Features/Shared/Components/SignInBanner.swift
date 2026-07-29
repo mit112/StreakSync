@@ -2,8 +2,8 @@
 //  SignInBanner.swift
 //  StreakSync
 //
-//  Dismissible banner prompting anonymous users to sign in.
-//  Shown at the top of the Friends tab.
+//  Sign-in content for the Friends tab's `.signInRequired` state.
+//  Not a stacked banner: it is only shown when sign-in is the dominant state.
 //
 
 import AuthenticationServices
@@ -14,84 +14,61 @@ struct SignInBanner: View {
     @EnvironmentObject private var container: AppContainer
     @ObservedObject private var authManager: FirebaseAuthStateManager
     @Environment(\.colorScheme) private var colorScheme
-    @AppStorage("signInBannerDismissed") private var dismissed = false
 
     @State private var errorMessage: String?
     @State private var isLoading = false
-    @State private var isExpanded = false
 
     init(authManager: FirebaseAuthStateManager) {
         self._authManager = ObservedObject(wrappedValue: authManager)
     }
 
+    // No dismiss control and no `isAnonymous` gate of its own: the Friends state resolver
+    // decides when sign-in is the dominant explanation, and dismissing the only
+    // explanation would reveal a contradictory empty state (DESIGN_AUDIT §4.5).
     var body: some View {
-        if !dismissed && authManager.isAnonymous {
-            bannerContent
-                .transition(.move(edge: .top).combined(with: .opacity))
-        }
-    }
-
-    private var bannerContent: some View {
-        // Compact single row by default; the sign-in buttons expand on tap so the
-        // banner stops eating prime leaderboard space while dismissed (§5.5).
         VStack(spacing: 12) {
-            HStack(alignment: .center, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Image(systemName: "person.crop.circle.badge.plus")
                     .font(.title3)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(StreakSyncBrand.primary)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sign in to show your name")
                         .font(.subheadline.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
                     Text("Friends see you as \"Player\" on the leaderboard.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
-                if !isExpanded {
-                    Button("Sign in") {
-                        withAnimation(.snappy) { isExpanded = true }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                }
-                Button {
-                    withAnimation(.easeOut(duration: 0.25)) { dismissed = true }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 28, height: 28)
-                        .background(.ultraThinMaterial, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss sign-in prompt")
             }
 
-            if isExpanded {
-                HStack(spacing: 10) {
-                    SignInWithAppleButton(.signIn) { request in
-                        request.requestedScopes = [.fullName, .email]
-                        request.nonce = authManager.prepareAppleNonce()
-                    } onCompletion: { result in
-                        Task { await handleAppleSignIn(result) }
-                    }
-                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                    .frame(height: 44)
-
-                    Button {
-                        Task { await handleGoogleSignIn() }
-                    } label: {
-                        GoogleSignInButtonLabel(height: 44)
-                    }
-                    .buttonStyle(.plain)
+            // Apple is the prominent action, Google the secondary one.
+            VStack(spacing: 10) {
+                SignInWithAppleButton(.signIn) { request in
+                    request.requestedScopes = [.fullName, .email]
+                    request.nonce = authManager.prepareAppleNonce()
+                } onCompletion: { result in
+                    Task { await handleAppleSignIn(result) }
                 }
+                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                .frame(height: 44)
 
-                if let error = errorMessage {
-                    Text(error)
-                        .font(.caption2)
-                        .foregroundStyle(.red)
+                Button {
+                    Task { await handleGoogleSignIn() }
+                } label: {
+                    GoogleSignInButtonLabel(height: 44)
                 }
+                .buttonStyle(.plain)
+            }
+            .disabled(isLoading)
+
+            if let error = errorMessage {
+                Text(error)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(14)
@@ -119,7 +96,8 @@ struct SignInBanner: View {
                     displayName: displayName,
                     authProvider: authManager.authProvider.rawValue
                 )
-                withAnimation(.easeOut(duration: 0.25)) { dismissed = true }
+                // No local dismissal: `authManager.isAnonymous` flipping re-resolves the
+                // Friends state, which replaces this content with the leaderboard.
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -143,7 +121,6 @@ struct SignInBanner: View {
                 displayName: displayName,
                 authProvider: authManager.authProvider.rawValue
             )
-            withAnimation(.easeOut(duration: 0.25)) { dismissed = true }
         } catch {
             errorMessage = error.localizedDescription
         }

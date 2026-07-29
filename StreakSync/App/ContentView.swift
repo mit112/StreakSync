@@ -28,11 +28,15 @@ struct ContentView: View {
                 .foregroundStyle(.black)
             }
             
-            // Sync status banner — shows when offline or scores are pending
-            SyncStatusBanner(
-                syncState: container.gameResultSyncService.syncState,
-                pendingScoreCount: container.socialService.pendingScoreCount
-            )
+            // Sync status banner — shows when offline or scores are pending.
+            // Suppressed on Friends, which owns that tab's single offline/failure
+            // explanation; unchanged on Home, Awards, and Settings (DESIGN_AUDIT §4.5).
+            if navigationCoordinator.selectedTab != .friends {
+                SyncStatusBanner(
+                    syncState: container.gameResultSyncService.syncState,
+                    pendingScoreCount: container.socialService.pendingScoreCount
+                )
+            }
             
             MainTabView()
                 .firstShareCelebration()

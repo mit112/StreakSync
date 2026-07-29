@@ -3,6 +3,7 @@
 //  StreakSync
 //
 
+import Combine
 import SwiftUI
 import UIKit
 
@@ -26,23 +27,36 @@ struct FriendsView: View {
     @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
     @ScaledMetric(relativeTo: .body) private var chevronSize: CGFloat = 44
     @State private var activeSheet: ActiveFriendsSheet?
-    
+    /// Nil until the auth subscription first fires, so the very first render reads the live
+    /// value instead of showing a signed-in user the sign-in card for one frame.
+    @State private var observedIsAnonymous: Bool?
+
     init(socialService: SocialService) {
         _viewModel = StateObject(wrappedValue: FriendsViewModel(socialService: socialService))
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             header
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
                 .zIndex(10)
-            SignInBanner(authManager: container.firebaseAuthManager)
-                .padding(.bottom, 12)
+
+            dominantState
                 .zIndex(5)
-            leaderboardStack
+
+            if showsLeaderboard {
+                leaderboardStack
+            } else {
+                Spacer(minLength: 0)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+        // `isAnonymous` lives on a nested ObservableObject, so SwiftUI does not observe it
+        // through `container`; `receive(on:)` defers until after @Published has settled.
+        .onReceive(container.firebaseAuthManager.$currentUser.receive(on: RunLoop.main)) { _ in
+            observedIsAnonymous = container.firebaseAuthManager.isAnonymous
+        }
         .sheet(item: $activeSheet, onDismiss: {
             navigationCoordinator.shouldShowJoinSheet = false
             navigationCoordinator.pendingJoinCode = nil
@@ -65,11 +79,6 @@ struct FriendsView: View {
             guard shouldShowJoinSheet else { return }
             activeSheet = .join(initialCode: navigationCoordinator.pendingJoinCode)
         }
-        .overlay(alignment: .top) {
-            if let message = viewModel.errorMessage {
-                errorBanner(message)
-            }
-        }
         .task {
             await viewModel.load()
         }
@@ -91,6 +100,79 @@ struct FriendsView: View {
     }
 }
 
+// MARK: - Presentation State
+private extension FriendsView {
+    var currentGame: Game? {
+        let index = viewModel.currentGamePage
+        guard viewModel.availableGames.indices.contains(index) else { return nil }
+        return viewModel.availableGames[index]
+    }
+
+    /// Computed once per body pass and reused by both the resolver and the pager.
+    var currentRows: [(row: LeaderboardRow, points: Int)] {
+        guard let currentGame else { return [] }
+        return viewModel.rowsForSelectedGameID(currentGame.id)
+    }
+
+    /// A failed cloud sync must still be explained here, because the root
+    /// `SyncStatusBanner` is suppressed on this tab (DESIGN_AUDIT §4.5).
+    var syncFailureMessage: String? {
+        if case .failed = container.gameResultSyncService.syncState {
+            return "Sync failed — scores are saved locally"
+        }
+        return nil
+    }
+
+    var presentationState: FriendsPresentationState {
+        FriendsPresentationState.resolve(.init(
+            isOffline: container.gameResultSyncService.syncState == .offline,
+            errorMessage: viewModel.errorMessage ?? syncFailureMessage,
+            isAnonymous: observedIsAnonymous ?? container.firebaseAuthManager.isAnonymous,
+            isLoading: viewModel.isLoading,
+            hasRows: !currentRows.isEmpty,
+            hasFriends: !viewModel.friends.isEmpty,
+            pendingScoreCount: container.socialService.pendingScoreCount
+        ))
+    }
+
+    /// Only the initial load hides the pager. `hasRows` is per-current-game, so any state
+    /// that unmounted `leaderboardStack` would take the game carousel and paging TabView
+    /// with it and leave the user unable to page back to a game that has scores.
+    var showsLeaderboard: Bool {
+        presentationState != .loading
+    }
+
+    /// Exactly one friend-management action is on screen in every state: the page owns it
+    /// for `.empty`, the header owns it everywhere else.
+    var showsHeaderManageButton: Bool {
+        presentationState != .empty
+    }
+
+    @ViewBuilder
+    var dominantState: some View {
+        switch presentationState {
+        case .signInRequired:
+            SignInBanner(authManager: container.firebaseAuthManager)
+                .padding(.bottom, 12)
+        case .loading, .offline, .error, .pendingUpload:
+            FriendsStateView(
+                state: presentationState,
+                retry: { await retryLoad() }
+            )
+            .padding(.bottom, 12)
+        case .empty, .populated:
+            EmptyView()
+        }
+    }
+
+    /// Refreshing alone cannot clear an offline/failed `syncState` — only the sync service
+    /// mutates it — so Retry has to drive both or the button visibly does nothing.
+    func retryLoad() async {
+        await viewModel.refresh()
+        await container.gameResultSyncService.syncIfNeeded()
+    }
+}
+
 // MARK: - Subviews
 private extension FriendsView {
     // MARK: Header
@@ -100,14 +182,16 @@ private extension FriendsView {
             HStack(alignment: .firstTextBaseline) {
                 Text("Friends").font(.largeTitle.bold())
                 Spacer()
-                Button { presentInviteFlow() } label: {
-                    Label("Manage", systemImage: "person.badge.plus")
-                        .font(.subheadline.weight(.semibold))
+                if showsHeaderManageButton {
+                    Button { presentInviteFlow() } label: {
+                        Label("Manage", systemImage: "person.badge.plus")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .accessibilityLabel(Text("Manage friends"))
+                    .accessibilityIdentifier("friends.manage.button")
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .accessibilityLabel(Text("Manage friends"))
-                .accessibilityIdentifier("friends.manage.button")
             }
             datePager
             Text(currentGameTitle)
@@ -220,7 +304,7 @@ private extension FriendsView {
                             },
                             myUserId: viewModel.myUserId,
                             onRefresh: { await viewModel.refresh() },
-                            hasFriends: container.appState.cachedFriendCount > 0
+                            showsInviteAction: showsHeaderManageButton == false
                         )
                         .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                         .accessibilityElement(children: .contain)
@@ -248,30 +332,6 @@ private extension FriendsView {
             .padding(.top, 8)
             .padding(.bottom, 20)
         }
-    }
-
-    // MARK: Error
-
-    func errorBanner(_ message: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
-            Text(message).lineLimit(2)
-            Spacer(minLength: 0)
-            Button("Retry") { Task { await viewModel.refresh() } }
-                .buttonStyle(.bordered)
-            Button("Dismiss") { withAnimation(.easeOut) { viewModel.errorMessage = nil } }
-        }
-        .font(.caption)
-        .padding(10)
-        .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-                .strokeBorder(Color(.separator), lineWidth: 0.5)
-        }
-        .padding(.horizontal, 16)
-        // Keep banner below header controls so it doesn't steal taps from primary actions.
-        .padding(.top, 96)
-        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     // MARK: Helpers
