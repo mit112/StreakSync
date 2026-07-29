@@ -9,58 +9,6 @@ import SwiftUI
 
 // MARK: - Supporting Views
 
-struct ScoreBadge: View {
-    let score: String
-    let color: Color
-    let revealed: Bool
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Text("Score:").font(.subheadline).foregroundStyle(.secondary)
-            Text(score)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(color)
-                .contentTransition(.numericText())
-                .animation(.spring(response: 0.3), value: score)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background {
-            Capsule()
-                .fill(color.opacity(0.1))
-                .overlay { Capsule().strokeBorder(color.opacity(0.3), lineWidth: 1) }
-        }
-        .scaleEffect(revealed ? 1 : 0.8)
-        .opacity(revealed ? 1 : 0)
-        .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.2), value: revealed)
-    }
-}
-
-struct DetailRowCompact: View {
-    let icon: String
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image.safeSystemName(icon, fallback: "info.circle")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.caption).foregroundStyle(.secondary)
-                Text(value).font(.body.weight(.medium))
-            }
-            Spacer()
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
-        )
-    }
-}
-
 struct DetailCard: View {
     let icon: String
     let label: String
