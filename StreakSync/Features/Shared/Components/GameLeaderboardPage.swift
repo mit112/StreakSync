@@ -104,44 +104,13 @@ struct GameLeaderboardPage: View {
                 ForEach(rows.indices, id: \.self) { index in
                     let entry = rows[index]
                     let isMe = entry.row.userId == myUserId
-                    HStack(spacing: rowSpacing) {
-                        Text("\(index + 1)")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(index == 0 ? .primary : .secondary)
-                            .frame(width: rankWidth, alignment: .trailing)
-                        GradientAvatar(initials: String(entry.row.displayName.prefix(1)), size: avatarSize)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(entry.row.displayName)
-                                .font(.body.weight(isMe ? .semibold : .regular))
-                                .lineLimit(1)
-                        }
-                        // Text plus tint, so the current user stays identifiable under
-                        // Differentiate Without Color (DESIGN_AUDIT §4.5).
-                        if isMe {
-                            Text("Me")
-                                .font(.caption.bold())
-                                .foregroundStyle(StreakSyncBrand.primary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(StreakSyncBrand.primary.opacity(0.12), in: Capsule())
-                        }
-                        Spacer()
-                        Text(metricText(entry.points))
-                            .font(.headline)
-                        // Streak badge
-                        if let streak = entry.row.perGameStreak[game.id], streak >= 2 {
-                            HStack(spacing: 2) {
-                                Image(systemName: "flame.fill")
-                                    .font(.caption2)
-                                Text("\(streak)")
-                                    .font(.caption2.weight(.semibold))
-                            }
-                            .foregroundStyle(.orange)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Color.orange.opacity(0.12), in: Capsule())
-                        }
-                    }
+                    LeaderboardEntryRow(
+                        rank: index + 1,
+                        displayName: entry.row.displayName,
+                        isMe: isMe,
+                        metric: metricText(entry.points),
+                        streak: entry.row.perGameStreak[game.id]
+                    )
                     .padding(.vertical, 14)
                     .padding(.horizontal, 4)
                     // Open rows for everyone else; a rounded tinted surface is reserved for
@@ -213,5 +182,80 @@ private extension GameLeaderboardPage {
             streakPart = ", \(streak) day streak"
         }
         return "\(rankPart), \(namePart), \(metricPart)\(streakPart)"
+    }
+}
+
+// MARK: - Leaderboard Row
+
+/// One leaderboard entry. Standard Dynamic Type sizes keep the single-line
+/// rank/avatar/name … score row. In the accessibility text band the rank and
+/// avatar grow large enough to crowd out the trailing score, so the score
+/// reflows onto its own line instead of clipping off-screen (WCAG 1.4.10).
+private struct LeaderboardEntryRow: View {
+    let rank: Int
+    let displayName: String
+    let isMe: Bool
+    let metric: String
+    let streak: Int?
+    @ScaledMetric(relativeTo: .title3) private var rankWidth: CGFloat = 32
+    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 38
+    @ScaledMetric(relativeTo: .body) private var rowSpacing: CGFloat = 14
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: rowSpacing))
+        layout {
+            identity
+            if !dynamicTypeSize.isAccessibilitySize {
+                Spacer(minLength: 0)
+            }
+            metrics
+        }
+    }
+
+    private var identity: some View {
+        HStack(spacing: rowSpacing) {
+            Text("\(rank)")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(rank == 1 ? .primary : .secondary)
+                .frame(width: rankWidth, alignment: .trailing)
+            GradientAvatar(initials: String(displayName.prefix(1)), size: avatarSize)
+            Text(displayName)
+                .font(.body.weight(isMe ? .semibold : .regular))
+                .lineLimit(1)
+            // Text plus tint, so the current user stays identifiable under
+            // Differentiate Without Color (DESIGN_AUDIT §4.5).
+            if isMe {
+                Text("Me")
+                    .font(.caption.bold())
+                    .lineLimit(1)
+                    .foregroundStyle(StreakSyncBrand.primary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(StreakSyncBrand.primary.opacity(0.12), in: Capsule())
+                    .fixedSize()
+            }
+        }
+    }
+
+    private var metrics: some View {
+        HStack(spacing: rowSpacing) {
+            Text(metric)
+                .font(.headline)
+            if let streak, streak >= 2 {
+                HStack(spacing: 2) {
+                    Image(systemName: "flame.fill")
+                        .font(.caption2)
+                    Text("\(streak)")
+                        .font(.caption2.weight(.semibold))
+                }
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Color.orange.opacity(0.12), in: Capsule())
+            }
+        }
     }
 }
