@@ -155,6 +155,17 @@ struct GameAnalytics: Identifiable, Sendable {
 }
 
 // MARK: - Achievement Analytics
+/// A recommendation carries the achievement's identity, not just prose, so the Analytics
+/// tab can open the exact achievement instead of a generic tab (DESIGN_AUDIT §4.8).
+struct AnalyticsRecommendation: Identifiable, Equatable, Sendable {
+    let achievementID: UUID
+    let title: String
+    let detail: String
+    let remainingProgress: Int
+
+    var id: UUID { achievementID }
+}
+
 struct AchievementAnalytics: Sendable {
     let totalUnlocked: Int
     let totalAvailable: Int
@@ -162,15 +173,15 @@ struct AchievementAnalytics: Sendable {
     let categoryProgress: [AchievementCategory: Double]
     let tierDistribution: [AchievementTier: Int]
     let unlockRate: Double
-    let nextActions: [String]
-    
+    let recommendations: [AnalyticsRecommendation]
+
     init(
         totalUnlocked: Int = 0,
         totalAvailable: Int = 0,
         recentUnlocks: [AchievementUnlock] = [],
         categoryProgress: [AchievementCategory: Double] = [:],
         tierDistribution: [AchievementTier: Int] = [:],
-        nextActions: [String] = []
+        recommendations: [AnalyticsRecommendation] = []
     ) {
         self.totalUnlocked = totalUnlocked
         self.totalAvailable = totalAvailable
@@ -178,7 +189,7 @@ struct AchievementAnalytics: Sendable {
         self.categoryProgress = categoryProgress
         self.tierDistribution = tierDistribution
         self.unlockRate = totalAvailable > 0 ? Double(totalUnlocked) / Double(totalAvailable) : 0.0
-        self.nextActions = nextActions
+        self.recommendations = recommendations
     }
     
     var completionPercentage: String {

@@ -85,12 +85,14 @@ struct StreakTrendsDetailChartSection: View {
                         AxisMarks(position: .leading)
                     }
                     .chartXSelection(value: $selectedDate)
+                    .accessibilityLabel("\(gameDisplayName) activity timeline, \(timeRange.displayName)")
+                    .accessibilityValue(chartAccessibilitySummary)
 
                     if let point = selectedPoint {
                         selectedPointCard(point)
                             .transition(.opacity.combined(with: .scale(scale: 0.95)))
                     } else {
-                        tapToInspectHint
+                        inspectLatestDayButton
                     }
                 }
             }
@@ -264,21 +266,30 @@ struct StreakTrendsDetailChartSection: View {
         }
     }
 
-    private var tapToInspectHint: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "hand.tap.fill")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-            Text("Tap chart to see daily details")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+    /// A real control instead of instructional text: "Tap chart to see daily details" was
+    /// unreachable by VoiceOver and Voice Control, which cannot drag a chart (§4.8).
+    private var inspectLatestDayButton: some View {
+        Button("Inspect latest day", systemImage: "hand.tap.fill") {
+            selectedDate = trends.last?.date
         }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(.tertiarySystemFill))
-        }
+        .disabled(trends.isEmpty)
+        .accessibilityHint(
+            "Shows the latest daily detail. Touch and drag across the chart to inspect other days."
+        )
+    }
+
+    private var chartAccessibilitySummary: String {
+        guard let first = trends.first, let last = trends.last else { return "No activity data" }
+        let dayCount = trends.count
+        let activeDays = trends.filter { $0.gamesPlayed > 0 }.count
+        return """
+        \(dayCount) days from \(first.date.formatted(date: .abbreviated, time: .omitted)) \
+        to \(last.date.formatted(date: .abbreviated, time: .omitted)), \
+        \(activeDays) with activity
+        """
     }
 
     private var emptyChartView: some View {

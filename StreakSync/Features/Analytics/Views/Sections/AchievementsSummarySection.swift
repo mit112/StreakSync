@@ -76,25 +76,3 @@ struct AchievementsSummarySection: View {
         .background(RoundedRectangle(cornerRadius: CornerRadius.control).fill(color.opacity(0.08)))
     }
 }
-
-// MARK: - Next Actions Section
-struct NextActionsSection: View {
-    let actions: [String]
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("What to do next")
-                .font(.headline)
-                .fontWeight(.semibold)
-            ForEach(actions.prefix(3), id: \.self) { action in
-                HStack(spacing: 8) {
-                    Image.safeSystemName("bolt.fill", fallback: "bolt.fill").foregroundStyle(.yellow)
-                    Text(action).font(.subheadline)
-                    Spacer()
-                }
-                .padding(.vertical, 6)
-            }
-        }
-        .padding()
-        .cardStyle()
-    }
-}

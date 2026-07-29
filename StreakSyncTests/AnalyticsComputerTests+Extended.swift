@@ -116,7 +116,7 @@ extension AnalyticsComputerTests {
         XCTAssertEqual(result.tierDistribution[.gold], 1)
     }
 
-    func test_computeAchievementAnalytics_nextActions_limitsToThree() {
+    func test_computeAchievementAnalytics_recommendations_limitsToThree() {
         let achievements = (0..<5).map { i in
             makeTieredAchievement(
                 category: AchievementCategory.activeCategories[i],
@@ -125,7 +125,54 @@ extension AnalyticsComputerTests {
             )
         }
         let result = AnalyticsComputer.computeAchievementAnalytics(tieredAchievements: achievements)
-        XCTAssertLessThanOrEqual(result.nextActions.count, 3)
+        XCTAssertLessThanOrEqual(result.recommendations.count, 3)
+    }
+
+    func testAchievementRecommendationsAreRankedByRemainingProgressThenTitle() {
+        let gameCollector = makeTieredAchievement(
+            category: .gameCollector, currentValue: 6, currentTier: .bronze
+        )
+        let streakMaster = makeTieredAchievement(
+            category: .streakMaster, currentValue: 6, currentTier: .bronze
+        )
+        let dailyDevotee = makeTieredAchievement(
+            category: .dailyDevotee, currentValue: 5, currentTier: .bronze
+        )
+        let perfectionist = makeTieredAchievement(
+            category: .perfectionist, currentValue: 3, currentTier: .bronze
+        )
+
+        let result = AnalyticsComputer.computeAchievementAnalytics(
+            tieredAchievements: [perfectionist, streakMaster, dailyDevotee, gameCollector]
+        )
+
+        XCTAssertEqual(result.recommendations.count, 3)
+        XCTAssertEqual(result.recommendations.map(\.remainingProgress), [1, 1, 2])
+        XCTAssertEqual(
+            result.recommendations.map(\.achievementID),
+            [gameCollector.id, streakMaster.id, dailyDevotee.id]
+        )
+    }
+
+    func testRecommendationDetailUsesSingularCopyForOneRemainingPoint() {
+        let almostThere = makeTieredAchievement(
+            category: .streakMaster, currentValue: 6, currentTier: .bronze
+        )
+        let result = AnalyticsComputer.computeAchievementAnalytics(tieredAchievements: [almostThere])
+        XCTAssertEqual(result.recommendations.first?.detail, "1 more progress point")
+        XCTAssertEqual(result.recommendations.first?.title, "Reach Silver in Streak Master")
+    }
+
+    func testMaxedAchievementsProduceNoRecommendations() {
+        let requirement = TierRequirement(tier: .bronze, threshold: 3)
+        let maxed = makeTieredAchievement(
+            category: .streakMaster,
+            currentValue: 3,
+            currentTier: .bronze,
+            requirements: [requirement]
+        )
+        let result = AnalyticsComputer.computeAchievementAnalytics(tieredAchievements: [maxed])
+        XCTAssertTrue(result.recommendations.isEmpty)
     }
 
     func test_computeAchievementAnalytics_categoryProgress_correct() {

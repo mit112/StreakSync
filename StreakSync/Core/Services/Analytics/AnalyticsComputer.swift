@@ -191,8 +191,8 @@ struct AnalyticsComputer {
         var tierDistribution: [AchievementTier: Int] = [:]
         var recentUnlocks: [AchievementUnlock] = []
         var categoryProgress: [AchievementCategory: Double] = [:]
-        var nextActions: [String] = []
-        
+        var recommendations: [AnalyticsRecommendation] = []
+
         let totalAvailable = tiered.count
         var totalUnlocked = 0
         
@@ -213,16 +213,23 @@ struct AnalyticsComputer {
             categoryProgress[category] = items.isEmpty ? 0.0 : Double(unlockedCount) / Double(items.count)
         }
         
-        // Next actions: 3 closest next-tier thresholds
-        var candidates: [(name: String, remaining: Int)] = []
+        // Recommendations: the 3 closest next-tier thresholds. Ranked by remaining progress
+        // then title so the order is deterministic rather than dictionary-dependent, and
+        // each one names a real next tier the service can actually report on (§4.8).
         for t in tiered {
-            if let next = t.nextTierRequirement {
-                let remaining = max(0, next.threshold - t.progress.currentValue)
-                candidates.append((name: t.displayName, remaining: remaining))
-            }
+            guard let next = t.nextTierRequirement else { continue }
+            let remaining = max(0, next.threshold - t.progress.currentValue)
+            recommendations.append(
+                AnalyticsRecommendation(
+                    achievementID: t.id,
+                    title: "Reach \(next.tier.displayName) in \(t.displayName)",
+                    detail: remaining == 1 ? "1 more progress point" : "\(remaining) more progress points",
+                    remainingProgress: remaining
+                )
+            )
         }
-        candidates.sort { $0.remaining < $1.remaining }
-        nextActions = Array(candidates.prefix(3)).map { "Play toward \($0.name): \($0.remaining) to next tier" }
+        recommendations.sort { ($0.remainingProgress, $0.title) < ($1.remainingProgress, $1.title) }
+        recommendations = Array(recommendations.prefix(3))
         
         // Sort recent unlocks (desc) and limit to 5
         recentUnlocks.sort { $0.timestamp > $1.timestamp }
@@ -234,7 +241,7 @@ struct AnalyticsComputer {
             recentUnlocks: recentUnlocks,
             categoryProgress: categoryProgress,
             tierDistribution: tierDistribution,
-            nextActions: nextActions
+            recommendations: recommendations
         )
     }
     

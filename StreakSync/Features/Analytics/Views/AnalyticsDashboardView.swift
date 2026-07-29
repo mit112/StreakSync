@@ -154,8 +154,9 @@ struct AnalyticsDashboardView: View {
         // Achievements (hide when nothing unlocked)
         if let aa = viewModel.achievementAnalytics, aa.totalUnlocked > 0 || !aa.tierDistribution.isEmpty {
             AchievementsSummarySection(analytics: aa)
-            if !aa.nextActions.isEmpty {
-                NextActionsSection(actions: aa.nextActions)
+            AnalyticsRecommendationsSection(recommendations: aa.recommendations) { recommendation in
+                // Opens the exact achievement rather than just switching to the Awards tab.
+                coordinator.navigateToAchievements(highlightId: recommendation.achievementID)
             }
         }
 

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct TieredAchievementsGridView: View {
     @Environment(AppState.self) private var appState
+    @EnvironmentObject private var coordinator: NavigationCoordinator
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var hasAppeared = false
     @State private var selectedCategory: AchievementCategory?
@@ -56,10 +57,18 @@ struct TieredAchievementsGridView: View {
     }
     
     var body: some View {
-        if appState.isGuestMode {
-            guestModeView
-        } else {
-            achievementsContent
+        Group {
+            if appState.isGuestMode {
+                guestModeView
+            } else {
+                achievementsContent
+            }
+        }
+        // Attached above the guest/normal branch so a highlight is consumed either way;
+        // Guest Mode otherwise left a stale id that later popped an unrequested sheet.
+        .onAppear { openHighlightedAchievementIfNeeded() }
+        .onChange(of: coordinator.highlightedAchievementId) { _, _ in
+            openHighlightedAchievementIfNeeded()
         }
     }
     
@@ -150,6 +159,17 @@ struct TieredAchievementsGridView: View {
         }
     }
     
+    /// Consumes a highlight handed over by an Analytics recommendation (or a notification)
+    /// so the tap opens the exact achievement instead of just this tab (DESIGN_AUDIT §4.8).
+    private func openHighlightedAchievementIfNeeded() {
+        guard let id = coordinator.highlightedAchievementId else { return }
+        // Consume it unconditionally. Leaving an unresolvable id in place made a later
+        // navigation to the same id a silent no-op (`onChange` sees no change).
+        coordinator.highlightedAchievementId = nil
+        guard let achievement = appState.tieredAchievements.first(where: { $0.id == id }) else { return }
+        selectedAchievement = achievement
+    }
+
     // MARK: - Progress Header
     /// Three cards abreast at default sizes; stacked at accessibility sizes so the
     /// labels reflow instead of being scaled down or clipped (DESIGN_AUDIT §4.2).
