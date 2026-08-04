@@ -34,6 +34,7 @@ ACHIEVEMENTS_MODULE_ANALYSIS.md
 ANALYTICS_MODULE_ANALYSIS.md
 FRIENDS_MODULE_ANALYSIS.md
 STREAKSYNC_AUDIT.md
+DESIGN_AUDIT.md
 
 # Internal QA artifacts
 docs/shakedown-*.md
@@ -53,6 +54,9 @@ firestore-debug.log
 .claude/
 .claudeignore
 .superpowers/
+.agents/
+.codex/
+docs/superpowers/
 
 # Git worktrees
 .worktrees/
@@ -65,3 +69,7 @@ ui-debug.log
 
 # Local one-off maintenance scripts (Firebase admin, data cleanup, etc.)
 scripts/
+
+# Asset-generation working dirs (source art, not app resources)
+App Icon Generator/
+Black Brush Strokes Grunge/
