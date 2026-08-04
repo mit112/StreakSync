@@ -130,6 +130,9 @@ final class FirebaseAuthStateManager: ObservableObject {
  logger.info("Linked anonymous account to Apple: uid=\(result.user.uid, privacy: .private)")
                 // Update display name from Apple if provided
                 await updateDisplayNameFromApple(appleCredential.fullName, user: result.user)
+                // The auth state listener does not fire on a same-UID link, so publish
+                // the upgraded user by hand or the UI keeps showing the anonymous state.
+                publishLinkedUser(result.user)
             } else {
                 // Fresh sign-in (or re-auth)
                 let result = try await auth.signIn(with: credential)
@@ -211,6 +214,9 @@ final class FirebaseAuthStateManager: ObservableObject {
                 let linkResult = try await user.link(with: credential)
  logger.info("Linked anonymous account to Google: uid=\(linkResult.user.uid, privacy: .private)")
                 await updateDisplayNameFromGoogle(result.user, firebaseUser: linkResult.user)
+                // The auth state listener does not fire on a same-UID link, so publish
+                // the upgraded user by hand or the UI keeps showing the anonymous state.
+                publishLinkedUser(linkResult.user)
             } else {
                 // Fresh sign-in
                 let authResult = try await auth.signIn(with: credential)
@@ -403,6 +409,17 @@ final class FirebaseAuthStateManager: ObservableObject {
         } catch {
  logger.warning("Failed to set display name: \(error.localizedDescription)")
         }
+    }
+
+    /// The Firebase auth state listener only fires on sign-in/sign-out (UID changes),
+    /// never on a same-UID `link(with:)`. Anonymous→social upgrades must therefore push
+    /// the refreshed user through the published state by hand, or subscribers — the
+    /// Friends sign-in banner, the Account provider label, and AppContainer's
+    /// provider-upgrade handler — keep rendering the stale anonymous state.
+    private func publishLinkedUser(_ user: User) {
+        currentUser = user
+        isAuthenticated = true
+        authProvider = Self.detectProvider(for: user)
     }
 
     private static func detectProvider(for user: User?) -> AuthProvider {

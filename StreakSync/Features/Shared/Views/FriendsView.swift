@@ -30,6 +30,9 @@ struct FriendsView: View {
     /// Nil until the auth subscription first fires, so the very first render reads the live
     /// value instead of showing a signed-in user the sign-in card for one frame.
     @State private var observedIsAnonymous: Bool?
+    /// Last authenticated UID seen by the auth subscription. Only updated on non-nil
+    /// (signed-in) emissions so a sign-out→re-anon still reads as a genuine identity change.
+    @State private var observedUID: String?
 
     init(socialService: SocialService) {
         _viewModel = StateObject(wrappedValue: FriendsViewModel(socialService: socialService))
@@ -54,8 +57,18 @@ struct FriendsView: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         // `isAnonymous` lives on a nested ObservableObject, so SwiftUI does not observe it
         // through `container`; `receive(on:)` defers until after @Published has settled.
-        .onReceive(container.firebaseAuthManager.$currentUser.receive(on: RunLoop.main)) { _ in
+        .onReceive(container.firebaseAuthManager.$currentUser.receive(on: RunLoop.main)) { user in
             observedIsAnonymous = container.firebaseAuthManager.isAnonymous
+            // A sign-out→re-anon or an account switch changes the UID while this tab is on
+            // screen. Nothing else re-runs `load()` then, so a transient "not authenticated"
+            // error stays latched in `errorMessage` until the user leaves and returns.
+            // Reloading on the identity change clears it and refetches for the new user.
+            // Ignore signed-out (nil) emissions so `observedUID` keeps the last real identity.
+            guard let newUID = user?.uid else { return }
+            defer { observedUID = newUID }
+            if let previous = observedUID, previous != newUID {
+                Task { await viewModel.load() }
+            }
         }
         .sheet(item: $activeSheet, onDismiss: {
             navigationCoordinator.shouldShowJoinSheet = false
@@ -131,7 +144,8 @@ private extension FriendsView {
             isLoading: viewModel.isLoading,
             hasRows: !currentRows.isEmpty,
             hasFriends: !viewModel.friends.isEmpty,
-            pendingScoreCount: container.socialService.pendingScoreCount
+            pendingScoreCount: container.socialService.pendingScoreCount,
+            hasCompletedInitialLoad: viewModel.hasLoadedOnce
         ))
     }
 
@@ -296,7 +310,10 @@ private extension FriendsView {
                             game: game,
                             rows: viewModel.rowsForSelectedGameID(game.id),
                             notPlayedFriends: viewModel.friendsWhoHaventPlayed(game.id),
-                            isLoading: viewModel.isLoading,
+                            // Only the genuine first load shows the in-page skeleton; a
+                            // background refresh on a later tab visit keeps the last rows
+                            // (or the empty/invite state) instead of flashing a skeleton.
+                            isLoading: viewModel.isLoading && !viewModel.hasLoadedOnce,
                             dateLabel: formattedDate(viewModel.selectedDateUTC),
                             onManageFriends: { presentInviteFlow() },
                             metricText: { points in

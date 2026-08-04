@@ -13,6 +13,9 @@ final class FriendsViewModel: ObservableObject {
     @Published var friends: [UserProfile] = []
     @Published var leaderboard: [LeaderboardRow] = []
     @Published var isLoading: Bool = false
+    /// True once the first `load()` has fully succeeded. Gates the skeleton so background
+    /// refreshes on later tab visits don't flash `.loading` over already-loaded content.
+    @Published private(set) var hasLoadedOnce: Bool = false
     @Published var errorMessage: String?
     /// Day currently selected by the user (stored at the local calendar's start-of-day). Converted to UTC when querying.
     @Published var selectedDateUTC: Date = Calendar.current.startOfDay(for: Date())
@@ -72,6 +75,7 @@ final class FriendsViewModel: ObservableObject {
                 setupListeners()
                 hasSetupListeners = true
             }
+            hasLoadedOnce = true
         } catch { errorMessage = error.localizedDescription }
     }
     
