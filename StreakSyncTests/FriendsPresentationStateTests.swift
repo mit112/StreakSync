@@ -87,6 +87,22 @@ final class FriendsPresentationStateTests: XCTestCase {
         XCTAssertEqual(state, .loading)
     }
 
+    func testBackgroundRefreshAfterInitialLoadDoesNotRegressToSkeleton() {
+        // A later tab visit re-runs load() and flips isLoading, but the first load already
+        // completed — the empty state must show through instead of a fresh skeleton.
+        let state = FriendsPresentationState.resolve(.init(
+            isOffline: false,
+            errorMessage: nil,
+            isAnonymous: false,
+            isLoading: true,
+            hasRows: false,
+            hasFriends: true,
+            pendingScoreCount: 0,
+            hasCompletedInitialLoad: true
+        ))
+        XCTAssertEqual(state, .empty)
+    }
+
     func testOfflineWithRowsMarksCachedContent() {
         let state = FriendsPresentationState.resolve(.init(
             isOffline: true,

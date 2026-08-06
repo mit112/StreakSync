@@ -15,6 +15,30 @@ struct FriendsPresentationContext: Equatable {
     let hasRows: Bool
     let hasFriends: Bool
     let pendingScoreCount: Int
+    /// True once the first load has succeeded. A background refresh on a later tab visit
+    /// still flips `isLoading`, but must not regress the whole tab to a skeleton — only the
+    /// genuine first load may show `.loading`.
+    let hasCompletedInitialLoad: Bool
+
+    init(
+        isOffline: Bool,
+        errorMessage: String?,
+        isAnonymous: Bool,
+        isLoading: Bool,
+        hasRows: Bool,
+        hasFriends: Bool,
+        pendingScoreCount: Int,
+        hasCompletedInitialLoad: Bool = false
+    ) {
+        self.isOffline = isOffline
+        self.errorMessage = errorMessage
+        self.isAnonymous = isAnonymous
+        self.isLoading = isLoading
+        self.hasRows = hasRows
+        self.hasFriends = hasFriends
+        self.pendingScoreCount = pendingScoreCount
+        self.hasCompletedInitialLoad = hasCompletedInitialLoad
+    }
 }
 
 /// One dominant explanation at a time. Friends previously stacked a sign-in banner, an
@@ -41,7 +65,7 @@ enum FriendsPresentationState: Equatable {
         if let message = context.errorMessage, !message.isEmpty {
             return .error(message: message, showingCachedScores: context.hasRows)
         }
-        if context.isLoading && !context.hasRows { return .loading }
+        if context.isLoading && !context.hasRows && !context.hasCompletedInitialLoad { return .loading }
         if context.isAnonymous && !context.hasRows && !context.hasFriends { return .signInRequired }
         if context.pendingScoreCount > 0 { return .pendingUpload(count: context.pendingScoreCount) }
         if !context.hasRows { return .empty }
