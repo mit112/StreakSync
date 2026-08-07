@@ -406,10 +406,24 @@ finds the same thing.
 
 ## 7. AI-generated-UI tells
 
-> **Status: partially complete.** The deep research pass on this was cut short to conserve
-> budget. What's below is what I can state with confidence from the design KB's anti-pattern
-> cards (which are sourced to HIG and to designers writing critically about AI output) plus
-> direct observation of the running app. The items marked ⚠ need a verdict I couldn't finish.
+> **Sourcing.** The research agents for this section were killed mid-flight by a session limit,
+> but their transcripts survived on disk and were recovered. The corpus below is theirs.
+>
+> The anchor source is **Adrian Krebs, "Scoring Show HN submissions for AI design patterns"**
+> (adriankrebs.ch/blog/design-slop/, 2026-04-20) — the only *quantitative* study in the genre:
+> 1,590 Show HN landing pages loaded headless and checked with deterministic DOM/CSS rules
+> (deliberately not LLM image analysis). Result: 22% "heavy slop" (4+ patterns), 32% mild,
+> 46% clean. He states his own false-positive rate at 5–10%. Detector is open source at
+> github.com/AdrianKrebs/ai-design-checker.
+>
+> Corroborating sources: `nexu-io/open-design` anti-ai-slop card list, Paul Bakaus's
+> *Impeccable* (impeccable.style/slop/), kiwibreaksme's catalogue, Kosta Canatselis, Jim
+> Nielsen, and Anthropic's own frontend-design skill.
+>
+> **Caveat that applies to the whole section:** every measurement in the corpus is taken on
+> *web landing pages*, not native iOS apps. Prevalence numbers transfer as a signal of what
+> models reach for, not as a claim about iOS specifically. Graded A–D below by strength of
+> evidence.
 
 ### What StreakSync gets right (genuinely not AI-generic)
 - **No indigo/violet palette**, no Inter-everywhere, no hero + 3 cards, no bento grid, no
@@ -424,9 +438,29 @@ finds the same thing.
 `ModernGameCard.swift:152-166` draws a 4pt vertical accent bar down the leading edge of every
 card, hue per game, light mode only.
 
-I could not finish confirming "left accent bar" as a *formally catalogued* AI tell — that
-specific claim stays unverified. **But the stronger objection is Apple's own, in Apple's own
-words**, and it doesn't depend on the AI-tell framing at all:
+**It is a formally catalogued AI tell — Grade A**, named independently by four sources:
+
+- **Krebs**, detector check #5, *"Accent stripe"* — "Colored stripe element on card's top or
+  left boundary."
+- **nexu-io/open-design**, listed as a P0 cardinal sin: *"Rounded card with a colored
+  left-border accent."*
+- **Paul Bakaus / Impeccable**: *"Side-tab accent border"* / *"Side-Tab Cards."*
+- **Developers Digest**, pattern #11: "Colored borders on cards, usually on the top or left
+  edge."
+
+The quote everyone recirculates is *"colored left borders are almost as reliable a sign of
+AI-generated design as em-dashes for text."* **Be skeptical of that specific line** — in Krebs's
+original it's attributed to "a designer recently told me," i.e. anonymous, n=1, and the
+top-voted HN reply is exactly that objection ("so, n=1 plus Baader-Meinhof?"). The behavioural
+observation is better attested than the slogan: another commenter, "AI definitely does seem to
+want to add coloured left borders… you have to tell it specifically not to."
+
+Worth knowing the pattern is also genuinely old — Bootstrap alerts and SB Admin 2's
+`border-left-primary` long predate LLMs. So it's fair to call it a **template** tell that models
+inherited, rather than something models invented.
+
+**The independent and stronger objection is Apple's own, in Apple's own words** — this one
+doesn't depend on the AI-tell framing at all:
 
 > *"Instead of relying on decoration, hierarchy should be expressed through layout and
 > grouping."*
@@ -460,20 +494,45 @@ Apple's guidance rules out. Supporting observations:
 - **Recommendation: drop the stripe; move game identity into the icon container's tint**, which
   is where iOS users already read it, works in both appearances, and is what grid mode does.
 
-**2. Uniform drop shadows on resting content.** See §5.1 — this is the strongest non-native
-signal in the app, and it's a card-idiom import rather than an iOS one.
+**2. Redundant border + shadow — Grade B, and a direct hit.**
+I had the wrong version of this in an earlier draft. The catalogued tell is not "uniform
+shadow"; it's **redundant** shadow — a hairline border *and* a wide soft shadow both doing the
+same separation job. Impeccable's check is literally named `gpt-thin-border-wide-shadow`
+("Hairline border with wide shadow"); it also carries "Generic drop shadows." Krebs's check #7
+is the narrower "Colored glow."
 
-**3. Icon-in-a-tinted-circle on every single row.** Visible in the screenshots: 15 identical
-grey circles down the list. This *is* an Apple pattern (Settings uses rounded squares), so it's
-not wrong — but at 0.65 opacity with grey fills for unplayed games, all 15 read as one
-undifferentiated texture. The tell isn't the container, it's that it carries no information.
+`CardModifiers.swift:27-41` does exactly the named pattern: a **1pt border** (`black.opacity(0.08)`
+light / `Color(.separator)` dark) **plus** a `radius: 10, y: 4` shadow, on every one of the 19
+`.cardStyle()` surfaces. Two mechanisms, one job.
+
+This compounds §5.1 (shadow rather than material for depth) and is the cheapest thing on this
+list to fix: drop one of the two. On iOS, keep the hairline and drop the shadow.
+
+**3. Icon-in-a-tinted-chip on every row — Grade A as a tell, but largely exculpated here.**
+Named by kiwibreaksme ("the icon-in-a-pale-chip"), Hallmark, Impeccable ("Icon tile stack"),
+and measured by Krebs at 20.1% — **but every one of those measurements is on marketing
+*feature grids*, not list-row avatars.** The iOS Settings-style tinted-icon row predates LLMs
+by ~13 years (iOS 7, 2013). As the recovered corpus puts it, the tell is *sameness of the
+container treatment across unrelated rows*, not the container itself.
+
+So the container is fine and native. The problem in StreakSync is the sameness: at 0.65 opacity
+with grey fills for unplayed games, all 15 circles read as one undifferentiated texture and
+carry no information. Fix the information, not the shape.
 
 **4. Gradient tint on grid card backgrounds** (`GameCompactCardView.swift:202-212`,
 `gameColor.opacity(0.04)` → clear). Per `anti-ai-slop-gradients`: if removing the gradient
 changes nothing about legibility or meaning, remove it. At 4% opacity it changes nothing —
 it's decoration. Confirmed visually: grid cards read as faintly, inexplicably tinted.
 
-**5. The "stat triad" — not a tell, but it has no focal point.** `StreakSummaryHero` and
+**5. The "stat triad" — Grade A as a tell, but StreakSync is on the right side of it.**
+It *is* catalogued: Krebs check #12 ("Stat banner"), kiwibreaksme ("4 identical KPI cards"),
+Impeccable ("Hero metric layout"), and Anthropic's own frontend-design skill warns against the
+"big number with small label, supporting stats, and gradient accent" hero. But the sharpest
+framing in the corpus is open-design's, and it's the one that matters: the P0 sin is
+**"Invented metrics"** — the tell is that the numbers are *fabricated filler*, not that tiles
+exist. StreakSync's numbers are real user data, which is the whole point of the app.
+
+So: not a tell here, but it still has no focal point. `StreakSummaryHero` and
 `OverviewStatsSection` use rows of equal-weight metric tiles (icon + big number + small label).
 A stats summary is entirely correct for a streak tracker — Apple's own Fitness and Health lead
 with exactly this kind of content. The problem isn't the pattern, it's that the tiles are
@@ -483,12 +542,34 @@ everything weighted equally means nothing leads. Give the hero metric colour or 
 number wins the screen — Apple's Fitness ring works because there is unambiguously one
 protagonist.
 
+### Tells the corpus names that StreakSync does NOT have
+Worth stating, because it's most of the list: no purple/indigo accent (Krebs's "Vibe purple";
+Tailwind's Adam Wathan publicly apologised for `bg-indigo-500` seeding this), no Inter-everywhere
+(15.8%), no centered hero (23.5%), no shadcn defaults (23.5%), no glassmorphism (17.1%), no
+unrequested dark mode (20.3%), no numbered `01/02/03` markers, no ✨ sparkle-as-AI-signifier, no
+emoji icons, no generic hype copy. It also avoids the *second-generation* tells (cream + serif +
+terracotta; near-black + acid accent; broadsheet hairline rules).
+
+### Two things worth checking that I didn't
+- **Over-rounded corners: Grade D — do not treat as a tell.** Krebs has no radius check at all,
+  and the HN pushback is fair (rounded rects date to the 1981 Macintosh). I'd have flagged this
+  as a tell on instinct and been wrong.
+- **Missing states** is, per the corpus, the most *substantive* tell — "AI nails the happy path;
+  what it skips is the empty state, the loading state, the error when the network drops." I
+  didn't audit StreakSync's state coverage. Given the app *does* have `EmptyStateGuidanceCard`,
+  `SkeletonLoadingView`, and `FriendsStateView`, it likely scores well, but it's unverified.
+
 ### The honest summary
-StreakSync is **not** a generic-AI-looking app. It avoids every one of the loud tells. What it
-has instead is a subtler version of the same underlying problem: **decoration that isn't
-carrying information** — an edge stripe that only works in light mode, a 4% gradient, a shadow
-on everything, and 15 identical grey circles. Each is individually defensible; together they're
-what `fnd-design-with-intent` calls the absence of a decision.
+StreakSync is **not** a generic-AI-looking app. It avoids essentially every loud tell in the
+corpus. What it has instead is a subtler version of the same underlying problem: **decoration
+that isn't carrying information** — a Grade-A accent stripe that only works in light mode, a 4%
+gradient, a border and a shadow doing one job, and 15 identical grey circles. Each is
+individually defensible; together they're what `fnd-design-with-intent` calls the absence of a
+decision.
+
+**Shelf-life warning from the corpus:** the tells have already moved once (purple/Inter →
+cream/serif). Any anti-slop checklist is good for months, not years. The durable rule is the
+Apple one in §7's opening quote — express hierarchy through layout and grouping, not decoration.
 
 ---
 

@@ -60,19 +60,17 @@ SwiftUI `TabView` docs.
 *Context: the app uses `.caption` + `.caption2` 199 times against `.body` 17 times, plus 13
 distinct hardcoded point sizes. I want Apple's own words on why that inversion is a problem.*
 
-## Ask 4 — AI-generated / non-native UI tells on iOS (lowest priority, least Apple-y)
+## Ask 4 — WITHDRAWN, already answered
 
-This is the one ask where Apple sources won't suffice; use designers writing critically about
-AI-generated or non-native iOS UI. Flag clearly that these are secondary sources.
+The AI-tells research was recovered from the killed agents' on-disk transcripts and is written
+up in §7 of `UI_SYSTEM_AUDIT.md`, sourced and graded A–D. The accent-strip question is settled:
+**Grade A tell**, named independently by Krebs's ai-design-checker (check #5 "Accent stripe"),
+nexu-io/open-design (P0), Impeccable ("Side-tab accent border"), and Developers Digest (#11) —
+with the honest caveat that the famous "as reliable as em-dashes" quote is anonymous n=1.
 
-1. Is the **coloured accent strip on a list card's leading edge** a recognised AI/template tell?
-   What is its actual provenance? *(I could not confirm this and explicitly left it unverified
-   in the audit. The recommendation to remove it currently rests on Apple's per-item-colour
-   guidance, which is solid on its own — this ask is only about whether the "AI tell" framing
-   is also true.)*
-2. What tells are specific to AI-generated **native mobile** UI, as opposed to the well-covered
-   web/SaaS landing-page tells (indigo gradients, Inter, hero + 3 cards, bento grids)?
-3. What signals a *human* designer's hand on iOS specifically?
+One genuinely open sub-question, low priority: **is there a tells corpus for native iOS/mobile
+specifically?** Everything recovered is measured on web landing pages. If a native-mobile
+equivalent exists, it would be worth having; if it doesn't, say so and we stop looking.
 
 ---
 
