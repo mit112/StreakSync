@@ -42,7 +42,9 @@ struct GameCompactCardView: View {
     }
     
     private var daysAgo: String {
-        guard let lastPlayed = streak.lastPlayedDate else { return "Never" }
+        // Match card mode's vocabulary — one string per state, not "Never" vs
+        // "Never played" across the two card types (§3 "share one string vocabulary").
+        guard let lastPlayed = streak.lastPlayedDate else { return "Never played" }
         return GameDateHelper.getGamePlayedDescription(lastPlayed)
     }
     
@@ -70,8 +72,12 @@ struct GameCompactCardView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                             Text("\(streak.currentStreak)")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.orange)
+                                // Match card mode: tabular digits + neutral number (the
+                                // capsule + flame already carry the "fire" hue), not an
+                                // orange non-monospaced count (§3, color doctrine).
+                                .font(.caption2.weight(.bold).monospacedDigit())
+                                .foregroundStyle(.primary)
+                                .contentTransition(.numericText())
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -173,7 +179,7 @@ struct GameCompactCardView: View {
                             .font(.caption2)
                             .foregroundStyle(hasPlayedToday ? .green : .secondary)
                         Text("\(completionRate)%")
-                            .font(.caption.weight(.medium))
+                            .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                     Text(daysAgo)
@@ -187,70 +193,17 @@ struct GameCompactCardView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(minHeight: 180) // Grow with Dynamic Type instead of clipping (§4.4)
-            .background {
-                enhancedCardBackground
-            }
+            // Shared card chrome — same hairline surface as card mode. The old bespoke
+            // `enhancedCardBackground` (4% gradient + resting shadow + per-game active
+            // border) was the grid's half of the two-card divergence and carried the
+            // §7 #4 gradient and §5.1 resting shadow; active state now reads from the
+            // flame capsule and the icon-container tint, not the card edge (§3, §7 #1).
+            .cardStyle()
         }
         .buttonStyle(EnhancedCardButtonStyle())
         .opacity(hasEverPlayed ? 1.0 : 0.65)
         .scaleEffect(isPressed ? 0.96 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
-    }
-    
-    // MARK: - Enhanced Card Background
-    private var enhancedCardBackground: some View {
-        ZStack {
-            // Base card background
-            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-            
-            // Subtle gradient overlay
-            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: gameColor.opacity(0.04), location: 0),
-                            .init(color: .clear, location: 0.6)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            
-            // Border with consistent styling
-            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
-                .strokeBorder(
-                    colorScheme == .dark ?
-                        Color(.separator).opacity(0.4) :
-                        Color(.separator).opacity(0.6),
-                    lineWidth: colorScheme == .dark ? 0.5 : 1
-                )
-            
-            // Active state overlay for games with current streaks
-            if isActive {
-                RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                gameColor.opacity(0.4),
-                                gameColor.opacity(0.2)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.0
-                    )
-            }
-        }
-        // Single elevation shadow — the second ambient shadow was overload (§5.4).
-        .shadow(
-            color: isActive ?
-            gameColor.opacity(0.15) :
-            (colorScheme == .dark ? .black.opacity(0.15) : .black.opacity(0.07)),
-            radius: isActive ? 8 : 6,
-            x: 0,
-            y: isActive ? 3 : 2
-        )
     }
 }
 

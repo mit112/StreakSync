@@ -54,33 +54,15 @@ struct ModernGameCard: View {
                 
                 // Content
                 VStack(alignment: .leading, spacing: 6) {
-                    // Title row
-                    HStack {
-                        Text(game.displayName)
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.primary)
-                            // 1 line normally; wrap to 2 at accessibility sizes so long
-                            // names ("Connections", "Mini Sudoku") stop truncating in the
-                            // cramped title slot. 0.85 handles the near-misses (§3, §4.4).
-                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                            .minimumScaleFactor(0.85)
-                        
-                        Spacer()
-                        
-                        // Favorite button
-                        if let onFavoriteToggle = onFavoriteToggle {
-                            Button(action: onFavoriteToggle) {
-                                Image(systemName: isFavorite ? "star.fill" : "star")
-                                    .font(.caption)
-                                    .foregroundStyle(isFavorite ? .yellow : .secondary)
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                            .buttonStyle(.plain)
-                            .minTapTarget()
-                            .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
-                        }
-                    }
-                    
+                    Text(game.displayName)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                        // 1 line normally; wrap to 2 at accessibility sizes so long
+                        // names ("Connections", "Mini Sudoku") stop truncating in the
+                        // cramped title slot. 0.85 handles the near-misses (§3, §4.4).
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                        .minimumScaleFactor(0.85)
+
                     // Single metadata line — reflows to a vertical stack (no bullets)
                     // at accessibility text sizes so it stops truncating (§4.4).
                     let metadataLayout = dynamicTypeSize.isAccessibilitySize
@@ -127,7 +109,7 @@ struct ModernGameCard: View {
                                 .font(.caption2)
                                 .foregroundStyle(hasPlayedToday ? .green : .secondary)
                             Text("\(completionRate)%")
-                                .font(.caption)
+                                .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
 
@@ -144,11 +126,25 @@ struct ModernGameCard: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.9)
-
-                        if !dynamicTypeSize.isAccessibilitySize {
-                            Spacer()
-                        }
                     }
+                }
+                // VStack fills the row so the trailing controls sit at the row's
+                // vertical center rather than being pinned to the title line.
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Favorite + chevron live in the OUTER HStack so they share the row's
+                // vertical center (audit item 8: the star sat 10pt above the chevron
+                // while it was anchored to the top title row).
+                if let onFavoriteToggle = onFavoriteToggle {
+                    Button(action: onFavoriteToggle) {
+                        Image(systemName: isFavorite ? "star.fill" : "star")
+                            .font(.caption)
+                            .foregroundStyle(isFavorite ? .yellow : .secondary)
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                    .buttonStyle(.plain)
+                    .minTapTarget()
+                    .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
                 }
 
                 // Chevron
