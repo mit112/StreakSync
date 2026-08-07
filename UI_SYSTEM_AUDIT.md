@@ -410,15 +410,37 @@ finds the same thing.
 
 ### Confirmed tells present in the app
 
-**1. The leading coloured strip on each game card — ⚠ verdict incomplete, but I'd remove it.**
+**1. The leading coloured strip on each game card — verdict: remove it.**
 `ModernGameCard.swift:152-166` draws a 4pt vertical accent bar down the leading edge of every
-card, hue per game, light mode only. What I can say without the finished research:
-- I could not confirm it as a *formally documented* AI tell — I'm not going to assert that
-  without the source. Treat that specific claim as unverified.
-- What I *can* verify: **Apple ships nothing like it.** Settings, Reminders, Health, and
-  Fitness all encode per-item identity with a **coloured icon in a rounded square**, never a
-  stripe on the row edge. A per-row edge stripe is a convention from Trello/Notion/Material
-  alert components, not from iOS.
+card, hue per game, light mode only.
+
+I could not finish confirming "left accent bar" as a *formally catalogued* AI tell — that
+specific claim stays unverified. **But the stronger objection is Apple's own, in Apple's own
+words**, and it doesn't depend on the AI-tell framing at all:
+
+> *"Instead of relying on decoration, hierarchy should be expressed through layout and
+> grouping."*
+> — WWDC25 session 356, *Get to know the new design system*
+
+> *"Use tinting to bring emphasis to primary elements and actions in the UI… when every
+> element is tinted, nothing stands out, and it can be confusing. **If you want to imbue color
+> into your app, do it in the content layer instead.**"*
+> — WWDC25 session 219, *Meet Liquid Glass*
+
+**The rule Apple's own apps follow, without exception:** exactly **one authored hue per app**,
+spent only on interactivity (App Store blue, Music red/pink, Podcasts purple). Item identity
+comes from the item's **own artwork**, or from nothing at all — type scale, whitespace, and
+grouping. A tinted glyph is used for **categories** (a fixed, small, navigational set), never
+for **items** (an unbounded, data-driven set). Where colour appears to vary per item
+(Music/Podcasts Now Playing, App Store Today), it is *extracted from* the content, never
+assigned from a palette.
+
+StreakSync assigns a hue per game — a data-driven item set — which is precisely the case
+Apple's guidance rules out. Supporting observations:
+- **Apple ships nothing shaped like it.** App Store, Music, and Podcasts rows carry a
+  rounded-square artwork thumbnail and no per-row chroma; Music and Podcasts library
+  *categories* use single-hue tinted glyphs (all red, all purple), not one hue per row.
+- It is **light-mode only**, so this identity encoding silently disappears in dark mode.
 - It is **light-mode only**, so per-game identity silently disappears in dark mode — identity
   encoding that only works in one appearance isn't identity encoding.
 - At AX5 (screenshotted) it becomes a full-height saturated bar and turns into the most
