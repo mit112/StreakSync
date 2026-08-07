@@ -202,25 +202,39 @@ extension AppState {
     }
     
     func saveGameResults() async {
+        _ = await saveGameResultsConfirmingDurability()
+    }
+
+    /// Persists results to disk and reports whether the write is durable.
+    ///
+    /// Returns `true` on a confirmed disk write (or when there is nothing to
+    /// persist — Guest/Review mode run purely in memory). Returns `false` only
+    /// when the disk write actually failed, so a caller gating an upstream
+    /// durable buffer (the App Group ingestion queue) on this can keep the result
+    /// queued for retry instead of clearing-before-persist and losing it (T1-2).
+    @discardableResult
+    func saveGameResultsConfirmingDurability() async -> Bool {
         // In Guest Mode we never persist results to disk – the guest session
         // lives only in memory and is managed by GuestSessionManager.
         if isGuestMode {
  logger.debug("Guest Mode active – skipping saveGameResults()")
-            return
+            return true
         }
-        if reviewModeEnabled { return }
+        if reviewModeEnabled { return true }
         do {
             try persistenceService.save(
                 self.recentResults,
                 forKey: UserDefaultsPersistenceService.Keys.gameResults
             )
  logger.debug("Saved \(self.recentResults.count) game results")
+            return true
         } catch {
             handleSaveError(
                 error,
                 dataType: "game results",
                 persistenceKey: UserDefaultsPersistenceService.Keys.gameResults
             )
+            return false
         }
     }
 

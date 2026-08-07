@@ -151,9 +151,12 @@ final class NotificationCoordinator: ObservableObject {
         //   1. Route through gameResultSyncService.addResult so it's persisted locally
         //      AND uploaded to Firestore immediately (falls back to appState.addGameResult
         //      for preview/test where no sync service is wired).
-        //   2. triggerUIRefresh() to update observing views.
-        //   3. If app is active + result was added + not quiet: fire streak haptic.
-        //   4. If app is backgrounded + result was added: schedule local notification
+        //   2. Await a CONFIRMED durable local write, then acknowledgeIngestedResult(id:)
+        //      to release it from the App Group queue — the queue is the durable buffer
+        //      until this point, so a crash mid-ingest can't lose the result (T1-2).
+        //   3. triggerUIRefresh() to update observing views.
+        //   4. If app is active + result was added + not quiet: fire streak haptic.
+        //   5. If app is backgrounded + result was added: schedule local notification
         //      via NotificationScheduler.scheduleResultImportedNotification.
  logger.info("Handling game result: \(result.gameName) - \(result.displayScore)")
 
@@ -168,6 +171,21 @@ final class NotificationCoordinator: ObservableObject {
                 added = self.appState?.recentResults.contains(where: { $0.id == result.id }) ?? false
             } else {
                 added = self.appState?.addGameResult(result) ?? false
+            }
+
+            // Confirm a durable local write BEFORE releasing the result from the App
+            // Group queue. addGameResult persists asynchronously; awaiting here
+            // guarantees the result is on disk (or in the durable retry queue) first.
+            // A duplicate/invalid result (added == false) is already persisted or
+            // unpersistable, so a confirmed save of current state is still a safe ack.
+            if let appState = self.appState {
+                await appState.saveStreaks()
+                if await appState.saveGameResultsConfirmingDurability() {
+                    self.appGroupBridge?.acknowledgeIngestedResult(id: result.id)
+                }
+            } else {
+                // Preview/test: nothing to persist — ack so the queue can't lock up.
+                self.appGroupBridge?.acknowledgeIngestedResult(id: result.id)
             }
 
             // Trigger UI refresh
