@@ -18,6 +18,10 @@ struct ModernGameCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var isPressed = false
 
+    // Icon sizes scale with adjacent text under Dynamic Type (§6 Stage 1).
+    @ScaledMetric(relativeTo: .body) private var iconContainerSize = IconSize.xl
+    @ScaledMetric(relativeTo: .body) private var iconGlyphSize = IconSize.sm
+
     // Computed properties
     private var gameColor: Color {
         game.backgroundColor.color
@@ -55,7 +59,11 @@ struct ModernGameCard: View {
                         Text(game.displayName)
                             .font(.body.weight(.medium))
                             .foregroundStyle(.primary)
-                            .lineLimit(1)
+                            // 1 line normally; wrap to 2 at accessibility sizes so long
+                            // names ("Connections", "Mini Sudoku") stop truncating in the
+                            // cramped title slot. 0.85 handles the near-misses (§3, §4.4).
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                            .minimumScaleFactor(0.85)
                         
                         Spacer()
                         
@@ -149,21 +157,10 @@ struct ModernGameCard: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(12)
-            .overlay(alignment: .leading) {
-                // Keep the card body neutral; use a single, controlled accent that
-                // does NOT cover the card outline drawn by `cardStyle()`.
-                if colorScheme != .dark {
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(gameColor.opacity(0.7))
-                        .frame(width: 4)
-                        .padding(.vertical, 10)
-                        .padding(.leading, 2)
-                        .mask {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        }
-                        .accessibilityHidden(true)
-                }
-            }
+            // Game identity is carried by the icon container's tint (below), matching
+            // grid mode and iOS convention. The per-card leading accent strip was a
+            // catalogued AI tell and a decoration-for-hierarchy substitute Apple advises
+            // against (WWDC25 356/219; UI audit §7 finding #1) — removed.
             .cardStyle()
         }
         .buttonStyle(ModernCardButtonStyle())
@@ -178,10 +175,10 @@ struct ModernGameCard: View {
                     ? gameColor.opacity(colorScheme == .dark ? 0.2 : 0.18)
                     : Color(.quaternarySystemFill)
                 )
-                .frame(width: 48, height: 48)
-            
+                .frame(width: iconContainerSize, height: iconContainerSize)
+
             Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
-                .font(.system(size: 20, weight: .medium))
+                .font(.system(size: iconGlyphSize, weight: .medium))
                 .foregroundStyle(hasEverPlayed ? gameColor : .secondary)
                 .symbolRenderingMode(.hierarchical)
         }

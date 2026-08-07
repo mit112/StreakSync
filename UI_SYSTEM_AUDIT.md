@@ -283,22 +283,31 @@ route through tokens. Mechanical, low-risk, high-consistency-payoff.
 
 Measured against HIG specifically, three things stand out beyond the spacing/type findings.
 
-### 5.1 Depth is done with shadows, which is not the iOS idiom
+### 5.1 Depth is done with shadows, which is not the iOS idiom — RESOLVED, actionable
 
-> **Sourcing note.** This section is HIG-*derived*, not HIG-*verbatim*. Apple's HIG pages are
-> JavaScript-rendered and could not be fetched this session (no public JSON API; web-search
-> budget exhausted). The guidance below comes from the design KB's `ios-native-materials` card,
-> which cites HIG Materials, plus the WWDC25 quotes in §7. **Confirm the verbatim wording before
-> treating 5.1 as settled** — the measured counts underneath it are solid either way.
-
-HIG (Materials) guides depth on iOS toward **system materials** — blur plus vibrancy that pulls
-background colour forward and adapts across light, dark, and tinted appearances. The named
-anti-pattern is faking depth with a flat translucent fill or shadow behind a card, because that
-*blocks* the background instead of blurring it and doesn't adapt.
-
-Apple's WWDC25 framing points the same way and *is* verbatim (§7): *"Instead of relying on
-decoration, hierarchy should be expressed through layout and grouping."* A shadow on resting
-content is decoration standing in for grouping.
+> **Sourcing note — resolved 2026-08-07 (GPT deep-research pass, Apple-only sources).**
+> The earlier HIG-*derived* caveat is closed. Apple's own words, verbatim, with URLs:
+>
+> - *"Use standard materials and effects — such as blur, vibrancy, and blending modes — to
+>   convey a sense of structure in the content beneath Liquid Glass."*
+>   — HIG → Materials, `https://developer.apple.com/design/human-interface-guidelines/materials`
+> - *"Instead of relying on decoration, hierarchy should be expressed through layout and
+>   grouping."* — WWDC25 session 356, `https://developer.apple.com/videos/play/wwdc2025/356/`
+> - *"Elements can even lift up into Liquid Glass temporarily … This lets the resting state stay
+>   visually quiet."* — WWDC25 session 219, `https://developer.apple.com/videos/play/wwdc2025/219/`
+>
+> **The honest finding.** Apple is *silent* on a blanket prohibition of drop shadows on resting
+> iOS cards, and *silent* on any fixed numerical shadow spec — so this is **not** "Apple forbids
+> card shadows." But Apple is *not* silent on the governing principles: hierarchy comes from
+> layout/grouping (not decoration), standard materials carry content-layer separation, and
+> elevation is reserved for *temporary/adaptive* state (touch, focus, scrolling-under-glass), not
+> a persistent resting treatment. A universal `y:4, radius:10` shadow on every card is therefore
+> **not an Apple-endorsed iOS pattern**. The recommendation stands, worded as: *remove the shared
+> resting shadow from the card primitive; retain shadows only where they mark a real state or
+> spatial relationship.* Independently, §7.2's redundancy argument (a hairline border **and** a
+> wide shadow doing one separation job) makes the shadow removable on its own terms, no
+> AI-tell/HIG framing required. **Applied 2026-08-07** — `CardModifiers.swift` now draws the
+> hairline border only.
 
 StreakSync's census:
 
@@ -401,6 +410,51 @@ of the list.
 
 Stage 4's lint rule is what stops this from re-accumulating — without it, the next audit
 finds the same thing.
+
+### Implementation status — 2026-08-07
+
+**Stage 1 (done).** `Design System/Typography.swift` added — 6-role semantic scale
+(display/title/heading/body/label/caption), each pinning text style + weight + color via
+`.typography(_:)`. `Spacing` extended with `xxxl = 32` and `huge = 40`. `IconSize` token enum
+(20/24/32/48/56) added, meant to be paired with `@ScaledMetric` at call sites. Broad adoption of
+these tokens is the Stage 4 mechanical sweep; created now so the system exists to adopt.
+
+**Stage 2 (done + device-verified at AX5, iPhone 17 Pro).**
+- Deleted the double `.padding(.horizontal, 16)` at `DashboardGamesContent.swift`. Re-measured
+  live: grid margins now **16/16**, gutter 12, card width **179** (`(370−12)/2`; the earlier
+  "175" estimate assumed a slightly different content width — 16pt margins is the point, and it's
+  confirmed). Was 32/32 with 163pt cards.
+- Grid columns switched to `.adaptive(minimum:)` with a `@ScaledMetric` 160 min → **collapses to
+  1 column at AX5** (measured: single card at x=16, w=370), was locked 2-up.
+- `ModernGameCard` game name: `.minimumScaleFactor(0.85)` **plus** `lineLimit → 2 at
+  accessibility sizes`. 0.85 alone did **not** clear truncation in the cramped title slot (still
+  showed "Mi…"); the 2-line wrap does (verified: "Nerdle" now wraps rather than truncating).
+- `GameCompactCardView` favorite button now has `.minTapTarget()` + accessibility label
+  (measured 55×52 with a "Add to favorites" label at AX5).
+- Icon containers/glyphs in both cards wrapped in `@ScaledMetric` (IconSize tokens).
+- `CardModifiers.cardStyle()` resting shadow removed (see §5.1 / §7.2); hairline kept.
+- Accent strip removed from `ModernGameCard` (settled decision / §7 #1); identity stays in the
+  icon-container tint.
+
+**Ask 2 — floating tab-bar clearance: no fix needed (empirically resolved 2026-08-07).**
+GPT's research pass did not reach this ask (it punted it to "next research"). Measured directly
+instead: with the games list scrolled to the bottom at AX5, the last card's bottom edge is
+**y=771** against a **874**-tall window and a tab bar at **y=798** — the last row clears the
+floating bar with ~27pt to spare, and 771 is the scroll limit. **The native iOS 26 automatic
+scroll-content inset is working**; there is no missing safe-area/`contentMargins` fix. The audit's
+"Your Games header behind the tab bar" symptom is the **onboarding card filling the viewport at
+rest** (§3 point 1 / stage-2 item 9), not a clearance bug — adding bottom padding on top of a
+working auto-inset would only create a dead gap, so none was added. Item 9's onboarding-height
+gate remains open and is the correct fix for that at-rest symptom.
+
+**Ask 3 — typography guidance: GPT did not answer** (the research pass stopped after Ask 1). The
+Stage-1 typography token file was built from Apple's shipping semantic text-style ramp regardless;
+it does not depend on new Apple quotes. If a later pass returns Apple wording on `.body`-as-baseline
+or a small-text floor, fold it in here to strengthen §2.
+
+Not yet done: Stage 3 (collapse the two card implementations onto one chrome) and Stage 4
+(mechanical token sweep + SwiftLint guard). Grid mode's 4% background gradient (§7 #4) is left for
+the Stage 3 chrome collapse rather than patched in isolation.
 
 ---
 

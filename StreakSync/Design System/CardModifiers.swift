@@ -36,10 +36,11 @@ struct CardBackgroundModifier: ViewModifier {
 
                 let borderWidth: CGFloat = (colorScheme == .dark ? 0.5 : 1)
 
-                let shadowColor: Color = .black.opacity(colorScheme == .dark ? 0.2 : 0.10)
-                let shadowRadius: CGFloat = (colorScheme == .dark ? 8 : 10)
-                let shadowYOffset: CGFloat = (colorScheme == .dark ? 4 : 4)
-
+                // Separation is carried by the hairline border alone. A resting drop
+                // shadow was redundant with the border (Impeccable `gpt-thin-border-wide-shadow`)
+                // and, per Apple, hierarchy on iOS should come from layout/grouping/materials
+                // rather than persistent decorative elevation — elevation is reserved for
+                // temporary/adaptive state (WWDC25 356 & 219; UI audit §5.1, §7.2).
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(surfaceColor)
                     .overlay {
@@ -49,12 +50,6 @@ struct CardBackgroundModifier: ViewModifier {
                                 lineWidth: borderWidth
                             )
                     }
-                    .shadow(
-                        color: shadowColor,
-                        radius: shadowRadius,
-                        x: 0,
-                        y: shadowYOffset
-                    )
             }
     }
 }

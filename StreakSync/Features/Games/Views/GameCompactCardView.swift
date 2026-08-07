@@ -15,6 +15,10 @@ struct GameCompactCardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isPressed = false
     @State private var isHovered = false
+
+    // Icon sizes scale with adjacent text under Dynamic Type (§6 Stage 1).
+    @ScaledMetric(relativeTo: .body) private var iconContainerSize = IconSize.xxl
+    @ScaledMetric(relativeTo: .body) private var iconGlyphSize: CGFloat = 26
     
     private var game: Game? {
         appState.games.first { $0.id == streak.gameId }
@@ -92,6 +96,8 @@ struct GameCompactCardView: View {
                                 .contentTransition(.symbolEffect(.replace))
                         }
                         .buttonStyle(.plain)
+                        .minTapTarget()
+                        .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
                     }
                 }
                 .padding(.horizontal, 16) // Reduced horizontal padding to prevent overlap
@@ -120,8 +126,8 @@ struct GameCompactCardView: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
-                            .frame(width: 56, height: 56)
-                        
+                            .frame(width: iconContainerSize, height: iconContainerSize)
+
                         // Inner glow for active games
                         if isActive {
                             Circle()
@@ -136,11 +142,11 @@ struct GameCompactCardView: View {
                                     ),
                                     lineWidth: 1.5
                                 )
-                                .frame(width: 56, height: 56)
+                                .frame(width: iconContainerSize, height: iconContainerSize)
                         }
-                        
+
                         Image.safeSystemName(safeIconName, fallback: "gamecontroller")
-                            .font(.system(size: 26, weight: .medium))
+                            .font(.system(size: iconGlyphSize, weight: .medium))
                             .foregroundStyle(hasEverPlayed ? gameColor : .secondary)
                             .symbolRenderingMode(.hierarchical)
                     }
