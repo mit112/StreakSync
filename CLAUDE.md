@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - When writing or modifying SwiftUI views, consult the swiftui-pro skill references before generating code
 - **ALWAYS use XcodeBuildMCP tools** (`build_sim`, `test_sim`, `build_run_sim`) instead of raw `xcodebuild` bash commands for builds and tests. Set session defaults at the start of each session:
   ```
-  mcp__XcodeBuildMCP__session_set_defaults(scheme: "StreakSync", simulatorName: "iPhone 17 Pro Max", projectPath: "StreakSync.xcodeproj")
+  mcp__XcodeBuildMCP__session_set_defaults(scheme: "StreakSync", simulatorName: "iPhone 17 Pro", projectPath: "StreakSync.xcodeproj")
   ```
 
 ## Build & Test Commands
@@ -32,27 +32,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (no code signing needed for simulator)
 xcodebuild build \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=39E4040B-9C07-4BAE-9D41-C077B2A2AB0E' \
+  -destination 'platform=iOS Simulator,id=B9ED6D5C-FD9C-46EC-91CB-57231001B40A' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO -quiet \
   2>&1 | xcsift -w
 
 # Run all tests (unit + UI)
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=39E4040B-9C07-4BAE-9D41-C077B2A2AB0E' \
+  -destination 'platform=iOS Simulator,id=B9ED6D5C-FD9C-46EC-91CB-57231001B40A' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
 
 # Run a single test class
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=39E4040B-9C07-4BAE-9D41-C077B2A2AB0E' \
+  -destination 'platform=iOS Simulator,id=B9ED6D5C-FD9C-46EC-91CB-57231001B40A' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests
 
 # Run a single test method
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=39E4040B-9C07-4BAE-9D41-C077B2A2AB0E' \
+  -destination 'platform=iOS Simulator,id=B9ED6D5C-FD9C-46EC-91CB-57231001B40A' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests/testStreakContinuation
 
@@ -154,16 +154,17 @@ Rules in `firestore.rules` with a 62-case pen test suite in `firestore-rules-tes
 
 **Always reference simulators by UDID, not by name.**
 
-- iPhone 17 Pro: `39E4040B-9C07-4BAE-9D41-C077B2A2AB0E` (iOS 27.0 — preferred; only simulator currently installed, no Pro Max)
+- iPhone 17 Pro: `B9ED6D5C-FD9C-46EC-91CB-57231001B40A` (iOS 27.0 — preferred)
+- iPhone 17 Pro Max: `D07565DD-15EC-4F0C-8DBA-9D8B8F149768` (iOS 27.0)
 
 > **UDID drift:** These UDIDs change whenever Xcode is reinstalled or simulators are re-created. If `xcodebuild` rejects the destination with "device not found", run `xcrun simctl list devices available | grep "iPhone 17 Pro"` and update this file.
 
 Preferred destination string:
-`platform=iOS Simulator,id=39E4040B-9C07-4BAE-9D41-C077B2A2AB0E`
+`platform=iOS Simulator,id=B9ED6D5C-FD9C-46EC-91CB-57231001B40A`
 
 **Always launch apps with:**
 ```bash
-xcrun simctl launch --terminate-running-process --console-pty 39E4040B-9C07-4BAE-9D41-C077B2A2AB0E com.mitsheth.StreakSync
+xcrun simctl launch --terminate-running-process --console-pty B9ED6D5C-FD9C-46EC-91CB-57231001B40A com.mitsheth.StreakSync
 ```
 `--terminate-running-process` is mandatory — without it, launch silently does nothing if the app is already running.
 

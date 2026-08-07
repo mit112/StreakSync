@@ -18,6 +18,10 @@ struct ModernGameCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var isPressed = false
 
+    // Icon sizes scale with adjacent text under Dynamic Type (§6 Stage 1).
+    @ScaledMetric(relativeTo: .body) private var iconContainerSize = IconSize.xl
+    @ScaledMetric(relativeTo: .body) private var iconGlyphSize = IconSize.sm
+
     // Computed properties
     private var gameColor: Color {
         game.backgroundColor.color
@@ -50,29 +54,15 @@ struct ModernGameCard: View {
                 
                 // Content
                 VStack(alignment: .leading, spacing: 6) {
-                    // Title row
-                    HStack {
-                        Text(game.displayName)
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        
-                        Spacer()
-                        
-                        // Favorite button
-                        if let onFavoriteToggle = onFavoriteToggle {
-                            Button(action: onFavoriteToggle) {
-                                Image(systemName: isFavorite ? "star.fill" : "star")
-                                    .font(.caption)
-                                    .foregroundStyle(isFavorite ? .yellow : .secondary)
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                            .buttonStyle(.plain)
-                            .minTapTarget()
-                            .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
-                        }
-                    }
-                    
+                    Text(game.displayName)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                        // 1 line normally; wrap to 2 at accessibility sizes so long
+                        // names ("Connections", "Mini Sudoku") stop truncating in the
+                        // cramped title slot. 0.85 handles the near-misses (§3, §4.4).
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                        .minimumScaleFactor(0.85)
+
                     // Single metadata line — reflows to a vertical stack (no bullets)
                     // at accessibility text sizes so it stops truncating (§4.4).
                     let metadataLayout = dynamicTypeSize.isAccessibilitySize
@@ -119,7 +109,7 @@ struct ModernGameCard: View {
                                 .font(.caption2)
                                 .foregroundStyle(hasPlayedToday ? .green : .secondary)
                             Text("\(completionRate)%")
-                                .font(.caption)
+                                .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
 
@@ -136,11 +126,25 @@ struct ModernGameCard: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.9)
-
-                        if !dynamicTypeSize.isAccessibilitySize {
-                            Spacer()
-                        }
                     }
+                }
+                // VStack fills the row so the trailing controls sit at the row's
+                // vertical center rather than being pinned to the title line.
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Favorite + chevron live in the OUTER HStack so they share the row's
+                // vertical center (audit item 8: the star sat 10pt above the chevron
+                // while it was anchored to the top title row).
+                if let onFavoriteToggle = onFavoriteToggle {
+                    Button(action: onFavoriteToggle) {
+                        Image(systemName: isFavorite ? "star.fill" : "star")
+                            .font(.caption)
+                            .foregroundStyle(isFavorite ? .yellow : .secondary)
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                    .buttonStyle(.plain)
+                    .minTapTarget()
+                    .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
                 }
 
                 // Chevron
@@ -149,21 +153,10 @@ struct ModernGameCard: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(12)
-            .overlay(alignment: .leading) {
-                // Keep the card body neutral; use a single, controlled accent that
-                // does NOT cover the card outline drawn by `cardStyle()`.
-                if colorScheme != .dark {
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(gameColor.opacity(0.7))
-                        .frame(width: 4)
-                        .padding(.vertical, 10)
-                        .padding(.leading, 2)
-                        .mask {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        }
-                        .accessibilityHidden(true)
-                }
-            }
+            // Game identity is carried by the icon container's tint (below), matching
+            // grid mode and iOS convention. The per-card leading accent strip was a
+            // catalogued AI tell and a decoration-for-hierarchy substitute Apple advises
+            // against (WWDC25 356/219; UI audit §7 finding #1) — removed.
             .cardStyle()
         }
         .buttonStyle(ModernCardButtonStyle())
@@ -178,10 +171,10 @@ struct ModernGameCard: View {
                     ? gameColor.opacity(colorScheme == .dark ? 0.2 : 0.18)
                     : Color(.quaternarySystemFill)
                 )
-                .frame(width: 48, height: 48)
-            
+                .frame(width: iconContainerSize, height: iconContainerSize)
+
             Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
-                .font(.system(size: 20, weight: .medium))
+                .font(.system(size: iconGlyphSize, weight: .medium))
                 .foregroundStyle(hasEverPlayed ? gameColor : .secondary)
                 .symbolRenderingMode(.hierarchical)
         }

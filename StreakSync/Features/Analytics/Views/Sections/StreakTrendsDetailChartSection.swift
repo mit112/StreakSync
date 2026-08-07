@@ -108,7 +108,7 @@ struct StreakTrendsDetailChartSection: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(point.date, format: .dateTime.month().day().year())
-                        .font(.subheadline)
+                        .font(.subheadline.monospacedDigit())
                         .fontWeight(.semibold)
                     Text(point.date, format: .dateTime.weekday(.wide))
                         .font(.caption2)
@@ -142,7 +142,7 @@ struct StreakTrendsDetailChartSection: View {
     private func statPill(value: String, label: String, color: Color) -> some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.title3)
+                .font(.title3.monospacedDigit())
                 .fontWeight(.bold)
                 .foregroundStyle(color)
             Text(label)
@@ -250,7 +250,7 @@ struct StreakTrendsDetailChartSection: View {
                     .foregroundStyle(.green)
             } else {
                 Text("\(completed)/\(total)")
-                    .font(.caption2)
+                    .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
         }

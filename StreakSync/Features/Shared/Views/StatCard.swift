@@ -100,7 +100,7 @@ struct StatCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(value)
                         // Text style (not fixed size) so the stat value scales with Dynamic Type.
-                        .font(.system(.title3, design: .rounded).weight(.bold))
+                        .font(.system(.title3, design: .rounded).weight(.bold).monospacedDigit())
                         .foregroundStyle(.primary)
                         .contentTransition(.numericText())
                     
@@ -110,7 +110,7 @@ struct StatCard: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.card)
                     .fill(Color(.secondarySystemGroupedBackground))

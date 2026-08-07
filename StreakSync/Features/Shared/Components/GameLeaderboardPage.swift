@@ -111,7 +111,7 @@ struct GameLeaderboardPage: View {
                         metric: metricText(entry.points),
                         streak: entry.row.perGameStreak[game.id]
                     )
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 12)
                     .padding(.horizontal, 4)
                     // Open rows for everyone else; a rounded tinted surface is reserved for
                     // the current user, so the zebra striping no longer competes with it.
@@ -218,7 +218,7 @@ private struct LeaderboardEntryRow: View {
     private var identity: some View {
         HStack(spacing: rowSpacing) {
             Text("\(rank)")
-                .font(.title3.weight(.semibold))
+                .font(.title3.weight(.semibold).monospacedDigit())
                 .foregroundStyle(rank == 1 ? .primary : .secondary)
                 .frame(width: rankWidth, alignment: .trailing)
             GradientAvatar(initials: String(displayName.prefix(1)), size: avatarSize)
@@ -243,13 +243,13 @@ private struct LeaderboardEntryRow: View {
     private var metrics: some View {
         HStack(spacing: rowSpacing) {
             Text(metric)
-                .font(.headline)
+                .font(.headline.monospacedDigit())
             if let streak, streak >= 2 {
                 HStack(spacing: 2) {
                     Image(systemName: "flame.fill")
                         .font(.caption2)
                     Text("\(streak)")
-                        .font(.caption2.weight(.semibold))
+                        .font(.caption2.weight(.semibold).monospacedDigit())
                 }
                 .foregroundStyle(.orange)
                 .padding(.horizontal, 6)
