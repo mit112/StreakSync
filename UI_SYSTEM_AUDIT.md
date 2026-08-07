@@ -452,9 +452,29 @@ Stage-1 typography token file was built from Apple's shipping semantic text-styl
 it does not depend on new Apple quotes. If a later pass returns Apple wording on `.body`-as-baseline
 or a small-text floor, fold it in here to strengthen §2.
 
-Not yet done: Stage 3 (collapse the two card implementations onto one chrome) and Stage 4
-(mechanical token sweep + SwiftLint guard). Grid mode's 4% background gradient (§7 #4) is left for
-the Stage 3 chrome collapse rather than patched in isolation.
+**Stage 3 (done + device-verified 2026-08-07).** The grid card (`GameCompactCardView`) dropped its
+bespoke `enhancedCardBackground` (4% gradient §7 #4 + resting shadow §5.1 + per-game active border)
+for the shared `.cardStyle()` hairline; active state now reads from the flame capsule and the icon
+tint. Streak/completion numerics and the "Never played" string were unified with card mode. Item 8
+(favorite star vs chevron 10pt apart) fixed by moving the favorite button into the outer HStack so
+both trailing controls share the row's vertical center. `EmptyStateGuidanceCard` also routed onto
+`.cardStyle()`. Two card *layouts* stay distinct (a horizontal row and a vertical tile legitimately
+differ) — the shared *chrome* was the maintenance bomb, and that's now shared.
+
+**Stage 4 — partially done, remainder scoped down by decision (2026-08-07).**
+- **Item 13 (tabular figures): done.** `.monospacedDigit()` applied across analytics stat cards,
+  leaderboard (rank/score/streak), dashboard/mini-streak counts, achievement progress, data-summary
+  counts, and streak-history stats/day cells (~25 numeric `Text`, additive only).
+- **Off-ramp rhythm pass: done.** Reviewed all ~90 off-ramp spacing occurrences; snapped 9 genuine
+  layout/content drift sites onto the 4pt ramp (SignInBanner, ShareDiscoverySheet, GameCompactCardView
+  footer symmetry, StatCard, leaderboard row). Kept the deliberate ones: value/label micro-pairings
+  (2/3), the consistent 10/6 Analytics chip family, capsule/badge pill insets, and the ShareSheetMockup
+  mimicry. Most off-ramp values turned out to be intentional micro-spacing, not drift.
+- **NOT done, by decision:** the blanket literal→token sweep (on-ramp tokenization is visually inert
+  churn) and the **SwiftLint guard**. The guard is blocked two ways: the repo sits at **393 warnings
+  against `warning_threshold: 400`** (a rule firing ≥7× breaks CI), and a `.font(.system(size:))` ban
+  would flag ~27 sites that are mostly *legitimate* decorative SF Symbol glyph sizes. Enabling a real
+  guard first needs a dedicated warning-debt-reduction pass; deferred as a documented follow-up.
 
 ---
 
