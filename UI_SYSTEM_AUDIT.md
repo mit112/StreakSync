@@ -285,10 +285,20 @@ Measured against HIG specifically, three things stand out beyond the spacing/typ
 
 ### 5.1 Depth is done with shadows, which is not the iOS idiom
 
-HIG (Materials) is explicit that depth on iOS comes from **system materials** — blur plus
-vibrancy that pulls background colour forward and adapts across light, dark, and tinted
-appearances. Its named anti-pattern is faking depth with a flat translucent fill or shadow
-behind a card, because that *blocks* the background instead of blurring it and doesn't adapt.
+> **Sourcing note.** This section is HIG-*derived*, not HIG-*verbatim*. Apple's HIG pages are
+> JavaScript-rendered and could not be fetched this session (no public JSON API; web-search
+> budget exhausted). The guidance below comes from the design KB's `ios-native-materials` card,
+> which cites HIG Materials, plus the WWDC25 quotes in §7. **Confirm the verbatim wording before
+> treating 5.1 as settled** — the measured counts underneath it are solid either way.
+
+HIG (Materials) guides depth on iOS toward **system materials** — blur plus vibrancy that pulls
+background colour forward and adapts across light, dark, and tinted appearances. The named
+anti-pattern is faking depth with a flat translucent fill or shadow behind a card, because that
+*blocks* the background instead of blurring it and doesn't adapt.
+
+Apple's WWDC25 framing points the same way and *is* verbatim (§7): *"Instead of relying on
+decoration, hierarchy should be expressed through layout and grouping."* A shadow on resting
+content is decoration standing in for grouping.
 
 StreakSync's census:
 
@@ -463,9 +473,15 @@ undifferentiated texture. The tell isn't the container, it's that it carries no 
 changes nothing about legibility or meaning, remove it. At 4% opacity it changes nothing —
 it's decoration. Confirmed visually: grid cards read as faintly, inexplicably tinted.
 
-**5. ⚠ The "stat triad"** — not yet assessed. `StreakSummaryHero` / `OverviewStatsSection` use
-equal-weight metric tiles; whether that's a tell or just correct for this content needs the
-finished pass.
+**5. The "stat triad" — not a tell, but it has no focal point.** `StreakSummaryHero` and
+`OverviewStatsSection` use rows of equal-weight metric tiles (icon + big number + small label).
+A stats summary is entirely correct for a streak tracker — Apple's own Fitness and Health lead
+with exactly this kind of content. The problem isn't the pattern, it's that the tiles are
+*equal*: `StreakSummaryMetricView.swift:21` separates the primary from the secondary metric by
+size alone (`.title.bold()` vs `.title2.bold()`, both `.primary`). Per `vis-layout-balance`,
+everything weighted equally means nothing leads. Give the hero metric colour or scale so one
+number wins the screen — Apple's Fitness ring works because there is unambiguously one
+protagonist.
 
 ### The honest summary
 StreakSync is **not** a generic-AI-looking app. It avoids every one of the loud tells. What it
