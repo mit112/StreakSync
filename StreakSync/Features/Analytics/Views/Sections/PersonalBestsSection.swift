@@ -66,7 +66,7 @@ struct PersonalBestCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(personalBest.value)")
-                    .font(.title2)
+                    .font(.title2.monospacedDigit())
                     .fontWeight(.bold)
 
                 Text(personalBest.type.displayName)

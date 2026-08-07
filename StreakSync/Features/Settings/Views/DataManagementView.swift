@@ -184,7 +184,7 @@ private extension DataManagementView {
                 }
             }()
             Text(statusText)
-                .font(.caption)
+                .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
             HStack(spacing: 12) {
                 Button {
@@ -222,7 +222,7 @@ private extension DataManagementView {
                         .scaleEffect(0.8)
                 case .synced(let date):
                     Text(date.formatted(.relative(presentation: .named)))
-                        .font(.caption)
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 case .offline:
                     Text("Offline")
@@ -293,6 +293,7 @@ private extension DataManagementView {
                 Label("Total Games", systemImage: "gamecontroller")
                 Spacer()
                 Text("\(appState.games.count)")
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
 
@@ -300,6 +301,7 @@ private extension DataManagementView {
                 Label("Game Results", systemImage: "list.bullet")
                 Spacer()
                 Text("\(appState.recentResults.count)")
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
 
@@ -308,6 +310,7 @@ private extension DataManagementView {
                 Spacer()
                 let unlockedTieredCount = appState.tieredAchievements.filter { $0.isUnlocked }.count
                 Text("\(unlockedTieredCount)")
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
         } header: {
