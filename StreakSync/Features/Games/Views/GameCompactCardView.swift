@@ -111,7 +111,7 @@ struct GameCompactCardView: View {
                 .padding(.bottom, 12) // Reduced bottom padding
                 
                 // Main content - centered with proper spacing
-                VStack(spacing: 10) {
+                VStack(spacing: 12) {
                     // Game icon with enhanced styling
                     ZStack {
                         // Background circle with gradient
@@ -189,7 +189,7 @@ struct GameCompactCardView: View {
                         .minimumScaleFactor(0.9)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, 14)
+                .padding(.bottom, 16)
             }
             .frame(maxWidth: .infinity)
             .frame(minHeight: 180) // Grow with Dynamic Type instead of clipping (§4.4)

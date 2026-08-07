@@ -110,7 +110,7 @@ struct StatCard: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.card)
                     .fill(Color(.secondarySystemGroupedBackground))

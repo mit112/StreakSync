@@ -111,7 +111,7 @@ struct GameLeaderboardPage: View {
                         metric: metricText(entry.points),
                         streak: entry.row.perGameStreak[game.id]
                     )
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 12)
                     .padding(.horizontal, 4)
                     // Open rows for everyone else; a rounded tinted surface is reserved for
                     // the current user, so the zebra striping no longer competes with it.
