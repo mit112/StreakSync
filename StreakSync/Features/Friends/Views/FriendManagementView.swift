@@ -24,7 +24,6 @@ struct FriendManagementView: View {
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
     @State private var successMessage: String?
-    @State private var copiedCode: Bool = false
     @State private var pendingScoreCount: Int = 0
     @State private var friendToRemove: UserProfile?
     @Environment(\.dismiss) private var dismiss
@@ -82,16 +81,21 @@ private extension FriendManagementView {
                             .font(.title2.monospaced().weight(.bold))
                     }
                     Spacer()
-                    Button {
-                        UIPasteboard.general.string = code
-                        copiedCode = true
-                        Task { try? await Task.sleep(nanoseconds: 2_000_000_000); copiedCode = false }
-                    } label: {
-                        Label(copiedCode ? "Copied!" : "Copy", systemImage: copiedCode ? "checkmark" : "doc.on.doc")
-                            .font(.subheadline)
+                    if let inviteURL = inviteURL(for: code) {
+                        // A ShareLink beats copy-to-clipboard for cold-start: it emits the
+                        // streaksync://join?code=… deep link (handled by
+                        // AppGroupURLSchemeHandler) and the share sheet still offers Copy.
+                        ShareLink(
+                            item: inviteURL,
+                            subject: Text("Add me on StreakSync"),
+                            message: Text("My StreakSync friend code is \(code). Tap to add me — or get StreakSync free on the App Store and enter the code under Add a Friend.")
+                        ) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                                .font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.blue)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(copiedCode ? .green : .blue)
                 }
             } else {
                 Button("Generate Friend Code") {
@@ -252,6 +256,17 @@ private extension FriendManagementView {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Builds the `streaksync://join?code=…` invite deep link consumed by
+    /// `AppGroupURLSchemeHandler.handleJoinDeepLink`. Returns nil if the code can't be
+    /// URL-encoded (never expected for the alphanumeric friend codes we generate).
+    func inviteURL(for code: String) -> URL? {
+        var components = URLComponents()
+        components.scheme = "streaksync"
+        components.host = "join"
+        components.queryItems = [URLQueryItem(name: "code", value: code)]
+        return components.url
     }
 
     func addFriendByCode() async {
