@@ -172,94 +172,142 @@ final class SyncMergeTests: XCTestCase {
         XCTAssertEqual(merged[0].progress.currentTier, .gold)
     }
     
-    // MARK: - GameResult lastModified Comparison
-    
+    // MARK: - GameResult Merge (real GameResultSyncMerge code)
+
+    /// Builds a GameResult with controllable id / puzzle date / lastModified / score.
+    private func makeResult(
+        id: UUID = UUID(),
+        daysAgo: Int = 1,
+        score: Int = 3,
+        lastModified: Date? = nil
+    ) -> GameResult {
+        let puzzleDate = date(daysAgo: daysAgo)
+        return GameResult(
+            id: id, gameId: UUID(), gameName: "wordle",
+            date: puzzleDate, score: score, maxAttempts: 6,
+            completed: true, sharedText: "Wordle 100 \(score)/6",
+            lastModified: lastModified ?? puzzleDate
+        )
+    }
+
     func testNewerLocalResultPreservedInMerge() {
         let id = UUID()
-        let olderDate = date(daysAgo: 2)
-        let newerDate = date(daysAgo: 0)
-        
-        let local = GameResult(
-            id: id, gameId: UUID(), gameName: "wordle",
-            date: date(daysAgo: 1), score: 3, maxAttempts: 6,
-            completed: true, sharedText: "Wordle 100 3/6",
-            lastModified: newerDate
-        )
-        
-        let remote = GameResult(
-            id: id, gameId: UUID(), gameName: "wordle",
-            date: date(daysAgo: 1), score: 4, maxAttempts: 6,
-            completed: true, sharedText: "Wordle 100 4/6",
-            lastModified: olderDate
-        )
-        
-        // Simulate the merge logic from syncIfNeeded
-        var merged = [local]
-        if remote.lastModified >= local.lastModified {
-            merged[0] = remote
-        }
-        
-        // Local should win because it's newer
+        let local = makeResult(id: id, score: 3, lastModified: date(daysAgo: 0))
+        let remote = makeResult(id: id, score: 4, lastModified: date(daysAgo: 2))
+
+        let merged = GameResultSyncMerge.mergeResults(local: [local], remote: [remote])
+
+        // Local wins because it's newer (strict `>`)
+        XCTAssertEqual(merged.count, 1)
         XCTAssertEqual(merged[0].score, 3)
     }
-    
+
     func testNewerRemoteResultWinsInMerge() {
         let id = UUID()
-        let olderDate = date(daysAgo: 2)
-        let newerDate = date(daysAgo: 0)
+        let local = makeResult(id: id, score: 3, lastModified: date(daysAgo: 2))
+        let remote = makeResult(id: id, score: 4, lastModified: date(daysAgo: 0))
 
-        let local = GameResult(
-            id: id, gameId: UUID(), gameName: "wordle",
-            date: date(daysAgo: 1), score: 3, maxAttempts: 6,
-            completed: true, sharedText: "Wordle 100 3/6",
-            lastModified: olderDate
-        )
+        let merged = GameResultSyncMerge.mergeResults(local: [local], remote: [remote])
 
-        let remote = GameResult(
-            id: id, gameId: UUID(), gameName: "wordle",
-            date: date(daysAgo: 1), score: 4, maxAttempts: 6,
-            completed: true, sharedText: "Wordle 100 4/6",
-            lastModified: newerDate
-        )
-
-        var merged = [local]
-        if remote.lastModified >= local.lastModified {
-            merged[0] = remote
-        }
-
-        // Remote should win because it's newer
         XCTAssertEqual(merged[0].score, 4)
     }
 
     func testEqualLastModifiedLocalWins() {
-        // The real mergeResults in FirestoreGameResultSyncService uses strict `>`
-        // (remote wins only when strictly newer). On a tie, local is preserved.
-        // This test pins that tiebreaker so a future >= regression is caught.
+        // mergeResults uses strict `>` — on a tie, local is preserved.
         let id = UUID()
-        let tiedDate = date(daysAgo: 1)
+        let tied = date(daysAgo: 1)
+        let local = makeResult(id: id, score: 3, lastModified: tied)
+        let remote = makeResult(id: id, score: 4, lastModified: tied)
 
-        let local = GameResult(
-            id: id, gameId: UUID(), gameName: "wordle",
-            date: date(daysAgo: 1), score: 3, maxAttempts: 6,
-            completed: true, sharedText: "Wordle 100 3/6",
-            lastModified: tiedDate
-        )
+        let merged = GameResultSyncMerge.mergeResults(local: [local], remote: [remote])
 
-        let remote = GameResult(
-            id: id, gameId: UUID(), gameName: "wordle",
-            date: date(daysAgo: 1), score: 4, maxAttempts: 6,
-            completed: true, sharedText: "Wordle 100 4/6",
-            lastModified: tiedDate
-        )
-
-        // Mirror the strict-`>` logic from FirestoreGameResultSyncService.mergeResults
-        var merged = [local]
-        if remote.lastModified > local.lastModified {
-            merged[0] = remote
-        }
-
-        // Timestamps are equal — local must win (score stays at 3)
         XCTAssertEqual(merged[0].score, 3)
+    }
+
+    // MARK: - Restore scenarios
+
+    func testEmptyLocalFullRemoteRestoresAll() {
+        // Reinstall / new sign-in: local empty, remote is the cloud archive.
+        let remote = [makeResult(daysAgo: 1), makeResult(daysAgo: 2), makeResult(daysAgo: 3)]
+
+        let merged = GameResultSyncMerge.mergeResults(local: [], remote: remote)
+
+        XCTAssertEqual(Set(merged.map { $0.id }), Set(remote.map { $0.id }))
+    }
+
+    func testMergeUnionsDistinctIds() {
+        let local = [makeResult(daysAgo: 1), makeResult(daysAgo: 2)]
+        let remote = [makeResult(daysAgo: 3), makeResult(daysAgo: 4)]
+
+        let merged = GameResultSyncMerge.mergeResults(local: local, remote: remote)
+
+        XCTAssertEqual(merged.count, 4)
+        XCTAssertEqual(Set(merged.map { $0.id }), Set((local + remote).map { $0.id }))
+    }
+
+    func testTombstonedResultNotResurrected() {
+        // A deleted id present remotely must not survive a merge+filter.
+        let deletedId = UUID()
+        let keptId = UUID()
+        let merged = GameResultSyncMerge.mergeResults(
+            local: [],
+            remote: [makeResult(id: deletedId), makeResult(id: keptId)]
+        )
+
+        let filtered = GameResultSyncMerge.filterDeleted(merged, deletedIds: [deletedId])
+
+        XCTAssertEqual(filtered.map { $0.id }, [keptId])
+    }
+
+    func testResultsToPushSelectsLocalOnlyAndNewer() {
+        let sharedId = UUID()
+        let localOnly = makeResult(daysAgo: 1)
+        let localNewer = makeResult(id: sharedId, score: 5, lastModified: date(daysAgo: 0))
+        let remoteOlder = makeResult(id: sharedId, score: 2, lastModified: date(daysAgo: 3))
+
+        let local = [localOnly, localNewer]
+        let remote = [remoteOlder]
+        let merged = GameResultSyncMerge.mergeResults(local: local, remote: remote)
+
+        let toPush = GameResultSyncMerge.resultsToPush(merged: merged, local: local, remote: remote)
+
+        // Both the local-only result and the locally-newer edit must be pushed.
+        XCTAssertEqual(Set(toPush.map { $0.id }), Set([localOnly.id, sharedId]))
+    }
+
+    // MARK: - Cap / prune
+
+    func testPruneToCapKeepsNewestByDate() {
+        let results = (1...5).map { makeResult(daysAgo: $0) } // daysAgo 1 = newest
+
+        let pruned = GameResultSyncMerge.pruneToCap(results, limit: 3)
+
+        XCTAssertEqual(pruned.count, 3)
+        // Newest three are daysAgo 1, 2, 3.
+        let keptDays = Set(pruned.map { Calendar.current.dateComponents([.day], from: $0.date, to: Date()).day })
+        XCTAssertEqual(keptDays, Set([1, 2, 3]))
+    }
+
+    func testPruneToCapUnderLimitReturnsInputUnchanged() {
+        let results = [makeResult(daysAgo: 1), makeResult(daysAgo: 2)]
+
+        let pruned = GameResultSyncMerge.pruneToCap(results, limit: 10)
+
+        XCTAssertEqual(pruned.map { $0.id }, results.map { $0.id })
+    }
+
+    func testPruneToCapDeterministicOnDateTies() {
+        // All same puzzle date → tie-break by id must be stable regardless of input order.
+        let tiedDay = 1
+        let resultA = makeResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID(), daysAgo: tiedDay)
+        let resultB = makeResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000002") ?? UUID(), daysAgo: tiedDay)
+        let resultC = makeResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000003") ?? UUID(), daysAgo: tiedDay)
+
+        let forward = GameResultSyncMerge.pruneToCap([resultA, resultB, resultC], limit: 2)
+        let reversed = GameResultSyncMerge.pruneToCap([resultC, resultB, resultA], limit: 2)
+
+        XCTAssertEqual(forward.map { $0.id }, reversed.map { $0.id })
+        XCTAssertEqual(Set(forward.map { $0.id }), Set([resultA.id, resultB.id]))
     }
 
     func testLastModifiedDefaultsToDate() {

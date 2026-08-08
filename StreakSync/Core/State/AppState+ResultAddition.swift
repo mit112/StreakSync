@@ -91,11 +91,13 @@ extension AppState {
             
             // Prune oldest results if over limit (keeps UserDefaults manageable)
             if !self.isGuestMode && self.recentResults.count > AppConstants.Storage.maxResults {
-                let overflow = self.recentResults.count - AppConstants.Storage.maxResults
-                self.recentResults.removeLast(overflow)
+                let before = self.recentResults.count
+                self.recentResults = GameResultSyncMerge.pruneToCap(
+                    self.recentResults, limit: AppConstants.Storage.maxResults
+                )
                 self.buildResultsCache()
                 await self.saveGameResults()
- self.logger.info("Pruned \(overflow) oldest results (limit: \(AppConstants.Storage.maxResults))")
+ self.logger.info("Pruned \(before - self.recentResults.count) oldest results (limit: \(AppConstants.Storage.maxResults))")
             }
         }
 
