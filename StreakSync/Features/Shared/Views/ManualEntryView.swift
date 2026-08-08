@@ -11,6 +11,7 @@ import SwiftUI
 struct ManualEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
+    @EnvironmentObject private var container: AppContainer
     @State private var gameResult = ""
     @State private var selectedGame: Game?
     @State private var showingError = false
@@ -139,7 +140,10 @@ struct ManualEntryView: View {
 
         do {
             let result = try parser.parse(gameResult, for: game)
-            if appState.addGameResult(result) {
+            // Route through the sync service (not appState directly) so a manually entered
+            // result uploads to Firestore immediately rather than waiting for the next
+            // syncIfNeeded pass — parity with Share Extension ingestion.
+            if container.gameResultSyncService.addResult(result) {
                 dismiss()
             } else {
                 errorMessage = "Could not save result. It may already be recorded."
@@ -185,6 +189,8 @@ struct GameSelectionRow: View {
 
 // MARK: - Preview
 #Preview {
+    let container = AppContainer(isPreview: true)
     ManualEntryView()
-        .environment(AppState())
+        .environment(container.appState)
+        .environmentObject(container)
 }
