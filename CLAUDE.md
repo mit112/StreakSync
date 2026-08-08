@@ -69,7 +69,7 @@ Pipe through `| xcpretty` for readable output if xcpretty is installed.
 
 ## Architecture
 
-**iOS-only SwiftUI app** targeting iOS 26+ / Swift 6.0 / Xcode 26. Backend is Firebase (Firestore + Auth) via SPM. No CocoaPods, no Carthage.
+**iOS-only SwiftUI app** built with Swift 6.0 / Xcode 26. Backend is Firebase (Firestore + Auth) via SPM. No CocoaPods, no Carthage.
 
 ### Targets
 
