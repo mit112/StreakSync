@@ -223,15 +223,18 @@ final class FirestoreGameResultSyncService {
 
     // MARK: - Individual Result Operations
 
-    func addResult(_ result: GameResult) {
-        guard let appState else { return }
+    @discardableResult
+    func addResult(_ result: GameResult) -> Bool {
+        guard let appState else { return false }
         guard !appState.isGuestMode else {
-            appState.addGameResult(result)
-            return
+            return appState.addGameResult(result)
         }
-        appState.addGameResult(result)
+        let added = appState.addGameResult(result)
 
-        guard let uid = currentUserId else { return }
+        // Only upload results that were actually stored. addGameResult returns false for
+        // duplicates/invalid results; a re-shared duplicate gets a fresh id, so uploading it
+        // would create a redundant Firestore doc for history already synced.
+        guard added, let uid = currentUserId else { return added }
         let collectionRef = db.collection("users").document(uid).collection("gameResults")
 
         // Firestore offline persistence queues this write automatically
@@ -244,6 +247,7 @@ final class FirestoreGameResultSyncService {
                 // Firestore offline cache will retry automatically when back online
             }
         }
+        return added
     }
 
     func deleteResult(_ id: UUID) async {

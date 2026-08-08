@@ -166,9 +166,11 @@ final class NotificationCoordinator: ObservableObject {
             let added: Bool
             if let svc = self.gameResultSyncService {
                 // Route via sync service: adds locally AND uploads to Firestore immediately.
-                // Falls back to appState.addGameResult if no sync service is wired (preview/test).
-                svc.addResult(result)
-                added = self.appState?.recentResults.contains(where: { $0.id == result.id }) ?? false
+                // addResult returns the authoritative Bool from addGameResult, so a duplicate
+                // re-share (added == false) no longer fires a bogus "result imported"
+                // notification. Falls back to appState.addGameResult if no sync service is
+                // wired (preview/test).
+                added = svc.addResult(result)
             } else {
                 added = self.appState?.addGameResult(result) ?? false
             }
