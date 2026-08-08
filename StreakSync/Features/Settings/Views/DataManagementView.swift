@@ -132,10 +132,18 @@ private extension DataManagementView {
     var cloudSyncSignInRows: some View {
         LabeledContent("Cloud Sync", value: "Sign in required")
 
-        Text("Signing in keeps your streaks and achievements on every device you use.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+        // Durability warning: until the user signs in, history lives only in on-device
+        // storage, so a delete/reinstall wipes it. State-tied inline messaging (not a
+        // toast/modal), placed with the existing Sign In CTA so it doesn't nag twice.
+        Label {
+            Text("Your streaks and results are saved only on this device. Sign in to back them up — otherwise they're lost if StreakSync is deleted or reinstalled.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "exclamationmark.icloud")
+                .foregroundStyle(.orange)
+        }
 
         Button {
             coordinator.navigateTo(.account)
@@ -229,9 +237,16 @@ private extension DataManagementView {
                         .font(.caption)
                         .foregroundStyle(.orange)
                 case .failed:
-                    Text("Failed")
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    // Surface the failure with a manual recovery path — otherwise a failed
+                    // sync is silent until the next launch retries it (T2-5).
+                    Button {
+                        Task { await container.gameResultSyncService.syncIfNeeded() }
+                    } label: {
+                        Label("Retry", systemImage: "arrow.clockwise")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
                 case .notStarted:
                     Text("Not started")
                         .font(.caption)
