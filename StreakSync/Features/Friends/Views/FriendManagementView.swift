@@ -88,7 +88,7 @@ private extension FriendManagementView {
                         ShareLink(
                             item: inviteURL,
                             subject: Text("Add me on StreakSync"),
-                            message: Text("My StreakSync friend code is \(code). Tap to add me — or get StreakSync free on the App Store and enter the code under Add a Friend.")
+                            message: Text("My StreakSync friend code is \(code). Tap to add me — or get StreakSync free on the App Store (https://apps.apple.com/us/app/streaksync-puzzle-tracker/id6755203446) and enter the code under Add a Friend.")
                         ) {
                             Label("Share", systemImage: "square.and.arrow.up")
                                 .font(.subheadline)
