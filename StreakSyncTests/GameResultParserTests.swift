@@ -223,26 +223,28 @@ class GameResultParserTests: XCTestCase {
 
     // MARK: - Canonical Puzzle Date (T1-3)
 
-    private static let utcCalendar: Calendar = {
+    private static let localCalendar: Calendar = {
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        cal.timeZone = .autoupdatingCurrent
         return cal
     }()
 
-    private func utcNoon(year: Int, month: Int, day: Int) throws -> Date {
+    /// Puzzle dates anchor at noon in the device's own time zone, so that today's puzzle
+    /// falls inside today for every user — a noon-UTC anchor lands on tomorrow at UTC+13.
+    private func localNoon(year: Int, month: Int, day: Int) throws -> Date {
         var components = DateComponents()
         components.year = year
         components.month = month
         components.day = day
         components.hour = 12
-        return try XCTUnwrap(Self.utcCalendar.date(from: components))
+        return try XCTUnwrap(Self.localCalendar.date(from: components))
     }
 
     func testCanonicalDate_WordleAnchorMapsToPublicationDay() throws {
         let date = try XCTUnwrap(
             GameResultParser.canonicalPuzzleDate(gameName: "wordle", parsedData: ["puzzleNumber": "1875"])
         )
-        XCTAssertEqual(date, try utcNoon(year: 2026, month: 8, day: 7))
+        XCTAssertEqual(date, try localNoon(year: 2026, month: 8, day: 7))
     }
 
     func testCanonicalDate_ConsecutivePuzzlesAreExactlyOneDayApart() throws {
@@ -252,17 +254,31 @@ class GameResultParserTests: XCTestCase {
         let later = try XCTUnwrap(
             GameResultParser.canonicalPuzzleDate(gameName: "wordle", parsedData: ["puzzleNumber": "1875"])
         )
-        // Exactly 24h apart, so the streak calendar reads them as one day apart in
-        // any device time zone — the core timezone-immunity property.
-        XCTAssertEqual(later.timeIntervalSince(earlier), 86_400, accuracy: 1)
+        // One calendar day apart is the property streak math depends on. Don't assert a
+        // literal 86_400s: local-noon anchoring correctly yields 23h or 25h across a DST
+        // transition, and the streak calendar still reads that as exactly one day.
         XCTAssertEqual(GameDateHelper.daysBetween(from: earlier, to: later), 1)
+    }
+
+    /// A noon-UTC anchor lands at 01:00 the *next* local day at UTC+13, so today's puzzle
+    /// failed every `Calendar.current` "is this today?" check — users at UTC+12 and east
+    /// saw "0 played today" and a daily streak-at-risk reminder they hadn't earned.
+    func testCanonicalDate_LandsOnPublicationDayInTheDeviceTimeZone() throws {
+        let date = try XCTUnwrap(
+            GameResultParser.canonicalPuzzleDate(gameName: "wordle", parsedData: ["puzzleNumber": "1875"])
+        )
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 8)
+        XCTAssertEqual(components.day, 7)
     }
 
     func testCanonicalDate_CommaFormattedNumberParses() throws {
         let date = try XCTUnwrap(
             GameResultParser.canonicalPuzzleDate(gameName: "wordle", parsedData: ["puzzleNumber": "1,875"])
         )
-        XCTAssertEqual(date, try utcNoon(year: 2026, month: 8, day: 7))
+        XCTAssertEqual(date, try localNoon(year: 2026, month: 8, day: 7))
     }
 
     func testCanonicalDate_WeeklyQuordleFallsBack() {

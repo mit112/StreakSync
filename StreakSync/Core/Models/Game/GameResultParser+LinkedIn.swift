@@ -12,8 +12,11 @@ extension GameResultParser {
     
     // MARK: - LinkedIn Queens Parser
     func parseLinkedInQueens(_ text: String, gameId: UUID) throws -> GameResult {
-        // "Queens #522" or "Queens 522"; time may be on the next line or after "Time:"
-        let pattern = #"Queens\s+#?(\d+)"#
+        // "Queens #522" or "Queens 522"; the time (if present) is captured from
+        // the same match onward rather than via a separate whole-text search, so
+        // a combined multi-game post (e.g. Tango/Queens/Zip all in one comment)
+        // can't steal an earlier game's time.
+        let pattern = #"Queens\s+#?(\d+)(?:[\s\S]*?(\d{1,2}:\d{2}))?"#
 
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
@@ -22,10 +25,17 @@ extension GameResultParser {
         }
 
         let puzzleNumber = String(text[puzzleRange])
-        let timeString = linkedInFirstCapture(#"(?:Time:\s*)?(\d{1,2}:\d{2})"#, in: text)
-        
-        // For Queens, score is the actual time in seconds
-        var score = 0
+        var timeString: String?
+        if match.range(at: 2).location != NSNotFound,
+           let timeRange = Range(match.range(at: 2), in: text) {
+            timeString = String(text[timeRange])
+        }
+
+        // For Queens, score is the actual time in seconds. If the time didn't
+        // parse, don't fabricate a 0-second solve — under LeaderboardScoring's
+        // lowerTimeSeconds bucketing that would rank as the best possible score.
+        // Record the puzzle as played/completed with an honest nil score instead.
+        var score: Int?
         if let time = timeString {
             let timeComponents = time.components(separatedBy: ":")
             if timeComponents.count == 2,
@@ -34,7 +44,7 @@ extension GameResultParser {
                 score = minutes * 60 + seconds
             }
         }
-        
+
         return GameResult(
             gameId: gameId,
             gameName: "linkedinqueens",
@@ -78,8 +88,10 @@ extension GameResultParser {
             }
         }
         
-        // For Tango, score is the actual time in seconds
-        var score = 0
+        // For Tango, score is the actual time in seconds. If the time didn't
+        // parse, don't fabricate a 0-second solve (see Queens parser above for
+        // why); record the puzzle as completed with an honest nil score.
+        var score: Int?
         if let time = timeString {
             let timeComponents = time.components(separatedBy: ":")
             if timeComponents.count == 2,
@@ -88,7 +100,7 @@ extension GameResultParser {
                 score = minutes * 60 + seconds
             }
         }
-        
+
         return GameResult(
             gameId: gameId,
             gameName: "linkedintango",
@@ -132,8 +144,10 @@ extension GameResultParser {
             }
         }
         
-        // For Crossclimb, score is the actual time in seconds
-        var score = 0
+        // For Crossclimb, score is the actual time in seconds. If the time
+        // didn't parse, don't fabricate a 0-second solve (see Queens parser
+        // above for why); record the puzzle as completed with an honest nil score.
+        var score: Int?
         if let time = timeString {
             let timeComponents = time.components(separatedBy: ":")
             if timeComponents.count == 2,
@@ -142,7 +156,7 @@ extension GameResultParser {
                 score = minutes * 60 + seconds
             }
         }
-        
+
         return GameResult(
             gameId: gameId,
             gameName: "linkedincrossclimb",
@@ -212,8 +226,13 @@ extension GameResultParser {
             )
         }
         
-        // Fallback to original format parsing
-        let originalPattern = #"Pinpoint\s+#(\d+)(?:\s*\|\s*(\d+)\s+guesses)?[\s\S]*?(?:(\d+)\s+guesses)?"#
+        // Fallback to original format parsing.
+        // The second "guesses" capture is wrapped together with its own lazy scan
+        // (like the first) rather than left as a separate trailing optional group —
+        // otherwise the regex engine is satisfied by the empty match immediately
+        // after the first optional group and never searches further for it (same
+        // dead-capture-group defect as the Zip backtrack pattern above).
+        let originalPattern = #"Pinpoint\s+#(\d+)(?:\s*\|\s*(\d+)\s+guesses)?(?:[\s\S]*?(\d+)\s+guesses)?"#
         
         guard let regex = try? NSRegularExpression(pattern: originalPattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) else {
@@ -275,7 +294,11 @@ extension GameResultParser {
         // Pattern for Zip results with time and optional backtrack info
         // Format 1: "Zip #201 | 0:23 🏁\nWith 1 backtrack 🛑\nlnkd.in/zip."
         // Format 2: "Zip #201\n0:37 🏁\nlnkd.in/zip."
-        let pattern = #"Zip\s+#(\d+)(?:[\s\S]*?(\d{1,2}:\d{2}))?[\s\S]*?(?:With\s+(\d+)\s+backtrack)?"#
+        // The backtrack capture is wrapped together with its own lazy scan (like
+        // the time group) rather than left as a separate trailing optional group —
+        // otherwise the regex engine is satisfied by the empty match immediately
+        // after the time group and never actually searches for "With N backtrack".
+        let pattern = #"Zip\s+#(\d+)(?:[\s\S]*?(\d{1,2}:\d{2}))?(?:[\s\S]*?With\s+(\d+)\s+backtrack)?"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) else {
@@ -305,8 +328,10 @@ extension GameResultParser {
             }
         }
         
-        // For Zip, score is the actual time in seconds
-        var score = 0
+        // For Zip, score is the actual time in seconds. If the time didn't
+        // parse, don't fabricate a 0-second solve (see Queens parser above for
+        // why); record the puzzle as completed with an honest nil score.
+        var score: Int?
         if let time = timeString {
             let timeComponents = time.components(separatedBy: ":")
             if timeComponents.count == 2,
@@ -315,7 +340,7 @@ extension GameResultParser {
                 score = minutes * 60 + seconds
             }
         }
-        
+
         return GameResult(
             gameId: gameId,
             gameName: "linkedinzip",
@@ -339,16 +364,24 @@ extension GameResultParser {
         let searchRange = NSRange(text.startIndex..., in: text)
 
         // Numbered: "Mini Sudoku #142 | …" or legacy "Mini Sudoku puzzle #45 completed"
-        let numberedPattern = #"Mini Sudoku(?:\s+#|\s+puzzle\s+#)(\d+)"#
+        // The time (if present) is captured from the same match onward rather than
+        // via a separate whole-text search, so a combined multi-game post can't
+        // steal another game's time (same fix as the Queens parser above).
+        let numberedPattern = #"Mini Sudoku(?:\s+#|\s+puzzle\s+#)(\d+)(?:[\s\S]*?(\d{1,2}:\d{2}))?"#
         if let numberedRegex = try? NSRegularExpression(pattern: numberedPattern, options: .caseInsensitive),
            let match = numberedRegex.firstMatch(in: text, options: [], range: searchRange),
            let puzzleRange = Range(match.range(at: 1), in: text) {
+            var embeddedTimeString: String?
+            if match.range(at: 2).location != NSNotFound,
+               let timeRange = Range(match.range(at: 2), in: text) {
+                embeddedTimeString = String(text[timeRange])
+            }
             return makeLinkedInMiniSudokuResult(
                 gameId: gameId,
                 text: text,
                 puzzleIdentifier: String(text[puzzleRange]),
                 pointsScore: linkedInFirstCapture(#"Score:\s*(\d+)"#, in: text),
-                timeString: linkedInFirstCapture(#"(?:Time:\s*)?(\d{1,2}:\d{2})"#, in: text),
+                timeString: embeddedTimeString,
                 shareFormat: "numbered"
             )
         }

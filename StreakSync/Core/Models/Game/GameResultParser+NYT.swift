@@ -18,17 +18,19 @@ struct ConnectionsGridStats {
 extension GameResultParser {
     // MARK: - Wordle Parser
     func parseWordle(_ text: String, gameId: UUID) throws -> GameResult {
-        // Pattern: "Wordle 1,492 3/6" or "Wordle 1492 X/6"
-        let pattern = #"Wordle\s+(\d+(?:,\d+)*)\s+([X1-6])/6"#
-        
+        // Pattern: "Wordle 1,492 3/6", "Wordle 1.492 3/6" (period-grouped locales), or "Wordle 1492 X/6"
+        let pattern = #"Wordle\s+(\d+(?:[,.]\d+)*)\s+([X1-6])/6"#
+
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
               let puzzleRange = Range(match.range(at: 1), in: text),
               let scoreRange = Range(match.range(at: 2), in: text) else {
             throw ParsingError.invalidFormat
         }
-        
-        let puzzleNumber = String(text[puzzleRange]).replacingOccurrences(of: ",", with: "")
+
+        let puzzleNumber = String(text[puzzleRange])
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: ".", with: "")
         let scoreString = String(text[scoreRange])
         
         let score = scoreString == "X" ? nil : Int(scoreString)
@@ -69,14 +71,22 @@ extension GameResultParser {
         
         let connectionEmoji: Set<Character> = ["🟩", "🟨", "🟦", "🟪"]
         for line in lines {
-            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Tolerate whitespace between squares (some paste paths insert spaces,
+            // e.g. "🟩 🟩 🟩 🟩") by squashing all whitespace before validating.
+            let squashedLine = line.components(separatedBy: .whitespacesAndNewlines).joined()
             // Allow 4-8 chars to handle potential variation selectors, and check only known emoji
-            if trimmedLine.count >= 4 && trimmedLine.count <= 8 &&
-               trimmedLine.allSatisfy({ connectionEmoji.contains($0) }) {
-                emojiRows.append(trimmedLine)
+            if squashedLine.count >= 4 && squashedLine.count <= 8 &&
+               squashedLine.allSatisfy({ connectionEmoji.contains($0) }) {
+                emojiRows.append(squashedLine)
             }
         }
-        
+
+        // A share we can't read (no parseable grid at all) must not be recorded
+        // as a fabricated 0/4 loss — that would silently wipe the user's streak.
+        guard !emojiRows.isEmpty else {
+            throw ParsingError.invalidFormat
+        }
+
         // Parse the emoji grid to extract game statistics
         let gameStats = parseConnectionsEmojiGrid(emojiRows.joined(separator: " "))
         
@@ -146,15 +156,10 @@ extension GameResultParser {
             let rankString = parserFirstCapture(#"Rank:\s*([^\n]+)"#, in: text)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             let pangramCount = parserFirstCapture(#"Pangrams?:\s*(\d+)"#, in: text)
-            let completed: Bool
-            if rankString.isEmpty {
-                completed = true
-            } else {
-                let rankLower = rankString.lowercased()
-                completed = rankLower.contains("genius") ||
-                    rankLower.contains("queen bee") ||
-                    rankLower.contains("amazing")
-            }
+            // Spelling Bee has no lose state — any successfully parsed result
+            // counts as completed regardless of rank. The rank is still stored
+            // in parsedData for display; it no longer gates the completed flag.
+            let completed = true
 
             var parsedData: [String: String] = [
                 "score": scoreString,
@@ -285,9 +290,10 @@ extension GameResultParser {
         }
         let puzzleNumber = String(text[puzzleRange])
         
-        // Extract theme (optional)
+        // Extract theme (optional). NYT shares wrap the theme in curly quotes
+        // (U+201C/U+201D); manual/legacy entry may use straight ASCII quotes.
         var theme = ""
-        let themePattern = #""([^"]+)""#
+        let themePattern = "[\"\u{201C}]([^\"\u{201C}\u{201D}]+)[\"\u{201D}]"
         if let themeRegex = try? NSRegularExpression(pattern: themePattern, options: .caseInsensitive),
            let themeMatch = themeRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
            themeMatch.range(at: 1).location != NSNotFound,

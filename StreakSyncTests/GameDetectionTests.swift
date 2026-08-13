@@ -101,10 +101,44 @@ final class GameDetectionTests: XCTestCase {
         XCTAssertEqual(game?.name.lowercased(), "nerdle")
     }
 
+    func testDetectsNerdleBrandedHeader() {
+        // The branded share header omits "game" — the parser already accepts
+        // this spelling, but detection historically didn't.
+        let text = "Nerdle 728 3/6"
+        let game = GameDetector.detect(from: text, in: Game.allAvailableGames)
+        XCTAssertEqual(game?.name.lowercased(), "nerdle")
+    }
+
+    func testDetectsMiniSudokuLegacyFormat() {
+        let text = "Mini Sudoku puzzle #45 completed"
+        let game = GameDetector.detect(from: text, in: Game.allAvailableGames)
+        XCTAssertEqual(game?.name.lowercased(), "linkedinminisudoku")
+    }
+
+    func testDetectsMiniSudokuDatedFormat() {
+        let text = "Mini Sudoku - May 19, 2026\nScore: 95\nTime: 1:23"
+        let game = GameDetector.detect(from: text, in: Game.allAvailableGames)
+        XCTAssertEqual(game?.name.lowercased(), "linkedinminisudoku")
+    }
+
+    func testDetectsQueensWithoutHash() {
+        let text = "Queens 522\nTime: 1:11\n👑👑👑👑👑"
+        let game = GameDetector.detect(from: text, in: Game.allAvailableGames)
+        XCTAssertEqual(game?.name.lowercased(), "linkedinqueens")
+    }
+
+    func testDetectionIsCaseInsensitive() {
+        let text = "wordle 1,292 3/6\n\n⬛🟨⬛⬛⬛\n🟩⬛🟩🟨⬛\n🟩🟩🟩🟩🟩"
+        let game = GameDetector.detect(from: text, in: Game.allAvailableGames)
+        XCTAssertEqual(game?.name.lowercased(), "wordle")
+    }
+
     // MARK: - Priority / Ambiguity
 
     func testQuordleBeforeWordleInPriority() {
-        // "Daily Quordle" contains "Wordle" substring — Quordle check must come first
+        // NOT because "Daily Quordle" contains "Wordle" as a substring — it does
+        // not ("Quordle" has no "W"). Quordle simply must be checked before the
+        // generic, catch-all "Wordle" marker so the bare rule can never pre-empt it.
         let text = "Daily Quordle 1074\n3️⃣ 5️⃣\n4️⃣ 6️⃣"
         let game = GameDetector.detect(from: text, in: Game.allAvailableGames)
         XCTAssertEqual(game?.name.lowercased(), "quordle", "Quordle should match before Wordle")

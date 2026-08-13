@@ -139,6 +139,12 @@ extension GameResultParser {
                 continue
             }
 
+            // Quordle's plain-digit format reports exactly two scores per line as
+            // bare digits. Reject any line containing other characters (e.g. a
+            // trailing "🏅 I'm on a 12-day streak!" line) so stray digits from
+            // commentary don't get ingested as fabricated extra scores.
+            guard line.allSatisfy({ $0.isNumber || $0.isWhitespace }) else { continue }
+
             let matches = regex.matches(in: line, options: [], range: NSRange(location: 0, length: line.utf16.count))
             for match in matches {
                 guard let range = Range(match.range, in: line),
@@ -153,16 +159,18 @@ extension GameResultParser {
     // MARK: - Nerdle Parser
     func parseNerdle(_ text: String, gameId: UUID) throws -> GameResult {
         // "nerdlegame 728 3/6" (site branding) or "Nerdle 728 3/6" (share header)
-        let pattern = #"(?:nerdlegame|nerdle)\s+(\d+)\s+([X1-6])/6"#
-        
+        let pattern = #"(?:nerdlegame|nerdle)\s+(\d+(?:[,.]\d+)*)\s+([X1-6])/6"#
+
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)),
               let puzzleRange = Range(match.range(at: 1), in: text),
               let scoreRange = Range(match.range(at: 2), in: text) else {
             throw ParsingError.invalidFormat
         }
-        
+
         let puzzleNumber = String(text[puzzleRange])
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: ".", with: "")
         let scoreString = String(text[scoreRange])
         
         let score = scoreString == "X" ? nil : Int(scoreString)

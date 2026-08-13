@@ -101,13 +101,18 @@ extension GameResultParser {
         Game.Names.linkedinZip: (508, 2026, 8, 7)
     ]
 
-    /// Gregorian/UTC calendar used only for puzzle-date arithmetic. Anchoring at
-    /// noon UTC keeps consecutive puzzles exactly 24h apart, so `Calendar.current`
-    /// day-diffs (streak math) always read them as 1 day apart regardless of the
-    /// device's time zone.
+    /// Gregorian calendar in the device's own time zone, used only for puzzle-date
+    /// arithmetic. Anchoring at noon *local* keeps consecutive puzzles one calendar day
+    /// apart for streak math, and — unlike a noon-UTC anchor — keeps that instant inside
+    /// the day the user actually played it.
+    ///
+    /// Noon UTC lands at 01:00 the following local day at UTC+13, so at UTC+12 and east
+    /// today's puzzle never satisfied the `Calendar.current` "is this today?" checks behind
+    /// `todaysResults` and `hasPlayedToday`. Those users saw "0 played today" and got a
+    /// streak-at-risk reminder every single day despite never missing one.
     private static let puzzleCalendar: Calendar = {
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        cal.timeZone = .autoupdatingCurrent
         return cal
     }()
 
@@ -119,7 +124,9 @@ extension GameResultParser {
 
         guard let anchor = puzzleAnchors[gameName.lowercased()],
               let raw = parsedData["puzzleNumber"],
-              let number = Int(raw.replacingOccurrences(of: ",", with: "")),
+              let number = Int(
+                raw.replacingOccurrences(of: ",", with: "").replacingOccurrences(of: ".", with: "")
+              ),
               number > 0 else {
             return nil
         }

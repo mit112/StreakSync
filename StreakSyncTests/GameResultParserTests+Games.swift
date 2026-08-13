@@ -21,6 +21,14 @@ extension GameResultParserTests {
         XCTAssertEqual(result.parsedData["puzzleNumber"], "1492")
     }
 
+    func testParseWordle_PeriodGroupedPuzzleNumber() throws {
+        // Some locales group the puzzle number with a period instead of a comma.
+        let shareText = "Wordle 1.492 3/6\n\n⬛🟨⬛⬛⬛\n🟩⬛🟩🟨⬛\n🟩🟩🟩🟩🟩"
+        let result = try parser.parse(shareText, for: Game.wordle)
+        XCTAssertEqual(result.score, 3)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "1492")
+    }
+
     func testParseWordle_Failure() throws {
         let shareText = "Wordle 1,492 X/6\n\n⬛🟨⬛⬛⬛\n🟩⬛🟩🟨⬛\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛"
         let result = try parser.parse(shareText, for: Game.wordle)
@@ -44,6 +52,22 @@ extension GameResultParserTests {
         let result = try parser.parse(shareText, for: Game.connections)
         XCTAssertEqual(result.parsedData["solvedCategories"], "4")
         XCTAssertTrue(result.completed)
+    }
+
+    func testParseConnections_GridWithSpacesBetweenSquares() throws {
+        // Some paste paths insert spaces between squares, e.g. "🟩 🟩 🟩 🟩".
+        let shareText = "Connections\nPuzzle #687\n🟩 🟩 🟩 🟩\n🟨 🟨 🟨 🟨\n🟪 🟪 🟪 🟪\n🟦 🟦 🟦 🟦"
+        let result = try parser.parse(shareText, for: Game.connections)
+        XCTAssertEqual(result.parsedData["solvedCategories"], "4")
+        XCTAssertTrue(result.completed)
+    }
+
+    func testParseConnections_NoGrid_ThrowsRatherThanFabricatingALoss() throws {
+        // Header-only text with no readable grid must not be recorded as a
+        // fabricated 0/4 loss — that would silently wipe the user's streak.
+        XCTAssertThrowsError(try parser.parse("Connections\nPuzzle #687", for: Game.connections)) { error in
+            XCTAssertTrue(error is ParsingError)
+        }
     }
 
     // MARK: - Spelling Bee Tests
@@ -72,6 +96,16 @@ extension GameResultParserTests {
         XCTAssertEqual(result.parsedData["wordsFound"], "42")
         XCTAssertEqual(result.parsedData["hasPangram"], "true")
         XCTAssertEqual(result.parsedData["shareFormat"], "sentence")
+    }
+
+    func testParseSpellingBee_NonGeniusRank_StillCompleted() throws {
+        // Spelling Bee has no lose state — any successfully parsed result counts
+        // as completed regardless of rank, so a same-day result parsed from either
+        // share format doesn't disagree and wipe the user's streak.
+        let shareText = "Spelling Bee\nScore: 40\nWords: 10\nRank: Solid"
+        let result = try parser.parse(shareText, for: Game.spellingBee)
+        XCTAssertTrue(result.completed)
+        XCTAssertEqual(result.parsedData["rank"], "Solid")
     }
 
     func testParseSpellingBee_NYTStructuredShare() throws {
@@ -128,6 +162,14 @@ extension GameResultParserTests {
         XCTAssertEqual(result.parsedData["hintCount"], "0")
     }
 
+    func testParseStrands_CurlyQuoteTheme() throws {
+        // Real NYT shares wrap the theme in curly quotes (U+201C/U+201D), not
+        // straight ASCII quotes.
+        let shareText = "Strands #350\n\u{201C}Knot your average puzzle\u{201D}\n🔵🔵🔵🟡\n🔵🔵🔵"
+        let result = try parser.parse(shareText, for: Game.strands)
+        XCTAssertEqual(result.parsedData["theme"], "Knot your average puzzle")
+    }
+
     func testParseStrands_WithHints() throws {
         let result = try parser.parse("Strands #580\n\"Theme\"\n💡🔵🔵💡\n🔵🟡🔵🔵\n🔵", for: Game.strands)
         XCTAssertEqual(result.score, 2)
@@ -144,8 +186,26 @@ extension GameResultParserTests {
     }
 
     func testParseLinkedInQueens_NoTime() throws {
+        // No time parses — don't fabricate a 0-second solve (that would rank as
+        // the best possible score under LeaderboardScoring). The puzzle is still
+        // recorded as completed with an honest nil score.
         let result = try parser.parse("Queens #522\n👑\nlnkd.in/queens.", for: Game.linkedinQueens)
-        XCTAssertEqual(result.score, 0)
+        XCTAssertNil(result.score)
+        XCTAssertTrue(result.completed)
+    }
+
+    func testParseLinkedInQueens_CombinedMultiGamePost_DoesNotStealAnotherGamesTime() throws {
+        // Users often post their whole daily set in one comment. Queens must pick
+        // up its OWN time (0:42), not Tango's (0:51), which appears earlier in the text.
+        let shareText = """
+        Tango #669 | 0:51 🌗
+        Queens #829 | 0:42 👑
+        Zip #508 | 0:33 🏁
+        """
+        let result = try parser.parse(shareText, for: Game.linkedinQueens)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "829")
+        XCTAssertEqual(result.parsedData["time"], "0:42")
+        XCTAssertEqual(result.score, 42)
     }
 
     func testParseLinkedInQueens_NoHashWithTimeLabel() throws {
@@ -175,6 +235,13 @@ extension GameResultParserTests {
         }
     }
 
+    func testParseLinkedInTango_NoTime() throws {
+        // No time parses — don't fabricate a 0-second solve; still completed with a nil score.
+        let result = try parser.parse("Tango #362\nlnkd.in/tango.", for: Game.linkedinTango)
+        XCTAssertNil(result.score)
+        XCTAssertTrue(result.completed)
+    }
+
     // MARK: - Crossclimb Tests
 
     func testParseLinkedInCrossclimb_Success() throws {
@@ -191,6 +258,13 @@ extension GameResultParserTests {
         }
     }
 
+    func testParseLinkedInCrossclimb_NoTime() throws {
+        // No time parses — don't fabricate a 0-second solve; still completed with a nil score.
+        let result = try parser.parse("Crossclimb #522\nlnkd.in/crossclimb.", for: Game.linkedinCrossclimb)
+        XCTAssertNil(result.score)
+        XCTAssertTrue(result.completed)
+    }
+
     // MARK: - Zip Tests
 
     func testParseLinkedInZip_WithBacktrack() throws {
@@ -198,13 +272,22 @@ extension GameResultParserTests {
         let result = try parser.parse(shareText, for: Game.linkedinZip)
         XCTAssertEqual(result.gameName, "linkedinzip")
         XCTAssertEqual(result.score, 23)
-        XCTAssertEqual(result.parsedData["backtrackCount"], "0")
+        // The backtrack count is a real capture, not a dead optional group — it
+        // must reflect the actual "With 1 backtrack" text.
+        XCTAssertEqual(result.parsedData["backtrackCount"], "1")
     }
 
     func testParseLinkedInZip_NoBacktrack() throws {
         let result = try parser.parse("Zip #201\n0:37 🏁\nlnkd.in/zip.", for: Game.linkedinZip)
         XCTAssertEqual(result.score, 37)
         XCTAssertEqual(result.parsedData["backtrackCount"], "0")
+    }
+
+    func testParseLinkedInZip_NoTime() throws {
+        // No time parses — don't fabricate a 0-second solve; still completed with a nil score.
+        let result = try parser.parse("Zip #201\nlnkd.in/zip.", for: Game.linkedinZip)
+        XCTAssertNil(result.score)
+        XCTAssertTrue(result.completed)
     }
 
     // MARK: - Mini Sudoku Tests
@@ -324,6 +407,21 @@ extension GameResultParserTests {
         XCTAssertEqual(result.parsedData["score4"], "9")
     }
 
+    func testParseQuordle_PlainDigitScores_IgnoresTrailingStreakCommentary() throws {
+        // A trailing commentary line containing digits (e.g. "12-day streak")
+        // must not be ingested as extra fabricated scores — a fully-solved day
+        // must still parse as completed.
+        let shareText = """
+        Daily Quordle 1576
+        2 8
+        7 9
+        🏅 I'm on a 12-day streak!
+        """
+        let result = try parser.parse(shareText, for: Game.quordle)
+        XCTAssertEqual(result.parsedData["completedPuzzles"], "4")
+        XCTAssertTrue(result.completed)
+    }
+
     func testParseQuordle_WithFailure() throws {
         let result = try parser.parse("Daily Quordle 1346\n6️⃣🟥\n9️⃣4️⃣", for: Game.quordle)
         XCTAssertNil(result.score)
@@ -362,6 +460,12 @@ extension GameResultParserTests {
         XCTAssertEqual(result.score, 3)
         XCTAssertEqual(result.parsedData["puzzleNumber"], "728")
         XCTAssertTrue(result.completed)
+    }
+
+    func testParseNerdle_PeriodGroupedPuzzleNumber() throws {
+        let result = try parser.parse("nerdlegame 1.728 3/6", for: Game.nerdle)
+        XCTAssertEqual(result.score, 3)
+        XCTAssertEqual(result.parsedData["puzzleNumber"], "1728")
     }
 
     func testParseNerdle_Failure() throws {

@@ -52,6 +52,27 @@ final class GameResultParserLiveFormatTests: XCTestCase {
         XCTAssertEqual(octordle.maxAttempts, 104)
     }
 
+    /// Regression net for GameDetector: `parser.parse(text, for: game)` above is
+    /// handed the game directly, so it never exercises detection. Every fixture
+    /// the parser is expected to accept must also be independently *detectable*
+    /// from its raw share text — otherwise the Share Extension can parse a format
+    /// perfectly and still never route it to the right game.
+    func testAllLiveFormatFixturesDetectExpectedGame() {
+        var failures: [String] = []
+
+        for fixture in GameShareFormatFixtures.all where fixture.shouldParse {
+            let detected = GameDetector.detect(from: fixture.shareText, in: Game.allAvailableGames)
+            if detected?.id != fixture.game.id {
+                let detectedName = detected?.displayName ?? "nil"
+                failures.append("\(fixture.game.displayName)/\(fixture.label): detected \(detectedName)")
+            }
+        }
+
+        if !failures.isEmpty {
+            XCTFail("Detection gaps (\(failures.count)):\n" + failures.joined(separator: "\n"))
+        }
+    }
+
     func testLiveFormatCoverageIncludesAllGames() {
         let coveredGames = Set(GameShareFormatFixtures.all.map { $0.game.id })
         for game in Game.allAvailableGames {
