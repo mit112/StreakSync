@@ -516,7 +516,7 @@ private extension DataManagementView {
         // Import game results (merge, don't duplicate)
         for result in data.gameResults {
             if !appState.recentResults.contains(where: { $0.id == result.id }) {
-                if appState.addGameResult(result) {
+                if appState.addGameResult(result, deferReconciliation: true) {
                     importCount += 1
                 }
             }

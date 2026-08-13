@@ -13,7 +13,11 @@ extension AppState {
     /// Adds a game result, returning whether it was actually added (false if invalid/duplicate).
     /// This is the single authoritative method for result insertion — all callers should use this.
     @discardableResult
-    func addGameResult(_ result: GameResult) -> Bool {
+    /// - Parameter deferReconciliation: pass `true` when inserting results in bulk. Each
+    ///   backdated result would otherwise trigger its own full rebuild, making an import of
+    ///   N results cost N rebuilds. Deferring callers MUST call
+    ///   `reconcileAfterResultSetChanged()` once when the batch is done.
+    func addGameResult(_ result: GameResult, deferReconciliation: Bool = false) -> Bool {
         guard result.isValid else {
  logger.warning("Attempted to add invalid game result")
             return false
@@ -114,7 +118,7 @@ extension AppState {
 
             // Pruning drops results that streaks and achievements were derived from, so both
             // must be recomputed against what actually remains.
-            if needsFullRecompute || didPrune {
+            if (needsFullRecompute || didPrune) && !deferReconciliation {
                 await self.reconcileAfterResultSetChanged()
             }
         }

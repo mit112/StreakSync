@@ -108,13 +108,16 @@ struct DebugDataSeederView: View {
             for result in results {
                 guard !Task.isCancelled else { break }
                 currentGame = result.gameName
-                if appState.addGameResult(result) {
+                if appState.addGameResult(result, deferReconciliation: true) {
                     addedCount += 1
                 } else {
                     failedCount += 1
                 }
                 try? await Task.sleep(for: .milliseconds(80))
             }
+            // Every seeded result is backdated, so reconcile once for the whole batch
+            // rather than once per result.
+            await appState.reconcileAfterResultSetChanged()
             isSeeding = false
         }
     }
