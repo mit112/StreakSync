@@ -32,27 +32,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (no code signing needed for simulator)
 xcodebuild build \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=B9ED6D5C-FD9C-46EC-91CB-57231001B40A' \
+  -destination 'platform=iOS Simulator,id=D9067F92-F13A-47B4-BF27-4401BBE3D4A5' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO -quiet \
   2>&1 | xcsift -w
 
 # Run all tests (unit + UI)
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=B9ED6D5C-FD9C-46EC-91CB-57231001B40A' \
+  -destination 'platform=iOS Simulator,id=D9067F92-F13A-47B4-BF27-4401BBE3D4A5' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
 
 # Run a single test class
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=B9ED6D5C-FD9C-46EC-91CB-57231001B40A' \
+  -destination 'platform=iOS Simulator,id=D9067F92-F13A-47B4-BF27-4401BBE3D4A5' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests
 
 # Run a single test method
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=B9ED6D5C-FD9C-46EC-91CB-57231001B40A' \
+  -destination 'platform=iOS Simulator,id=D9067F92-F13A-47B4-BF27-4401BBE3D4A5' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests/testStreakContinuation
 
@@ -66,6 +66,26 @@ swiftlint
 ```
 
 Pipe through `| xcpretty` for readable output if xcpretty is installed.
+
+### Running tests — read this before concluding "the runner is broken"
+
+The unit suite runs fine: **436 tests pass** (`-only-testing:StreakSyncTests`). Prefer
+XcodeBuildMCP: `build_sim(buildForTesting: true)` then
+`test_sim(testProductsPath: <that>, extraArgs: ["-only-testing:StreakSyncTests"])`.
+
+- `Early unexpected exit, operation never finished bootstrapping — Test crashed with
+  signal abrt before establishing connection` means **the test host aborted**, not that the
+  runner is broken. It is almost always a Debug `assert` in app code tripped by a bad
+  fixture — `GameResult`'s initializer asserts the score matches the game's scoring model,
+  so e.g. `score: 7, maxAttempts: 6` takes down the entire run. Bisect with `-only-testing:`
+  down to one test; the crash usually reproduces from fixture construction alone.
+- `Failed to prepare device 'Clone N of …' — Timed out trying to boot simulator` IS
+  environmental (parallel clone booting) and appears as an extra "System Failures" entry.
+  It does not invalidate the tests that passed.
+- The full plan includes `StreakSyncUITests`, which is slow enough to blow CI's job timeout.
+  CI is scoped to `StreakSyncTests` for that reason.
+- Two tests are pathologically slow (`ShareExtensionIngestionTests.testAppGroupQueue_WriteLoadClear`
+  and `FirstShareCelebrationTriggerTests` ~6–7 min each) — they dominate the ~10 min runtime.
 
 ## Architecture
 
@@ -154,17 +174,17 @@ Rules in `firestore.rules` with a 62-case pen test suite in `firestore-rules-tes
 
 **Always reference simulators by UDID, not by name.**
 
-- iPhone 17 Pro: `B9ED6D5C-FD9C-46EC-91CB-57231001B40A` (iOS 27.0 — preferred)
-- iPhone 17 Pro Max: `D07565DD-15EC-4F0C-8DBA-9D8B8F149768` (iOS 27.0)
+- iPhone 17 Pro: `D9067F92-F13A-47B4-BF27-4401BBE3D4A5` (iOS 27.0 — preferred)
+- iPhone 17 Pro Max: `AF2D1A82-83E3-44E2-8A88-6996EF2DBA4D` (iOS 27.0)
 
 > **UDID drift:** These UDIDs change whenever Xcode is reinstalled or simulators are re-created. If `xcodebuild` rejects the destination with "device not found", run `xcrun simctl list devices available | grep "iPhone 17 Pro"` and update this file.
 
 Preferred destination string:
-`platform=iOS Simulator,id=B9ED6D5C-FD9C-46EC-91CB-57231001B40A`
+`platform=iOS Simulator,id=D9067F92-F13A-47B4-BF27-4401BBE3D4A5`
 
 **Always launch apps with:**
 ```bash
-xcrun simctl launch --terminate-running-process --console-pty B9ED6D5C-FD9C-46EC-91CB-57231001B40A com.mitsheth.StreakSync
+xcrun simctl launch --terminate-running-process --console-pty D9067F92-F13A-47B4-BF27-4401BBE3D4A5 com.mitsheth.StreakSync
 ```
 `--terminate-running-process` is mandatory — without it, launch silently does nothing if the app is already running.
 

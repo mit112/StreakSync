@@ -130,3 +130,61 @@ These make the app actually lose a user's streak — the worst outcome for a "ne
 6. **O-1** App Store copy (do anytime, independent of code).
 
 Artifacts: DeepSeek hypotheses + GPT validation report retained outside the repo (scratchpad / `~/Downloads/deep-research-report (2).md`).
+
+---
+
+# Release-verification pass — 2026-08-13
+
+Goal was empirical: confirm all 15 games are supported, results get tracked,
+achievements update, and analytics make sense. They did not, in several cases.
+
+## Why nothing had caught this
+
+**The test suite had never executed anywhere.**
+- The CI workflow was `disabled_manually`, having rotted on a hard-coded
+  `/Applications/Xcode_26.app` path that does not exist on the runner image.
+- Local runs were believed to be environmentally broken. They were not: the
+  `signal abrt before establishing connection` abort is a Debug assertion in app
+  code killing the test host. The suite actually runs — **436 unit tests pass**.
+- Consequently several tests *asserted the buggy behaviour* (Zip backtrack `"0"`,
+  Queens `score == 0`), and one tie-break test could never have passed at all.
+
+## Fixed
+
+**Detection & parsing**
+- `Nerdle 728 3/6`, `Mini Sudoku puzzle #45`, and `Queens 522` were undetectable;
+  detection was case-sensitive; bare `"Wordle"` outranked 9 more specific rules.
+  Live-format tests bypassed detection entirely — now they exercise it.
+- Spelling Bee below Genius was recorded as a loss and wiped the streak (a game
+  with no lose state); the other share format called the same day a win.
+- Queens/Tango/Crossclimb/Zip fabricated a 0-second solve when no time parsed,
+  which the leaderboard scored as a maximum and kept as the user's best.
+- Combined multi-game LinkedIn posts stored another game's time; Connections with
+  no readable grid fabricated a 0/4 loss; Zip's backtrack count was a dead capture
+  group; Strands matched only ASCII quotes; Quordle scraped digits from trailing
+  commentary and turned a solved day into a loss.
+
+**Derived state**
+- Achievements were never recomputed after a cloud sync (none of six call sites),
+  so a reinstall showed restored streaks beside fully locked achievements.
+  Centralised as `AppState.reconcileAfterResultSetChanged()`.
+- Backdated results manufactured phantom active streaks and published them.
+- `rebuildStreaksFromResults` shrank the all-time best streak past the 500 cap.
+- Backup import left every streak at 1; deleted results stayed on friends'
+  leaderboards forever; a correction within 5s of sharing was silently dropped.
+- Marathon Runner's 365-day tier was unreachable (unique days came from the
+  capped window). Puzzle dates re-anchored to local noon — at UTC+12 and east,
+  today's puzzle never counted as today.
+
+**Scoring & analytics**
+- Quordle stored a truncated mean (17 and 18 both became 4); Mini Sudoku was a
+  fixed 1 point for everyone; Pips ranked Easy and Hard on one axis. Leaderboard
+  points normalised to a real 1...7, and the leaderboard now shows the true
+  metric instead of reverse-deriving it.
+- Personal bests were ordered off a Dictionary and reshuffled every recompute —
+  in two separate places.
+
+## Still open
+- **O-1** App Store copy still claims "CloudKit-powered sync". Owner action.
+- UI tests are excluded from CI (they blew the job timeout); two unit tests take
+  ~6–7 minutes each and dominate runtime.
