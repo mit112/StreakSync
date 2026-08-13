@@ -435,12 +435,25 @@ extension GameResultParser {
             parsedData["displayScore"] = pointsScore
         }
 
+        // For Mini Sudoku, score is the actual time in seconds. If the time didn't
+        // parse, don't fabricate a 0-second solve (see Queens parser above for
+        // why); record the puzzle as completed with an honest nil score instead.
+        var score: Int?
+        if let time = timeString {
+            let timeComponents = time.components(separatedBy: ":")
+            if timeComponents.count == 2,
+               let minutes = Int(timeComponents[0]),
+               let seconds = Int(timeComponents[1]) {
+                score = minutes * 60 + seconds
+            }
+        }
+
         return GameResult(
             gameId: gameId,
             gameName: "linkedinminisudoku",
             date: Date(),
-            score: 1,
-            maxAttempts: 1,
+            score: score,
+            maxAttempts: 600, // Matches Pips/Mini Crossword's time-based ceiling
             completed: true,
             sharedText: text,
             parsedData: parsedData

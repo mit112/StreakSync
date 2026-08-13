@@ -39,6 +39,11 @@ struct LeaderboardRow: Identifiable, Codable, Hashable {
     let totalPoints: Int
     let perGameBreakdown: [UUID: Int]
     let perGameStreak: [UUID: Int]  // currentStreak per game (from most recent score)
+    /// Raw `DailyGameScore.score` per game (guesses, hints, or seconds depending on
+    /// `scoringModel`) — carried alongside `perGameBreakdown` so display text can render
+    /// the true metric instead of reverse-deriving it from the normalized points.
+    /// Only populated for games where the underlying score exists.
+    let perGameRawScore: [UUID: Int]
 }
 
 // MARK: - Friendship Model

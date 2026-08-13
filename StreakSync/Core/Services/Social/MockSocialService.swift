@@ -95,22 +95,25 @@ final class MockSocialService: SocialService {
             return day >= localStart && day <= localEnd
         }
         
-        var perUser: [String: (name: String, total: Int, perGame: [UUID: Int])] = [:]
+        var perUser: [String: (name: String, total: Int, perGame: [UUID: Int], perGameRaw: [UUID: Int])] = [:]
         for s in filtered {
             let game = Game.allAvailableGames.first(where: { $0.id == s.gameId })
             let p = LeaderboardScoring.points(for: s, game: game)
             let displayName = s.userId == my?.id ? (my?.displayName ?? "Me") : "Friend"
-            var entry = perUser[s.userId] ?? (name: displayName, total: 0, perGame: [:])
+            var entry = perUser[s.userId] ?? (name: displayName, total: 0, perGame: [:], perGameRaw: [:])
             entry.total += p
             entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + p
+            if let raw = s.score {
+                entry.perGameRaw[s.gameId] = raw
+            }
             perUser[s.userId] = entry
         }
-        
+
         return perUser.map { userId, agg in
             LeaderboardRow(
                 id: userId, userId: userId, displayName: agg.name,
                 totalPoints: agg.total, perGameBreakdown: agg.perGame,
-                perGameStreak: [:]
+                perGameStreak: [:], perGameRawScore: agg.perGameRaw
             )
         }.sorted { $0.totalPoints > $1.totalPoints }
     }
@@ -222,19 +225,23 @@ final class ReviewModeSocialService: SocialService {
         return [
             LeaderboardRow(id: meId, userId: meId, displayName: "You (Demo)", totalPoints: 18,
                            perGameBreakdown: [wordle: 4, connections: 4, strands: 10],
-                           perGameStreak: [wordle: 14, connections: 5]),
+                           perGameStreak: [wordle: 14, connections: 5],
+                           perGameRawScore: [wordle: 3, connections: 4, strands: 0]),
             LeaderboardRow(id: "review_friend_001", userId: "review_friend_001",
                            displayName: "Alex Chen", totalPoints: 9,
                            perGameBreakdown: [wordle: 5, connections: 4],
-                           perGameStreak: [wordle: 22]),
+                           perGameStreak: [wordle: 22],
+                           perGameRawScore: [wordle: 2, connections: 4]),
             LeaderboardRow(id: "review_friend_002", userId: "review_friend_002",
                            displayName: "Jordan Kim", totalPoints: 8,
                            perGameBreakdown: [wordle: 3, miniX: 5],
-                           perGameStreak: [wordle: 7, miniX: 3]),
+                           perGameStreak: [wordle: 7, miniX: 3],
+                           perGameRawScore: [wordle: 5, miniX: 42]),
             LeaderboardRow(id: "review_friend_003", userId: "review_friend_003",
                            displayName: "Sam Rivera", totalPoints: 3,
                            perGameBreakdown: [connections: 3],
-                           perGameStreak: [:])
+                           perGameStreak: [:],
+                           perGameRawScore: [connections: 3])
         ]
     }
 

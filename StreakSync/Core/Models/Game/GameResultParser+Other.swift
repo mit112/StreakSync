@@ -30,15 +30,17 @@ extension GameResultParser {
         let failedPuzzles = scores.filter { $0 == -1 }.count
         let completedPuzzles = scores.filter { $0 > 0 }.count
         
-        // Calculate average score for completed puzzles (or nil if any failed)
-        let averageScore: Int?
+        // Sum the four board scores for completed puzzles (or nil if any failed).
+        // A sum (not a truncated average) preserves distinct totals — e.g. 17 vs 18
+        // guesses across the four boards no longer collapse to the same stored score.
+        let totalScore: Int?
         if failedPuzzles > 0 {
-            averageScore = nil
+            totalScore = nil
         } else if completedPuzzles > 0 {
             let validScores = scores.filter { $0 > 0 }
-            averageScore = validScores.reduce(0, +) / validScores.count
+            totalScore = validScores.reduce(0, +)
         } else {
-            averageScore = nil
+            totalScore = nil
         }
         
         let completed = failedPuzzles == 0 && completedPuzzles == 4
@@ -63,8 +65,8 @@ extension GameResultParser {
             gameId: gameId,
             gameName: "quordle",
             date: Date(),
-            score: averageScore,
-            maxAttempts: 9,
+            score: totalScore,
+            maxAttempts: 36, // 4 boards x 9 max guesses per board
             completed: completed,
             sharedText: text,
             parsedData: parsedData
@@ -235,13 +237,25 @@ extension GameResultParser {
         case "hard": difficultyScore = 3
         default: difficultyScore = 1
         }
-        
+
+        // maxAttempts carries the par time (seconds) for this difficulty so
+        // LeaderboardScoring can rank Easy/Medium/Hard relative to their own par
+        // instead of on one flat time axis (a Hard solve otherwise always loses
+        // to an Easy solve just for taking longer in absolute terms).
+        let parSeconds: Int
+        switch difficulty.lowercased() {
+        case "easy": parSeconds = 90
+        case "medium": parSeconds = 240
+        case "hard": parSeconds = 480
+        default: parSeconds = 600
+        }
+
         return GameResult(
             gameId: gameId,
             gameName: "pips",
             date: Date(),
-            score: totalSeconds,
-            maxAttempts: 600, // 10 min reasonable max for time-based scoring
+            score: totalSeconds, // Raw seconds — UI and personal-bests depend on the true time
+            maxAttempts: parSeconds,
             completed: true, // If we can parse it, it was completed
             sharedText: text,
             parsedData: [

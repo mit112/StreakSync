@@ -12,7 +12,10 @@ struct GameLeaderboardPage: View {
     let isLoading: Bool
     let dateLabel: String
     let onManageFriends: () -> Void
-    let metricText: (Int) -> String
+    /// Renders the display metric from a leaderboard row (looks up the raw score for
+    /// `game`, not the normalized ranking `points`, which can't be mapped back to a
+    /// specific attempt/hint/time value).
+    let metricText: (LeaderboardRow) -> String
     let myUserId: String?
     let onRefresh: (() async -> Void)?
     /// False when the Friends header already shows Manage, so a state never offers two
@@ -30,7 +33,7 @@ struct GameLeaderboardPage: View {
         isLoading: Bool,
         dateLabel: String,
         onManageFriends: @escaping () -> Void,
-        metricText: @escaping (Int) -> String,
+        metricText: @escaping (LeaderboardRow) -> String,
         myUserId: String?,
         onRefresh: (() async -> Void)?,
         showsInviteAction: Bool = false
@@ -108,7 +111,7 @@ struct GameLeaderboardPage: View {
                         rank: index + 1,
                         displayName: entry.row.displayName,
                         isMe: isMe,
-                        metric: metricText(entry.points),
+                        metric: metricText(entry.row),
                         streak: entry.row.perGameStreak[game.id]
                     )
                     .padding(.vertical, 12)
@@ -176,7 +179,7 @@ private extension GameLeaderboardPage {
         let rankPart = "Rank \(index + 1)"
         let isMe = entry.row.userId == myUserId
         let namePart = isMe ? "\(entry.row.displayName), Me" : entry.row.displayName
-        let metricPart = metricText(entry.points)
+        let metricPart = metricText(entry.row)
         var streakPart = ""
         if let streak = entry.row.perGameStreak[game.id], streak >= 2 {
             streakPart = ", \(streak) day streak"

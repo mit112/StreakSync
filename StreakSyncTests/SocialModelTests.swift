@@ -130,7 +130,10 @@ final class SocialModelTests: XCTestCase {
     // MARK: - LeaderboardRow
 
     func testLeaderboardRowIdentity() {
-        let row = LeaderboardRow(id: "u1", userId: "u1", displayName: "Alice", totalPoints: 15, perGameBreakdown: [:], perGameStreak: [:])
+        let row = LeaderboardRow(
+            id: "u1", userId: "u1", displayName: "Alice", totalPoints: 15,
+            perGameBreakdown: [:], perGameStreak: [:], perGameRawScore: [:]
+        )
         XCTAssertEqual(row.id, "u1")
         XCTAssertEqual(row.displayName, "Alice")
         XCTAssertEqual(row.totalPoints, 15)

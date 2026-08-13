@@ -293,9 +293,12 @@ extension GameResultParserTests {
     // MARK: - Mini Sudoku Tests
 
     func testParseLinkedInMiniSudoku_Success() throws {
+        // No time in this legacy share format — must store a nil score (not 0,
+        // which would read as an instant solve under .lowerTimeSeconds scoring)
+        // while still recording the puzzle as completed.
         let result = try parser.parse("Mini Sudoku puzzle #45 completed", for: Game.linkedinMiniSudoku)
         XCTAssertEqual(result.gameName, "linkedinminisudoku")
-        XCTAssertEqual(result.score, 1)
+        XCTAssertNil(result.score)
         XCTAssertTrue(result.completed)
     }
 
@@ -315,6 +318,7 @@ extension GameResultParserTests {
         XCTAssertEqual(result.gameName, "linkedinminisudoku")
         XCTAssertEqual(result.parsedData["puzzleNumber"], "142")
         XCTAssertEqual(result.parsedData["time"], "0:39")
+        XCTAssertEqual(result.score, 39, "0:39 -> 0*60 + 39 = 39 seconds, stored as score")
         XCTAssertTrue(result.completed)
     }
 
@@ -330,6 +334,7 @@ extension GameResultParserTests {
         XCTAssertEqual(result.parsedData["pointsScore"], "95")
         XCTAssertEqual(result.parsedData["time"], "1:23")
         XCTAssertEqual(result.parsedData["shareFormat"], "dated")
+        XCTAssertEqual(result.score, 83, "1:23 -> 1*60 + 23 = 83 seconds, stored as score")
         XCTAssertTrue(result.completed)
     }
 
@@ -339,12 +344,25 @@ extension GameResultParserTests {
         let shareText = "Daily Quordle 1346\n6️⃣5️⃣\n9️⃣4️⃣"
         let result = try parser.parse(shareText, for: Game.quordle)
         XCTAssertEqual(result.gameName, "quordle")
-        XCTAssertEqual(result.score, 6)
+        XCTAssertEqual(result.score, 24, "Sum of the four boards: 6 + 5 + 9 + 4 = 24")
+        XCTAssertEqual(result.maxAttempts, 36, "4 boards x 9 max guesses per board")
         XCTAssertTrue(result.completed)
         XCTAssertEqual(result.parsedData["score1"], "6")
         XCTAssertEqual(result.parsedData["score2"], "5")
         XCTAssertEqual(result.parsedData["score3"], "9")
         XCTAssertEqual(result.parsedData["score4"], "4")
+    }
+
+    func testParseQuordle_DifferentTotalsDoNotCollapse() throws {
+        // Regression for the truncated-mean bug: totals of 17 and 18 both used to
+        // store 4 (17/4 = 4, 18/4 = 4 under integer division). Storing the sum
+        // keeps a better (fewer total guesses) game from reading as equal to a
+        // worse (more total guesses) one.
+        let betterTotal = try parser.parse("Daily Quordle 1346\n6️⃣5️⃣\n5️⃣1️⃣", for: Game.quordle) // 6+5+5+1=17
+        let worseTotal = try parser.parse("Daily Quordle 1347\n6️⃣5️⃣\n5️⃣2️⃣", for: Game.quordle) // 6+5+5+2=18
+        XCTAssertEqual(betterTotal.score, 17)
+        XCTAssertEqual(worseTotal.score, 18)
+        XCTAssertNotEqual(betterTotal.score, worseTotal.score)
     }
 
     func testParseQuordle_WithLeadingEmoji() throws {
@@ -356,7 +374,7 @@ extension GameResultParserTests {
         """
         let result = try parser.parse(shareText, for: Game.quordle)
         XCTAssertEqual(result.gameName, "quordle")
-        XCTAssertEqual(result.score, 6)
+        XCTAssertEqual(result.score, 26, "Sum of the four boards: 2 + 8 + 7 + 9 = 26")
         XCTAssertTrue(result.completed)
         XCTAssertEqual(result.parsedData["puzzleNumber"], "1576")
         XCTAssertEqual(result.parsedData["score1"], "2")
@@ -374,7 +392,7 @@ extension GameResultParserTests {
         """
         let result = try parser.parse(shareText, for: Game.quordle)
         XCTAssertEqual(result.parsedData["puzzleNumber"], "1576")
-        XCTAssertEqual(result.score, 6)
+        XCTAssertEqual(result.score, 26, "Sum of the four boards: 2 + 8 + 7 + 9 = 26")
         XCTAssertTrue(result.completed)
     }
 
@@ -382,14 +400,14 @@ extension GameResultParserTests {
         let shareText = "🔥 Daily Quordle 1576\n2️⃣8️⃣\n7️⃣9️⃣"
         let result = try parser.parse(shareText, for: Game.quordle)
         XCTAssertEqual(result.parsedData["puzzleNumber"], "1576")
-        XCTAssertEqual(result.score, 6)
+        XCTAssertEqual(result.score, 26, "Sum of the four boards: 2 + 8 + 7 + 9 = 26")
     }
 
     func testParseQuordle_WithHashPuzzleNumber() throws {
         let shareText = "Daily Quordle #1576\n2️⃣8️⃣\n7️⃣9️⃣"
         let result = try parser.parse(shareText, for: Game.quordle)
         XCTAssertEqual(result.parsedData["puzzleNumber"], "1576")
-        XCTAssertEqual(result.score, 6)
+        XCTAssertEqual(result.score, 26, "Sum of the four boards: 2 + 8 + 7 + 9 = 26")
     }
 
     func testParseQuordle_WithPlainDigitScores() throws {
@@ -401,7 +419,7 @@ extension GameResultParserTests {
         """
         let result = try parser.parse(shareText, for: Game.quordle)
         XCTAssertEqual(result.parsedData["puzzleNumber"], "1576")
-        XCTAssertEqual(result.score, 6)
+        XCTAssertEqual(result.score, 26, "Sum of the four boards: 2 + 8 + 7 + 9 = 26")
         XCTAssertTrue(result.completed)
         XCTAssertEqual(result.parsedData["score1"], "2")
         XCTAssertEqual(result.parsedData["score4"], "9")
@@ -432,7 +450,7 @@ extension GameResultParserTests {
         let shareText = "Weekly Quordle Challenge 143\n7️⃣4️⃣\n5️⃣6️⃣\nm-w.com/games/quordle/"
         let result = try parser.parse(shareText, for: Game.quordle)
         XCTAssertEqual(result.gameName, "quordle")
-        XCTAssertEqual(result.score, 5)
+        XCTAssertEqual(result.score, 22, "Sum of the four boards: 7 + 4 + 5 + 6 = 22")
         XCTAssertTrue(result.completed)
         XCTAssertEqual(result.parsedData["mode"], "weekly")
         XCTAssertEqual(result.parsedData["challengeNumber"], "143")
