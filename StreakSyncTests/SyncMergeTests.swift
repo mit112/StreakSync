@@ -179,9 +179,12 @@ final class SyncMergeTests: XCTestCase {
         id: UUID = UUID(),
         daysAgo: Int = 1,
         score: Int = 3,
-        lastModified: Date? = nil
+        lastModified: Date? = nil,
+        exactDate: Date? = nil
     ) -> GameResult {
-        let puzzleDate = date(daysAgo: daysAgo)
+        // `date(daysAgo:)` is relative to `Date()` at call time, so two results built with
+        // the same `daysAgo` differ by microseconds. Tie-break tests must pass `exactDate`.
+        let puzzleDate = exactDate ?? date(daysAgo: daysAgo)
         return GameResult(
             id: id, gameId: UUID(), gameName: "wordle",
             date: puzzleDate, score: score, maxAttempts: 6,
@@ -298,10 +301,10 @@ final class SyncMergeTests: XCTestCase {
 
     func testPruneToCapDeterministicOnDateTies() {
         // All same puzzle date → tie-break by id must be stable regardless of input order.
-        let tiedDay = 1
-        let resultA = makeResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID(), daysAgo: tiedDay)
-        let resultB = makeResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000002") ?? UUID(), daysAgo: tiedDay)
-        let resultC = makeResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000003") ?? UUID(), daysAgo: tiedDay)
+        let tiedDate = date(daysAgo: 1)
+        let resultA = makeResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID(), exactDate: tiedDate)
+        let resultB = makeResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000002") ?? UUID(), exactDate: tiedDate)
+        let resultC = makeResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000003") ?? UUID(), exactDate: tiedDate)
 
         let forward = GameResultSyncMerge.pruneToCap([resultA, resultB, resultC], limit: 2)
         let reversed = GameResultSyncMerge.pruneToCap([resultC, resultB, resultA], limit: 2)

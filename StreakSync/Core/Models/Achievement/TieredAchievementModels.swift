@@ -306,13 +306,21 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
         return requirements.first { $0.tier == nextTier }
     }
     
+    /// Progress as shown on the card.
+    ///
+    /// Tiers are deliberately never revoked, but `currentValue` is recomputed from the
+    /// current data — so deleting results (or pruning at the cap) would otherwise render
+    /// "Gold — 5/100". Floor the DISPLAYED number at the earned tier's threshold. The
+    /// stored `currentValue` keeps the true computed figure, which is what tier decisions
+    /// and tests read.
     var progressDescription: String {
-        if progress.currentTier != nil {
+        if let tier = progress.currentTier {
+            let earnedThreshold = requirements.first(where: { $0.tier == tier })?.threshold ?? 0
+            let shown = max(progress.currentValue, earnedThreshold)
             if let next = nextTierRequirement {
-                return "\(progress.currentValue)/\(next.threshold)"
-            } else {
-                return "\(progress.currentValue) · Max tier"
+                return "\(shown)/\(next.threshold)"
             }
+            return "\(shown) · Max tier"
         } else if let next = nextTierRequirement {
             return "\(progress.currentValue)/\(next.threshold)"
         }
@@ -322,6 +330,7 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
     // MARK: - Progress Update
     
     mutating func updateProgress(value: Int) {
+        progress.currentValue = value
         progress.lastUpdated = Date()
 
         // Capture the tier held BEFORE this update once. Re-reading currentTier inside the
@@ -342,12 +351,5 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
             }
         }
 
-        // Tiers are deliberately never revoked, but the raw value is recomputed from the
-        // current data — so deleting results (or pruning at the cap) used to leave a card
-        // reading "Gold — 5/100". Tier decisions above intentionally use the raw `value`;
-        // only the displayed progress is floored at what the user actually earned.
-        let earnedThreshold = progress.currentTier
-            .flatMap { tier in requirements.first(where: { $0.tier == tier })?.threshold } ?? 0
-        progress.currentValue = max(value, earnedThreshold)
     }
 }

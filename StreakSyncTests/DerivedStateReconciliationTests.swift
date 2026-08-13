@@ -56,8 +56,9 @@ final class DerivedStateReconciliationTests: XCTestCase {
     // MARK: - Achievement progress vs earned tier
 
     /// Deleting results used to leave a card reading "Gold — 5/100": the tier is never
-    /// revoked, but currentValue was overwritten with the freshly recomputed number.
-    func test_updateProgress_doesNotDropBelowEarnedTierThreshold() {
+    /// revoked, but the recomputed value dropped below the threshold that earned it.
+    /// The floor is presentational — the stored value stays truthful.
+    func test_progressDescription_doesNotContradictTheEarnedTier() {
         var achievement = makeTieredAchievement()
         achievement.updateProgress(value: 120)
         XCTAssertEqual(achievement.progress.currentTier, .gold)
@@ -65,28 +66,29 @@ final class DerivedStateReconciliationTests: XCTestCase {
         achievement.updateProgress(value: 5)
 
         XCTAssertEqual(achievement.progress.currentTier, .gold, "Earned tiers are never revoked")
+        XCTAssertEqual(achievement.progress.currentValue, 5, "The stored value stays truthful")
         XCTAssertEqual(
-            achievement.progress.currentValue, 100,
-            "Progress must not contradict the badge — it floors at the earned tier's threshold"
+            achievement.progressDescription, "100 · Max tier",
+            "The displayed number floors at the earned tier so the card reads consistently"
         )
     }
 
-    func test_updateProgress_belowFirstTier_reportsRawValue() {
+    func test_progressDescription_belowFirstTier_showsRawValue() {
         var achievement = makeTieredAchievement()
         achievement.updateProgress(value: 4)
 
         XCTAssertNil(achievement.progress.currentTier)
         XCTAssertEqual(achievement.progress.currentValue, 4)
+        XCTAssertEqual(achievement.progressDescription, "4/10")
     }
 
-    func test_updateProgress_tierDecisionsIgnoreTheFloor() {
+    func test_updateProgress_lapsedValueDoesNotRecrossATier() {
         var achievement = makeTieredAchievement()
         achievement.updateProgress(value: 100)
         achievement.updateProgress(value: 0)
 
-        // Flooring is presentational: it must not let a lapsed value re-cross a higher tier.
         XCTAssertEqual(achievement.progress.currentTier, .gold)
-        XCTAssertEqual(achievement.progress.currentValue, 100)
+        XCTAssertEqual(achievement.progress.currentValue, 0)
     }
 
     // MARK: - Lifetime active days survive the result cap
@@ -128,7 +130,9 @@ final class DerivedStateReconciliationTests: XCTestCase {
             let id = UUID()
             let name = "Game\(index)"
             games.append(makeGame(id: id, name: name))
-            results.append(makeResult(gameId: id, name: name, date: daysAgo(index + 1), score: index + 2))
+            // Scores must stay within 1...maxAttempts — GameResult asserts that a score
+            // matches its scoring model, so an out-of-range fixture aborts the test host.
+            results.append(makeResult(gameId: id, name: name, date: daysAgo(index + 1), score: (index % 6) + 1))
         }
 
         let runs = (0..<8).map { _ in

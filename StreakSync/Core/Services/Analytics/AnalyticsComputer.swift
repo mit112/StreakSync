@@ -267,7 +267,13 @@ struct AnalyticsComputer {
                 longestEntries.append((game: g, value: value))
             }
         }
-        for entry in longestEntries.sorted(by: { $0.value > $1.value }).prefix(2) {
+        // `candidateGameIds` comes from a Set and Swift's sort isn't stable, so ranking on
+        // value alone let equal-length streaks swap places between recomputations. Break
+        // ties on id so the card shows the same two games every time.
+        let rankedLongest = longestEntries.sorted {
+            $0.value != $1.value ? $0.value > $1.value : $0.game.id.uuidString < $1.game.id.uuidString
+        }
+        for entry in rankedLongest.prefix(2) {
             let desc = "\(entry.value) day streak in \(entry.game.displayName)"
             personalBests.append(PersonalBest(
                 type: .longestStreak, value: entry.value,
