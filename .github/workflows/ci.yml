@@ -13,15 +13,35 @@ concurrency:
 jobs:
   build-and-test:
     name: Build & Test
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Pinning an absolute Xcode path silently rots whenever the runner image
+      # changes — that is what broke this workflow and got it disabled. Always
+      # take the newest Xcode the image actually ships.
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer
+        run: |
+          LATEST=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "Selecting $LATEST"
+          sudo xcode-select -s "$LATEST/Contents/Developer"
+
+      # Likewise, don't hard-code a simulator name: resolve a concrete iPhone
+      # UDID from whatever runtimes the image has.
+      - name: Select simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices[][] | select(.name | startswith("iPhone"))] | last | .udid')
+          if [ -z "$UDID" ] || [ "$UDID" = "null" ]; then
+            echo "No iPhone simulator available on this runner" >&2
+            xcrun simctl list devices available >&2
+            exit 1
+          fi
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
       - name: Show build environment
         run: |
@@ -38,23 +58,25 @@ jobs:
       - name: Build
         run: |
           set -o pipefail
+          command -v xcpretty >/dev/null && FMT=xcpretty || FMT=cat
           xcodebuild build \
             -project StreakSync.xcodeproj \
             -scheme StreakSync \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -skipPackagePluginValidation \
-            CODE_SIGNING_ALLOWED=NO | xcpretty
+            CODE_SIGNING_ALLOWED=NO | "$FMT"
 
       - name: Test
         run: |
           set -o pipefail
+          command -v xcpretty >/dev/null && FMT=xcpretty || FMT=cat
           xcodebuild test \
             -project StreakSync.xcodeproj \
             -scheme StreakSync \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -skipPackagePluginValidation \
             -resultBundlePath TestResults \
-            CODE_SIGNING_ALLOWED=NO | xcpretty
+            CODE_SIGNING_ALLOWED=NO | "$FMT"
 
       - name: Upload test results
         if: always()
