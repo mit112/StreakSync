@@ -527,11 +527,12 @@ private extension DataManagementView {
             container.gameCatalog.addFavorite(gameId)
         }
 
-        // Rebuild streaks from imported results
-        await appState.rebuildStreaksFromResults()
-
-        // Save everything
-        await appState.saveAllData()
+        // Recompute everything from the merged result set. `addGameResult` above updated
+        // streaks incrementally per result, but a backup is imported newest-first, so every
+        // older result looked like a backfill and left the streak at 1 — and achievements
+        // were last evaluated against those wrong streaks. Only a full rebuild, normalize
+        // and achievement recompute produces the state the backup actually represents.
+        await appState.reconcileAfterResultSetChanged()
 
         // Ensure games are still loaded
         if appState.games.isEmpty {

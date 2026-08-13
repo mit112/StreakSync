@@ -26,6 +26,7 @@ struct AchievementSnapshot {
         from results: [GameResult],
         games: [Game],
         friendCount: Int = 0,
+        lifetimeActiveDayCount: Int = 0,
         referenceDate: Date = Date()
     ) -> AchievementSnapshot {
         guard !results.isEmpty else {
@@ -81,7 +82,9 @@ struct AchievementSnapshot {
             totalGamesPlayed: results.count,
             successCount: successCount,
             uniqueGameIds: uniqueGameIds,
-            uniqueDayCount: uniqueDays.count,
+            // `uniqueDays` only sees the capped result window, so fall back to the caller's
+            // monotonic lifetime count once pruning starts discarding older days.
+            uniqueDayCount: max(uniqueDays.count, lifetimeActiveDayCount),
             consecutiveDaysPlayed: consecutiveDays,
             minimalAttemptWins: minimalAttemptWins,
             personalBestCount: personalBestCount,

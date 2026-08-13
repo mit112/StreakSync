@@ -322,7 +322,6 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
     // MARK: - Progress Update
     
     mutating func updateProgress(value: Int) {
-        progress.currentValue = value
         progress.lastUpdated = Date()
 
         // Capture the tier held BEFORE this update once. Re-reading currentTier inside the
@@ -342,5 +341,13 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
                 }
             }
         }
+
+        // Tiers are deliberately never revoked, but the raw value is recomputed from the
+        // current data — so deleting results (or pruning at the cap) used to leave a card
+        // reading "Gold — 5/100". Tier decisions above intentionally use the raw `value`;
+        // only the displayed progress is floored at what the user actually earned.
+        let earnedThreshold = progress.currentTier
+            .flatMap { tier in requirements.first(where: { $0.tier == tier })?.threshold } ?? 0
+        progress.currentValue = max(value, earnedThreshold)
     }
 }

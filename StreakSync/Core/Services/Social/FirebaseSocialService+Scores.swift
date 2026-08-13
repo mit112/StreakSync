@@ -89,6 +89,24 @@ extension FirebaseSocialService {
         }
     }
 
+    func deleteDailyScore(dateUTC: Date, gameId: UUID) async throws {
+        let currentUID = try requireUID()
+        let dateInt = dateUTC.utcYYYYMMDD
+        let docId = "\(currentUID)|\(dateInt)|\(gameId.uuidString)"
+
+        // Drop any queued republish for the same day and game first — otherwise the next
+        // pending-score flush would recreate the document we are about to delete.
+        pendingScores.removeAll { $0.dateInt == dateInt && $0.gameId == gameId }
+        pendingScoreStore.save(pendingScores)
+
+        do {
+            try await db.collection("scores").document(docId).delete()
+ logger.info("Retracted published score for \(gameId.uuidString) on \(dateInt)")
+        } catch {
+            throw FirebaseSocialError.from(error)
+        }
+    }
+
     func flushPendingScoresIfNeeded() async {
         guard !pendingScores.isEmpty else { return }
         guard let currentUID = uid else {

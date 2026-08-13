@@ -163,7 +163,11 @@ final class FirestoreGameResultSyncService {
             // (outside the bounded newest-N remote window) before it uploads → permanent loss.
             let finalMerged = GameResultSyncMerge.pruneToCap(mergedFinal, limit: AppConstants.Storage.maxResults)
             appState.setRecentResults(finalMerged)
-            await appState.saveGameResults()
+            // Recompute everything derived from the merged set — streaks, the dedup cache
+            // and achievements — and persist all three. Callers used to do a partial
+            // version of this themselves and two call sites did none of it, which left
+            // achievements locked and stale streaks written to disk after a sync.
+            await appState.reconcileAfterResultSetChanged()
 
             syncState = .synced(lastSyncDate: Date())
             saveLastSyncTimestamp(Date())

@@ -106,6 +106,9 @@ protocol SocialService: Sendable {
     
     // Scores
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws
+    /// Retracts a published score. Without this, deleting a result locally left it on
+    /// friends' leaderboards forever, and editing a result's date orphaned the old entry.
+    func deleteDailyScore(dateUTC: Date, gameId: UUID) async throws
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow]
     
     // Account management

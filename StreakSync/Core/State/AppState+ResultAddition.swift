@@ -55,6 +55,9 @@ extension AppState {
         // Update duplicate-prevention cache
         updateResultsCache(for: result)
 
+        // Record the day in the monotonic lifetime set, which outlives result pruning
+        recordActiveDays(from: [result])
+
         // Update streak SYNCHRONOUSLY (host mode only)
         if !isGuestMode {
             updateStreak(for: result)
@@ -84,12 +87,20 @@ extension AppState {
         // Capture logger for async tasks
         let logger = self.logger
 
+        // A result dated anything other than today can't be handled by the incremental
+        // `updateStreak` above: that path only starts or extends a streak from the newest
+        // play. A backdated result therefore starts a phantom "active" streak for a game
+        // last played days ago (and publishes it to the leaderboard), while a result that
+        // genuinely fills a gap never extends the streak it completes. Both need a rebuild.
+        let needsFullRecompute = !isGuestMode && !Calendar.current.isDateInToday(result.date)
+
         // Save data asynchronously
         Task {
             await saveGameResults()
             await saveStreaks()
-            
+
             // Prune oldest results if over limit (keeps UserDefaults manageable)
+            var didPrune = false
             if !self.isGuestMode && self.recentResults.count > AppConstants.Storage.maxResults {
                 let before = self.recentResults.count
                 self.recentResults = GameResultSyncMerge.pruneToCap(
@@ -97,7 +108,14 @@ extension AppState {
                 )
                 self.buildResultsCache()
                 await self.saveGameResults()
+                didPrune = true
  self.logger.info("Pruned \(before - self.recentResults.count) oldest results (limit: \(AppConstants.Storage.maxResults))")
+            }
+
+            // Pruning drops results that streaks and achievements were derived from, so both
+            // must be recomputed against what actually remains.
+            if needsFullRecompute || didPrune {
+                await self.reconcileAfterResultSetChanged()
             }
         }
 
@@ -127,16 +145,39 @@ extension AppState {
         NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
     }
 
+    // MARK: - Social Retraction
+
+    /// Removes a previously published score from friends' leaderboards (best-effort).
+    internal func retractScoreFromSocial(date: Date, gameId: UUID) {
+        guard !isGuestMode else { return }
+        // Clear the throttle so an immediately following republish is never suppressed.
+        lastScorePublishByGame[gameId] = nil
+
+        let logger = self.logger
+        Task { [weak self] in
+            guard let self, let social = self.socialService else { return }
+            do {
+                try await social.deleteDailyScore(dateUTC: date, gameId: gameId)
+            } catch {
+ logger.error("Score retraction failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: - Social Publishing
 
     internal func publishScoreToSocial(_ result: GameResult) {
-        // Throttle: skip if same game was published within 5 seconds
-        if let lastPublish = lastScorePublishByGame[result.gameId],
-           Date().timeIntervalSince(lastPublish) < 5.0 {
- logger.debug("Throttled score publish for \(result.gameName) (< 5s since last)")
+        // Throttle duplicate publishes of the SAME payload. Keying on game alone meant a
+        // correction saved within 5s of the original share was silently dropped, leaving the
+        // wrong score on the leaderboard permanently — so the signature must be part of it.
+        let signature = "\(result.date.utcYYYYMMDD)|\(result.score.map(String.init) ?? "-")|\(result.completed)"
+        if let last = lastScorePublishByGame[result.gameId],
+           last.signature == signature,
+           Date().timeIntervalSince(last.date) < 5.0 {
+ logger.debug("Throttled duplicate score publish for \(result.gameName) (< 5s since identical publish)")
             return
         }
-        lastScorePublishByGame[result.gameId] = Date()
+        lastScorePublishByGame[result.gameId] = (date: Date(), signature: signature)
         
         let logger = self.logger
 

@@ -28,6 +28,8 @@ final class AppState {
     internal var _tieredAchievements: [TieredAchievement]? // swiftlint:disable:this identifier_name
     @ObservationIgnored
     internal var _uniqueGamesEver: Set<UUID>? // swiftlint:disable:this identifier_name
+    @ObservationIgnored
+    internal var _activeDaysEver: Set<Date>? // swiftlint:disable:this identifier_name
 
     // MARK: - Core Data (Persisted)
     var games: [Game] = []
@@ -81,7 +83,7 @@ final class AppState {
     internal var gameResultsCache: [UUID: Set<String>] = [:]
     
     // MARK: - Score Publish Throttle
-    internal var lastScorePublishByGame: [UUID: Date] = [:]
+    internal var lastScorePublishByGame: [UUID: (date: Date, signature: String)] = [:]
 
     // MARK: - Social Metrics (for achievement checking)
     internal var cachedFriendCount: Int {
@@ -226,29 +228,21 @@ final class AppState {
 
     /// Removes a specific game result and recomputes dependent state
     func removeGameResult(_ resultId: UUID) {
-        let beforeCount = recentResults.count
+        guard let removed = recentResults.first(where: { $0.id == resultId }) else { return }
         recentResults.removeAll { $0.id == resultId }
-        guard recentResults.count != beforeCount else { return }
 
         // Record a tombstone so the next sync deletes the remote doc and no
         // full/cold resync can resurrect this result.
         deletedResultIds.insert(resultId)
         saveDeletedResultIds()
 
-        buildResultsCache()
+        // A deleted result must also stop counting on friends' leaderboards — the local
+        // delete and the Firestore result doc were already handled, but the published
+        // score document outlived both.
+        retractScoreFromSocial(date: removed.date, gameId: removed.gameId)
 
         Task { @MainActor in
-            await rebuildStreaksFromResults()
-            await normalizeStreaksForMissedDays()
-            recalculateAllTieredAchievementProgress()
-
-            // Refresh UI before persisting so views see consistent state
-            invalidateCache()
-            NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
-
-            await saveGameResults()
-            await saveStreaks()
-            await saveTieredAchievements()
+            await reconcileAfterResultSetChanged()
  logger.info("Removed game result and recomputed dependent state")
         }
     }
@@ -261,7 +255,10 @@ final class AppState {
     /// Check all achievements via pre-computed snapshot (used during day changes).
     func checkAllAchievements() async {
 logger.info("Checking all achievements for day change")
-        let snapshot = AchievementSnapshot.build(from: recentResults, games: games, friendCount: cachedFriendCount)
+        let snapshot = AchievementSnapshot.build(
+            from: recentResults, games: games, friendCount: cachedFriendCount,
+            lifetimeActiveDayCount: activeDaysEver.count
+        )
         let checker = TieredAchievementChecker()
         var current = tieredAchievements
         let unlocks = checker.checkAllAchievements(

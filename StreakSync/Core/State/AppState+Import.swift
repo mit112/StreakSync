@@ -72,7 +72,13 @@ extension AppState {
             }
             
             maxStreak = max(maxStreak, currentStreak)
-            
+
+            // `maxStreak` is an all-time record, but this rebuild can only see the results
+            // that survive the `maxResults` cap — so a user who crosses the cap would watch
+            // their best streak silently shrink as old results are pruned. Never let a
+            // rebuild lower the persisted record; only genuine recomputation can raise it.
+            maxStreak = max(maxStreak, streaks.first(where: { $0.gameId == game.id })?.maxStreak ?? 0)
+
             // FIXED: Don't automatically break streaks based on time alone
             // Streaks should only be broken if there's an actual gap in completed games
             // The streak calculation above already handles this correctly by counting consecutive days

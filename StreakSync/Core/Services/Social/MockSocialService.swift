@@ -73,6 +73,14 @@ final class MockSocialService: SocialService {
         try save(existing, forKey: scoresKey)
  logger.info("Stored \(scores.count) scores locally (total: \(existing.count))")
     }
+
+    func deleteDailyScore(dateUTC: Date, gameId: UUID) async throws {
+        let existing = load([DailyGameScore].self, forKey: scoresKey) ?? []
+        let dateInt = dateUTC.utcYYYYMMDD
+        let remaining = existing.filter { !($0.dateInt == dateInt && $0.gameId == gameId) }
+        try save(remaining, forKey: scoresKey)
+ logger.info("Retracted \(existing.count - remaining.count) local score(s)")
+    }
     
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
         let my = try? await myProfile()
@@ -204,6 +212,7 @@ final class ReviewModeSocialService: SocialService {
     // MARK: - Scores
 
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws { }
+    func deleteDailyScore(dateUTC: Date, gameId: UUID) async throws { }
 
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
         let wordle = UUID(staticString: "550e8400-e29b-41d4-a716-446655440000")
