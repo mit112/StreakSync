@@ -289,6 +289,13 @@ struct AnalyticsComputer {
             }
             if let best, let s = best.score { bests.append((gid, s, best)) }
         }
+        // `grouped` is a Dictionary, so iteration order is unspecified — taking `prefix(2)`
+        // straight off it showed an arbitrary, reshuffling pair of games every recompute.
+        // Scores from different games aren't comparable (3 guesses vs 22 seconds), so rank
+        // by how recently the best was set and break ties on id to keep it deterministic.
+        bests.sort {
+            $0.2.date != $1.2.date ? $0.2.date > $1.2.date : $0.0.uuidString < $1.0.uuidString
+        }
         for (gid, score, result) in bests.prefix(2) {
             if let g = games.first(where: { $0.id == gid }) {
                 let desc = "\(result.displayScore) in \(g.displayName)"
