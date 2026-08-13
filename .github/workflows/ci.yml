@@ -43,6 +43,21 @@ jobs:
           fi
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
+      # GoogleService-Info.plist is gitignored, so CI checks out without it and
+      # FirebaseApp.configure() aborts at launch — which crashed the test host
+      # before it could bootstrap ("Early unexpected exit"). Unit tests never
+      # contact Firebase, so a structurally valid placeholder is enough.
+      - name: Provide placeholder Firebase config
+        run: |
+          PLIST=StreakSync/GoogleService-Info.plist
+          if [ ! -f "$PLIST" ]; then
+            cp StreakSync/GoogleService-Info.example.plist "$PLIST"
+            PB=/usr/libexec/PlistBuddy
+            "$PB" -c "Set :BUNDLE_ID com.mitsheth.StreakSync" "$PLIST"
+            "$PB" -c "Set :GCM_SENDER_ID 000000000000" "$PLIST"
+            echo "Wrote placeholder $PLIST"
+          fi
+
       - name: Show build environment
         run: |
           xcodebuild -version
