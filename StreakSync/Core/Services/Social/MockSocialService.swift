@@ -8,6 +8,14 @@
 import Foundation
 import OSLog
 
+/// Per-user running totals while aggregating the mock leaderboard.
+private struct LeaderboardAccumulator {
+    let name: String
+    var total: Int = 0
+    var perGame: [UUID: Int] = [:]
+    var perGameRaw: [UUID: Int] = [:]
+}
+
 @MainActor
 final class MockSocialService: SocialService {
     private let defaults: UserDefaults
@@ -95,12 +103,12 @@ final class MockSocialService: SocialService {
             return day >= localStart && day <= localEnd
         }
         
-        var perUser: [String: (name: String, total: Int, perGame: [UUID: Int], perGameRaw: [UUID: Int])] = [:]
+        var perUser: [String: LeaderboardAccumulator] = [:]
         for s in filtered {
             let game = Game.allAvailableGames.first(where: { $0.id == s.gameId })
             let p = LeaderboardScoring.points(for: s, game: game)
             let displayName = s.userId == my?.id ? (my?.displayName ?? "Me") : "Friend"
-            var entry = perUser[s.userId] ?? (name: displayName, total: 0, perGame: [:], perGameRaw: [:])
+            var entry = perUser[s.userId] ?? LeaderboardAccumulator(name: displayName)
             entry.total += p
             entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + p
             if let raw = s.score {
