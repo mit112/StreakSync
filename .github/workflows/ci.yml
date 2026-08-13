@@ -42,6 +42,10 @@ jobs:
             exit 1
           fi
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          # Boot it up front and wait: launching into a still-booting device is a
+          # common source of "Simulator device failed to launch" on CI runners.
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b || true
 
       # GoogleService-Info.plist is gitignored, so CI checks out without it.
       # AppDelegate no longer aborts when it is absent, but the Firebase-backed
@@ -100,6 +104,8 @@ jobs:
             -skipPackagePluginValidation \
             -resultBundlePath TestResults \
             -only-testing:StreakSyncTests \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
             CODE_SIGNING_ALLOWED=NO | "$FMT"
 
       - name: Upload test results
