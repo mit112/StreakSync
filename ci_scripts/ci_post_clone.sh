@@ -10,7 +10,7 @@
 #  placeholder like the one GitHub Actions writes would ship a broken build.
 #
 #  Provide it as a base64-encoded Xcode Cloud secret environment variable named
-#  GOOGLE_SERVICE_INFO_PLIST_BASE64:
+#  FIREBASE_PLIST_B64:
 #
 #      base64 -i StreakSync/GoogleService-Info.plist | pbcopy
 #
@@ -20,13 +20,13 @@ set -e
 PLIST="$CI_PRIMARY_REPOSITORY_PATH/StreakSync/GoogleService-Info.plist"
 EXPECTED_PROJECT_ID="streaksync-55ca0"
 
-if [ -z "$GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
-    echo "error: GOOGLE_SERVICE_INFO_PLIST_BASE64 is not set. Add it as a secret" >&2
+if [ -z "$FIREBASE_PLIST_B64" ]; then
+    echo "error: FIREBASE_PLIST_B64 is not set. Add it as a secret" >&2
     echo "error: environment variable on the Xcode Cloud workflow." >&2
     exit 1
 fi
 
-printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 --decode > "$PLIST"
+printf '%s' "$FIREBASE_PLIST_B64" | base64 --decode > "$PLIST"
 
 # Fail loudly here rather than letting a truncated or mis-pasted secret burn a
 # full archive and upload only to crash on a tester's device.
