@@ -26,8 +26,9 @@ Confidence legend: **[verified-code]** confirmed in source this session · **[ex
 > - T2-2 App Store URL fallback: `0f4cfe2` — live link
 >   `https://apps.apple.com/us/app/streaksync-puzzle-tracker/id6755203446` now in the invite.
 > App + Share Extension + test target all build green (only pre-existing Sendable warnings).
-> **Still open:** O-1 (App Store "CloudKit" copy — owner action). Everything code-side for
-> Tier 1 + Tier 2 is done; next is device-verify + merge to main.
+> **CLOSED 2026-08-27.** All of Tier 1 + Tier 2 merged to `main` (PR #2, merge commit
+> `825c084`), and O-1 is resolved — the App Store description was rewritten and submitted
+> with version 1.22. Nothing from this audit remains open.
 
 ## TIER 1 — Data-integrity bugs (must fix before posting)
 
@@ -87,6 +88,7 @@ These make the app actually lose a user's streak — the worst outcome for a "ne
 ### O-1 — App Store description says "CloudKit-powered sync" but the app uses Firebase  [verified-code] [owner]
 - The codebase contains **zero CloudKit**; backend is Firebase/Firestore, which also contradicts the app's own privacy policy. For a privacy-scrutinizing audience this reads as "your public copy can't agree on where my data lives."
 - **Fix:** edit the App Store Connect description to Firebase/Firestore (or neutral "secure cloud sync"). Not in the repo (no fastlane/metadata dir) → manual App Store Connect edit. Also resolves the privacy-contradiction objection.
+- **RESOLVED 2026-08-27** with version 1.22, using neutral "Secure Cloud Sync" wording rather than naming Firebase, so the copy survives a future backend change.
 
 ---
 
@@ -185,6 +187,9 @@ achievements update, and analytics make sense. They did not, in several cases.
   in two separate places.
 
 ## Still open
-- **O-1** App Store copy still claims "CloudKit-powered sync". Owner action.
+- ~~**O-1** App Store copy still claims "CloudKit-powered sync". Owner action.~~
+  **DONE 2026-08-27** — description rewritten and submitted with 1.22. The rewrite also
+  fixed three further inaccuracies found at the same time: "15+ games" (there are exactly
+  15), the missing Pips entry, and "works across all Apple devices" (iPhone + iPad only).
 - UI tests are excluded from CI (they blew the job timeout); two unit tests take
   ~6–7 minutes each and dominate runtime.
