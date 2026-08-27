@@ -89,7 +89,7 @@ XcodeBuildMCP: `build_sim(buildForTesting: true)` then
 
 ## Architecture
 
-**iOS-only SwiftUI app** targeting iOS 26+ / Swift 6.0 / Xcode 26. Backend is Firebase (Firestore + Auth) via SPM. No CocoaPods, no Carthage.
+**iOS-only SwiftUI app** with an **iOS 18.6 deployment target** / Swift 6.0. iOS 26-only APIs are used behind `#available(iOS 26, *)` gates, never unconditionally. Backend is Firebase (Firestore + Auth) via SPM. No CocoaPods, no Carthage.
 
 ### Targets
 
@@ -169,6 +169,73 @@ Rules in `firestore.rules` with a 62-case pen test suite in `firestore-rules-tes
 - Dates use ISO8601 encoding/decoding throughout persistence
 - Sensitive data goes in Keychain (`KeychainService`), never UserDefaults
 
+
+## Toolchain — two Xcodes, on purpose
+
+| Job | Xcode | Path |
+|---|---|---|
+| Daily dev, tests, simulators | 27.0 beta (`xcode-select` default) | `/Applications/Xcode-beta.app` |
+| **App Store archives** | **26.6 (17F113)** | `/Applications/Xcode-26.6.0.app` |
+
+The App Store rejects binaries built with a beta Xcode, so releases must be cut
+with the release Xcode. 26.6 is also the exact build CI uses, so the archive
+toolchain is the one that proves the suite green.
+
+**`open -a` does not work for the release Xcode.** Both bundles declare
+`CFBundleIdentifier = com.apple.dt.Xcode`, so LaunchServices resolves the
+document to the higher-versioned beta and fails with `-10664`
+(`kLSIncompatibleApplicationVersionErr`). Launch the binary directly instead:
+
+```bash
+nohup /Applications/Xcode-26.6.0.app/Contents/MacOS/Xcode \
+  ~/dev/StreakSync/StreakSync.xcodeproj >/dev/null 2>&1 &
+```
+
+For CLI work, select the toolchain per command with `DEVELOPER_DIR` rather than
+switching the global `xcode-select` default.
+
+Each Xcode needs its own platform download — a fresh install can build for the
+simulator but fails device/archive builds with "iOS <version> is not installed":
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer xcodebuild -downloadPlatform iOS
+```
+
+### Release flow (all CLI, no Organizer)
+
+Bump `MARKETING_VERSION` on **both** `StreakSync` and `StreakSyncShareExtension` —
+Apple rejects an extension whose `CFBundleShortVersionString` differs from the app.
+Version components compare numerically, so 1.22 follows 1.21 (1.3 would be *lower*).
+
+```bash
+# 1. Archive
+DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer xcodebuild archive \
+  -project StreakSync.xcodeproj -scheme StreakSync \
+  -destination 'generic/platform=iOS' \
+  -archivePath ~/Library/Developer/Xcode/Archives/<date>/StreakSync-<ver>.xcarchive \
+  -allowProvisioningUpdates -skipPackagePluginValidation
+
+# 2. Export (re-signs with Apple Distribution). ExportOptions.plist:
+#    method=app-store-connect, destination=export, teamID=3P89U4WZAB,
+#    signingStyle=automatic, manageAppVersionAndBuildNumber=false
+DEVELOPER_DIR=... xcodebuild -exportArchive -archivePath <archive> \
+  -exportOptionsPlist ExportOptions.plist -exportPath <dir> -allowProvisioningUpdates
+
+# 3. Validate, then upload
+DEVELOPER_DIR=... xcrun altool --validate-app -f <ipa> -t ios -u <apple-id> -p "$ASC_PW"
+DEVELOPER_DIR=... xcrun altool --upload-app  -f <ipa> -t ios -u <apple-id> -p "$ASC_PW"
+```
+
+`$ASC_PW` is an app-specific password from appleid.apple.com. Set it and run the
+command in the *same* shell invocation, or it arrives empty and altool reports
+`-20101 "Your Apple Account or password was entered incorrectly"` — which looks
+like a wrong password rather than a missing one.
+
+Xcode Cloud is **not** set up. `ci_scripts/ci_post_clone.sh` exists and works
+(it materializes the gitignored `GoogleService-Info.plist` from a
+`FIREBASE_PLIST_B64` secret), but onboarding fails at the source-code grant step.
+Note that Xcode Cloud onboarding requires a *release* Xcode; it cannot be
+completed from a beta.
 
 ## Simulator Reference
 
