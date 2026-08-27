@@ -29,32 +29,19 @@ extension AppState {
         // 1. Replace in-place (or append if somehow missing)
         replaceOrAppendResult(edited)
 
-        // 2. Rebuild duplicate-prevention cache
-        buildResultsCache()
-
-        // 3. Rebuild streaks from scratch
-        await rebuildStreaksFromResults()
-        await normalizeStreaksForMissedDays()
-
-        // 4. Recheck achievements
-        recalculateAllTieredAchievementProgress()
-
-        // 5. Invalidate UI caches
-        invalidateCache()
-
-        // 6. Notify UI
-        NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
-
-        // 7. Persist everything
-        await saveGameResults()
-        await saveStreaks()
-        await saveTieredAchievements()
+        // 2. Recompute and persist everything derived from the result set
+        await reconcileAfterResultSetChanged()
 
         logger.info("Edited game result for \(edited.gameName) and recomputed state")
 
-        // 8. Republish social score (best-effort)
-        if !isGuestMode {
-            publishScoreToSocial(edited)
+        // 3. Published scores are keyed by day, so moving a result to a different date
+        // leaves the original day's entry stranded on friends' leaderboards. Retract it
+        // before republishing under the new date.
+        if original.date.utcYYYYMMDD != edited.date.utcYYYYMMDD {
+            retractScoreFromSocial(date: original.date, gameId: original.gameId)
         }
+
+        // 4. Republish social score (best-effort)
+        publishScoreToSocial(edited)
     }
 }

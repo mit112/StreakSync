@@ -177,12 +177,9 @@ enum GameShareFormatFixtures {
         GameShareFormatFixture(
             game: .strands,
             label: "with_theme_and_spangram",
-            shareText: """
-            Strands #350
-            "Knot your average puzzle"
-            🔵🔵🔵🟡
-            🔵🔵🔵
-            """,
+            // Real NYT shares wrap the theme in curly quotes (U+201C/U+201D), not
+            // straight ASCII quotes — using ASCII here would hide a parser mismatch.
+            shareText: "Strands #350\n\u{201C}Knot your average puzzle\u{201D}\n🔵🔵🔵🟡\n🔵🔵🔵",
             source: "GameDetectionTests + NYT help",
             shouldParse: true
         ),

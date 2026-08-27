@@ -15,7 +15,7 @@ struct ShareDiscoverySheet: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: 28) {
+                VStack(spacing: 24) {
                     ShareSheetMockup()
                         .padding(.top, 24)
                         .padding(.horizontal, 24)
@@ -46,7 +46,7 @@ struct ShareDiscoverySheet: View {
                 Text("Got it")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 16)
                     .background(
                         RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                             .fill(Color.accentColor)

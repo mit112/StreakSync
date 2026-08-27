@@ -35,7 +35,7 @@ struct StreakTrendsDailySection: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(point.date, format: .dateTime.month().day())
-                    .font(.subheadline)
+                    .font(.subheadline.monospacedDigit())
                     .fontWeight(.medium)
                 Text(point.date, format: .dateTime.weekday(.abbreviated))
                     .font(.caption2)
@@ -46,16 +46,16 @@ struct StreakTrendsDailySection: View {
             if point.gamesPlayed > 0 {
                 HStack(spacing: 8) {
                     Label("\(point.totalActiveStreaks)", systemImage: "flame.fill")
-                        .font(.caption)
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(.orange)
 
                     Label("\(point.gamesPlayed)", systemImage: "gamecontroller.fill")
-                        .font(.caption)
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(.blue)
 
                     if point.gamesCompleted > 0 {
                         Label("\(point.gamesCompleted)", systemImage: "checkmark.circle.fill")
-                            .font(.caption)
+                            .font(.caption.monospacedDigit())
                             .foregroundStyle(.green)
                     }
                 }

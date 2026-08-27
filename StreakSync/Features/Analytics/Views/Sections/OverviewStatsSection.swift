@@ -85,7 +85,7 @@ struct AnalyticsStatCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
-                    .font(.title2)
+                    .font(.title2.monospacedDigit())
                     .fontWeight(.bold)
 
                 Text(title)
@@ -125,7 +125,7 @@ struct AnalyticsStatCardWithTooltip: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(value)
-                    .font(.title2)
+                    .font(.title2.monospacedDigit())
                     .fontWeight(.bold)
 
                 Text(title)
@@ -133,7 +133,7 @@ struct AnalyticsStatCardWithTooltip: View {
                     .foregroundStyle(.secondary)
 
                 Text(tooltip)
-                    .font(.caption2)
+                    .font(.caption2.monospacedDigit())
                     .foregroundStyle(.tertiary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)

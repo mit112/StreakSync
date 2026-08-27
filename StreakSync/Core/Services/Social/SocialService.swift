@@ -39,6 +39,11 @@ struct LeaderboardRow: Identifiable, Codable, Hashable {
     let totalPoints: Int
     let perGameBreakdown: [UUID: Int]
     let perGameStreak: [UUID: Int]  // currentStreak per game (from most recent score)
+    /// Raw `DailyGameScore.score` per game (guesses, hints, or seconds depending on
+    /// `scoringModel`) — carried alongside `perGameBreakdown` so display text can render
+    /// the true metric instead of reverse-deriving it from the normalized points.
+    /// Only populated for games where the underlying score exists.
+    let perGameRawScore: [UUID: Int]
 }
 
 // MARK: - Friendship Model
@@ -106,6 +111,9 @@ protocol SocialService: Sendable {
     
     // Scores
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws
+    /// Retracts a published score. Without this, deleting a result locally left it on
+    /// friends' leaderboards forever, and editing a result's date orphaned the old entry.
+    func deleteDailyScore(dateUTC: Date, gameId: UUID) async throws
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow]
     
     // Account management

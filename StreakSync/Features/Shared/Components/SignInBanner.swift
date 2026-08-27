@@ -27,7 +27,7 @@ struct SignInBanner: View {
     // explanation would reveal a contradictory empty state (DESIGN_AUDIT §4.5).
     var body: some View {
         VStack(spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Image(systemName: "person.crop.circle.badge.plus")
                     .font(.title3)
                     .foregroundStyle(StreakSyncBrand.primary)
@@ -45,7 +45,7 @@ struct SignInBanner: View {
             }
 
             // Apple is the prominent action, Google the secondary one.
-            VStack(spacing: 10) {
+            VStack(spacing: 12) {
                 SignInWithAppleButton(.signIn) { request in
                     request.requestedScopes = [.fullName, .email]
                     request.nonce = authManager.prepareAppleNonce()
@@ -71,7 +71,7 @@ struct SignInBanner: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(14)
+        .padding(16)
         .background {
             RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))

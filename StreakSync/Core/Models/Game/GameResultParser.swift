@@ -35,10 +35,15 @@ struct GameResultParser {
 
     func parse(_ text: String, for game: Game) throws -> GameResult {
         let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parsed: GameResult
         if let parser = parserForGame(game.name.lowercased()) {
-            return try parser(cleanText, game.id)
+            parsed = try parser(cleanText, game.id)
+        } else {
+            parsed = try parseGeneric(cleanText, game: game)
         }
-        return try parseGeneric(cleanText, game: game)
+        // Re-date the result by the puzzle it actually is (not device receipt time)
+        // so streaks survive travel across time zones / the date line (T1-3).
+        return Self.applyingCanonicalPuzzleDate(to: parsed)
     }
 
     private func parseGeneric(_ text: String, game: Game) throws -> GameResult {
@@ -68,6 +73,86 @@ struct GameResultParser {
             sharedText: text,
             parsedData: ["source": "manual"]
         )
+    }
+}
+
+// MARK: - Canonical Puzzle Date (timezone-immune streaks)
+
+extension GameResultParser {
+    /// Known (puzzleNumber → publication date) anchors for games whose share text
+    /// carries a strictly sequential daily puzzle number. Used to date a result by
+    /// the puzzle it actually is rather than the device receipt time, so streaks
+    /// count puzzle-days and survive travel across time zones / the date line (T1-3).
+    ///
+    /// Anchors captured 2026-08-07 (US/Eastern). Games absent here (Spelling Bee,
+    /// Mini Crossword, Pips, LinkedIn Mini Sudoku, generic) have no usable
+    /// sequential number and fall back to the receipt date.
+    private static let puzzleAnchors: [String: (number: Int, year: Int, month: Int, day: Int)] = [
+        Game.Names.wordle: (1875, 2026, 8, 7),
+        Game.Names.connections: (1153, 2026, 8, 7),
+        Game.Names.strands: (887, 2026, 8, 7),
+        Game.Names.quordle: (1656, 2026, 8, 7),
+        Game.Names.octordle: (1654, 2026, 8, 5),
+        Game.Names.nerdle: (1658, 2026, 8, 4),
+        Game.Names.linkedinQueens: (829, 2026, 8, 7),
+        Game.Names.linkedinTango: (669, 2026, 8, 7),
+        Game.Names.linkedinCrossclimb: (829, 2026, 8, 7),
+        Game.Names.linkedinPinpoint: (829, 2026, 8, 7),
+        Game.Names.linkedinZip: (508, 2026, 8, 7)
+    ]
+
+    /// Gregorian calendar in the device's own time zone, used only for puzzle-date
+    /// arithmetic. Anchoring at noon *local* keeps consecutive puzzles one calendar day
+    /// apart for streak math, and — unlike a noon-UTC anchor — keeps that instant inside
+    /// the day the user actually played it.
+    ///
+    /// Noon UTC lands at 01:00 the following local day at UTC+13, so at UTC+12 and east
+    /// today's puzzle never satisfied the `Calendar.current` "is this today?" checks behind
+    /// `todaysResults` and `hasPlayedToday`. Those users saw "0 played today" and got a
+    /// streak-at-risk reminder every single day despite never missing one.
+    private static let puzzleCalendar: Calendar = {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .autoupdatingCurrent
+        return cal
+    }()
+
+    /// Canonical publication date (noon UTC) for a parsed result derived from its
+    /// puzzle number, or nil when the game has no usable sequential number.
+    static func canonicalPuzzleDate(gameName: String, parsedData: [String: String]) -> Date? {
+        // Weekly Quordle uses a separate numbering sequence — never anchor it.
+        if parsedData["mode"] == "weekly" { return nil }
+
+        guard let anchor = puzzleAnchors[gameName.lowercased()],
+              let raw = parsedData["puzzleNumber"],
+              let number = Int(
+                raw.replacingOccurrences(of: ",", with: "").replacingOccurrences(of: ".", with: "")
+              ),
+              number > 0 else {
+            return nil
+        }
+
+        var components = DateComponents()
+        components.year = anchor.year
+        components.month = anchor.month
+        components.day = anchor.day
+        components.hour = 12
+        guard let anchorDate = puzzleCalendar.date(from: components) else { return nil }
+        return puzzleCalendar.date(byAdding: .day, value: number - anchor.number, to: anchorDate)
+    }
+
+    /// Replaces a parsed result's receipt date with its canonical puzzle date when
+    /// one can be derived. `replacing` keeps every other field and refreshes
+    /// `lastModified` to now, preserving sync conflict-resolution semantics.
+    static func applyingCanonicalPuzzleDate(to result: GameResult) -> GameResult {
+        guard let canonical = canonicalPuzzleDate(gameName: result.gameName, parsedData: result.parsedData) else {
+            return result
+        }
+        // Guard against a bad anchor placing a puzzle implausibly in the future —
+        // you can't have played a puzzle that releases more than ~a day ahead.
+        if canonical > result.date.addingTimeInterval(36 * 3600) {
+            return result
+        }
+        return result.replacing(date: canonical)
     }
 }
 

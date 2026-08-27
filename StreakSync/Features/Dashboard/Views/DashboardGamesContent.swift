@@ -17,6 +17,10 @@ struct DashboardGamesContent: View {
     @Environment(GameCatalog.self) private var gameCatalog
     @EnvironmentObject private var coordinator: NavigationCoordinator
 
+    // Minimum grid item width, scaled with Dynamic Type so the grid collapses to
+    // a single column at accessibility sizes instead of staying locked at 2-up (§3).
+    @ScaledMetric(relativeTo: .body) private var gridMinItemWidth: CGFloat = 160
+
     var body: some View {
         if filteredGames.isEmpty {
             GameEmptyState(
@@ -68,8 +72,7 @@ struct DashboardGamesContent: View {
     // MARK: - Modern Grid View
     private var modernGridView: some View {
         LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12)
+            GridItem(.adaptive(minimum: gridMinItemWidth), spacing: 12)
         ], spacing: 12) {
             ForEach(Array(filteredGames.enumerated()), id: \.element.id) { index, game in
                 let streak = appState.getStreak(for: game) ?? GameStreak.empty(for: game)
@@ -97,7 +100,9 @@ struct DashboardGamesContent: View {
                 ))
             }
         }
-        .padding(.horizontal, 16)
+        // No inner horizontal padding: the games section already applies
+        // `.padding(.horizontal)` in ImprovedDashboardView (§3 double-margin fix).
+        // Card mode has never had inner padding — this keeps both modes at 16pt margins.
     }
 }
 

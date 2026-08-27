@@ -406,33 +406,44 @@ struct GameDetector {
     ///   - games: The game catalog to search. Typically `Game.allAvailableGames`.
     /// - Returns: The matched `Game`, or `nil` if no rule fires.
     static func detect(from text: String, in games: [Game]) -> Game? {
-        // Detection rules: (textContains, gameName)
+        // Detection rules: (textContains, gameName), matched case-insensitively.
+        // Ordered most-specific-first — a generic/bare marker (e.g. "Wordle") must
+        // never pre-empt a more specific one that could legitimately co-occur in
+        // the same share text (e.g. a combined multi-game LinkedIn post), so it
+        // stays last.
         let rules: [(String, String)] = [
-            ("Pips #", "pips"),
             ("Weekly Quordle Challenge", "quordle"),
             ("Daily Quordle", "quordle"),
             ("Daily Octordle", "octordle"),
-            ("Wordle", "wordle"),
-            ("nerdlegame", "nerdle"),
+            ("Pips #", "pips"),
             ("Strands #", "strands"),
             // Mini Crossword before any bare "Crossword" check
             ("Mini Crossword", "minicrossword"),
             ("Spelling Bee", "spellingbee"),
-            ("Mini Sudoku #", "linkedinminisudoku"),
-            ("Queens #", "linkedinqueens"),
+            // Widened from "Mini Sudoku #" to also catch "Mini Sudoku puzzle #45"
+            // and "Mini Sudoku - May 19, 2026" share formats.
+            ("Mini Sudoku", "linkedinminisudoku"),
+            // Widened from "Queens #" to also catch the hashless "Queens 522" format.
+            ("Queens", "linkedinqueens"),
             ("Tango #", "linkedintango"),
             ("Crossclimb #", "linkedincrossclimb"),
             ("Pinpoint #", "linkedinpinpoint"),
-            ("Zip #", "linkedinzip")
+            ("Zip #", "linkedinzip"),
+            // Widened from "nerdlegame" to also catch the branded "Nerdle 728 3/6" header.
+            ("nerdle", "nerdle"),
+            // Bare "Wordle" is the most generic marker in this list — kept last so
+            // it can never pre-empt a more specific rule above.
+            ("Wordle", "wordle")
         ]
 
         // Connections needs two markers to avoid false positives
-        if text.contains("Connections") && text.contains("Puzzle #") {
+        if text.range(of: "Connections", options: .caseInsensitive) != nil &&
+            text.range(of: "Puzzle #", options: .caseInsensitive) != nil {
             return games.first { $0.name.lowercased() == "connections" }
         }
 
         for (marker, name) in rules {
-            if text.contains(marker) {
+            if text.range(of: marker, options: .caseInsensitive) != nil {
                 return games.first { $0.name.lowercased() == name }
             }
         }

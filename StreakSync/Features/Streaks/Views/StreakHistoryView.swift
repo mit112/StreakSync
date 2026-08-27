@@ -81,7 +81,7 @@ struct StreakHistoryView: View {
                 Text(selectedMonth.formatted(.dateTime.month(.wide)))
                     .font(.title3.weight(.semibold))
                 Text(selectedMonth.formatted(.dateTime.year()))
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
             .contentTransition(.numericText())
 

@@ -12,11 +12,22 @@ import XCTest
 final class PendingSaveStoreTests: XCTestCase {
     private let store = PendingSaveStore()
 
-    override func setUp() {
-        super.setUp()
+    override func setUpWithError() throws {
+        try super.setUpWithError()
         // Clear any leftover state
         store.savePendingItems([])
+
+        // PendingSaveStore is Keychain-backed, and the Keychain is unavailable to an
+        // unsigned test host (CI builds with CODE_SIGNING_ALLOWED=NO), where writes
+        // silently no-op. Skip rather than report a product failure — probe by writing
+        // and reading back, so this only skips where the Keychain genuinely doesn't work.
+        store.enqueue(key: Self.probeKey)
+        let probeSucceeded = store.loadPendingItems().contains { $0.key == Self.probeKey }
+        store.savePendingItems([])
+        try XCTSkipUnless(probeSucceeded, "Keychain unavailable in this environment")
     }
+
+    private static let probeKey = "streaksync_keychain_probe"
 
     override func tearDown() {
         store.savePendingItems([])

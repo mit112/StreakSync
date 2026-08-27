@@ -71,16 +71,21 @@ final class AppGroupResultMonitor {
     }
 
     // MARK: - Queue Processing
-    func processQueuedResults() async -> [GameResult] {
-        // Process key-based queue (only clear the specific keys we loaded)
+
+    /// Loads queued results WITHOUT clearing them. Each result stays in the queue
+    /// until `acknowledgeProcessedResult(id:)` is called after the main app
+    /// confirms a durable local write, so a jetsam/crash mid-ingest can't lose a
+    /// result that was already removed from the queue (T1-2).
+    func loadQueuedResults() async -> [GameResult] {
+        // Key-based queue — results remain queued until individually acknowledged.
         let queue = await dataManager.loadGameResultQueue()
         if !queue.results.isEmpty {
-            dataManager.clearProcessedKeys(queue.processedKeys)
-            logger.info("Processed and cleared \(queue.results.count) queued results")
+            logger.info("Loaded \(queue.results.count) queued results (awaiting durable-write ack)")
             return queue.results
         }
 
-        // Fallback: process legacy array-based queue
+        // Legacy array-based queue: a near-dead compatibility path for data that
+        // predates the per-key queue. Cleared on load — new writes never use it.
         if let legacy = dataManager.loadLegacyQueuedResultsArray(), !legacy.isEmpty {
             dataManager.clearLegacyQueuedResultsArray()
             logger.info("Processed and cleared \(legacy.count) legacy queued results (array)")
@@ -88,6 +93,13 @@ final class AppGroupResultMonitor {
         }
 
         return []
+    }
+
+    /// Removes a single result's queue entry after the main app confirms a durable
+    /// local write. TOCTOU-safe: only the acknowledged key is removed, so results
+    /// the Share Extension appended in the meantime are preserved.
+    func acknowledgeProcessedResult(id: UUID) {
+        dataManager.clearProcessedKeys(["gameResult_\(id.uuidString)"])
     }
     
     // MARK: - Cleanup

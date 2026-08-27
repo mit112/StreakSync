@@ -118,10 +118,14 @@ final class FirestoreGameResultSyncService {
             let newTombstones = localDeleted.subtracting(remoteDeleted)
 
             let remoteResults = try await fetchRemoteResults(from: ref)
-            let merged = mergeResults(local: appState.recentResults, remote: remoteResults)
-                .filter { !allDeleted.contains($0.id) }
-            let toPush = resultsToPush(merged: merged, local: appState.recentResults, remote: remoteResults)
-                .filter { !allDeleted.contains($0.id) }
+            let merged = GameResultSyncMerge.filterDeleted(
+                GameResultSyncMerge.mergeResults(local: appState.recentResults, remote: remoteResults),
+                deletedIds: allDeleted
+            )
+            let toPush = GameResultSyncMerge.filterDeleted(
+                GameResultSyncMerge.resultsToPush(merged: merged, local: appState.recentResults, remote: remoteResults),
+                deletedIds: allDeleted
+            )
 
             if !toPush.isEmpty {
                 logger.info("Uploading \(toPush.count) results to Firestore")
@@ -149,11 +153,21 @@ final class FirestoreGameResultSyncService {
             // Re-read current results after all async operations — results may have been
             // added via Share Extension or manual entry during the upload suspension.
             let currentResults = appState.recentResults
-            let finalMerged = mergeResults(local: currentResults, remote: remoteResults)
-                .filter { !allDeleted.contains($0.id) }
-                .sorted { $0.date > $1.date }
+            let mergedFinal = GameResultSyncMerge.filterDeleted(
+                GameResultSyncMerge.mergeResults(local: currentResults, remote: remoteResults),
+                deletedIds: allDeleted
+            )
+            .sorted { $0.date > $1.date }
+            // Cap to the newest maxResults — applied only here, after `toPush` was computed
+            // from the unpruned merge above. Pruning earlier could drop a local-only result
+            // (outside the bounded newest-N remote window) before it uploads → permanent loss.
+            let finalMerged = GameResultSyncMerge.pruneToCap(mergedFinal, limit: AppConstants.Storage.maxResults)
             appState.setRecentResults(finalMerged)
-            await appState.saveGameResults()
+            // Recompute everything derived from the merged set — streaks, the dedup cache
+            // and achievements — and persist all three. Callers used to do a partial
+            // version of this themselves and two call sites did none of it, which left
+            // achievements locked and stale streaks written to disk after a sync.
+            await appState.reconcileAfterResultSetChanged()
 
             syncState = .synced(lastSyncDate: Date())
             saveLastSyncTimestamp(Date())
@@ -169,6 +183,14 @@ final class FirestoreGameResultSyncService {
         if let since = lastSyncTimestamp {
             query = collectionRef.whereField("lastModified", isGreaterThan: Timestamp(date: since))
             logger.info("Incremental sync: fetching results modified after \(since.formatted())")
+        } else {
+            // Full sync: bound to the newest maxResults so a cold resync converges to the
+            // same newest-N window the local cap enforces (no re-pull-then-drop churn).
+            // Firestore retains the full archive; the local store mirrors only newest-N.
+            query = collectionRef
+                .order(by: "date", descending: true)
+                .limit(to: AppConstants.Storage.maxResults)
+            logger.info("Full sync: fetching newest \(AppConstants.Storage.maxResults) results")
         }
         let snapshot = try await query.getDocuments(source: .default)
         let results = snapshot.documents.compactMap { doc -> GameResult? in
@@ -187,51 +209,20 @@ final class FirestoreGameResultSyncService {
         return Set(ids.compactMap { UUID(uuidString: $0) })
     }
 
-    private func mergeResults(local: [GameResult], remote: [GameResult]) -> [GameResult] {
-        var merged = local
-        var indexById: [UUID: Int] = [:]
-        for (i, result) in merged.enumerated() {
-            indexById[result.id] = i
-        }
-        for remote in remote {
-            if let idx = indexById[remote.id] {
-                if remote.lastModified > merged[idx].lastModified {
-                    merged[idx] = remote
-                }
-            } else {
-                indexById[remote.id] = merged.count
-                merged.append(remote)
-            }
-        }
-        return merged
-    }
-
-    private func resultsToPush(merged: [GameResult], local: [GameResult], remote: [GameResult]) -> [GameResult] {
-        let localIDs = Set(local.map { $0.id })
-        let remoteIDs = Set(remote.map { $0.id })
-        let remoteByID = Dictionary(remote.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
-
-        return merged.filter { item in
-            guard localIDs.contains(item.id) else { return false }
-            if !remoteIDs.contains(item.id) { return true }
-            if let r = remoteByID[item.id], item.lastModified > r.lastModified {
-                return true
-            }
-            return false
-        }
-    }
-
     // MARK: - Individual Result Operations
 
-    func addResult(_ result: GameResult) {
-        guard let appState else { return }
+    @discardableResult
+    func addResult(_ result: GameResult) -> Bool {
+        guard let appState else { return false }
         guard !appState.isGuestMode else {
-            appState.addGameResult(result)
-            return
+            return appState.addGameResult(result)
         }
-        appState.addGameResult(result)
+        let added = appState.addGameResult(result)
 
-        guard let uid = currentUserId else { return }
+        // Only upload results that were actually stored. addGameResult returns false for
+        // duplicates/invalid results; a re-shared duplicate gets a fresh id, so uploading it
+        // would create a redundant Firestore doc for history already synced.
+        guard added, let uid = currentUserId else { return added }
         let collectionRef = db.collection("users").document(uid).collection("gameResults")
 
         // Firestore offline persistence queues this write automatically
@@ -244,6 +235,7 @@ final class FirestoreGameResultSyncService {
                 // Firestore offline cache will retry automatically when back online
             }
         }
+        return added
     }
 
     func deleteResult(_ id: UUID) async {

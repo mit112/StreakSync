@@ -26,6 +26,32 @@ enum Spacing {
     
     /// 24pt - Extra large spacing for major sections
     static let xxl: CGFloat = 24
+
+    /// 32pt - Major section separation / large vertical rhythm
+    static let xxxl: CGFloat = 32
+
+    /// 40pt - Hero and empty-state vertical breathing room
+    static let huge: CGFloat = 40
+}
+
+// MARK: - Icon Size System
+/// Base glyph/container sizes. Pair with `@ScaledMetric` at the call site so
+/// icons scale alongside their adjacent text under Dynamic Type (UI audit §6 Stage 1).
+enum IconSize {
+    /// 20pt - inline glyph next to body text
+    static let sm: CGFloat = 20
+
+    /// 24pt - standard control glyph
+    static let md: CGFloat = 24
+
+    /// 32pt - emphasized glyph / small avatar
+    static let lg: CGFloat = 32
+
+    /// 48pt - card icon container
+    static let xl: CGFloat = 48
+
+    /// 56pt - grid card icon container
+    static let xxl: CGFloat = 56
 }
 
 // MARK: - Corner Radius System (3 tokens: control / card / sheet)

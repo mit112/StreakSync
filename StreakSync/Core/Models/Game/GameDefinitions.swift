@@ -239,7 +239,7 @@ extension Game {
         iconSystemName: "square.grid.3x3.topleft.filled",
         backgroundColor: CodableColor(UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)), // Gray #808080
         isPopular: false,
-        scoringModel: .higherIsBetter // Share format has no consistent time data; score=1 means completed
+        scoringModel: .lowerTimeSeconds // Live share format includes a time (e.g. "0:39"); lower time is better
     )
     
     // MARK: - Wordle Variants

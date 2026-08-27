@@ -24,7 +24,7 @@ struct HistoryStatBox: View {
                 .font(.title2).foregroundStyle(color)
                 .symbolEffect(.bounce, value: isHovered)
 
-            Text(value).font(.title2.weight(.bold)).foregroundStyle(color)
+            Text(value).font(.title2.weight(.bold).monospacedDigit()).foregroundStyle(color)
                 .contentTransition(.numericText())
 
             Text(label).font(.caption).foregroundStyle(.secondary)
@@ -78,7 +78,7 @@ struct HistoryCalendarDayView: View {
 
                 VStack(spacing: 2) {
                     Text("\(Calendar.current.component(.day, from: date))")
-                        .font(.system(.body, design: .rounded).weight(isToday ? .bold : .regular))
+                        .font(.system(.body, design: .rounded).weight(isToday ? .bold : .regular).monospacedDigit())
                         .foregroundStyle(textColor)
 
                     if let grouped = groupedResult {
@@ -130,18 +130,18 @@ struct IOS26SelectedDateDetail: View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(date.formatted(.dateTime.weekday(.wide).month().day()))
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
                 HStack(spacing: 8) {
                     Label(result.completed ? "Completed" : "Failed",
                           systemImage: result.completed ? "checkmark.circle.fill" : "xmark.circle.fill")
                         .font(.caption).foregroundStyle(result.completed ? .green : .red)
                     if let score = result.score {
-                        Text("Score: \(score)").font(.caption).foregroundStyle(.secondary)
+                        Text("Score: \(score)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                     }
                 }
             }
             Spacer()
-            Text(result.displayScore).font(.title3.weight(.bold)).foregroundStyle(gameColor)
+            Text(result.displayScore).font(.title3.weight(.bold).monospacedDigit()).foregroundStyle(gameColor)
         }
         .padding()
         .background { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(.secondarySystemGroupedBackground)) }
@@ -164,12 +164,12 @@ struct IOS26SelectedDateGroupedDetail: View {
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(date.formatted(.dateTime.weekday(.wide).month().day()))
-                            .font(.subheadline.weight(.semibold))
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
                         HStack(spacing: 8) {
                             Label(groupedResult.completionStatus, systemImage: completionIcon)
                                 .font(.caption).foregroundStyle(completionColor)
                             if let bestTime = groupedResult.bestTime {
-                                Text("• \(bestTime)").font(.caption).foregroundStyle(.secondary)
+                                Text("• \(bestTime)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -228,9 +228,9 @@ struct DifficultyResultRowView: View {
         HStack {
             Circle().fill(difficultyColor).frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 2) {
-                Text(difficultyText).font(.subheadline).foregroundStyle(.primary)
+                Text(difficultyText).font(.subheadline.monospacedDigit()).foregroundStyle(.primary)
                 Text(result.date.formatted(date: .omitted, time: .shortened))
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
             }
             Spacer()
         }
@@ -293,7 +293,7 @@ struct IOS26TimeBasedChart: View {
                             if let best = bestTime(for: diff) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(diff).font(.caption2).foregroundStyle(diffColor(diff))
-                                    Text(best).font(.caption.weight(.medium))
+                                    Text(best).font(.caption.weight(.medium).monospacedDigit())
                                 }
                             }
                         }
@@ -303,7 +303,7 @@ struct IOS26TimeBasedChart: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Completion").font(.caption).foregroundStyle(.secondary)
                     Text("\(totalCompleted)/\(totalPossible)")
-                        .font(.caption.weight(.medium)).foregroundStyle(gameColor)
+                        .font(.caption.weight(.medium).monospacedDigit()).foregroundStyle(gameColor)
                 }
             }
 

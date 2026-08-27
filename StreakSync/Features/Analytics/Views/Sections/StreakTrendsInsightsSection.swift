@@ -62,7 +62,7 @@ struct StreakTrendsInsightsSection: View {
                 .foregroundStyle(color)
 
             Text(value)
-                .font(.title3)
+                .font(.title3.monospacedDigit())
                 .fontWeight(.bold)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)

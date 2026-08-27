@@ -267,7 +267,13 @@ struct AnalyticsComputer {
                 longestEntries.append((game: g, value: value))
             }
         }
-        for entry in longestEntries.sorted(by: { $0.value > $1.value }).prefix(2) {
+        // `candidateGameIds` comes from a Set and Swift's sort isn't stable, so ranking on
+        // value alone let equal-length streaks swap places between recomputations. Break
+        // ties on id so the card shows the same two games every time.
+        let rankedLongest = longestEntries.sorted {
+            $0.value != $1.value ? $0.value > $1.value : $0.game.id.uuidString < $1.game.id.uuidString
+        }
+        for entry in rankedLongest.prefix(2) {
             let desc = "\(entry.value) day streak in \(entry.game.displayName)"
             personalBests.append(PersonalBest(
                 type: .longestStreak, value: entry.value,
@@ -288,6 +294,13 @@ struct AnalyticsComputer {
                 best = rs.max(by: { ($0.score ?? Int.min) < ($1.score ?? Int.min) })
             }
             if let best, let s = best.score { bests.append((gid, s, best)) }
+        }
+        // `grouped` is a Dictionary, so iteration order is unspecified — taking `prefix(2)`
+        // straight off it showed an arbitrary, reshuffling pair of games every recompute.
+        // Scores from different games aren't comparable (3 guesses vs 22 seconds), so rank
+        // by how recently the best was set and break ties on id to keep it deterministic.
+        bests.sort {
+            $0.2.date != $1.2.date ? $0.2.date > $1.2.date : $0.0.uuidString < $1.0.uuidString
         }
         for (gid, score, result) in bests.prefix(2) {
             if let g = games.first(where: { $0.id == gid }) {

@@ -13,7 +13,11 @@ extension AppState {
     /// Adds a game result, returning whether it was actually added (false if invalid/duplicate).
     /// This is the single authoritative method for result insertion — all callers should use this.
     @discardableResult
-    func addGameResult(_ result: GameResult) -> Bool {
+    /// - Parameter deferReconciliation: pass `true` when inserting results in bulk. Each
+    ///   backdated result would otherwise trigger its own full rebuild, making an import of
+    ///   N results cost N rebuilds. Deferring callers MUST call
+    ///   `reconcileAfterResultSetChanged()` once when the batch is done.
+    func addGameResult(_ result: GameResult, deferReconciliation: Bool = false) -> Bool {
         guard result.isValid else {
  logger.warning("Attempted to add invalid game result")
             return false
@@ -55,6 +59,9 @@ extension AppState {
         // Update duplicate-prevention cache
         updateResultsCache(for: result)
 
+        // Record the day in the monotonic lifetime set, which outlives result pruning
+        recordActiveDays(from: [result])
+
         // Update streak SYNCHRONOUSLY (host mode only)
         if !isGuestMode {
             updateStreak(for: result)
@@ -84,18 +91,35 @@ extension AppState {
         // Capture logger for async tasks
         let logger = self.logger
 
+        // A result dated anything other than today can't be handled by the incremental
+        // `updateStreak` above: that path only starts or extends a streak from the newest
+        // play. A backdated result therefore starts a phantom "active" streak for a game
+        // last played days ago (and publishes it to the leaderboard), while a result that
+        // genuinely fills a gap never extends the streak it completes. Both need a rebuild.
+        let needsFullRecompute = !isGuestMode && !Calendar.current.isDateInToday(result.date)
+
         // Save data asynchronously
         Task {
             await saveGameResults()
             await saveStreaks()
-            
+
             // Prune oldest results if over limit (keeps UserDefaults manageable)
+            var didPrune = false
             if !self.isGuestMode && self.recentResults.count > AppConstants.Storage.maxResults {
-                let overflow = self.recentResults.count - AppConstants.Storage.maxResults
-                self.recentResults.removeLast(overflow)
+                let before = self.recentResults.count
+                self.recentResults = GameResultSyncMerge.pruneToCap(
+                    self.recentResults, limit: AppConstants.Storage.maxResults
+                )
                 self.buildResultsCache()
                 await self.saveGameResults()
- self.logger.info("Pruned \(overflow) oldest results (limit: \(AppConstants.Storage.maxResults))")
+                didPrune = true
+ self.logger.info("Pruned \(before - self.recentResults.count) oldest results (limit: \(AppConstants.Storage.maxResults))")
+            }
+
+            // Pruning drops results that streaks and achievements were derived from, so both
+            // must be recomputed against what actually remains.
+            if (needsFullRecompute || didPrune) && !deferReconciliation {
+                await self.reconcileAfterResultSetChanged()
             }
         }
 
@@ -125,16 +149,39 @@ extension AppState {
         NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
     }
 
+    // MARK: - Social Retraction
+
+    /// Removes a previously published score from friends' leaderboards (best-effort).
+    internal func retractScoreFromSocial(date: Date, gameId: UUID) {
+        guard !isGuestMode else { return }
+        // Clear the throttle so an immediately following republish is never suppressed.
+        lastScorePublishByGame[gameId] = nil
+
+        let logger = self.logger
+        Task { [weak self] in
+            guard let self, let social = self.socialService else { return }
+            do {
+                try await social.deleteDailyScore(dateUTC: date, gameId: gameId)
+            } catch {
+ logger.error("Score retraction failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: - Social Publishing
 
     internal func publishScoreToSocial(_ result: GameResult) {
-        // Throttle: skip if same game was published within 5 seconds
-        if let lastPublish = lastScorePublishByGame[result.gameId],
-           Date().timeIntervalSince(lastPublish) < 5.0 {
- logger.debug("Throttled score publish for \(result.gameName) (< 5s since last)")
+        // Throttle duplicate publishes of the SAME payload. Keying on game alone meant a
+        // correction saved within 5s of the original share was silently dropped, leaving the
+        // wrong score on the leaderboard permanently — so the signature must be part of it.
+        let signature = "\(result.date.utcYYYYMMDD)|\(result.score.map(String.init) ?? "-")|\(result.completed)"
+        if let last = lastScorePublishByGame[result.gameId],
+           last.signature == signature,
+           Date().timeIntervalSince(last.date) < 5.0 {
+ logger.debug("Throttled duplicate score publish for \(result.gameName) (< 5s since identical publish)")
             return
         }
-        lastScorePublishByGame[result.gameId] = Date()
+        lastScorePublishByGame[result.gameId] = (date: Date(), signature: signature)
         
         let logger = self.logger
 

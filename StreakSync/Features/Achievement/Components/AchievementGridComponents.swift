@@ -26,7 +26,7 @@ struct AchievementStatCard: View {
                 .symbolEffect(.pulse, options: .repeating.speed(0.5), isActive: isHovered && !reduceMotion)
             
             Text(value)
-                .font(.title3.weight(.bold))
+                .font(.title3.weight(.bold).monospacedDigit())
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
@@ -209,7 +209,7 @@ struct AchievementCard: View {
                     .frame(height: 6)
                     
                     Text(achievement.progressDescription)
-                        .font(.caption2)
+                        .font(.caption2.monospacedDigit())
                         .foregroundStyle(.secondary)
                         .contentTransition(.numericText())
                         .fixedSize(horizontal: false, vertical: true)

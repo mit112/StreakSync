@@ -14,7 +14,8 @@ protocol GameResultSyncServiceProtocol: AnyObject {
     var syncState: SyncState { get }
     var isGuestModeActive: Bool { get }
     func syncIfNeeded() async
-    func addResult(_ result: GameResult)
+    @discardableResult
+    func addResult(_ result: GameResult) -> Bool
     func deleteResult(_ id: UUID) async
 }
 

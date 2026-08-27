@@ -8,6 +8,14 @@
 import Foundation
 import OSLog
 
+/// Per-user running totals while aggregating the mock leaderboard.
+private struct LeaderboardAccumulator {
+    let name: String
+    var total: Int = 0
+    var perGame: [UUID: Int] = [:]
+    var perGameRaw: [UUID: Int] = [:]
+}
+
 @MainActor
 final class MockSocialService: SocialService {
     private let defaults: UserDefaults
@@ -73,6 +81,14 @@ final class MockSocialService: SocialService {
         try save(existing, forKey: scoresKey)
  logger.info("Stored \(scores.count) scores locally (total: \(existing.count))")
     }
+
+    func deleteDailyScore(dateUTC: Date, gameId: UUID) async throws {
+        let existing = load([DailyGameScore].self, forKey: scoresKey) ?? []
+        let dateInt = dateUTC.utcYYYYMMDD
+        let remaining = existing.filter { !($0.dateInt == dateInt && $0.gameId == gameId) }
+        try save(remaining, forKey: scoresKey)
+ logger.info("Retracted \(existing.count - remaining.count) local score(s)")
+    }
     
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
         let my = try? await myProfile()
@@ -87,22 +103,25 @@ final class MockSocialService: SocialService {
             return day >= localStart && day <= localEnd
         }
         
-        var perUser: [String: (name: String, total: Int, perGame: [UUID: Int])] = [:]
+        var perUser: [String: LeaderboardAccumulator] = [:]
         for s in filtered {
             let game = Game.allAvailableGames.first(where: { $0.id == s.gameId })
             let p = LeaderboardScoring.points(for: s, game: game)
             let displayName = s.userId == my?.id ? (my?.displayName ?? "Me") : "Friend"
-            var entry = perUser[s.userId] ?? (name: displayName, total: 0, perGame: [:])
+            var entry = perUser[s.userId] ?? LeaderboardAccumulator(name: displayName)
             entry.total += p
             entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + p
+            if let raw = s.score {
+                entry.perGameRaw[s.gameId] = raw
+            }
             perUser[s.userId] = entry
         }
-        
+
         return perUser.map { userId, agg in
             LeaderboardRow(
                 id: userId, userId: userId, displayName: agg.name,
                 totalPoints: agg.total, perGameBreakdown: agg.perGame,
-                perGameStreak: [:]
+                perGameStreak: [:], perGameRawScore: agg.perGameRaw
             )
         }.sorted { $0.totalPoints > $1.totalPoints }
     }
@@ -204,6 +223,7 @@ final class ReviewModeSocialService: SocialService {
     // MARK: - Scores
 
     func publishDailyScores(dateUTC: Date, scores: [DailyGameScore]) async throws { }
+    func deleteDailyScore(dateUTC: Date, gameId: UUID) async throws { }
 
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
         let wordle = UUID(staticString: "550e8400-e29b-41d4-a716-446655440000")
@@ -213,19 +233,23 @@ final class ReviewModeSocialService: SocialService {
         return [
             LeaderboardRow(id: meId, userId: meId, displayName: "You (Demo)", totalPoints: 18,
                            perGameBreakdown: [wordle: 4, connections: 4, strands: 10],
-                           perGameStreak: [wordle: 14, connections: 5]),
+                           perGameStreak: [wordle: 14, connections: 5],
+                           perGameRawScore: [wordle: 3, connections: 4, strands: 0]),
             LeaderboardRow(id: "review_friend_001", userId: "review_friend_001",
                            displayName: "Alex Chen", totalPoints: 9,
                            perGameBreakdown: [wordle: 5, connections: 4],
-                           perGameStreak: [wordle: 22]),
+                           perGameStreak: [wordle: 22],
+                           perGameRawScore: [wordle: 2, connections: 4]),
             LeaderboardRow(id: "review_friend_002", userId: "review_friend_002",
                            displayName: "Jordan Kim", totalPoints: 8,
                            perGameBreakdown: [wordle: 3, miniX: 5],
-                           perGameStreak: [wordle: 7, miniX: 3]),
+                           perGameStreak: [wordle: 7, miniX: 3],
+                           perGameRawScore: [wordle: 5, miniX: 42]),
             LeaderboardRow(id: "review_friend_003", userId: "review_friend_003",
                            displayName: "Sam Rivera", totalPoints: 3,
                            perGameBreakdown: [connections: 3],
-                           perGameStreak: [:])
+                           perGameStreak: [:],
+                           perGameRawScore: [connections: 3])
         ]
     }
 

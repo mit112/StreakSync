@@ -111,6 +111,18 @@ final class AppGroupBridge: ObservableObject {
     }
     
     // MARK: - Result Management
+
+    /// Ingestion trigger handler for Share Extension results.
+    ///
+    /// Expected flow (per-result, gated on durable persistence — T1-2):
+    ///   1. consumePendingDeepLinkIfNeeded() — honor a Share Extension "Show" tap.
+    ///   2. resultMonitor.loadQueuedResults() — read the queue WITHOUT clearing it.
+    ///   3. Post .gameResultReceived per result → NotificationCoordinator.handleGameResult
+    ///      routes it through gameResultSyncService / appState.addGameResult.
+    ///   4. handleGameResult awaits a confirmed durable local write, then calls
+    ///      acknowledgeIngestedResult(id:) — the ONLY path that removes a result
+    ///      from the queue. A crash before step 4 leaves the result queued so the
+    ///      next activation re-ingests it (duplicate detection dedupes).
     func checkForNewResults() async {
         guard !isProcessing else { return }
 
@@ -123,57 +135,61 @@ final class AppGroupBridge: ObservableObject {
         // whenever the app activates we honor the intent.
         consumePendingDeepLinkIfNeeded()
 
-        // Check for queued results first
-        let queuedResults = await resultMonitor.processQueuedResults()
-        
+        // Load queued results (they stay queued until each is acknowledged as
+        // durably persisted by the main app — do NOT clear here).
+        let queuedResults = await resultMonitor.loadQueuedResults()
+
         if !queuedResults.isEmpty {
             hasNewResults = true
             lastResultProcessedTime = Date()
-            
- logger.info("Processing \(queuedResults.count) queued results")
-            
-            // Process each result in the queue
+
+ logger.info("Dispatching \(queuedResults.count) queued results for durable ingestion")
+
             for result in queuedResults {
                 latestResult = result
- logger.info("Processing queued result: \(result.gameName)")
-                
-                // Post notification with the result object
+ logger.info("Dispatching queued result: \(result.gameName)")
+
+                // Post notification with the result object. Cleanup happens in
+                // acknowledgeIngestedResult after a confirmed durable write.
                 NotificationCenter.default.post(
                     name: .gameResultReceived,
                     object: result,
                     userInfo: ["quiet": true]
                 )
             }
-            
-            // Clear single-result key to prevent duplicate handling via fallback path
-            dataManager.removeData(forKey: AppConstants.AppGroup.latestResultKey)
- logger.info("Cleared latest result after queue processing to prevent duplicates")
-            
+
             return
         }
-        
+
         // Fallback to single result for backward compatibility
         hasNewResults = dataManager.hasData(forKey: AppConstants.AppGroup.latestResultKey)
-        
+
         if hasNewResults {
             lastResultProcessedTime = Date()
-            
+
             // Load the result
             if let result = try? await dataManager.loadGameResult(forKey: AppConstants.AppGroup.latestResultKey) {
                 latestResult = result
  logger.info("Loaded new result: \(result.gameName)")
-                
-                // Post notification with the result object
+
+                // Post notification with the result object. The single-result key
+                // is cleared by acknowledgeIngestedResult only after a confirmed
+                // durable write, not here (T1-2).
                 NotificationCenter.default.post(
                     name: .gameResultReceived,
                     object: result
                 )
-                
-                // Clear the single-result key so we don't re-ingest on subsequent lifecycle events
-                clearLatestResult()
- logger.debug("Cleared single-result App Group key after posting")
             }
         }
+    }
+
+    /// Removes a result's App Group queue entry (both the per-key queue slot and
+    /// the single-result fallback key) after the main app confirms a durable local
+    /// write. This is the only path that removes a result from the cross-process
+    /// queue, guaranteeing a result can't be lost before it's persisted (T1-2).
+    func acknowledgeIngestedResult(id: UUID) {
+        resultMonitor.acknowledgeProcessedResult(id: id)
+        dataManager.removeData(forKey: AppConstants.AppGroup.latestResultKey)
     }
     
     func clearLatestResult() {

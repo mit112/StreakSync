@@ -87,7 +87,7 @@ struct TieredAchievementDetailView: View {
                     .foregroundStyle(.secondary)
                 
                 Text(achievement.progressDescription)
-                    .font(.title3.weight(.semibold))
+                    .font(.title3.weight(.semibold).monospacedDigit())
                     .foregroundStyle(.primary)
                     .contentTransition(.numericText())
             }

@@ -14,6 +14,7 @@ extension AppState {
     
     internal static let tieredAchievementsKey = "tieredAchievements"
     internal static let uniqueGamesEverKey = "uniqueGamesEver"
+    internal static let activeDaysEverKey = "activeDaysEver"
     
     var tieredAchievements: [TieredAchievement] {
         get {
@@ -77,7 +78,10 @@ extension AppState {
 
     // Tiered achievement checking via pre-computed snapshot
     internal func checkTieredAchievements() {
-        let snapshot = AchievementSnapshot.build(from: recentResults, games: games, friendCount: cachedFriendCount)
+        let snapshot = AchievementSnapshot.build(
+            from: recentResults, games: games, friendCount: cachedFriendCount,
+            lifetimeActiveDayCount: activeDaysEver.count
+        )
         let checker = TieredAchievementChecker()
 
         var currentAchievements = tieredAchievements
@@ -163,6 +167,55 @@ extension AppState {
         }
     }
     
+    // MARK: - Active Days Ever Persistence
+
+    /// Every day the user has ever recorded a result, independent of the `maxResults` cap.
+    ///
+    /// Achievement counters are derived from `recentResults`, which is capped at 500 — so a
+    /// user playing two games a day tops out around 250 distinct days and could never reach
+    /// Marathon Runner's 365-day tier. This set is monotonic and survives pruning.
+    var activeDaysEver: Set<Date> {
+        get {
+            if _activeDaysEver == nil {
+                _activeDaysEver = persistenceService.load(Set<Date>.self, forKey: Self.activeDaysEverKey) ?? []
+            }
+            return _activeDaysEver ?? []
+        }
+        set {
+            _activeDaysEver = newValue
+            Task {
+                await saveActiveDaysEver()
+            }
+        }
+    }
+
+    /// Folds the days covered by `results` into the monotonic lifetime set.
+    func recordActiveDays(from results: [GameResult]) {
+        guard !isGuestMode else { return }
+        let calendar = Calendar.current
+        var days = activeDaysEver
+        var changed = false
+        for result in results where days.insert(calendar.startOfDay(for: result.date)).inserted {
+            changed = true
+        }
+        if changed {
+            activeDaysEver = days
+        }
+    }
+
+    func saveActiveDaysEver() async {
+        if isGuestMode {
+ logger.debug("Guest Mode active – skipping saveActiveDaysEver()")
+            return
+        }
+        do {
+            try persistenceService.save(activeDaysEver, forKey: Self.activeDaysEverKey)
+        } catch {
+ logger.error("Failed to save active days: \(error)")
+            Self.pendingSaveStore.enqueue(key: Self.activeDaysEverKey)
+        }
+    }
+
     func saveUniqueGamesEver() async {
         // In Guest Mode we do not mutate the persisted unique-games set.
         if isGuestMode {
@@ -225,7 +278,10 @@ logger.info("Recomputing tiered achievements from all results...")
         }
 
         // Single-pass snapshot replaces the per-result loop
-        let snapshot = AchievementSnapshot.build(from: recentResults, games: games, friendCount: cachedFriendCount)
+        let snapshot = AchievementSnapshot.build(
+            from: recentResults, games: games, friendCount: cachedFriendCount,
+            lifetimeActiveDayCount: activeDaysEver.count
+        )
         let checker = TieredAchievementChecker()
         _ = checker.checkAllAchievements(
             snapshot: snapshot,

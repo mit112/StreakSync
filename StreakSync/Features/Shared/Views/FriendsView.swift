@@ -316,8 +316,8 @@ private extension FriendsView {
                             isLoading: viewModel.isLoading && !viewModel.hasLoadedOnce,
                             dateLabel: formattedDate(viewModel.selectedDateUTC),
                             onManageFriends: { presentInviteFlow() },
-                            metricText: { points in
-                                LeaderboardScoring.metricLabel(for: game, points: points)
+                            metricText: { row in
+                                LeaderboardScoring.metricLabel(for: game, rawScore: row.perGameRawScore[game.id])
                             },
                             myUserId: viewModel.myUserId,
                             onRefresh: { await viewModel.refresh() },

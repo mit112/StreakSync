@@ -23,16 +23,29 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         
         // Configure Firebase before any other services initialize.
         // This is the officially recommended location per Firebase docs.
+        //
+        // Load the options explicitly rather than calling the zero-argument
+        // `FirebaseApp.configure()`: that variant raises an Objective-C exception when
+        // GoogleService-Info.plist is missing or malformed, which aborts the process
+        // before anything can report why. GoogleService-Info.plist is gitignored, so any
+        // checkout without it — CI in particular — died at launch with an opaque
+        // "Early unexpected exit" instead of a diagnosable message.
         if FirebaseApp.app() == nil {
-            FirebaseApp.configure()
-            
-            let settings = FirestoreSettings()
-            settings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: 100 * 1024 * 1024))
-            Firestore.firestore().settings = settings
-            
+            if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+               let options = FirebaseOptions(contentsOfFile: path) {
+                FirebaseApp.configure(options: options)
+
+                let settings = FirestoreSettings()
+                settings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: 100 * 1024 * 1024))
+                Firestore.firestore().settings = settings
+
  logger.info("Firebase configured in AppDelegate")
+            } else {
+                // Local-only mode: the app still launches and every offline feature works.
+ logger.error("GoogleService-Info.plist missing or unreadable — running without Firebase")
+            }
         }
-        
+
         return true
     }
 }

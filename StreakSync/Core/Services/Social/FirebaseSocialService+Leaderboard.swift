@@ -17,6 +17,7 @@ private struct LeaderboardAggregation {
     var total: Int
     var perGame: [UUID: Int]
     var perGameStreak: [UUID: Int]
+    var perGameRawScore: [UUID: Int]
 }
 
 // MARK: - Leaderboard
@@ -66,12 +67,15 @@ extension FirebaseSocialService {
             let points = LeaderboardScoring.points(for: s, game: game)
             let displayName = userNames[s.userId] ?? "Player"
             var entry = perUser[s.userId] ?? LeaderboardAggregation(
-                name: displayName, total: 0, perGame: [:], perGameStreak: [:]
+                name: displayName, total: 0, perGame: [:], perGameStreak: [:], perGameRawScore: [:]
             )
             entry.total += points
             entry.perGame[s.gameId] = (entry.perGame[s.gameId] ?? 0) + points
             if let streak = s.currentStreak, streak > 0 {
                 entry.perGameStreak[s.gameId] = max(entry.perGameStreak[s.gameId] ?? 0, streak)
+            }
+            if let raw = s.score {
+                entry.perGameRawScore[s.gameId] = raw
             }
             perUser[s.userId] = entry
         }
@@ -79,7 +83,7 @@ extension FirebaseSocialService {
         return perUser.map { userId, agg in
             LeaderboardRow(id: userId, userId: userId, displayName: agg.name,
                            totalPoints: agg.total, perGameBreakdown: agg.perGame,
-                           perGameStreak: agg.perGameStreak)
+                           perGameStreak: agg.perGameStreak, perGameRawScore: agg.perGameRawScore)
         }.sorted { $0.totalPoints > $1.totalPoints }
     }
 

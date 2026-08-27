@@ -10,7 +10,7 @@ import SwiftUI
 struct EmptyStateGuidanceCard: View {
     let isReturningUser: Bool // Has played games before
     let onDismiss: () -> Void
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var isVisible = false
     
     private var cardContent: (icon: String, title: String, message: String) {
@@ -56,6 +56,12 @@ struct EmptyStateGuidanceCard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    // Height gate (audit item 9): at accessibility sizes this tip's copy
+                    // otherwise wraps unbounded and pushes "Your Games" and the whole game
+                    // list below the fold. It's a dismissible, supplementary tip, so cap
+                    // it and let it scale slightly rather than let it own the viewport.
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 4 : nil)
+                    .minimumScaleFactor(dynamicTypeSize.isAccessibilitySize ? 0.8 : 1)
             }
             
             Spacer(minLength: 8)
@@ -83,17 +89,9 @@ struct EmptyStateGuidanceCard: View {
             .accessibilityLabel("Dismiss tip")
         }
         .padding(16)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-                .overlay {
-                    RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
-                        // One neutral hairline, not a blue→purple gradient border (§5.1).
-                        .strokeBorder(Color(.separator), lineWidth: 1)
-                }
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.08),
-                       radius: 12, x: 0, y: 4)
-        }
+        // Shared card chrome — same hairline surface as the game cards, and drops the
+        // resting drop shadow the audit flagged (§5.1 / §7.2 / §7 #2).
+        .cardStyle()
         .opacity(isVisible ? 1 : 0)
         .scaleEffect(isVisible ? 1 : 0.9, anchor: .top)
         .onAppear {

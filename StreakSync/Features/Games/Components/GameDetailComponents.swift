@@ -21,7 +21,7 @@ struct AnimatedStatPill: View {
             Text(value)
                 // Numbers stay neutral — hue is reserved for state/identity, not decoration
                 // (DESIGN_AUDIT §3-C). Also removes the orange→green cross-fade smear (§4.2).
-                .font(.title3.bold())
+                .font(.title3.bold().monospacedDigit())
                 .foregroundStyle(.primary)
                 .contentTransition(.numericText())
                 // Perpetual pulse is disabled under Reduce Motion (§4.10).
@@ -58,11 +58,11 @@ struct GameResultRow: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(result.displayScore)
-                        .font(.headline)
+                        .font(.headline.monospacedDigit())
                         .foregroundStyle(result.completed ? .green : .orange)
                     
                     Text(result.date.formatted(date: .abbreviated, time: .omitted))
-                        .font(.caption)
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
                 

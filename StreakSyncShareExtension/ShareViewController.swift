@@ -14,6 +14,15 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+// MARK: - Save Error
+
+/// Reasons an App Group write can fail. Surfaced so the confirmation sheet shows
+/// the failure card instead of a false "Saved" when the write silently no-ops.
+enum ShareSaveError: Error {
+    case appGroupUnavailable
+    case serializationFailed(underlying: Error)
+}
+
 // MARK: - View Model
 
 @MainActor
@@ -135,22 +144,35 @@ class ShareViewController: UIViewController {
         }
 
         let parser = GameResultParser()
+        let result: GameResult
         do {
-            let result = try parser.parse(trimmed, for: game)
-            saveResult(result)
-            let info = ShareResultViewModel.SuccessInfo(
-                gameId: result.gameId.uuidString,
-                displayName: game.displayName,
-                iconSystemName: game.iconSystemName,
-                accentColor: game.backgroundColor.color,
-                displayScore: Self.formattedDisplayScore(for: result),
-                completed: result.completed
-            )
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-                viewModel.state = .success(info)
-            }
+            result = try parser.parse(trimmed, for: game)
         } catch {
             setFailure("Couldn't parse your \(game.displayName) result. \(expectedFormatHint(for: game))")
+            return
+        }
+
+        // Only reveal the success card once the App Group write is confirmed. If the
+        // container is unresolvable or serialization fails, the write silently no-ops —
+        // show the failure card rather than a false "Saved" (T1-1).
+        do {
+            try saveResult(result)
+        } catch {
+            logger.error("App Group save failed: \(error.localizedDescription, privacy: .public)")
+            setFailure("Couldn't save to StreakSync. Open the app and add this result manually.")
+            return
+        }
+
+        let info = ShareResultViewModel.SuccessInfo(
+            gameId: result.gameId.uuidString,
+            displayName: game.displayName,
+            iconSystemName: game.iconSystemName,
+            accentColor: game.backgroundColor.color,
+            displayScore: Self.formattedDisplayScore(for: result),
+            completed: result.completed
+        )
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+            viewModel.state = .success(info)
         }
     }
 
@@ -210,7 +232,11 @@ class ShareViewController: UIViewController {
 
     // MARK: - Persistence
 
-    private func saveResult(_ result: GameResult) {
+    /// Persists a parsed result to App Group storage and posts the Darwin wake
+    /// notification. Throws if the App Group container can't be resolved or the
+    /// payload can't be serialized, so the caller can show a failure card instead
+    /// of a false success (T1-1).
+    private func saveResult(_ result: GameResult) throws {
         let dict: [String: Any] = {
             let isoFormatter = ISO8601DateFormatter()
             isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -235,19 +261,22 @@ class ShareViewController: UIViewController {
 
         let sanitized = sanitizeResult(dict)
 
+        // Resolve the shared container up front — an optional here means the App Group
+        // entitlement/provisioning is broken and every write below would no-op silently.
+        guard let userDefaults = UserDefaults(suiteName: "group.com.mitsheth.StreakSync") else {
+            logger.error("App Group container unavailable — result not saved")
+            throw ShareSaveError.appGroupUnavailable
+        }
+
+        let data: Data
+        let keysDataOut: Data
         do {
-            let data = try JSONSerialization.data(withJSONObject: sanitized, options: [])
-            let userDefaults = UserDefaults(suiteName: "group.com.mitsheth.StreakSync")
+            data = try JSONSerialization.data(withJSONObject: sanitized, options: [])
 
-            // 1) Latest result (backward compat + quick pickup)
-            userDefaults?.set(data, forKey: "latestGameResult")
-
-            // 2) Key-based queue
+            // 2) Key-based queue index (compute before writing anything)
             let resultKey = "gameResult_\(result.id.uuidString)"
-            userDefaults?.set(data, forKey: resultKey)
-
             var resultKeys: [String] = []
-            if let keysData = userDefaults?.data(forKey: "gameResultKeys"),
+            if let keysData = userDefaults.data(forKey: "gameResultKeys"),
                let existingKeys = try? JSONSerialization.jsonObject(with: keysData) as? [String] {
                 resultKeys = existingKeys
             }
@@ -256,29 +285,35 @@ class ShareViewController: UIViewController {
             if resultKeys.count > maxQueueSize {
                 let keysToRemove = resultKeys.prefix(resultKeys.count - maxQueueSize)
                 for key in keysToRemove {
-                    userDefaults?.removeObject(forKey: key)
+                    userDefaults.removeObject(forKey: key)
                 }
                 resultKeys = Array(resultKeys.suffix(maxQueueSize))
             }
-            let keysDataOut = try JSONSerialization.data(withJSONObject: resultKeys, options: [])
-            userDefaults?.set(keysDataOut, forKey: "gameResultKeys")
+            keysDataOut = try JSONSerialization.data(withJSONObject: resultKeys, options: [])
 
-            // 3) Timestamp
-            userDefaults?.set(Date(), forKey: "lastShareExtensionSave")
-
-            // Flush cross-process writes before notifying the main app.
-            userDefaults?.synchronize()
-
-            // 4) Darwin notification to wake the host app
-            let darwinName = "com.streaksync.app.newResult" as CFString
-            CFNotificationCenterPostNotification(
-                CFNotificationCenterGetDarwinNotifyCenter(),
-                CFNotificationName(darwinName),
-                nil, nil, true
-            )
+            // 1) Latest result (backward compat + quick pickup)
+            userDefaults.set(data, forKey: "latestGameResult")
+            // 2) Key-based queue entry + index
+            userDefaults.set(data, forKey: resultKey)
+            userDefaults.set(keysDataOut, forKey: "gameResultKeys")
         } catch {
             logger.error("Failed to serialize result for App Group: \(error.localizedDescription, privacy: .public)")
+            throw ShareSaveError.serializationFailed(underlying: error)
         }
+
+        // 3) Timestamp
+        userDefaults.set(Date(), forKey: "lastShareExtensionSave")
+
+        // Flush cross-process writes before notifying the main app.
+        userDefaults.synchronize()
+
+        // 4) Darwin notification to wake the host app
+        let darwinName = "com.streaksync.app.newResult" as CFString
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(darwinName),
+            nil, nil, true
+        )
     }
 }
 

@@ -132,10 +132,18 @@ private extension DataManagementView {
     var cloudSyncSignInRows: some View {
         LabeledContent("Cloud Sync", value: "Sign in required")
 
-        Text("Signing in keeps your streaks and achievements on every device you use.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+        // Durability warning: until the user signs in, history lives only in on-device
+        // storage, so a delete/reinstall wipes it. State-tied inline messaging (not a
+        // toast/modal), placed with the existing Sign In CTA so it doesn't nag twice.
+        Label {
+            Text("Your streaks and results are saved only on this device. Sign in to back them up — otherwise they're lost if StreakSync is deleted or reinstalled.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "exclamationmark.icloud")
+                .foregroundStyle(.orange)
+        }
 
         Button {
             coordinator.navigateTo(.account)
@@ -184,7 +192,7 @@ private extension DataManagementView {
                 }
             }()
             Text(statusText)
-                .font(.caption)
+                .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
             HStack(spacing: 12) {
                 Button {
@@ -222,16 +230,23 @@ private extension DataManagementView {
                         .scaleEffect(0.8)
                 case .synced(let date):
                     Text(date.formatted(.relative(presentation: .named)))
-                        .font(.caption)
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 case .offline:
                     Text("Offline")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 case .failed:
-                    Text("Failed")
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    // Surface the failure with a manual recovery path — otherwise a failed
+                    // sync is silent until the next launch retries it (T2-5).
+                    Button {
+                        Task { await container.gameResultSyncService.syncIfNeeded() }
+                    } label: {
+                        Label("Retry", systemImage: "arrow.clockwise")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
                 case .notStarted:
                     Text("Not started")
                         .font(.caption)
@@ -293,6 +308,7 @@ private extension DataManagementView {
                 Label("Total Games", systemImage: "gamecontroller")
                 Spacer()
                 Text("\(appState.games.count)")
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
 
@@ -300,6 +316,7 @@ private extension DataManagementView {
                 Label("Game Results", systemImage: "list.bullet")
                 Spacer()
                 Text("\(appState.recentResults.count)")
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
 
@@ -308,6 +325,7 @@ private extension DataManagementView {
                 Spacer()
                 let unlockedTieredCount = appState.tieredAchievements.filter { $0.isUnlocked }.count
                 Text("\(unlockedTieredCount)")
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
         } header: {
@@ -498,7 +516,7 @@ private extension DataManagementView {
         // Import game results (merge, don't duplicate)
         for result in data.gameResults {
             if !appState.recentResults.contains(where: { $0.id == result.id }) {
-                if appState.addGameResult(result) {
+                if appState.addGameResult(result, deferReconciliation: true) {
                     importCount += 1
                 }
             }
@@ -509,11 +527,12 @@ private extension DataManagementView {
             container.gameCatalog.addFavorite(gameId)
         }
 
-        // Rebuild streaks from imported results
-        await appState.rebuildStreaksFromResults()
-
-        // Save everything
-        await appState.saveAllData()
+        // Recompute everything from the merged result set. `addGameResult` above updated
+        // streaks incrementally per result, but a backup is imported newest-first, so every
+        // older result looked like a backfill and left the streak at 1 — and achievements
+        // were last evaluated against those wrong streaks. Only a full rebuild, normalize
+        // and achievement recompute produces the state the backup actually represents.
+        await appState.reconcileAfterResultSetChanged()
 
         // Ensure games are still loaded
         if appState.games.isEmpty {

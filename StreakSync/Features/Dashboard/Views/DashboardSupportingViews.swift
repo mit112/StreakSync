@@ -65,7 +65,7 @@ struct MiniStreakCard: View {
 
                 VStack(spacing: 2) {
                     Text("\(streak.currentStreak)")
-                        .font(.headline)
+                        .font(.headline.monospacedDigit())
                         .contentTransition(.numericText())
                     Text("days")
                         .font(.caption2)

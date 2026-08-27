@@ -13,15 +13,62 @@ concurrency:
 jobs:
   build-and-test:
     name: Build & Test
-    runs-on: macos-15
-    timeout-minutes: 30
+    runs-on: macos-26
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Pinning an absolute Xcode path silently rots whenever the runner image
+      # changes — that is what broke this workflow and got it disabled. Always
+      # take the newest Xcode the image actually ships.
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer
+        run: |
+          LATEST=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "Selecting $LATEST"
+          sudo xcode-select -s "$LATEST/Contents/Developer"
+
+      # Likewise, don't hard-code a simulator name: resolve a concrete iPhone
+      # UDID from whatever runtimes the image has.
+      - name: Select simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices[][] | select(.name | startswith("iPhone"))] | last | .udid')
+          if [ -z "$UDID" ] || [ "$UDID" = "null" ]; then
+            echo "No iPhone simulator available on this runner" >&2
+            xcrun simctl list devices available >&2
+            exit 1
+          fi
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          # Boot it up front and wait: launching into a still-booting device is a
+          # common source of "Simulator device failed to launch" on CI runners.
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b || true
+
+      # GoogleService-Info.plist is gitignored, so CI checks out without it.
+      # AppDelegate no longer aborts when it is absent, but the Firebase-backed
+      # services built in AppContainer still call Firestore/Auth at launch, which
+      # traps unless a FirebaseApp exists. Unit tests never reach the network, so
+      # a structurally valid placeholder is enough to get the host running.
+      - name: Provide placeholder Firebase config
+        run: |
+          PLIST=StreakSync/GoogleService-Info.plist
+          if [ ! -f "$PLIST" ]; then
+            cp StreakSync/GoogleService-Info.example.plist "$PLIST"
+            PB=/usr/libexec/PlistBuddy
+            # Firebase validates these: GOOGLE_APP_ID's middle segment must equal
+            # GCM_SENDER_ID and its suffix must be hex, or +[FIRApp addAppToAppDictionary:]
+            # raises and takes the process down. The example file's "exampleappid" fails
+            # that check. These exact values were verified locally to boot the test host.
+            "$PB" -c "Set :BUNDLE_ID com.mitsheth.StreakSync" "$PLIST"
+            "$PB" -c "Set :GCM_SENDER_ID 000000000000" "$PLIST"
+            "$PB" -c "Set :GOOGLE_APP_ID 1:000000000000:ios:abcdef0123456789" "$PLIST"
+            "$PB" -c "Set :PROJECT_ID streaksync-ci" "$PLIST"
+            "$PB" -c "Set :API_KEY AIzaSyCI0000000000000000000000000000000" "$PLIST"
+            echo "Wrote placeholder $PLIST"
+          fi
 
       - name: Show build environment
         run: |
@@ -38,23 +85,28 @@ jobs:
       - name: Build
         run: |
           set -o pipefail
+          command -v xcpretty >/dev/null && FMT=xcpretty || FMT=cat
           xcodebuild build \
             -project StreakSync.xcodeproj \
             -scheme StreakSync \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -skipPackagePluginValidation \
-            CODE_SIGNING_ALLOWED=NO | xcpretty
+            CODE_SIGNING_ALLOWED=NO | "$FMT"
 
       - name: Test
         run: |
           set -o pipefail
+          command -v xcpretty >/dev/null && FMT=xcpretty || FMT=cat
           xcodebuild test \
             -project StreakSync.xcodeproj \
             -scheme StreakSync \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -skipPackagePluginValidation \
             -resultBundlePath TestResults \
-            CODE_SIGNING_ALLOWED=NO | xcpretty
+            -only-testing:StreakSyncTests \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            CODE_SIGNING_ALLOWED=NO | "$FMT"
 
       - name: Upload test results
         if: always()
