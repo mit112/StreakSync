@@ -202,8 +202,10 @@ final class NotificationCoordinator: ObservableObject {
  self.logger.debug("Haptics suppressed: \(reason)")
 
                 // Notify the user via local notification when the app is backgrounded
-                // and the result was successfully added (e.g. from Share Extension)
-                if !isActive && added {
+                // and the result was successfully added (e.g. from Share Extension).
+                // Suppressed for quiet batch imports so a backlog of shared results
+                // drains without firing one "result imported" notification per result.
+                if !isActive && added && !quiet {
                     await NotificationScheduler.shared.scheduleResultImportedNotification(
                         gameName: result.gameName,
                         gameId: result.gameId

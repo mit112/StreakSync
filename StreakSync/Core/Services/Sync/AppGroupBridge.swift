@@ -145,6 +145,12 @@ final class AppGroupBridge: ObservableObject {
 
  logger.info("Dispatching \(queuedResults.count) queued results for durable ingestion")
 
+            // "quiet" marks a genuine multi-result backlog so the ingestion side can
+            // drain it without firing one haptic/notification per result. A lone
+            // queued share is NOT quiet — it still gets its "result imported"
+            // notification, which is the user's one-tap path back into the app.
+            let isBatch = queuedResults.count > 1
+
             for result in queuedResults {
                 latestResult = result
  logger.info("Dispatching queued result: \(result.gameName)")
@@ -154,7 +160,7 @@ final class AppGroupBridge: ObservableObject {
                 NotificationCenter.default.post(
                     name: .gameResultReceived,
                     object: result,
-                    userInfo: ["quiet": true]
+                    userInfo: ["quiet": isBatch]
                 )
             }
 
