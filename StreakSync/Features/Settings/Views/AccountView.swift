@@ -34,6 +34,11 @@ struct AccountView: View {
                 anonymousSection
             } else {
                 profileSection
+                ConnectedAccountsSection(
+                    authManager: authManager,
+                    isLoading: $isLoading,
+                    errorMessage: $errorMessage
+                )
                 signOutSection
                 deleteAccountSection
             }

@@ -63,6 +63,17 @@ final class FirebaseAuthStateManager: ObservableObject {
 
     var email: String? { currentUser?.email }
 
+    /// Provider IDs linked to the current account (e.g. "apple.com", "google.com").
+    var linkedProviderIDs: Set<String> {
+        Set(currentUser?.providerData.map(\.providerID) ?? [])
+    }
+
+    /// Whether Apple is one of the sign-in methods on the current account.
+    var isAppleLinked: Bool { linkedProviderIDs.contains("apple.com") }
+
+    /// Whether Google is one of the sign-in methods on the current account.
+    var isGoogleLinked: Bool { linkedProviderIDs.contains("google.com") }
+
     // MARK: - Anonymous Auth
 
     func ensureAuthenticated() async {
@@ -365,6 +376,81 @@ final class FirebaseAuthStateManager: ObservableObject {
         do {
             try await user.reauthenticate(with: credential)
  logger.info("Reauthenticated with Google for account deletion")
+        } catch {
+            throw FirebaseAuthError.from(error)
+        }
+    }
+
+    // MARK: - Account Linking (connect a second sign-in method)
+
+    /// Links an Apple credential to the CURRENT (already signed-in) account so the user
+    /// can sign in with either provider and reach the same UID and data. Requires a
+    /// non-anonymous user. Throws `accountExistsWithDifferentCredential` if the Apple
+    /// account is already tied to a *different* StreakSync account (can't be merged).
+    func linkApple(authorization: ASAuthorization) async throws {
+        guard let user = auth.currentUser, !user.isAnonymous else {
+            throw FirebaseAuthError.notAuthenticated
+        }
+        guard let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let nonce = currentNonce,
+              let identityToken = appleCredential.identityToken,
+              let tokenString = String(data: identityToken, encoding: .utf8) else {
+            throw FirebaseAuthError.invalidCredential
+        }
+        let credential = OAuthProvider.appleCredential(
+            withIDToken: tokenString,
+            rawNonce: nonce,
+            fullName: appleCredential.fullName
+        )
+        currentNonce = nil
+        do {
+            let result = try await user.link(with: credential)
+ logger.info("Linked Apple to existing account: uid=\(result.user.uid, privacy: .private)")
+            await updateDisplayNameFromApple(appleCredential.fullName, user: result.user)
+            publishLinkedUser(result.user)
+        } catch let error as NSError where error.code == AuthErrorCode.credentialAlreadyInUse.rawValue {
+ logger.warning("Apple already linked to a different account — cannot connect")
+            throw FirebaseAuthError.accountExistsWithDifferentCredential
+        } catch {
+            throw FirebaseAuthError.from(error)
+        }
+    }
+
+    /// Links a Google credential to the CURRENT (already signed-in) account (presents the
+    /// Google sign-in sheet). See `linkApple`. A user cancel is a silent no-op.
+    func linkGoogle() async throws {
+        guard let user = auth.currentUser, !user.isAnonymous else {
+            throw FirebaseAuthError.notAuthenticated
+        }
+        guard let clientID = FirebaseApp.app()?.options.clientID else {
+            throw FirebaseAuthError.operationNotAllowed
+        }
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
+            throw FirebaseAuthError.operationNotAllowed
+        }
+        var topVC = rootVC
+        while let presented = topVC.presentedViewController { topVC = presented }
+        do {
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: topVC)
+            guard let idToken = result.user.idToken?.tokenString else {
+                throw FirebaseAuthError.invalidCredential
+            }
+            let credential = GoogleAuthProvider.credential(
+                withIDToken: idToken,
+                accessToken: result.user.accessToken.tokenString
+            )
+            let linkResult = try await user.link(with: credential)
+ logger.info("Linked Google to existing account: uid=\(linkResult.user.uid, privacy: .private)")
+            await updateDisplayNameFromGoogle(result.user, firebaseUser: linkResult.user)
+            publishLinkedUser(linkResult.user)
+        } catch let error as GIDSignInError where error.code == .canceled {
+ logger.debug("Google link cancelled by user")
+        } catch let error as NSError where error.code == AuthErrorCode.credentialAlreadyInUse.rawValue {
+ logger.warning("Google already linked to a different account — cannot connect")
+            throw FirebaseAuthError.accountExistsWithDifferentCredential
         } catch {
             throw FirebaseAuthError.from(error)
         }
