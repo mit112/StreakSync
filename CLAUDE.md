@@ -32,27 +32,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (no code signing needed for simulator)
 xcodebuild build \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=D9067F92-F13A-47B4-BF27-4401BBE3D4A5' \
+  -destination 'platform=iOS Simulator,id=62B3E19D-D5E6-47C3-BF62-BED013F83D04' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO -quiet \
   2>&1 | xcsift -w
 
 # Run all tests (unit + UI)
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=D9067F92-F13A-47B4-BF27-4401BBE3D4A5' \
+  -destination 'platform=iOS Simulator,id=62B3E19D-D5E6-47C3-BF62-BED013F83D04' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
 
 # Run a single test class
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=D9067F92-F13A-47B4-BF27-4401BBE3D4A5' \
+  -destination 'platform=iOS Simulator,id=62B3E19D-D5E6-47C3-BF62-BED013F83D04' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests
 
 # Run a single test method
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=D9067F92-F13A-47B4-BF27-4401BBE3D4A5' \
+  -destination 'platform=iOS Simulator,id=62B3E19D-D5E6-47C3-BF62-BED013F83D04' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests/testStreakContinuation
 
@@ -174,12 +174,21 @@ Rules in `firestore.rules` with a 62-case pen test suite in `firestore-rules-tes
 
 | Job | Xcode | Path |
 |---|---|---|
-| Daily dev, tests, simulators | 27.0 beta (`xcode-select` default) | `/Applications/Xcode-beta.app` |
+| Daily dev, tests, simulators | 27.0 Beta 6 (27A5252f, `xcode-select` default) | `/Applications/Xcode-27.0.0-Beta.6.app` |
 | **App Store archives** | **26.6 (17F113)** | `/Applications/Xcode-26.6.0.app` |
 
 The App Store rejects binaries built with a beta Xcode, so releases must be cut
 with the release Xcode. 26.6 is also the exact build CI uses, so the archive
 toolchain is the one that proves the suite green.
+
+> **State as of 2026-08-27:** the release Xcode (26.6) was uninstalled to reclaim
+> disk during the Beta 3 → Beta 6 upgrade, so **only the beta is installed right
+> now.** Reinstall the release toolchain before the next App Store archive:
+> `xcodes install "26.6"` (installs to `/Applications/Xcode-26.6.0.app`), then
+> `DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer xcodebuild -downloadPlatform iOS`.
+> Note: betas installed via `xcodes` are named `Xcode-<version>-Beta.N.app` (e.g.
+> `Xcode-27.0.0-Beta.6.app`), **not** `Xcode-beta.app` — update paths accordingly
+> if you script against the beta.
 
 **`open -a` does not work for the release Xcode.** Both bundles declare
 `CFBundleIdentifier = com.apple.dt.Xcode`, so LaunchServices resolves the
@@ -231,27 +240,41 @@ command in the *same* shell invocation, or it arrives empty and altool reports
 `-20101 "Your Apple Account or password was entered incorrectly"` — which looks
 like a wrong password rather than a missing one.
 
-Xcode Cloud is **not** set up. `ci_scripts/ci_post_clone.sh` exists and works
-(it materializes the gitignored `GoogleService-Info.plist` from a
-`FIREBASE_PLIST_B64` secret), but onboarding fails at the source-code grant step.
-Note that Xcode Cloud onboarding requires a *release* Xcode; it cannot be
-completed from a beta.
+**Xcode Cloud is set up and is now the primary release path** (working since
+2026-08-27; the manual archive flow above is the fallback). Workflow **"Default"**
+on `mit112/StreakSync`: Branch Changes → `main` (any file change) triggers an
+**Archive - iOS** action, scheme `StreakSync`, Distribution Preparation = **App
+Store Connect**, which archives with a cloud GA Xcode and uploads to TestFlight.
+So a release no longer needs the release Xcode installed locally — push to `main`
+and the cloud archives it (never a beta binary).
+
+Two `ci_scripts/` drive it (must stay executable and pushed — CI clones the repo,
+not the working tree):
+- `ci_post_clone.sh` — materializes the gitignored `GoogleService-Info.plist` from
+  the `FIREBASE_PLIST_B64` secret env var, hard-failing if `PROJECT_ID` is wrong.
+- `ci_pre_xcodebuild.sh` — `agvtool new-version -all "$CI_BUILD_NUMBER"` stamps every
+  target's build number so uploads never collide.
+
+`CI_BUILD_NUMBER` starts at 1 per workflow, so the marketing version was bumped to
+**1.23** (build 12 under 1.22 was already on App Store Connect) to give a clean
+`(1.23, 1)` first build. Submission to App Review is still manual in App Store
+Connect — Xcode Cloud only delivers the build.
 
 ## Simulator Reference
 
 **Always reference simulators by UDID, not by name.**
 
-- iPhone 17 Pro: `D9067F92-F13A-47B4-BF27-4401BBE3D4A5` (iOS 27.0 — preferred)
-- iPhone 17 Pro Max: `AF2D1A82-83E3-44E2-8A88-6996EF2DBA4D` (iOS 27.0)
+- iPhone 17 Pro: `62B3E19D-D5E6-47C3-BF62-BED013F83D04` (iOS 27.0 — preferred)
+- iPhone 17 Pro Max: `3976ABA6-1EF1-4A50-800B-E54455F639C5` (iOS 27.0)
 
 > **UDID drift:** These UDIDs change whenever Xcode is reinstalled or simulators are re-created. If `xcodebuild` rejects the destination with "device not found", run `xcrun simctl list devices available | grep "iPhone 17 Pro"` and update this file.
 
 Preferred destination string:
-`platform=iOS Simulator,id=D9067F92-F13A-47B4-BF27-4401BBE3D4A5`
+`platform=iOS Simulator,id=62B3E19D-D5E6-47C3-BF62-BED013F83D04`
 
 **Always launch apps with:**
 ```bash
-xcrun simctl launch --terminate-running-process --console-pty D9067F92-F13A-47B4-BF27-4401BBE3D4A5 com.mitsheth.StreakSync
+xcrun simctl launch --terminate-running-process --console-pty 62B3E19D-D5E6-47C3-BF62-BED013F83D04 com.mitsheth.StreakSync
 ```
 `--terminate-running-process` is mandatory — without it, launch silently does nothing if the app is already running.
 
