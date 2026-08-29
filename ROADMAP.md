@@ -19,12 +19,13 @@ Release path is Xcode Cloud — push to `main` archives and delivers to TestFlig
 | # | Item | Why it's blocked | Effort |
 |---|---|---|---|
 | 1 | **Crashlytics** | Needs `FirebaseCrashlytics` added as a package product to the app target in Xcode. That's a `.pbxproj` edit, which the project rules forbid me from hand-editing. | 5 min in Xcode + ~20 lines of init code |
-| 2 | **Firebase budget alert** | Google Cloud Console, project `streaksync-55ca0`. No cost guardrail exists. | 5 min |
-| 3 | **App Check enforcement** | Code is fully scaffolded (`Core/Config/AppCheckSetup.swift`, `FirebaseAppCheck` already linked) but the provider factory is commented out at `App/AppDelegate.swift:22`. Needs a debug token registered in Firebase Console first, then uncomment. This is `SECURITY_AUDIT.md`'s only unresolved finding (H5). | 15 min |
-| 4 | **App Store Connect API key** | Users and Access ▸ Integrations. Would let the release flow run unattended instead of via an app-specific password. | 10 min |
-| 5 | **The in-Xcode SwiftLint phase is a false green** | See below — the fix is a target build-setting change. | 2 min |
-| 6 | **Create the Widget Extension target** | All 22 source files are written and lint/typecheck clean; the target itself is a `.pbxproj` edit. `StreakSyncWidget/README.md` has the setup, the entitlement, and the four files to add to membership. | 10 min in Xcode |
-| 7 | **Device-test + merge `finish-e2e-2026-08-28`** | Merging to `main` triggers Xcode Cloud → a real TestFlight build. Outward-facing, so it needs your explicit go-ahead. The account-switch and notification changes have never run on hardware. | — |
+| 2 | **Product analytics** | `FirebaseAnalytics` is not linked at all. The app target's only package products are `GoogleSignIn`, `FirebaseAuth`, `FirebaseFirestore` and `FirebaseAppCheck`, so this is the same `.pbxproj` edit as Crashlytics — not a code-only change. See §2.3. | 5 min in Xcode, then instrumentation |
+| 3 | **Firebase budget alert** | Google Cloud Console, project `streaksync-55ca0`. No cost guardrail exists. | 5 min |
+| 4 | **App Check enforcement** | Code is fully scaffolded (`Core/Config/AppCheckSetup.swift`, `FirebaseAppCheck` already linked) but the provider factory is commented out at `App/AppDelegate.swift:22`. Needs a debug token registered in Firebase Console first, then uncomment. This is `SECURITY_AUDIT.md`'s only unresolved finding (H5). | 15 min |
+| 5 | **App Store Connect API key** | Users and Access ▸ Integrations. Would let the release flow run unattended instead of via an app-specific password. | 10 min |
+| 6 | **The in-Xcode SwiftLint phase is a false green** | See below — the fix is a target build-setting change. | 2 min |
+| 7 | **Create the Widget Extension target** | All 22 source files are written and lint/typecheck clean; the target itself is a `.pbxproj` edit. `StreakSyncWidget/README.md` has the setup, the entitlement, and the four files to add to membership. | 10 min in Xcode |
+| 8 | **Device-test + merge `finish-e2e-2026-08-28`** | Merging to `main` triggers Xcode Cloud → a real TestFlight build. Outward-facing, so it needs your explicit go-ahead. The account-switch and notification changes have never run on hardware. | — |
 
 **Crashlytics is the one that matters.** The app has been live since May with zero production
 crash visibility.
@@ -97,9 +98,15 @@ enumeration protection and cannot tell "no such account" from "account exists":
 **Not device-tested.** This is auth and data lifecycle on a live app; it needs a real
 multi-provider run on hardware before merge.
 
-### 2.3 No product analytics
+### 2.3 No product analytics — **blocked, not merely unwritten**
 No `FirebaseAnalytics` import, no `logEvent` call anywhere. There is currently no way to know
 which games get used, whether the share-discovery onboarding converts, or where people drop off.
+
+**Correction (2026-08-29):** this was filed as a product gap someone could just sit down and
+write. It isn't. `FirebaseAnalytics` is not a linked package product — the app target links
+exactly four (`GoogleSignIn`, `FirebaseAuth`, `FirebaseFirestore`, `FirebaseAppCheck`), so the
+first `import FirebaseAnalytics` will not compile. Adding the product is a `.pbxproj` edit, which
+puts this in §1 alongside Crashlytics (now item 2 there). Both want the same trip into Xcode.
 
 ### 2.4 Friends feature has no proactive pull
 `NotificationScheduler` has no social scheduling function. Friends is entirely pull-based — you
@@ -123,7 +130,7 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
 | `TieredAchievementChecker` duplication | 8 near-identical ~25-line `check*` functions | ~150–200 lines removable via one generic helper. This shape is what produced the Completionist ordering bug fixed in this pass. |
 | Streaks/achievements in UserDefaults | `PersistenceService.swift:20` | Self-acknowledged as fine at current size; only `gameResults` is file-backed. |
 | `Task.sleep`-based timing | `AppContainer.handleAppBecameActive` | A 1s reset and a 5s Share-Extension monitoring window. No known user-visible bug. |
-| Unlimited friendCode minting | `firestore.rules:123` | Low severity: a signed-in user can create unbounded `friendCodes` docs. App Check (item 3) is the intended mitigation. |
+| Unlimited friendCode minting | `firestore.rules:123` | Low severity: a signed-in user can create unbounded `friendCodes` docs. App Check (item 4) is the intended mitigation. |
 | Name-keyed deep link matches the slug, not the display name | `NotificationCoordinator.swift:238` | `streaksync://game?name=…` now works, but matches `game.name` (`"minicrossword"`, `"linkedinqueens"`), so `name=Mini%20Crossword` still finds nothing. Fine for internal callers; worth widening if the scheme is ever documented publicly. |
 
 ---
@@ -139,9 +146,16 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
 - **UI tests cover none of the three riskiest journeys**: share-extension import, friend-request
   accept, notification deep link. All three have caused real regressions before. The 8 existing
   UI tests are the same ones added in Feb 2026.
-- **UI tests are excluded from CI** because two unit tests (`ShareExtensionIngestionTests
-  .testAppGroupQueue_WriteLoadClear`, `FirstShareCelebrationTriggerTests`) run ~6–7 min each and
-  dominate the job.
+- **UI tests are excluded from CI**, but the recorded reason is wrong. The claim that
+  `ShareExtensionIngestionTests.testAppGroupQueue_WriteLoadClear` and
+  `FirstShareCelebrationTriggerTests` run ~6–7 min each and dominate the job is **false as
+  measured on 2026-08-29**: `testAppGroupQueue_WriteLoadClear` takes **0.043s**, each
+  `FirstShareCelebrationTriggerTests` case takes 0.005–0.007s, and the slowest test in the whole
+  suite is **0.069s** (`AnalyticsComputerTests.test_computePersonalBests_bestScore_detected`).
+  All 454 recorded cases execute in **0.47s combined**. The ~56s wall clock for
+  `-only-testing:StreakSyncTests` is compile, simulator boot and test-host bring-up — not test
+  bodies. Whatever that cost once was, it is gone, and the exclusion has no measured
+  justification left.
 - **Device notification shakedown never executed.** `docs/notification-runtime-device-shakedown.md`
   is a runbook written in Feb 2026 and never run: permission-state matrix, timezone/DST changes
   mid-schedule, snooze re-arm. Needs a physical device, no code.

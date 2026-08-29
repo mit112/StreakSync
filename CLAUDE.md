@@ -99,8 +99,10 @@ occasional line's prefix, silently undercounting.
   It does not invalidate the tests that passed.
 - The full plan includes `StreakSyncUITests`, which is slow enough to blow CI's job timeout.
   CI is scoped to `StreakSyncTests` for that reason.
-- Two tests are pathologically slow (`ShareExtensionIngestionTests.testAppGroupQueue_WriteLoadClear`
-  and `FirstShareCelebrationTriggerTests` ~6–7 min each) — they dominate the ~10 min runtime.
+- The "two pathologically slow tests" note that used to live here was **measured false on
+  2026-08-29** and has been removed. `testAppGroupQueue_WriteLoadClear` runs in 0.043s, each
+  `FirstShareCelebrationTriggerTests` case in ~0.006s, and the slowest test in the suite is
+  0.069s — 454 cases total 0.47s. The ~56s wall clock is compile plus simulator boot, not tests.
 
 ## Architecture
 
