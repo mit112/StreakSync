@@ -5,6 +5,7 @@ included:
   - StreakSync
   - StreakSyncShareExtension
   - StreakSyncTests
+  - StreakSyncWidget
 
 excluded:
   - Carthage
