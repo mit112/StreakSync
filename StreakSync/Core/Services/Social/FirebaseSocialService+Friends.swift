@@ -128,14 +128,17 @@ extension FirebaseSocialService {
         } else {
             resolvedRecipientName = "Player"
         }
-        try await db.collection("friendships").document(docId).setData([
+        // Fired, not awaited. The queries above are bounded and cache-served, so offline
+        // this is the line the caller used to hang on forever. See
+        // FirebaseSocialService+DeferredWrites for why, and for how a rejection is surfaced.
+        fireSetData([
             "userId1": currentUID,
             "userId2": targetId,
             "status": FriendshipStatus.pending.rawValue,
             "senderDisplayName": senderName,
             "recipientDisplayName": resolvedRecipientName,
             "createdAt": Timestamp(date: Date())
-        ])
+        ], on: db.collection("friendships").document(docId), operation: .sendFriendRequest)
         logger.info("Sent friend request to \(targetId)")
         return false
     }
@@ -189,10 +192,13 @@ extension FirebaseSocialService {
             resolvedName = "Player"
         }
 
-        try await docRef.updateData([
+        // Fired, not awaited. The source:.server read above already proved the backend
+        // reachable, so the case this leaves open is a rejection, not an outage — and that
+        // still reaches the user via .socialWriteFailed.
+        fireUpdateData([
             "status": FriendshipStatus.accepted.rawValue,
             "recipientDisplayName": resolvedName
-        ])
+        ], on: docRef, operation: .acceptFriendRequest)
 
         logger.info("Accepted friendship \(friendshipId)")
         invalidateFriendsCache()
@@ -207,7 +213,9 @@ extension FirebaseSocialService {
 
     func removeFriend(friendshipId: String) async throws {
         let docRef = db.collection("friendships").document(friendshipId)
-        try await docRef.delete()
+        // Fired, not awaited — unlike removeFriend(userId:) there is no server-source read
+        // ahead of this one, so awaiting it hung outright offline.
+        fireDelete(docRef, operation: .removeFriend)
         logger.info("Removed friendship \(friendshipId)")
         invalidateFriendsCache()
 
@@ -229,7 +237,8 @@ extension FirebaseSocialService {
             logger.warning("No friendship found between \(currentUID) and \(targetId)")
             return
         }
-        try await friendshipDoc.delete()
+        // Fired, not awaited (see FirebaseSocialService+DeferredWrites).
+        fireDelete(friendshipDoc, operation: .removeFriend)
         logger.info("Removed friendship with user \(targetId)")
         invalidateFriendsCache()
 
@@ -259,10 +268,12 @@ extension FirebaseSocialService {
             let codeSnap = try? await codeDoc.getDocument()
             if codeSnap?.exists != true {
                 let displayName = snapshot.data()?["displayName"] as? String ?? "Player"
-                try? await codeDoc.setData([
+                // Fired, not awaited: this is the second of the two paths that used to hang
+                // the Manage Friends sheet on its very first open offline.
+                fireSetData([
                     "userId": currentUID,
                     "displayName": displayName
-                ])
+                ], on: codeDoc, operation: .generateFriendCode)
             }
             return existing
         }
@@ -275,7 +286,10 @@ extension FirebaseSocialService {
             "userId": currentUID,
             "displayName": displayName
         ], forDocument: db.collection("friendCodes").document(code))
-        try await batch.commit()
+        // Fired, not awaited: the code is generated on-device and returned immediately, so
+        // the sheet no longer waits on a commit that never lands offline. If the commit is
+        // rejected the code is dead, and .socialWriteFailed tells the sheet to forget it.
+        fireCommit(batch, operation: .generateFriendCode)
         logger.info("Generated friend code: \(code)")
         return code
     }

@@ -58,6 +58,12 @@ struct FriendManagementView: View {
             .onChange(of: friendshipChangeTick) { _, _ in
                 Task { await loadFriendshipState() }
             }
+            // The friend writes below are fired without awaiting their server ack, so a
+            // rejection arrives long after the `await` that started it has returned. This is
+            // the channel it comes back on.
+            .onReceive(NotificationCenter.default.publisher(for: .socialWriteFailed)) { note in
+                handleDeferredWriteFailure(note)
+            }
             .alert("Error", isPresented: .constant(errorMessage != nil)) {
                 Button("OK") { errorMessage = nil }
             } message: {
@@ -325,6 +331,34 @@ private extension FriendManagementView {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Expected flow when a friend write that was fired without awaiting its server
+    /// acknowledgement is rejected:
+    ///   1. Firestore reverted its own local mutation before telling anyone —
+    ///      `SyncEngine::HandleRejectedWrite` runs `LocalStore::RejectBatch` (dropping the
+    ///      overlay) and only then `NotifyUser` — so its cache already holds the truth.
+    ///   2. `FirebaseSocialService.fireWrite` logged the error, cleared the service's 60 s
+    ///      friends cache, and posted `.socialWriteFailed`.
+    ///   3. We surface the message through the same `errorMessage` alert that every other
+    ///      failure in this sheet uses. Without this the write would fail silently.
+    ///   4. We undo the sheet-only optimism the rollback names (the green "request sent"
+    ///      line, or a friend code that was never registered).
+    ///   5. `loadFriendshipState()` re-reads friends and pending requests. That re-read is
+    ///      what puts an optimistically removed row back on screen; it does not depend on
+    ///      the friendship listener being alive.
+    func handleDeferredWriteFailure(_ notification: Notification) {
+        guard let failure = SocialWriteFailure(notification: notification) else { return }
+        errorMessage = failure.message
+        switch failure.operation.rollback {
+        case .reloadOnly:
+            break
+        case .clearSuccessMessage:
+            successMessage = nil
+        case .forgetFriendCode:
+            myFriendCode = nil
+        }
+        Task { await loadFriendshipState() }
     }
 
     /// Reload only the friendship-driven state (friends list + pending requests),
