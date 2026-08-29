@@ -1,7 +1,7 @@
 # StreakSync — What's Left
 
-**Compiled 2026-08-29.** Every item below was verified against the code on that date, not
-copied forward from an older document.
+**Compiled 2026-08-29, revised the same day.** Every item below was verified against the code,
+not copied forward from an older document.
 
 This supersedes the "open items" sections of `CODEBASE_AUDIT.md`, `DESIGN_AUDIT.md`,
 `UI_SYSTEM_AUDIT.md`, `REDDIT_LAUNCH_AUDIT.md`, `SECURITY_AUDIT.md`,
@@ -23,7 +23,8 @@ Release path is Xcode Cloud — push to `main` archives and delivers to TestFlig
 | 3 | **App Check enforcement** | Code is fully scaffolded (`Core/Config/AppCheckSetup.swift`, `FirebaseAppCheck` already linked) but the provider factory is commented out at `App/AppDelegate.swift:22`. Needs a debug token registered in Firebase Console first, then uncomment. This is `SECURITY_AUDIT.md`'s only unresolved finding (H5). | 15 min |
 | 4 | **App Store Connect API key** | Users and Access ▸ Integrations. Would let the release flow run unattended instead of via an app-specific password. | 10 min |
 | 5 | **The in-Xcode SwiftLint phase is a false green** | See below — the fix is a target build-setting change. | 2 min |
-| 6 | **Device-test + merge `finish-e2e-2026-08-28`** | Merging to `main` triggers Xcode Cloud → a real TestFlight build. Outward-facing, so it needs your explicit go-ahead. | — |
+| 6 | **Create the Widget Extension target** | All 22 source files are written and lint/typecheck clean; the target itself is a `.pbxproj` edit. `StreakSyncWidget/README.md` has the setup, the entitlement, and the four files to add to membership. | 10 min in Xcode |
+| 7 | **Device-test + merge `finish-e2e-2026-08-28`** | Merging to `main` triggers Xcode Cloud → a real TestFlight build. Outward-facing, so it needs your explicit go-ahead. The account-switch and notification changes have never run on hardware. | — |
 
 **Crashlytics is the one that matters.** The app has been live since May with zero production
 crash visibility.
@@ -50,27 +51,51 @@ in the script.
 
 ## 2. Product gaps
 
-### 2.1 No Home Screen presence at all
-There is no widget extension, no App Intents, no Live Activity, and no Control Center control
-anywhere in the project — `WidgetKit`, `AppIntent`, and `ActivityKit` return zero matches.
+### 2.1 Home Screen presence — **written, blocked on the target**
+Superseded. The whole extension now exists as source under `StreakSyncWidget/` (22 files) and
+the app publishes a `WidgetSnapshot` to the App Group on every result, reconciliation, day
+change and launch. Two widgets (a streak overview across `systemSmall`/`systemMedium` and all
+three accessory families, plus a configurable single-game widget), App Intents for opening a
+game and answering "what's my Wordle streak" in Siri/Shortcuts.
 
-For a streak tracker this is the single largest untapped surface. The retention loop is
-share-extension → notification → app; a widget closes it. A Lock Screen / Home Screen widget
-showing today's unplayed games and the current streak is the highest-leverage feature left.
-App Intents would additionally make streaks queryable by Siri and usable in Shortcuts.
+Nothing compiles until **you create the Widget Extension target in Xcode** — see
+`StreakSyncWidget/README.md` for the setup, the one entitlement, and the exact four main-app
+files to add to its membership. Verified as far as possible without a target: clean
+`swiftc -typecheck` under Swift 6 with `-application-extension`, and 0 SwiftLint violations
+across all 22 files. Runtime layout is unverified; the medium family's chip fit at
+accessibility text sizes is the thing most likely to need adjusting on device.
 
-Requires a new target (`.pbxproj`), so setup is yours; the implementation is not.
+Still absent and undecided: Live Activity and Control Center controls (`ActivityKit` returns
+zero matches). Neither is obviously right for a once-a-day puzzle.
 
-### 2.2 Silent blank account on cross-provider sign-in
-A user who signed in with Apple and later signs in with Google — a provider they've never used
-— gets a brand-new UID and a blank account, with no error and no warning. Firebase only raises
-`credentialAlreadyInUse` on the explicit *link* paths (`linkApple` / `linkGoogle`), never on a
-fresh sign-in. `AppContainer.swift:201` treats the UID change as an ordinary account switch and
-wipes local data.
+### 2.2 Silent blank account on cross-provider sign-in — **fixed**
+The original entry understated this in two ways, both found on 2026-08-29.
 
-Risk went **up** on 2026-08-28 when "connect a second sign-in method" shipped, because users now
-know multi-provider is a thing. Note `fetchSignInMethods(forEmail:)` is not a usable detector —
-email enumeration protection is on by default and returns empty.
+First, the wipe was reachable by a **second, much more likely route**. Sign-out itself called
+`clearAllData()`, so a signed-out user is anonymous with no local data; tapping "Sign in with
+Google" for a never-seen Google account then took the *link* branch, permanently promoting the
+throwaway anonymous UID into that Google account and stranding the real Apple history under the
+old UID. `AppContainer` classified that as a benign provider upgrade and never even logged it.
+
+Second, the sign-out sheet told users "Your personal streaks and scores stay on this device"
+while `handleSignOut()` deleted exactly those. Shipped copy contradicting shipped behaviour.
+
+Fixed by making the destruction recoverable rather than trying to predict it, since there is no
+reliable detector — `fetchSignInMethods(forEmail:)` returns empty under Firebase's default email
+enumeration protection and cannot tell "no such account" from "account exists":
+
+- Sign-out no longer touches local data at all, which makes the copy true and means history
+  now follows the user into a newly linked account instead of being stranded.
+- A UID change archives the outgoing account's stores under its own UID
+  (`PersistenceService.archiveAll(namespace:)`) instead of deleting them, and restores the
+  incoming account's archive if this device has one — so signing back in with the original
+  provider returns the streaks immediately, without depending on a cloud pull.
+- `AppContainer.shouldWarnAboutEmptyAccountSwitch` decides after the fact from facts that are
+  always available (previous session was real and had data, new one is empty after syncing, no
+  shared provider) and AccountView shows an inline recovery note. Advisory only.
+
+**Not device-tested.** This is auth and data lifecycle on a live app; it needs a real
+multi-provider run on hardware before merge.
 
 ### 2.3 No product analytics
 No `FirebaseAnalytics` import, no `logEvent` call anywhere. There is currently no way to know
@@ -91,10 +116,10 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
 
 | Item | Location | Note |
 |---|---|---|
-| Pinpoint parser fabricates a score | `GameResultParser+LinkedIn.swift:209,268,269` | `score = guessCount > 0 ? guessCount : 1` invents "1 guess" for an unsolved puzzle; the completion check scans the whole shared text rather than the matched puzzle row. Needs a never-solved fixture. |
-| Sync push is N+1 | `FirestoreGameResultSyncService.swift:130` | One `setData` per result. Should batch into `WriteBatch` commits of ≤500. |
+| ~~Pinpoint parser fabricates a score~~ | — | **Fixed 2026-08-29**, and it was worse than described: the keycap fallback counted every `N️⃣` in a combined daily post, so Crossclimb's "Fill order" row was read as five Pinpoint guesses. Two such rows exceed `maxAttempts` and trip `GameResult`'s `.lowerGuesses` assert — a reachable Debug crash, reproduced. A malformed `(0/5)` grid crashed the same way. |
+| ~~Sync push is N+1~~ | — | **Fixed 2026-08-29.** Batched into `WriteBatch` commits of ≤500, matching `FirebaseSocialService+Scores`. Failure semantics deliberately unchanged. |
 | Achievements sync as one base64 blob | `FirestoreAchievementSyncService.swift` | Guarded (warns 450KB, fails 700KB) but the single-document design is unchanged, and the failure surfaces only as an internal `status` enum nothing displays. |
-| No Firestore request timeout | `App/AppDelegate.swift:38` | Only `cacheSettings` is configured. A bad connection hangs rather than failing fast into the existing retry UI. |
+| No Firestore request timeout | `App/AppDelegate.swift:38` | **Correction:** `FirestoreSettings` has no timeout knob, so this is not a settings change. A timeout would have to be an app-level race around the sync's *read* phase — and it is meaningless for writes, which Firestore queues offline by design. Re-scope before attempting. |
 | `TieredAchievementChecker` duplication | 8 near-identical ~25-line `check*` functions | ~150–200 lines removable via one generic helper. This shape is what produced the Completionist ordering bug fixed in this pass. |
 | Streaks/achievements in UserDefaults | `PersistenceService.swift:20` | Self-acknowledged as fine at current size; only `gameResults` is file-backed. |
 | `Task.sleep`-based timing | `AppContainer.handleAppBecameActive` | A 1s reset and a 5s Share-Extension monitoring window. No known user-visible bug. |
@@ -108,6 +133,9 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
 - **7 subsystems have no test file at all**: `Core/Config`, `Core/Errors`, `Features/Analytics`,
   `Features/Dashboard`, `Features/Onboarding`, `Features/Streaks`, `Design System`. Beware the
   naming traps — `StreakLogicTests` tests `Core/State`, not `Features/Streaks`.
+- **The widget extension has no tests of its own** and cannot have any until the target exists.
+  `WidgetSnapshotTests` covers the shared payload and the app-side builder; the timeline
+  providers and views are untested.
 - **UI tests cover none of the three riskiest journeys**: share-extension import, friend-request
   accept, notification deep link. All three have caused real regressions before. The 8 existing
   UI tests are the same ones added in Feb 2026.
@@ -167,3 +195,29 @@ hidden from VoiceOver; three overlapping unlock announcements reduced to two.
 **Layout** — analytics card radii and section spacing aligned to tokens; double horizontal
 padding removed in `RecentActivitySection`; the empty grid cell in `StreakSummaryHero` no longer
 claims layout space; `NotificationSettingsView` list style matched to its siblings.
+
+---
+
+## 6. Fixed in the second 2026-08-29 pass
+
+The uncommitted layer above was split into 12 reviewable commits (whitespace, headers, lint,
+achievements, notifications, deep links, accessibility, layout, dead code, docs), then:
+
+- **Pinpoint parser** — see §3. Three regression tests, each verified failing against the old
+  code; the `(0/5)` case crashed the test host outright, which is the bug reproduced.
+- **Firestore push batched** into `WriteBatch` commits of ≤500.
+- **Account switches are now recoverable** — see §2.2. Nine tests, verified against mutated
+  implementations: dropping the decision guards makes five negative cases warn, and degrading
+  `archiveAll` back to `clearAll` loses the data.
+- **Widget snapshot published to the App Group** plus the full extension source — see §2.1.
+- One defect introduced by the earlier uncommitted work was caught and fixed before it was
+  committed: `recordActiveDays`' doc comment had been orphaned onto `recordUniqueGames`.
+- `.swiftlint.yml` now covers `StreakSyncWidget`, so the CLI can't silently skip it.
+
+Gates at the end of the pass: `build_sim` clean, `swiftlint` **exit 0** (385 violations, 0
+serious, 245 files), unit suite **455 passed / 0 failed**.
+
+**Three pre-existing Swift 6 concurrency warnings** surface in
+`StreakSyncTests/FirstShareCelebrationTriggerTests.swift:32-33` (non-Sendable capture, main
+actor-isolated mutation from a Sendable closure). Untouched by this pass — they only became
+visible when the test target recompiled.

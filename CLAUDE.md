@@ -72,15 +72,21 @@ Pipe through `| xcpretty` for readable output if xcpretty is installed.
 Run `swiftlint` from the terminal and check the exit code. **Do not trust the SwiftLint Run
 Script build phase** — `ENABLE_USER_SCRIPT_SANDBOXING = YES` confines it, so it lints 2 files
 out of 213 and reports a green "0 violations" while the CLI on the same tree reports errors.
-Baseline as of 2026-08-29: `swiftlint` exits **0** with 389 warnings against a
-`warning_threshold` of 400 — that threshold is itself an error-severity rule, so adding ~11
-warnings turns the gate red.
+Baseline as of 2026-08-29: `swiftlint` exits **0** with 385 warnings against a
+`warning_threshold` of 400 — that threshold is itself an error-severity rule, so adding ~15
+warnings turns the gate red. `included:` covers `StreakSync`, `StreakSyncShareExtension`,
+`StreakSyncTests` and `StreakSyncWidget`; a new top-level directory left out of that list is
+silently unlinted.
 
 ### Running tests — read this before concluding "the runner is broken"
 
-The unit suite runs fine: **438 tests pass** (`-only-testing:StreakSyncTests`). Prefer
-XcodeBuildMCP: `build_sim(buildForTesting: true)` then
+The unit suite runs fine: **455 tests pass** (`-only-testing:StreakSyncTests`), in about a
+minute. Prefer XcodeBuildMCP: `build_sim(buildForTesting: true)` then
 `test_sim(testProductsPath: <that>, extraArgs: ["-only-testing:StreakSyncTests"])`.
+
+When counting results out of a raw `xcodebuild` log, match `passed on 'Clone` rather than
+anchoring on `^Test case` — parallel clones interleave their output and will truncate the
+occasional line's prefix, silently undercounting.
 
 - `Early unexpected exit, operation never finished bootstrapping — Test crashed with
   signal abrt before establishing connection` means **the test host aborted**, not that the
