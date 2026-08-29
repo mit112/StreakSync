@@ -129,9 +129,7 @@ final class FirestoreGameResultSyncService {
 
             if !toPush.isEmpty {
                 logger.info("Uploading \(toPush.count) results to Firestore")
-                for result in toPush {
-                    try await uploadResult(result, to: ref)
-                }
+                try await uploadResults(toPush, to: ref)
             }
 
             // Propagate this device's deletions to Firestore: delete the result docs and
@@ -255,6 +253,31 @@ final class FirestoreGameResultSyncService {
 
     private func uploadResult(_ result: GameResult, to collectionRef: CollectionReference) async throws {
         try await collectionRef.document(result.id.uuidString).setData(result.toFirestoreData())
+    }
+
+    /// Batched counterpart to `uploadResult`, used by the sync path.
+    ///
+    /// The push used to be one `setData` round trip per result, so a cold resync of a
+    /// full history was hundreds of sequential writes. Firestore caps a `WriteBatch` at
+    /// 500 operations, hence the chunking — `toPush` is bounded by
+    /// `AppConstants.Storage.maxResults`, but only by coincidence of two independent
+    /// constants both being 500, so don't rely on it.
+    ///
+    /// Failure semantics are unchanged: `commit()` throws exactly as the old per-result
+    /// `try await` did, `syncIfNeeded`'s `catch` sets `.failed`, and
+    /// `saveLastSyncTimestamp` stays skipped — so the next sync recomputes `toPush` and
+    /// re-uploads whatever didn't land. That watermark must stay after this call.
+    private func uploadResults(_ results: [GameResult], to collectionRef: CollectionReference) async throws {
+        for chunk in results.chunked(into: 500) {
+            let batch = db.batch()
+            for result in chunk {
+                batch.setData(
+                    result.toFirestoreData(),
+                    forDocument: collectionRef.document(result.id.uuidString)
+                )
+            }
+            try await batch.commit()
+        }
     }
 
     /// Convenience flag for GuestSessionManager.
