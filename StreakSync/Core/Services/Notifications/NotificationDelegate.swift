@@ -20,6 +20,40 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
     
     private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationDelegate")
 
+    /// A response that arrived before `appState`/`navigationCoordinator` were wired.
+    ///
+    /// The delegate is claimed in `didFinishLaunchingWithOptions` because UNUserNotificationCenter
+    /// requires it by then, but the dependencies are wired later from the app's async setup.
+    /// iOS delivers `didReceive` exactly once, so a cold-launch tap landing in that window has to
+    /// be replayed rather than silently no-op'd against nil.
+    private struct PendingResponse {
+        let actionIdentifier: String
+        let categoryIdentifier: String
+        let gameIdString: String?
+        let achievementIdString: String?
+    }
+
+    @MainActor private var pendingResponse: PendingResponse?
+
+    /// Wires the dependencies and replays a response that arrived before they existed.
+    @MainActor
+    func setDependencies(appState: AppState, navigationCoordinator: NavigationCoordinator) {
+        self.appState = appState
+        self.navigationCoordinator = navigationCoordinator
+
+        guard let pending = pendingResponse else { return }
+        pendingResponse = nil
+        logger.info("Replaying notification response deferred until dependencies were ready")
+        Task { @MainActor in
+            await handleNotificationResponse(
+                actionIdentifier: pending.actionIdentifier,
+                categoryIdentifier: pending.categoryIdentifier,
+                gameIdString: pending.gameIdString,
+                achievementIdString: pending.achievementIdString
+            )
+        }
+    }
+
     override init() {
         super.init()
         UNUserNotificationCenter.current().delegate = self
@@ -74,6 +108,17 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
         gameIdString: String?,
         achievementIdString: String?
     ) async {
+        guard appState != nil, navigationCoordinator != nil else {
+            logger.info("Notification response arrived before dependencies were wired — deferring")
+            pendingResponse = PendingResponse(
+                actionIdentifier: actionIdentifier,
+                categoryIdentifier: categoryIdentifier,
+                gameIdString: gameIdString,
+                achievementIdString: achievementIdString
+            )
+            return
+        }
+
         switch actionIdentifier {
         case UNNotificationDefaultActionIdentifier:
             // User tapped the notification itself

@@ -37,8 +37,10 @@ struct StreakSyncApp: App {
                             _ = container.handleURLScheme(url)
                         }
                         .onAppear {
-                            NotificationDelegate.shared.appState = container.appState
-                            NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
+                            NotificationDelegate.shared.setDependencies(
+                                appState: container.appState,
+                                navigationCoordinator: container.navigationCoordinator
+                            )
                         }
                 } else if let error = initializationError {
                     InitializationErrorView(error: error) {
@@ -72,8 +74,10 @@ struct StreakSyncApp: App {
         let isUITesting = ProcessInfo.processInfo.arguments.contains("--uitesting")
 
         // Initialize notification delegate dependencies early (local, instant)
-        NotificationDelegate.shared.appState = container.appState
-        NotificationDelegate.shared.navigationCoordinator = container.navigationCoordinator
+        NotificationDelegate.shared.setDependencies(
+            appState: container.appState,
+            navigationCoordinator: container.navigationCoordinator
+        )
 
         // 1) Local-first paint: load cached data and normalize before any network.
         await container.appState.loadPersistedData()

@@ -16,6 +16,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Claim the UNUserNotificationCenter delegate here, not from an async `.task`.
+        // `NotificationDelegate.init` assigns it, and the first touch used to happen
+        // after this method returned — a notification tap that cold-launched the app
+        // could be delivered before anyone was listening.
+        _ = NotificationDelegate.shared
+
         // App Check is disabled until enforcement is enabled in Firestore rules.
         // When ready: register debug token in Firebase Console → App Check → Manage debug tokens,
         // then uncomment the line below.
