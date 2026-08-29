@@ -97,8 +97,12 @@ occasional line's prefix, silently undercounting.
 - `Failed to prepare device 'Clone N of …' — Timed out trying to boot simulator` IS
   environmental (parallel clone booting) and appears as an extra "System Failures" entry.
   It does not invalidate the tests that passed.
-- The full plan includes `StreakSyncUITests`, which is slow enough to blow CI's job timeout.
-  CI is scoped to `StreakSyncTests` for that reason.
+- CI runs **both** targets in one `xcodebuild` invocation as of 2026-08-29. That matters:
+  unit tests execute *inside the app* as its test host, so they write to the app's
+  `UserDefaults`, and UI tests then launch into that state. Two UI tests passed locally
+  and in a UI-only run, then failed on CI for exactly this reason. UI tests must reset
+  their own state — `--uitest-reset` wipes the whole persistent domain. If a UI test
+  passes alone but fails in CI, suspect unit-test pollution before suspecting flakiness.
 - The "two pathologically slow tests" note that used to live here was **measured false on
   2026-08-29** and has been removed. `testAppGroupQueue_WriteLoadClear` runs in 0.043s, each
   `FirstShareCelebrationTriggerTests` case in ~0.006s, and the slowest test in the suite is
