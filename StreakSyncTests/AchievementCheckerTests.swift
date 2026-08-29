@@ -1,3 +1,10 @@
+//
+//  AchievementCheckerTests.swift
+//  StreakSyncTests
+//
+//  Tiered achievement checking and tier-crossing tests
+//
+
 @testable import StreakSync
 import XCTest
 

@@ -2,6 +2,8 @@
 //  GameLeaderboardPage.swift
 //  StreakSync
 //
+//  One game's friend leaderboard, paged by date
+//
 
 import SwiftUI
 

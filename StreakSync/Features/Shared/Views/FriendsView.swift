@@ -2,6 +2,8 @@
 //  FriendsView.swift
 //  StreakSync
 //
+//  Friends tab: leaderboard, requests, and friend management
+//
 
 import Combine
 import SwiftUI

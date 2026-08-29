@@ -1,8 +1,8 @@
 //
-//  SharedModels.swift - PRODUCTION READY (FIXED)
+//  SharedModels.swift
 //  StreakSync & StreakSyncShareExtension
 //
-//  FIXED: All force unwrapping removed with safe alternatives
+//  Models shared between the app and the Share Extension
 //
 
 import Foundation

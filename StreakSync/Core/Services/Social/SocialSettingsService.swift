@@ -2,6 +2,8 @@
 //  SocialSettingsService.swift
 //  StreakSync
 //
+//  User-facing social sharing scope and privacy settings
+//
 
 import Foundation
 

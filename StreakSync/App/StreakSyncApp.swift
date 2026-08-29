@@ -1,5 +1,7 @@
 //
-//  StreakSyncApp.swift - REFACTORED WITH APPCONTAINER
+//  StreakSyncApp.swift
+//  StreakSync
+//
 //  Main app entry point with dependency injection
 //
 

@@ -2,6 +2,8 @@
 //  SocialSettingsServiceTests.swift
 //  StreakSyncTests
 //
+//  Social sharing scope persistence tests
+//
 
 @testable import StreakSync
 import XCTest

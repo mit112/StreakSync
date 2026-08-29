@@ -1,5 +1,5 @@
 //
-//  AppGroupBridge.swift - REFACTORED
+//  AppGroupBridge.swift
 //  StreakSync
 //
 //  Lightweight coordinator for App Group communication

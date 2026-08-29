@@ -1,7 +1,8 @@
 //
-// GameDisplayMode.swift
+//  GameDisplayMode.swift
+//  StreakSync
 //
-//  Game display modes for dashboard
+//  Game display modes for the dashboard
 //
 
 import Foundation

@@ -1,8 +1,8 @@
 //
-//  AppState+Persistence.swift (REFACTORED)
+//  AppState+Persistence.swift
 //  StreakSync
 //
-//  Simplified persistence using coordinator pattern
+//  Save, load, and normalize persisted app state
 //
 
 import Foundation

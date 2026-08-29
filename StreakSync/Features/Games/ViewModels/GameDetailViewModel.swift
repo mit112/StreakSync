@@ -1,5 +1,7 @@
 //
 //  GameDetailViewModel.swift
+//  StreakSync
+//
 //  Game detail business logic with auto-refresh support
 //
 

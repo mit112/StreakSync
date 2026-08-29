@@ -2,6 +2,8 @@
 //  LeaderboardScoringTests.swift
 //  StreakSyncTests
 //
+//  Leaderboard score normalization and ranking tests
+//
 
 @testable import StreakSync
 import XCTest

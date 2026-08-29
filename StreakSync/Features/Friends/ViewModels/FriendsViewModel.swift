@@ -2,6 +2,8 @@
 //  FriendsViewModel.swift
 //  StreakSync
 //
+//  View model backing the Friends tab
+//
 
 import Foundation
 import OSLog

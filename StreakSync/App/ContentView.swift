@@ -1,7 +1,10 @@
 //
 //  ContentView.swift
+//  StreakSync
+//
 //  Root view with tab-based navigation
 //
+
 import SwiftUI
 
 struct ContentView: View {

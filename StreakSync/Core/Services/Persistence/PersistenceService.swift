@@ -1,8 +1,8 @@
 //
-//  PersistenceService.swift - MIGRATED TO APPERROR
+//  PersistenceService.swift
 //  StreakSync
 //
-//  UPDATED: Using centralized AppError instead of local PersistenceError
+//  Local persistence, backed by UserDefaults and file storage
 //
 
 import Foundation

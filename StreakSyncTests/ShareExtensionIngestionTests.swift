@@ -1,3 +1,10 @@
+//
+//  ShareExtensionIngestionTests.swift
+//  StreakSyncTests
+//
+//  App Group queue and Share Extension ingestion tests
+//
+
 @testable import StreakSync
 import XCTest
 

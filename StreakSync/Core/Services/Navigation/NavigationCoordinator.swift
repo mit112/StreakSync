@@ -1,8 +1,8 @@
 //
 //  NavigationCoordinator.swift
-//  Navigation state management with TabView support
+//  StreakSync
 //
-//  Enhanced to handle tab-based navigation with separate NavigationStacks
+//  Navigation state management with per-tab NavigationStacks
 //
 
 import Observation

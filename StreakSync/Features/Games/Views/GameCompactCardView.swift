@@ -1,6 +1,8 @@
-// GameCompactCardView.swift
 //
-//  Enhanced compact grid card for games with improved visual design
+//  GameCompactCardView.swift
+//  StreakSync
+//
+//  Compact grid card for games
 //
 
 import SwiftUI
