@@ -15,6 +15,10 @@ import OSLog
 struct AchievementSnapshot {
     let totalGamesPlayed: Int
     let successCount: Int
+    /// Lifetime-scoped. The capped result window unioned with the caller's
+    /// `uniqueGamesEver`. Variety Player is the only consumer and is lifetime-scoped,
+    /// so the union has to be folded in *before* the checker runs — Completionist
+    /// reads Variety Player's tier in the same pass.
     let uniqueGameIds: Set<UUID>
     let uniqueDayCount: Int
     let consecutiveDaysPlayed: Int
@@ -27,13 +31,14 @@ struct AchievementSnapshot {
         games: [Game],
         friendCount: Int = 0,
         lifetimeActiveDayCount: Int = 0,
+        lifetimeUniqueGameIds: Set<UUID> = [],
         referenceDate: Date = Date()
     ) -> AchievementSnapshot {
         guard !results.isEmpty else {
             return AchievementSnapshot(
                 totalGamesPlayed: 0,
                 successCount: 0,
-                uniqueGameIds: [],
+                uniqueGameIds: lifetimeUniqueGameIds,
                 uniqueDayCount: 0,
                 consecutiveDaysPlayed: 0,
                 minimalAttemptWins: 0,
@@ -81,7 +86,7 @@ struct AchievementSnapshot {
         return AchievementSnapshot(
             totalGamesPlayed: results.count,
             successCount: successCount,
-            uniqueGameIds: uniqueGameIds,
+            uniqueGameIds: uniqueGameIds.union(lifetimeUniqueGameIds),
             // `uniqueDays` only sees the capped result window, so fall back to the caller's
             // monotonic lifetime count once pruning starts discarding older days.
             uniqueDayCount: max(uniqueDays.count, lifetimeActiveDayCount),
@@ -330,8 +335,12 @@ struct TieredAchievementChecker {
 
         if let index = achievements.firstIndex(where: { $0.category == .varietyPlayer }) {
             let oldTier = achievements[index].progress.currentTier
-            // AppState call sites handle monotonic union with uniqueGamesEver
-            achievements[index].updateProgress(value: snapshot.uniqueGameIds.count)
+            // `snapshot.uniqueGameIds` carries the union with the caller's lifetime
+            // `uniqueGamesEver`. Floor it at the stored value too: a device restored from
+            // a >500-result history can pull down an achievement whose true count predates
+            // anything in the synced window, and Variety Player must never walk backwards.
+            let lifetimeCount = max(achievements[index].progress.currentValue, snapshot.uniqueGameIds.count)
+            achievements[index].updateProgress(value: lifetimeCount)
 
             if let newTier = achievements[index].progress.currentTier,
                oldTier != newTier {
@@ -340,7 +349,7 @@ struct TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-logger.info("Unlocked Variety Player \(newTier.displayName) - \(snapshot.uniqueGameIds.count) different games")
+                logger.info("Unlocked Variety Player \(newTier.displayName) - \(lifetimeCount) different games")
             }
         }
 

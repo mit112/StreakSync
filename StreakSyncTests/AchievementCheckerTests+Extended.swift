@@ -133,6 +133,10 @@ extension AchievementCheckerTests {
             makeResult(gameId: g2.id, gameName: g2.name, date: Date())
         ]
         app._uniqueGamesEver = [g1.id, g2.id, gExtra.id]
+        // Seed from defaults: AppState reads real UserDefaults, and Variety Player is
+        // floored at its stored value, so leftover progress from another test would
+        // otherwise leak in and make this assertion order-dependent.
+        app._tieredAchievements = AchievementFactory.createDefaultAchievements()
         app.recalculateAllTieredAchievementProgress()
         let varAch = app.tieredAchievements.first { $0.category == .varietyPlayer }
         XCTAssertEqual(varAch?.progress.currentValue, 3)

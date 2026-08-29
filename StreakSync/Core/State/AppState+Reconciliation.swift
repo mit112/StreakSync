@@ -22,6 +22,7 @@ extension AppState {
     func reconcileAfterResultSetChanged() async {
         buildResultsCache()
         recordActiveDays(from: recentResults)
+        recordUniqueGames(from: recentResults)
 
         await rebuildStreaksFromResults()
         await normalizeStreaksForMissedDays()

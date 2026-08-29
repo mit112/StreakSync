@@ -256,7 +256,13 @@ struct AchievementProgress: Codable, Hashable, Sendable {
         guard let nextTier = nextTier(in: requirements) else { return 1.0 }
         guard let nextRequirement = requirements.first(where: { $0.tier == nextTier }) else { return 0.0 }
         guard nextRequirement.threshold > 0 else { return 0.0 }
-        return min(1.0, max(0.0, Double(currentValue) / Double(nextRequirement.threshold)))
+        // Match `progressDescription`: tiers are never revoked, so floor the bar at the
+        // earned tier's threshold. Without this, a missed day drops `currentValue` and
+        // the bar reads 3% while the label right beside it still reads "14/30".
+        let earnedThreshold = currentTier
+            .flatMap { tier in requirements.first(where: { $0.tier == tier })?.threshold } ?? 0
+        let shown = max(currentValue, earnedThreshold)
+        return min(1.0, max(0.0, Double(shown) / Double(nextRequirement.threshold)))
     }
 }
 

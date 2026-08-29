@@ -254,10 +254,11 @@ final class AppState {
 
     /// Check all achievements via pre-computed snapshot (used during day changes).
     func checkAllAchievements() async {
-logger.info("Checking all achievements for day change")
+        logger.info("Checking all achievements for day change")
         let snapshot = AchievementSnapshot.build(
             from: recentResults, games: games, friendCount: cachedFriendCount,
-            lifetimeActiveDayCount: activeDaysEver.count
+            lifetimeActiveDayCount: activeDaysEver.count,
+            lifetimeUniqueGameIds: uniqueGamesEver
         )
         let checker = TieredAchievementChecker()
         var current = tieredAchievements
@@ -266,18 +267,13 @@ logger.info("Checking all achievements for day change")
             streaks: streaks,
             currentAchievements: &current
         )
-        if let idx = current.firstIndex(where: { $0.category == .varietyPlayer }) {
-            let unionCount = snapshot.uniqueGameIds.union(uniqueGamesEver).count
-            let monotonicValue = max(current[idx].progress.currentValue, unionCount)
-            current[idx].updateProgress(value: monotonicValue)
-        }
         if current != tieredAchievements {
             tieredAchievements = current
         }
         for unlock in unlocks {
             handleTieredAchievementUnlock(unlock)
         }
-logger.info("Completed checking all achievements")
+        logger.info("Completed checking all achievements")
     }
 
     // MARK: - Grouped Results for Pips

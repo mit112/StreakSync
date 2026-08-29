@@ -80,7 +80,8 @@ extension AppState {
     internal func checkTieredAchievements() {
         let snapshot = AchievementSnapshot.build(
             from: recentResults, games: games, friendCount: cachedFriendCount,
-            lifetimeActiveDayCount: activeDaysEver.count
+            lifetimeActiveDayCount: activeDaysEver.count,
+            lifetimeUniqueGameIds: uniqueGamesEver
         )
         let checker = TieredAchievementChecker()
 
@@ -90,13 +91,6 @@ extension AppState {
             streaks: streaks,
             currentAchievements: &currentAchievements
         )
-
-        // Enforce all-time unique union for Variety Player to avoid regressions on partial histories
-        if let idx = currentAchievements.firstIndex(where: { $0.category == .varietyPlayer }) {
-            let unionCount = snapshot.uniqueGameIds.union(uniqueGamesEver).count
-            let monotonicValue = max(currentAchievements[idx].progress.currentValue, unionCount)
-            currentAchievements[idx].updateProgress(value: monotonicValue)
-        }
 
         // Update achievements if changed
         if currentAchievements != tieredAchievements {
@@ -186,6 +180,24 @@ extension AppState {
             Task {
                 await saveActiveDaysEver()
             }
+        }
+    }
+
+    /// Folds a whole result set into the monotonic lifetime game set.
+    ///
+    /// `addGameResult` records games one at a time, but nothing did so for wholesale
+    /// changes — cloud sync merges, backup imports, restores. On a fresh device the set
+    /// stayed empty, so Variety Player saw only the games inside the capped result
+    /// window. This is the counterpart to `recordActiveDays(from:)`.
+    func recordUniqueGames(from results: [GameResult]) {
+        guard !isGuestMode else { return }
+        var games = uniqueGamesEver
+        var changed = false
+        for result in results where games.insert(result.gameId).inserted {
+            changed = true
+        }
+        if changed {
+            uniqueGamesEver = games
         }
     }
 
@@ -280,7 +292,8 @@ extension AppState {
         // Single-pass snapshot replaces the per-result loop
         let snapshot = AchievementSnapshot.build(
             from: recentResults, games: games, friendCount: cachedFriendCount,
-            lifetimeActiveDayCount: activeDaysEver.count
+            lifetimeActiveDayCount: activeDaysEver.count,
+            lifetimeUniqueGameIds: uniqueGamesEver
         )
         let checker = TieredAchievementChecker()
         _ = checker.checkAllAchievements(
@@ -289,19 +302,12 @@ extension AppState {
             currentAchievements: &current
         )
 
-        // Enforce union with cached unique games to avoid regressions on partial histories
-        if let idx = current.firstIndex(where: { $0.category == .varietyPlayer }) {
-            let unionCount = snapshot.uniqueGameIds.union(uniqueGamesEver).count
-            let monotonicValue = max(current[idx].progress.currentValue, unionCount)
-            current[idx].updateProgress(value: monotonicValue)
-        }
-
         // Persist if changed
         if current != tieredAchievements {
             tieredAchievements = current
-logger.info("Tiered achievements recomputed")
+            logger.info("Tiered achievements recomputed")
         } else {
-logger.info("Tiered achievements already up to date")
+            logger.info("Tiered achievements already up to date")
         }
     }
 }
