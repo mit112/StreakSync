@@ -13,8 +13,8 @@ extension AppError.ShareExtensionError {
         switch self {
         case .noContent:
             return NSLocalizedString("error.share.no_content", comment: "No content to share")
-        case .invalidContentType(let type):
-            return String(format: NSLocalizedString("error.share.invalid_type", comment: "Invalid content type: %@"), type)
+        case .invalidContentType:
+            return NSLocalizedString("error.share.invalid_type", comment: "The shared content was not a supported type")
         case .processingTimeout:
             return NSLocalizedString("error.share.timeout", comment: "Processing took too long")
         case .appGroupAccessFailed:
@@ -30,8 +30,8 @@ extension AppError.ShareExtensionError {
         switch self {
         case .noContent:
             return NSLocalizedString("error.share.no_content.reason", comment: "The shared content was empty")
-        case .invalidContentType(let type):
-            return String(format: NSLocalizedString("error.share.invalid_type.reason", comment: "Expected text content, received %@"), type)
+        case .invalidContentType:
+            return NSLocalizedString("error.share.invalid_type.reason", comment: "Shared content was not text")
         case .processingTimeout:
             return NSLocalizedString("error.share.timeout.reason", comment: "The share extension took too long to process")
         case .appGroupAccessFailed:
@@ -70,14 +70,14 @@ extension AppError.ParsingError {
         switch self {
         case .unknownGameFormat:
             return NSLocalizedString("error.parsing.unknown_format", comment: "Unknown game format")
-        case .invalidScoreFormat(let game, _):
-            return String(format: NSLocalizedString("error.parsing.invalid_score", comment: "Invalid %@ score format"), game)
-        case .missingPuzzleNumber(let game):
-            return String(format: NSLocalizedString("error.parsing.missing_puzzle", comment: "%@ puzzle number not found"), game)
-        case .malformedGameData(let game, _):
-            return String(format: NSLocalizedString("error.parsing.malformed_data", comment: "Invalid %@ game data"), game)
-        case .unsupportedGame(let name):
-            return String(format: NSLocalizedString("error.parsing.unsupported_game", comment: "%@ is not yet supported"), name)
+        case .invalidScoreFormat:
+            return NSLocalizedString("error.parsing.invalid_score", comment: "Score format did not match the game")
+        case .missingPuzzleNumber:
+            return NSLocalizedString("error.parsing.missing_puzzle", comment: "Puzzle number missing from the shared text")
+        case .malformedGameData:
+            return NSLocalizedString("error.parsing.malformed_data", comment: "Game data was malformed")
+        case .unsupportedGame:
+            return NSLocalizedString("error.parsing.unsupported_game", comment: "Game is not supported yet")
         case .dateParsingFailed:
             return NSLocalizedString("error.parsing.date_failed", comment: "Could not determine game date")
         }
@@ -85,11 +85,10 @@ extension AppError.ParsingError {
 
     var failureReason: String? {
         switch self {
-        case .unknownGameFormat(let text):
-            let preview = String(text.prefix(50))
-            return String(format: NSLocalizedString("error.parsing.unknown_format.reason", comment: "Could not identify game in: %@..."), preview)
-        case .invalidScoreFormat(_, let score):
-            return String(format: NSLocalizedString("error.parsing.invalid_score.reason", comment: "Score '%@' is not valid"), score)
+        case .unknownGameFormat:
+            return NSLocalizedString("error.parsing.unknown_format.reason", comment: "Shared text matched no supported game")
+        case .invalidScoreFormat:
+            return NSLocalizedString("error.parsing.invalid_score.reason", comment: "Score value was not valid")
         case .missingPuzzleNumber:
             return NSLocalizedString("error.parsing.missing_puzzle.reason", comment: "Puzzle number is required for tracking")
         case .malformedGameData(_, let reason):
@@ -123,12 +122,12 @@ extension AppError.ParsingError {
 extension AppError.PersistenceError {
     var localizedDescription: String {
         switch self {
-        case .saveFailed(let dataType, _):
-            return String(format: NSLocalizedString("error.persistence.save_failed", comment: "Failed to save %@"), dataType)
-        case .loadFailed(let dataType, _):
-            return String(format: NSLocalizedString("error.persistence.load_failed", comment: "Failed to load %@"), dataType)
-        case .dataCorrupted(let dataType):
-            return String(format: NSLocalizedString("error.persistence.corrupted", comment: "%@ data is corrupted"), dataType)
+        case .saveFailed:
+            return NSLocalizedString("error.persistence.save_failed", comment: "Saving data failed")
+        case .loadFailed:
+            return NSLocalizedString("error.persistence.load_failed", comment: "Loading data failed")
+        case .dataCorrupted:
+            return NSLocalizedString("error.persistence.corrupted", comment: "Stored data is corrupted")
         case .migrationFailed:
             return NSLocalizedString("error.persistence.migration_failed", comment: "Data migration failed")
         case .storageFull:
@@ -161,18 +160,15 @@ extension AppError.PersistenceError {
                 "error.persistence.corrupted.reason",
                 comment: "The stored data is in an invalid format"
             )
-        case .migrationFailed(let from, let to):
-            return String(
-                format: NSLocalizedString(
-                    "error.persistence.migration_failed.reason",
-                    comment: "Could not migrate from version %@ to %@"
-                ),
-                from, to
+        case .migrationFailed:
+            return NSLocalizedString(
+                "error.persistence.migration_failed.reason",
+                comment: "Data migration between schema versions failed"
             )
         case .storageFull:
             return NSLocalizedString("error.persistence.storage_full.reason", comment: "There is not enough space to save data")
-        case .keyNotFound(let key):
-            return String(format: NSLocalizedString("error.persistence.key_not_found.reason", comment: "No data found for key: %@"), key)
+        case .keyNotFound:
+            return NSLocalizedString("error.persistence.key_not_found.reason", comment: "No stored data for the requested key")
         case .encodingFailed(let underlying):
             return underlying.localizedDescription
         case .decodingFailed(let underlying):
@@ -225,8 +221,8 @@ extension AppError.SyncError {
             return NSLocalizedString("error.sync.app_group.reason", comment: "Share Extension couldn't communicate with main app")
         case .notificationPostFailed:
             return NSLocalizedString("error.sync.notification.reason", comment: "The system couldn't deliver the notification")
-        case .urlSchemeInvalid(let url):
-            return String(format: NSLocalizedString("error.sync.url_scheme.reason", comment: "The URL '%@' is not valid"), url)
+        case .urlSchemeInvalid:
+            return NSLocalizedString("error.sync.url_scheme.reason", comment: "The app link was malformed")
         case .darwinNotificationFailed:
             return NSLocalizedString("error.sync.darwin.reason", comment: "Inter-process communication is unavailable")
         case .resultAlreadyProcessed:
@@ -258,10 +254,10 @@ extension AppError.SyncError {
 extension AppError.UIError {
     var localizedDescription: String {
         switch self {
-        case .navigationFailed(let destination):
-            return String(format: NSLocalizedString("error.ui.navigation", comment: "Could not navigate to %@"), destination)
-        case .missingRequiredData(let viewName):
-            return String(format: NSLocalizedString("error.ui.missing_data", comment: "%@ is missing required data"), viewName)
+        case .navigationFailed:
+            return NSLocalizedString("error.ui.navigation", comment: "Navigation to the requested screen failed")
+        case .missingRequiredData:
+            return NSLocalizedString("error.ui.missing_data", comment: "A screen was missing data it needs")
         case .sheetPresentationFailed:
             return NSLocalizedString("error.ui.sheet", comment: "Could not display content")
         case .stateInconsistency:
