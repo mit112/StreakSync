@@ -46,12 +46,21 @@ struct AnalyticsDashboardView: View {
         let scroll = ScrollView {
             LazyVStack(spacing: 24, pinnedViews: [.sectionHeaders]) {
                 Section {
-                    if !viewModel.hasData {
-                        // No payload yet. `isLoading` only flips to true inside the load
-                        // task, i.e. one render AFTER onAppear, so gating on it here
-                        // would flash the empty state before the first load even starts.
+                    if !viewModel.hasData && viewModel.isLoading {
+                        // No payload and still loading. `isLoading` starts true so this
+                        // does not flash the empty state before the first load begins,
+                        // and it is cleared even when a load is cancelled — otherwise a
+                        // cancelled load left this placeholder on screen permanently.
                         loadingPlaceholder
                             .padding(.horizontal, 16)
+                    } else if !viewModel.hasData {
+                        // A load finished without producing a payload.
+                        AnalyticsEmptyStateSection(
+                            message: viewModel.emptyStateMessage,
+                            isFilteredToOneGame: viewModel.selectedGame != nil,
+                            onShowAllGames: { viewModel.selectGame(nil) }
+                        )
+                        .padding(.horizontal, 16)
                     } else {
                         contentSection
                             .id("\(viewModel.selectedTimeRange.rawValue)-\(viewModel.selectedGame?.id.uuidString ?? "all")")

@@ -21,7 +21,9 @@ final class AnalyticsViewModel: ObservableObject {
     @Published var selectedTimeRange: AnalyticsTimeRange = .week
     @Published var selectedGame: Game?
     @Published var analyticsData: AnalyticsData?
-    @Published var isLoading: Bool = false
+    /// Starts true so the very first render shows the placeholder rather than flashing
+    /// the empty state: the load task only sets it one render after `onAppear`.
+    @Published var isLoading: Bool = true
     @Published var errorMessage: String?
     
     // MARK: - Task Management
@@ -88,14 +90,19 @@ final class AnalyticsViewModel: ObservableObject {
         errorMessage = nil
         
         let data = await analyticsService.getAnalyticsData(for: timeRange, game: game)
-        
-        // Check cancellation before updating UI
+
+        // Always clear the loading flag, including on cancellation. The view falls back
+        // to the empty state when a load finishes without a payload; leaving this true
+        // stranded Analytics on a spinner forever, because the placeholder is gated on
+        // `analyticsData == nil` and a cancelled load never assigned one.
+        defer { isLoading = false }
+
+        // Don't let a cancelled (superseded) load clobber a newer one's result.
         guard !Task.isCancelled else { return }
-        
+
         analyticsData = data
         selectedTimeRange = timeRange
-        isLoading = false
-        
+
         // Persist scope
         scope.timeRange = timeRange
         scope.gameId = selectedGame?.id
