@@ -12,30 +12,11 @@ import UserNotifications
 @MainActor
 final class SettingsViewModel: ObservableObject {
     @Published var notificationsEnabled = false
-    @Published var streakRemindersEnabled = true
-
-    private let userDefaults = UserDefaults.standard
-
-    init() {
-        loadSettings()
-    }
 
     func loadSettings() async {
         // Load notification authorization status
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         notificationsEnabled = settings.authorizationStatus == .authorized
-
-        // Load saved preferences
-        streakRemindersEnabled = userDefaults.bool(forKey: AppConstants.NotificationSettings.remindersEnabled)
-    }
-
-    private func loadSettings() {
-        // Synchronous version for init
-        streakRemindersEnabled = userDefaults.bool(forKey: AppConstants.NotificationSettings.remindersEnabled)
-    }
-
-    func saveSettings() {
-        userDefaults.set(streakRemindersEnabled, forKey: AppConstants.NotificationSettings.remindersEnabled)
     }
 }
 

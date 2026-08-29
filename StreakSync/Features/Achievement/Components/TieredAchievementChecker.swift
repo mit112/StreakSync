@@ -172,16 +172,8 @@ struct AchievementSnapshot {
         gameLookup: [UUID: Game],
         defaultMax: Int
     ) -> Int? {
-        guard let game = gameLookup[gameId] else { return nil }
-        let name = game.name.lowercased()
-        switch name {
-        case "wordle", "nerdle", "framed", "xordle", "kilordle", "primel", "rankdle":
-            return 1
-        case "quordle":
-            return 1
-        default:
-            return defaultMax > 1 ? 1 : nil
-        }
+        guard gameLookup[gameId] != nil else { return nil }
+        return defaultMax > 1 ? 1 : nil
     }
 }
 
