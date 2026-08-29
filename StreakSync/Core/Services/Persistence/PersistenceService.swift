@@ -14,6 +14,18 @@ protocol PersistenceServiceProtocol {
     func load<T: Codable>(_ type: T.Type, forKey key: String) -> T?
     func remove(forKey key: String)
     func clearAll()
+    /// Non-destructive alternative to `clearAll` for account switches.
+    func archiveAll(namespace: String)
+    func hasArchive(namespace: String) -> Bool
+    @discardableResult func restoreArchive(namespace: String) -> Bool
+}
+
+extension PersistenceServiceProtocol {
+    /// In-memory implementations have nothing to preserve, so archiving is a clear
+    /// and there is never anything to restore.
+    func archiveAll(namespace: String) { clearAll() }
+    func hasArchive(namespace: String) -> Bool { false }
+    @discardableResult func restoreArchive(namespace: String) -> Bool { false }
 }
 
 // MARK: - UserDefaults Persistence Service (Using AppError)
@@ -22,7 +34,8 @@ protocol PersistenceServiceProtocol {
 // UserDefaults since they're small (<10KB each).
 final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
     private let logger = Logger(subsystem: "com.streaksync.app", category: "PersistenceService")
-    private let userDefaults: UserDefaults
+    // Not private: PersistenceService+Archive reaches these from its own file.
+    let userDefaults: UserDefaults
     
     // CRITICAL: Configured JSON encoder/decoder with proper date strategy
     private let encoder: JSONEncoder = {
@@ -45,7 +58,7 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
     }
     
     /// File URL for game results (Documents directory)
-    private var gameResultsFileURL: URL {
+    var gameResultsFileURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("game_results.json")
     }

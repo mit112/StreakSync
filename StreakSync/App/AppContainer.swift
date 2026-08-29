@@ -51,7 +51,13 @@ final class AppContainer: ObservableObject {
     // the same UID, needs only an incremental sync).
     private var lastKnownUID: String?
     private var lastKnownProvider: AuthProvider = .anonymous
+    private var lastKnownProviderIDs: [String] = []
     private var cancellables = Set<AnyCancellable>()
+
+    /// Set when a sign-in lands on a brand-new, empty account whose provider the user
+    /// has never used before. Purely advisory — the previous session's data is already
+    /// archived by then, so this only tells them how to get it back.
+    @Published var emptyAccountSwitchWarning: EmptyAccountSwitchWarning?
 
     // MARK: - Logger
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AppContainer")
@@ -184,6 +190,7 @@ final class AppContainer: ObservableObject {
     private func setupAuthStateObserver() {
         lastKnownUID = firebaseAuthManager.uid
         lastKnownProvider = firebaseAuthManager.authProvider
+        lastKnownProviderIDs = Self.providerIDs(of: firebaseAuthManager.currentUser)
 
         firebaseAuthManager.$currentUser
             .dropFirst()
@@ -194,15 +201,23 @@ final class AppContainer: ObservableObject {
                 let newProvider = AppContainer.deriveProvider(from: newUser)
                 let previousUID = self.lastKnownUID
                 let previousProvider = self.lastKnownProvider
+                let previousProviderIDs = self.lastKnownProviderIDs
+                let newProviderIDs = Self.providerIDs(of: newUser)
                 self.lastKnownUID = newUID
                 self.lastKnownProvider = newProvider
+                self.lastKnownProviderIDs = newProviderIDs
 
                 if newUID != previousUID {
-                    // Account switch: UID changed — wipe stale data and full sync.
-                    logger.info("Auth: UID changed (\(previousUID ?? "nil") → \(newUID ?? "nil")) — clearing stale data and re-syncing")
+                    // Account switch: UID changed — hand over to the new account.
+                    logger.info("Auth: UID changed (\(previousUID ?? "nil") → \(newUID ?? "nil")) — archiving and re-syncing")
                     Task { @MainActor [weak self] in
                         guard let self else { return }
-                        await self.handleAuthUserChanged(from: previousUID, to: newUID)
+                        await self.handleAuthUserChanged(
+                            from: previousUID, to: newUID,
+                            previousProviderIDs: previousProviderIDs,
+                            newProviderIDs: newProviderIDs,
+                            previousWasAnonymous: previousProvider == .anonymous
+                        )
                     }
                 } else if previousProvider == .anonymous, newProvider != .anonymous {
                     // Provider upgrade: same UID, anonymous → social.
@@ -225,20 +240,31 @@ final class AppContainer: ObservableObject {
     /// Expected flow:
     ///   1. If newUID is nil (signed out) → return; FirebaseAuthStateManager re-auths anonymously.
     ///   2. Remove the previous UID's sync timestamp key (stale — targets the old UID).
-    ///   3. cleanupForSignOut: clears AppState, sync timestamp (new UID, defense-in-depth),
-    ///      and AppGroup queue so Share Extension results from the old session are discarded.
+    ///   3. handOverSession: archives the outgoing account's local data under its UID
+    ///      (recoverable, unlike the clearAll this used to do), clears the sync
+    ///      timestamp, the AppGroup queue and the pending-score queue, then restores
+    ///      the incoming account's archive if it has one.
     ///   4. loadPersistedData → syncIfNeeded → rebuildStreaksFromResults →
     ///      normalizeStreaksForMissedDays → achievementSyncService.syncIfEnabled.
-    private func handleAuthUserChanged(from previousUID: String?, to newUID: String?) async {
+    ///   5. Warn if the incoming account turned out to be brand new and empty.
+    private func handleAuthUserChanged(
+        from previousUID: String?,
+        to newUID: String?,
+        previousProviderIDs: [String],
+        newProviderIDs: [String],
+        previousWasAnonymous: Bool
+    ) async {
         guard let newUID else {
             logger.info("Auth: signed out — waiting for re-authentication")
             return
         }
 
+        var previousResultCount = 0
         if let previousUID, previousUID != newUID {
+            previousResultCount = appState.recentResults.count
             let oldKey = "gameResultSync_lastTimestamp_\(previousUID)"
             UserDefaults.standard.removeObject(forKey: oldKey)
-            await cleanupForSignOut()
+            await handOverSession(archivingUnder: previousUID, incomingUID: newUID)
         }
 
         await appState.loadPersistedData()
@@ -247,7 +273,40 @@ final class AppContainer: ObservableObject {
         await appState.normalizeStreaksForMissedDays()
         await achievementSyncService.syncIfEnabled()
 
+        if let previousUID, previousUID != newUID,
+           Self.shouldWarnAboutEmptyAccountSwitch(
+               previousWasAnonymous: previousWasAnonymous,
+               previousResultCount: previousResultCount,
+               newResultCountAfterSync: appState.recentResults.count,
+               previousProviderIDs: previousProviderIDs,
+               newProviderIDs: newProviderIDs
+           ) {
+            logger.warning("Auth: signed in to an empty account with an unused provider")
+            emptyAccountSwitchWarning = EmptyAccountSwitchWarning(
+                previousUID: previousUID,
+                previousProviderLabel: Self.providerLabel(forProviderIDs: previousProviderIDs),
+                newProviderLabel: Self.providerLabel(forProviderIDs: newProviderIDs),
+                archivedResultCount: previousResultCount
+            )
+        }
+
         logger.info("Auth: post-sign-in sync complete for UID \(newUID)")
+    }
+
+    /// Moves the session from one account to another without destroying anything.
+    private func handOverSession(archivingUnder previousUID: String, incomingUID: String) async {
+        await appState.archiveAllData(namespace: previousUID)
+        gameResultSyncService.clearLastSyncTimestamp()
+        // Stale Share Extension results belong to the outgoing account.
+        appGroupBridge.clearAllData()
+        // Queued scores would be retried — and rejected — under the new session.
+        await socialService.clearPendingScores()
+
+        // Returning to an account this device has seen before gets its streaks back
+        // immediately, without waiting on (or depending on) a cloud pull.
+        if appState.restoreArchivedData(namespace: incomingUID) {
+            emptyAccountSwitchWarning = nil
+        }
     }
 
     /// Handles an anonymous → social provider upgrade on the same Firebase UID.
@@ -273,16 +332,20 @@ final class AppContainer: ObservableObject {
     // MARK: - Sign-Out Cleanup
 
     /// Consolidates all cleanup needed when a user signs out.
-    /// Call this instead of manually calling clearAllData + clearLastSyncTimestamp
-    /// to prevent future sign-out paths from missing a step.
+    /// Call this instead of manually clearing individual stores, to prevent future
+    /// sign-out paths from missing a step.
+    ///
+    /// Local streaks, results and achievements are deliberately left alone. Signing out
+    /// is not leaving the device, and the sheet has always promised the user their
+    /// "personal streaks and scores stay on this device" — this used to call
+    /// `clearAllData()` and delete them anyway. Keeping them also means that if the
+    /// user signs back in with a provider they've never used, their history follows
+    /// them into the new account instead of being stranded under the old UID.
+    /// A genuine account switch is handled by `handOverSession`, which archives.
     func cleanupForSignOut() async {
-        await appState.clearAllData()
+        // Account-scoped only.
         gameResultSyncService.clearLastSyncTimestamp()
-        // Clear App Group queue so stale Share Extension results
-        // aren't ingested by the next user session.
-        appGroupBridge.clearAllData()
-        // Clear the pending-score Keychain queue so a signed-out user's scores
-        // aren't retried (and rejected) under the next session.
+        // Queued scores would be retried — and rejected — under the next session.
         await socialService.clearPendingScores()
     }
 
@@ -291,6 +354,11 @@ final class AppContainer: ObservableObject {
     /// Derives the auth provider from a Firebase User's providerData.
     /// Called in the $currentUser subscriber — cannot read firebaseAuthManager.authProvider
     /// because it is set on the line after currentUser in setupAuthListener.
+    private static func providerIDs(of user: User?) -> [String] {
+        guard let user, !user.isAnonymous else { return [] }
+        return user.providerData.map { $0.providerID }
+    }
+
     private static func deriveProvider(from user: User?) -> AuthProvider {
         guard let user, !user.isAnonymous else { return .anonymous }
         return deriveProvider(fromProviderIDs: user.providerData.map { $0.providerID })
@@ -411,30 +479,4 @@ final class AppContainer: ObservableObject {
         AppContainer(isTest: true)
     }
 #endif
-}
-
-// MARK: - Mock Persistence for Previews/Tests
-final class MockPersistenceService: PersistenceServiceProtocol {
-    private var storage: [String: Data] = [:]
-    
-    func save<T: Codable>(_ object: T, forKey key: String) throws {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        storage[key] = try encoder.encode(object)
-    }
-    
-    func load<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
-        guard let data = storage[key] else { return nil }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode(type, from: data)
-    }
-    
-    func remove(forKey key: String) {
-        storage.removeValue(forKey: key)
-    }
-    
-    func clearAll() {
-        storage.removeAll()
-    }
 }

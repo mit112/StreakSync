@@ -45,6 +45,11 @@ struct AccountView: View {
                 signOutSection
                 deleteAccountSection
             }
+            if let warning = container.emptyAccountSwitchWarning {
+                emptyAccountSwitchSection(warning) {
+                    container.emptyAccountSwitchWarning = nil
+                }
+            }
             if let error = errorMessage {
                 Section {
                     Label(error, systemImage: "exclamationmark.triangle")
@@ -132,7 +137,10 @@ private extension AccountView {
 
                 googleSignInButton
             } footer: {
-                Text("Your existing streaks and scores will be preserved.")
+                // True on this path: linking an anonymous session keeps the same UID.
+                // Signing in with a provider that already has its own account switches
+                // to it instead — handled, and warned about, by AppContainer.
+                Text("Your streaks and scores on this device will be kept.")
             }
 
             if signInSuccess {
@@ -212,9 +220,9 @@ private extension AccountView {
                 Button("Cancel", role: .cancel) { }
             } message: {
                 Text("""
-                    Your personal streaks and scores stay on this device, \
-                    but your leaderboard scores, friends, and friend code \
-                    won\u{2019}t be visible until you sign back in.
+                    Your streaks and results stay on this device, but your leaderboard \
+                    scores, friends, and friend code won\u{2019}t be visible until you \
+                    sign back in.
                     """)
             }
         }
@@ -375,16 +383,17 @@ private extension AccountView {
         }
     }
 
-    // MARK: - Sign Out (H2 fix: clear local data before creating new anonymous session)
+    // MARK: - Sign Out
 
     func handleSignOut() async {
-        // 1-2. Clear local data and sync timestamps to prevent cross-user leakage
+        // 1. Drop account-scoped state only: the sync watermark and the queued scores.
+        //    Local streaks and results stay, which is what the sheet promises.
         await container.cleanupForSignOut()
 
-        // 3. Sign out and re-auth anonymously
+        // 2. Sign out and re-auth anonymously
         await authManager.signOutAndReauthAnonymously()
 
-        // 4. Reload fresh (empty) state
+        // 3. Reload from disk so the UI reflects the (unchanged) local data
         await container.appState.loadPersistedData()
         await loadProfile()
     }
