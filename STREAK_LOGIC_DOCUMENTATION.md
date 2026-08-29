@@ -1,5 +1,20 @@
 # Streak Logic Documentation
 
+> **Unverified since 2025-12-05, and known to be wrong in at least one place.**
+> Streak logic has changed materially since this was written — the UTC/timezone fix, the
+> day-change pipeline, and several correctness fixes through 2026. Treat it as background,
+> not as a specification, and check the code before relying on any claim here.
+>
+> Concretely: the bolded "Critical Point" below asserts that
+> `normalizeStreaksForMissedDays()` is **NOT** called on day change. It is —
+> `AppState.handleDayChange()` calls it at `StreakSync/Core/State/AppState.swift:156`, right
+> after `rebuildStreaksFromResults()`. The consequence the document draws from that claim
+> ("streaks remain active on a new day until actual game results show a gap or the app is
+> launched") therefore does not hold either.
+>
+> A full verification pass over this file has not been done and is its own task; see
+> `ROADMAP.md`.
+
 ## Overview
 This document explains how streaks work across games in StreakSync, including when they reset and what functions trigger streak recomputation.
 

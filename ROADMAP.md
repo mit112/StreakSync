@@ -172,6 +172,11 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
   is an unexecuted runbook rather than an archive, and it gates the pre-merge device test.
 - **Dynamic Type coverage is thin**: 11 of ~164 files reference `@ScaledMetric` /
   `dynamicTypeSize` / `sizeCategory`.
+- **`STREAK_LOGIC_DOCUMENTATION.md` needs a verification pass.** Last touched 2025-12-05 and
+  wrong on its headline claim: it states in bold that `normalizeStreaksForMissedDays()` is not
+  called on day change, and `AppState.swift:156` calls it. The file now carries a banner saying
+  so, but the other 350 lines are unchecked. Streak logic is the core of the app and has had
+  several real bugs, so a wrong specification is worse than none.
 
 ---
 
