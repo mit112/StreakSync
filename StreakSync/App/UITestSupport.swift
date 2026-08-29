@@ -69,9 +69,21 @@ enum UITestSupport {
         // which is exactly what CI runs — leaves their seeded onboarding flags,
         // achievement state and analytics scope behind for the UI tests to trip over.
         // That is why two tests passed on a UI-only run and failed on CI.
+        let defaults = UserDefaults.standard
         if let bundleId = Bundle.main.bundleIdentifier {
-            UserDefaults.standard.removePersistentDomain(forName: bundleId)
+            defaults.removePersistentDomain(forName: bundleId)
         }
+
+        // Then put the app back into a post-onboarding steady state. A clean data slate
+        // is wanted; a first-run app is not. Wiping the domain also cleared these flags,
+        // which on a simulator whose notification authorization is still `.notDetermined`
+        // put a permission SHEET over the whole UI — so the tests could see the tab bar
+        // and nothing under it. That reproduced only on a fresh machine like CI, because
+        // a simulator that has answered the prompt once never shows it again.
+        defaults.set(true, forKey: AppConstants.NotificationSettings.firstLaunchPromptShown)
+        defaults.set(true, forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
+        defaults.set(true, forKey: AppConstants.Onboarding.hasSeenFirstShareCelebration)
+        defaults.set(true, forKey: "hasSeenEmptyStateGuidance")
 
         await appState.clearAllData()
         // Home is streak-derived, not result-derived, so clearing results is not
