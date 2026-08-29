@@ -107,6 +107,7 @@ struct NotificationSettingsView: View {
                 settingsSection
                 }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
         .task {

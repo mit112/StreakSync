@@ -214,8 +214,12 @@ struct TieredAchievementsGridView: View {
                     )
                 }
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, Spacing.lg)
         }
+        // Cancel the enclosing VStack's 16pt inset so the scroller bleeds to the screen
+        // edges, then re-apply it to the content above: the chips share the grid's
+        // leading edge at rest but can still scroll all the way out.
+        .padding(.horizontal, -Spacing.lg)
     }
     
     // MARK: - Achievements Grid

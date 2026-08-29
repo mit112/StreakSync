@@ -128,6 +128,7 @@ struct StreakSummaryHero: View {
 
                 if metricRows[rowIndex].count == 1 {
                     Color.clear
+                        .gridCellUnsizedAxes([.horizontal, .vertical])
                 }
             }
         }

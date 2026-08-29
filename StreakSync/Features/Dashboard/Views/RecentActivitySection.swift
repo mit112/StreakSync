@@ -18,7 +18,6 @@ struct RecentActivitySection: View {
             Text("Recent Activity")
                 .font(.headline)
                 .foregroundStyle(.primary)
-                .padding(.horizontal)
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -34,7 +33,6 @@ struct RecentActivitySection: View {
                         }
                     }
                 }
-                .padding(.horizontal)
             }
         }
     }

@@ -23,7 +23,7 @@ struct AtRiskTodaySection: View {
             let names = atRiskGames.prefix(3).map { $0.displayName }.joined(separator: ", ")
             let subtitle = count == 1 ? names : (count <= 3 ? names : "\(names), and \(count - 2) more")
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
                 HStack {
                     Image.safeSystemName("flame.fill", fallback: "flame")
                         .font(.title3)

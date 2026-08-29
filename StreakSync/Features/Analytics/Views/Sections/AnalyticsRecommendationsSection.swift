@@ -25,7 +25,7 @@ struct AnalyticsRecommendationsSection: View {
         if recommendations.isEmpty {
             EmptyView()
         } else {
-            VStack(alignment: .leading, spacing: Spacing.md) {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
                 Text("What to do next")
                     .font(.headline)
                     .fontWeight(.semibold)
