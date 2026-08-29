@@ -135,10 +135,13 @@ extension FirebaseSocialService {
             pendingScoreStore.save(pendingScores)
             logger.info("Flushed \(toFlush.count) pending scores")
         } catch {
-            // Re-queue on failure (scores are still in pendingScores, just re-save)
-            pendingScores.append(contentsOf: toFlush)
+            // Nothing to re-queue: `toFlush` is a snapshot and `pendingScores` is only
+            // cleared on the success path above, so every score is still in there.
+            // Appending `toFlush` back doubled the queue on each failure — and because
+            // each retry re-appends a now-larger snapshot, an offline device grew its
+            // Keychain queue exponentially and re-wrote each score once per copy.
             pendingScoreStore.save(pendingScores)
-            logger.warning("Re-queued \(toFlush.count) scores after flush failure: \(error.localizedDescription)")
+            logger.warning("Kept \(toFlush.count) scores queued after flush failure: \(error.localizedDescription)")
         }
     }
 
