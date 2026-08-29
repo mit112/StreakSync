@@ -20,7 +20,10 @@ final class CriticalJourneyUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["--uitesting"]
+        // Every test here resets first. Unit tests run inside this same app as the test
+        // host, so a combined unit+UI invocation (what CI runs) hands the UI tests an
+        // app whose defaults the unit suite has already written to.
+        app.launchArguments = ["--uitesting", "--uitest-reset"]
     }
 
     override func tearDownWithError() throws {
@@ -51,6 +54,35 @@ final class CriticalJourneyUITests: XCTestCase {
             .firstMatch
     }
 
+    /// Everything currently readable on screen, for failure messages. A UI assertion
+    /// that only says "expected X" forces a re-run to learn what was actually there.
+    private func visibleSummary() -> String {
+        let texts = app.staticTexts.allElementsBoundByIndex.prefix(25).map(\.label)
+        let buttons = app.buttons.allElementsBoundByIndex.prefix(25).map(\.label)
+        return "texts=\(texts) buttons=\(buttons)"
+    }
+
+    /// Taps whichever of the two mutually exclusive entry points to Manage Friends is
+    /// currently on screen. Returns false if neither appears.
+    @discardableResult
+    private func openManageFriends(timeout: TimeInterval = 15) -> Bool {
+        let byIdentifier = app.descendants(matching: .any)
+            .matching(identifier: "friends.manage.button")
+            .firstMatch
+        let byLabel = app.buttons["Manage friends"].firstMatch
+        let inviteFromEmptyState = app.buttons["Invite friends"].firstMatch
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            for control in [byIdentifier, byLabel, inviteFromEmptyState] where control.exists && control.isHittable {
+                control.tap()
+                return true
+            }
+            _ = byIdentifier.waitForExistence(timeout: 1)
+        }
+        return false
+    }
+
     // MARK: - Journey 1: Share Extension import
 
     /// Enters at the App Group queue, one step after the Share Extension's write.
@@ -62,10 +94,10 @@ final class CriticalJourneyUITests: XCTestCase {
     /// the app. Both need a second process, which XCUITest cannot drive.
     @MainActor
     func testSharedResultReachesTheDashboard() {
-        // --uitest-reset first: without it this test passes on any simulator that
-        // still holds a Wordle result from an earlier run, which is exactly how it
-        // was caught being vacuous.
-        app.launchArguments += ["--uitest-reset", "--uitest-share-import", "Wordle"]
+        // The reset in setUp is load-bearing here: without it this test passes on any
+        // simulator that still holds a Wordle result from an earlier run, which is
+        // exactly how it was caught being vacuous.
+        app.launchArguments += ["--uitest-share-import", "Wordle"]
         app.launch()
         waitForTabBar()
 
@@ -147,7 +179,6 @@ final class CriticalJourneyUITests: XCTestCase {
     /// tested, the branch between them needs the simulator. This is that check.
     @MainActor
     func testAnalyticsShowsAnEmptyStateRatherThanABlankScreen() {
-        app.launchArguments += ["--uitest-reset"]
         app.launch()
         waitForTabBar()
 
@@ -157,7 +188,7 @@ final class CriticalJourneyUITests: XCTestCase {
 
         XCTAssertTrue(
             app.staticTexts["No Results Yet"].waitForExistence(timeout: 15),
-            "Analytics rendered nothing for a user with no data"
+            "Analytics rendered nothing for a user with no data. \(visibleSummary())"
         )
     }
 
@@ -178,12 +209,13 @@ final class CriticalJourneyUITests: XCTestCase {
         openTab(named: "Friends")
 
         // The pending-request UI lives inside the Manage Friends sheet, not on the tab.
-        let manageButton = app.descendants(matching: .any)
-            .matching(identifier: "friends.manage.button")
-            .firstMatch
-        let manageControl = manageButton.exists ? manageButton : app.buttons["Manage friends"].firstMatch
-        XCTAssertTrue(manageControl.waitForExistence(timeout: 15), "No way into Manage Friends")
-        manageControl.tap()
+        //
+        // Two mutually exclusive doors lead there, and which one is on screen depends on
+        // whether the leaderboard has any scores: the header "Manage" button is gated on
+        // `presentationState != .empty`, and the empty leaderboard shows "Invite friends"
+        // instead. Only checking for the first passed locally, where earlier tests had
+        // left scores behind, and failed on a clean CI machine.
+        XCTAssertTrue(openManageFriends(), "No way into Manage Friends. \(visibleSummary())")
 
         XCTAssertTrue(
             app.staticTexts["Add a Friend"].waitForExistence(timeout: 15),

@@ -62,6 +62,17 @@ enum UITestSupport {
     @MainActor
     static func resetStateIfRequested(appState: AppState) async {
         guard isActive, resetsState else { return }
+
+        // Wipe the whole defaults domain first, not just the persistence keys.
+        // Unit tests run INSIDE this app as the test host, so a combined
+        // `-only-testing:StreakSyncTests -only-testing:StreakSyncUITests` invocation —
+        // which is exactly what CI runs — leaves their seeded onboarding flags,
+        // achievement state and analytics scope behind for the UI tests to trip over.
+        // That is why two tests passed on a UI-only run and failed on CI.
+        if let bundleId = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleId)
+        }
+
         await appState.clearAllData()
         // Home is streak-derived, not result-derived, so clearing results is not
         // enough — the streaks have to be rebuilt from the now-empty set.
