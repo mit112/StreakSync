@@ -7,10 +7,13 @@
 
 import AuthenticationServices
 import GoogleSignIn
+import OSLog
 import SwiftUI
 
 @MainActor
 struct AccountView: View {
+    private let logger = Logger(subsystem: "com.streaksync.app", category: "AccountView")
+
     @EnvironmentObject private var container: AppContainer
     @ObservedObject private var authManager: FirebaseAuthStateManager
     @Environment(\.colorScheme) private var colorScheme
@@ -313,6 +316,7 @@ private extension AccountView {
             profile = try await container.socialService.myProfile()
         } catch {
             // Not critical — profile might not exist yet for anonymous users
+            logger.debug("loadProfile failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
