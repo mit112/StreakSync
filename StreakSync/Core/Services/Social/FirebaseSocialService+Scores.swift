@@ -75,14 +75,16 @@ extension FirebaseSocialService {
         }
         do {
             try await batch.commit()
-            pendingScores.removeAll()
+            // Only `filtered` was committed. The queue can hold a backlog from earlier
+            // days that never made it — removeAll() used to delete that unwritten.
+            pendingScores = PendingScoreQueue.afterSuccess(queue: pendingScores, committed: filtered)
             pendingScoreStore.save(pendingScores)
             logger.info("Published \(filtered.count) scores to Firebase")
         } catch {
             let socialError = FirebaseSocialError.from(error)
             // Always queue for retry — even "non-retryable" errors like permissionDenied
             // can be transient (e.g., App Check enforcement misconfiguration).
-            pendingScores.append(contentsOf: filtered)
+            pendingScores = PendingScoreQueue.afterFailure(queue: pendingScores, attempted: filtered)
             pendingScoreStore.save(pendingScores)
             logger.warning("Queued \(filtered.count) scores for retry (error: \(error.localizedDescription))")
             throw socialError
@@ -130,16 +132,16 @@ extension FirebaseSocialService {
         }
         do {
             try await batch.commit()
-            // Clear from Keychain only AFTER successful commit
-            pendingScores.removeAll()
+            // Clear from Keychain only AFTER successful commit, and only what was
+            // actually committed: publishDailyScores can append during the await above,
+            // and removeAll() discarded those uncommitted.
+            pendingScores = PendingScoreQueue.afterSuccess(queue: pendingScores, committed: toFlush)
             pendingScoreStore.save(pendingScores)
             logger.info("Flushed \(toFlush.count) pending scores")
         } catch {
-            // Nothing to re-queue: `toFlush` is a snapshot and `pendingScores` is only
-            // cleared on the success path above, so every score is still in there.
-            // Appending `toFlush` back doubled the queue on each failure — and because
-            // each retry re-appends a now-larger snapshot, an offline device grew its
-            // Keychain queue exponentially and re-wrote each score once per copy.
+            // `toFlush` is a snapshot and is still in `pendingScores`, so this restores
+            // rather than doubles. Appending it back grew the queue on every failure.
+            pendingScores = PendingScoreQueue.afterFailure(queue: pendingScores, attempted: toFlush)
             pendingScoreStore.save(pendingScores)
             logger.warning("Kept \(toFlush.count) scores queued after flush failure: \(error.localizedDescription)")
         }
