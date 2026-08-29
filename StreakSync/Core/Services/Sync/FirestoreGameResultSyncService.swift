@@ -13,6 +13,27 @@ import OSLog
 
 // MARK: - Sync State
 
+/// Classifies a sync failure into the state the UI should show.
+///
+/// `SyncState.offline` used to be set in exactly one place — "no authenticated user" —
+/// so a real network outage never produced it. Every outage reported `.failed`, which
+/// renders as a red "Sync failed", while the fully built, already-tested
+/// `.offline(showingCachedScores:)` branch in `FriendsPresentationState` was
+/// unreachable in production. This maps the one error code that means "the backend is
+/// not reachable right now" onto the honest state, and leaves everything else alone —
+/// a permission bug must keep surfacing as a failure, not hide as a network blip.
+enum SyncFailureClassifier {
+    static func state(for error: Error) -> SyncState {
+        let nsError = error as NSError
+        guard nsError.domain == FirestoreErrorDomain,
+              nsError.code == FirestoreErrorCode.unavailable.rawValue else {
+            return .failed(error)
+        }
+        return .offline
+    }
+}
+
+
 enum SyncState: Equatable {
     case notStarted
     case syncing
@@ -172,7 +193,7 @@ final class FirestoreGameResultSyncService {
             logger.info("Game result sync completed. Total: \(finalMerged.count)")
         } catch {
             logger.error("Game result sync failed: \(error.localizedDescription)")
-            syncState = .failed(error)
+            syncState = SyncFailureClassifier.state(for: error)
         }
     }
 
