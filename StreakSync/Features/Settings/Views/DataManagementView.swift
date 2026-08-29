@@ -176,91 +176,80 @@ private extension DataManagementView {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
-        // Status
-        do {
-            let svc = container.achievementSyncService
-            let statusText: String = {
-                switch svc.status {
-                case .idle:
-                    return "Status: Idle"
-                case .syncing:
-                    return "Status: Syncing..."
-                case .success(let date):
-                    let formatter = RelativeDateTimeFormatter()
-                    formatter.unitsStyle = .short
-                    let rel = formatter.localizedString(for: date, relativeTo: Date())
-                    return "Last synced: \(rel)"
-                case .error(let message):
-                    return "Sync paused: \(message)"
-                }
-            }()
-            Text(statusText)
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-            HStack(spacing: 12) {
-                Button {
-                    Task {
-                        await container.achievementSyncService.syncIfEnabled()
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: "arrow.clockwise")
-                        Text("Sync Now")
-                    }
-                }
-                #if DEBUG
-                Button {
-                    Task {
-                        testMessage = await container.achievementSyncService.runConnectivityTest()
-                        showTestAlert = true
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: "checkmark.icloud")
-                        Text("Test Connection")
-                    }
-                }
-                #endif
-            }
+        // Whether the achievement backup is actually working, in the one place a user
+        // goes to ask. The wording and the severity live in
+        // AchievementSyncStatusPresentation so they can be unit-tested; this file only
+        // hands it the state.
+        AchievementSyncStatusRow(
+            presentation: .resolve(
+                status: container.achievementSyncService.status,
+                isSyncEnabled: container.achievementSyncService.isSyncEnabled
+            )
+        )
 
-            // User data (GameResult) sync status
-            HStack {
-                Label("Game Results Sync", systemImage: "arrow.up.arrow.down.circle")
-                Spacer()
-                switch container.gameResultSyncService.syncState {
-                case .syncing:
-                    ProgressView()
-                        .scaleEffect(0.8)
-                case .synced(let date):
-                    Text(date.formatted(.relative(presentation: .named)))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                case .offline:
-                    Text("Offline")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                case .failed:
-                    // Surface the failure with a manual recovery path — otherwise a failed
-                    // sync is silent until the next launch retries it (T2-5).
-                    Button {
-                        Task { await container.gameResultSyncService.syncIfNeeded() }
-                    } label: {
-                        Label("Retry", systemImage: "arrow.clockwise")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.plain)
-                case .notStarted:
-                    Text("Not started")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            Button {
+                Task {
+                    await container.achievementSyncService.syncIfEnabled()
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                    Text("Sync Now")
                 }
             }
-
-            Text("Game results sync automatically across your devices. Data is private to your account.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            #if DEBUG
+            Button {
+                Task {
+                    testMessage = await container.achievementSyncService.runConnectivityTest()
+                    showTestAlert = true
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "checkmark.icloud")
+                    Text("Test Connection")
+                }
+            }
+            #endif
         }
+
+        // User data (GameResult) sync status
+        HStack {
+            Label("Game Results Sync", systemImage: "arrow.up.arrow.down.circle")
+            Spacer()
+            switch container.gameResultSyncService.syncState {
+            case .syncing:
+                ProgressView()
+                    .scaleEffect(0.8)
+            case .synced(let date):
+                Text(date.formatted(.relative(presentation: .named)))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            case .offline:
+                Text("Offline")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            case .failed:
+                // Surface the failure with a manual recovery path — otherwise a failed
+                // sync is silent until the next launch retries it (T2-5).
+                Button {
+                    Task { await container.gameResultSyncService.syncIfNeeded() }
+                } label: {
+                    Label("Retry", systemImage: "arrow.clockwise")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+            case .notStarted:
+                Text("Not started")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+
+        Text("Game results sync automatically across your devices. Data is private to your account.")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
     }
 
     @ViewBuilder

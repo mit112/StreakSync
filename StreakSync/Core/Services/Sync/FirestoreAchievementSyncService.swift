@@ -11,19 +11,40 @@ import FirebaseFirestore
 import Foundation
 import OSLog
 
+// MARK: - Sync Status
+
+/// Why an achievement backup didn't land.
+///
+/// Structured rather than a pre-rendered English sentence so the settings row can say
+/// whether retrying will help: a size overflow is permanent until the data shrinks, a
+/// dropped connection clears itself. `AchievementSyncStatusPresentation` owns the copy.
+enum AchievementSyncFailure: Equatable {
+    /// Firestore caps a document at 1MB, base64 adds ~33%, and the document also carries
+    /// `summary`, `lastUpdated` and `version`. 700KB of raw JSON is the refuse point.
+    static let payloadLimitKilobytes = 700
+
+    case notSignedIn
+    case networkUnavailable
+    case permissionDenied
+    case serviceBusy
+    /// Raw JSON size in KB, measured before base64 expansion.
+    case payloadTooLarge(kilobytes: Int)
+    case unknown(String)
+}
+
+enum AchievementSyncStatus: Equatable {
+    case idle
+    case syncing
+    case success(Date)
+    case error(AchievementSyncFailure)
+}
+
+// MARK: - Firestore Achievement Sync Service
+
 @MainActor
 @Observable
 final class FirestoreAchievementSyncService {
-    // MARK: - Sync Status
-
-    enum SyncStatus: Equatable {
-        case idle
-        case syncing
-        case success(Date)
-        case error(String)
-    }
-
-    var status: SyncStatus = .idle
+    var status: AchievementSyncStatus = .idle
 
     // MARK: - Private
 
@@ -57,7 +78,7 @@ final class FirestoreAchievementSyncService {
         if appState.isGuestMode { return }
         guard isSyncEnabled else { return }
         guard let uid = currentUserId else {
-            status = .error("Not signed in")
+            status = .error(.notSignedIn)
             return
         }
 
@@ -93,9 +114,9 @@ final class FirestoreAchievementSyncService {
             // The document also includes summary, lastUpdated, and version fields.
             // Warn at 450KB raw (~600KB base64) and refuse at 700KB (~933KB base64 + metadata).
             let payloadKB = payload.count / 1024
-            if payloadKB > 700 {
+            if payloadKB > AchievementSyncFailure.payloadLimitKilobytes {
                 logger.error("Achievement payload too large (\(payloadKB)KB) — skipping sync to avoid Firestore limit")
-                status = .error("Data too large to sync (\(payloadKB)KB)")
+                status = .error(.payloadTooLarge(kilobytes: payloadKB))
                 return
             }
             if payloadKB > 450 {
@@ -114,9 +135,8 @@ final class FirestoreAchievementSyncService {
             status = .success(Date())
             logger.info("Achievement sync completed")
         } catch {
-            let message = userFriendlyMessage(for: error)
             logger.error("Achievement sync failed: \(error.localizedDescription)")
-            status = .error(message)
+            status = .error(failure(for: error))
         }
     }
 
@@ -167,20 +187,20 @@ final class FirestoreAchievementSyncService {
         return lines.joined(separator: "\n")
     }
 
-    // MARK: - Error Messages
+    // MARK: - Failure Classification
 
-    private func userFriendlyMessage(for error: Error) -> String {
+    private func failure(for error: Error) -> AchievementSyncFailure {
         let nsError = error as NSError
         guard nsError.domain == FirestoreErrorDomain,
               let code = FirestoreErrorCode(_bridgedNSError: nsError) else {
-            return error.localizedDescription
+            return .unknown(error.localizedDescription)
         }
         switch code.code {
-        case .unavailable: return "Network unavailable"
-        case .permissionDenied: return "Permission denied"
-        case .unauthenticated: return "Not signed in"
-        case .resourceExhausted: return "Service temporarily unavailable"
-        default: return "Sync error: \(error.localizedDescription)"
+        case .unavailable: return .networkUnavailable
+        case .permissionDenied: return .permissionDenied
+        case .unauthenticated: return .notSignedIn
+        case .resourceExhausted: return .serviceBusy
+        default: return .unknown(error.localizedDescription)
         }
     }
 
