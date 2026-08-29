@@ -304,7 +304,8 @@ extension AchievementCheckerTests {
         let app = AppState()
         let game = app.games[0]
         var achievements = [AchievementFactory.createPersonalBestAchievement()]
-        _ = check(results: [makeResult(gameId: game.id, gameName: game.name, score: 3, completed: true)], games: app.games, achievements: &achievements)
+        let results = [makeResult(gameId: game.id, gameName: game.name, score: 3, completed: true)]
+        _ = check(results: results, games: app.games, achievements: &achievements)
         XCTAssertEqual(achievements[0].progress.currentValue, 0)
     }
 

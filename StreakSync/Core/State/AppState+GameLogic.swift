@@ -130,7 +130,11 @@ extension AppState {
         )
         
         #if DEBUG
- logger.info("New state: streak=\(updatedStreak.currentStreak), played=\(updatedStreak.totalGamesPlayed), completed=\(updatedStreak.totalGamesCompleted)")
+        logger.info("""
+            New state: streak=\(updatedStreak.currentStreak), \
+            played=\(updatedStreak.totalGamesPlayed), \
+            completed=\(updatedStreak.totalGamesCompleted)
+            """)
         #endif
         
         return updatedStreak

@@ -7,8 +7,8 @@
 //  NYT help docs, and in-app share patterns documented by players.
 //
 
-@testable import StreakSync
 import Foundation
+@testable import StreakSync
 
 struct GameShareFormatFixture: Sendable {
     let game: Game
@@ -20,7 +20,7 @@ struct GameShareFormatFixture: Sendable {
 }
 
 enum GameShareFormatFixtures {
-    static let all: [GameShareFormatFixture] = [
+    private static let nytAndStandalone: [GameShareFormatFixture] = [
         // MARK: - Wordle (wordlebot.gg, c.r74n.com)
         GameShareFormatFixture(
             game: .wordle,
@@ -276,8 +276,16 @@ enum GameShareFormatFixtures {
             """,
             source: "c.r74n.com/wordle",
             shouldParse: true
-        ),
+        )
+    ]
 
+    /// LinkedIn fixtures live in their own type purely to keep each type body
+    /// under SwiftLint's `type_body_length` bound.
+    static let all: [GameShareFormatFixture] = nytAndStandalone + LinkedInShareFormatFixtures.all
+}
+
+private enum LinkedInShareFormatFixtures {
+    static let all: [GameShareFormatFixture] = [
         // MARK: - LinkedIn Queens
         GameShareFormatFixture(
             game: .linkedinQueens,

@@ -87,18 +87,34 @@ extension GameResultParser {
     /// Anchors captured 2026-08-07 (US/Eastern). Games absent here (Spelling Bee,
     /// Mini Crossword, Pips, LinkedIn Mini Sudoku, generic) have no usable
     /// sequential number and fall back to the receipt date.
-    private static let puzzleAnchors: [String: (number: Int, year: Int, month: Int, day: Int)] = [
-        Game.Names.wordle: (1875, 2026, 8, 7),
-        Game.Names.connections: (1153, 2026, 8, 7),
-        Game.Names.strands: (887, 2026, 8, 7),
-        Game.Names.quordle: (1656, 2026, 8, 7),
-        Game.Names.octordle: (1654, 2026, 8, 5),
-        Game.Names.nerdle: (1658, 2026, 8, 4),
-        Game.Names.linkedinQueens: (829, 2026, 8, 7),
-        Game.Names.linkedinTango: (669, 2026, 8, 7),
-        Game.Names.linkedinCrossclimb: (829, 2026, 8, 7),
-        Game.Names.linkedinPinpoint: (829, 2026, 8, 7),
-        Game.Names.linkedinZip: (508, 2026, 8, 7)
+    /// A known (puzzle number, calendar date) pair used to date-anchor a sequence.
+    /// A struct rather than a 4-tuple so the fields stay named at the use site.
+    private struct PuzzleAnchor {
+        let number: Int
+        let year: Int
+        let month: Int
+        let day: Int
+
+        init(_ number: Int, _ year: Int, _ month: Int, _ day: Int) {
+            self.number = number
+            self.year = year
+            self.month = month
+            self.day = day
+        }
+    }
+
+    private static let puzzleAnchors: [String: PuzzleAnchor] = [
+        Game.Names.wordle: PuzzleAnchor(1875, 2026, 8, 7),
+        Game.Names.connections: PuzzleAnchor(1153, 2026, 8, 7),
+        Game.Names.strands: PuzzleAnchor(887, 2026, 8, 7),
+        Game.Names.quordle: PuzzleAnchor(1656, 2026, 8, 7),
+        Game.Names.octordle: PuzzleAnchor(1654, 2026, 8, 5),
+        Game.Names.nerdle: PuzzleAnchor(1658, 2026, 8, 4),
+        Game.Names.linkedinQueens: PuzzleAnchor(829, 2026, 8, 7),
+        Game.Names.linkedinTango: PuzzleAnchor(669, 2026, 8, 7),
+        Game.Names.linkedinCrossclimb: PuzzleAnchor(829, 2026, 8, 7),
+        Game.Names.linkedinPinpoint: PuzzleAnchor(829, 2026, 8, 7),
+        Game.Names.linkedinZip: PuzzleAnchor(508, 2026, 8, 7)
     ]
 
     /// Gregorian calendar in the device's own time zone, used only for puzzle-date

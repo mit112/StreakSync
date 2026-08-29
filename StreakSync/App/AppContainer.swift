@@ -297,7 +297,7 @@ final class AppContainer: ObservableObject {
     }
 
     /// Pure derivation from provider ID strings. `internal nonisolated` for testability.
-    internal nonisolated static func deriveProvider(fromProviderIDs ids: [String]) -> AuthProvider {
+    nonisolated internal static func deriveProvider(fromProviderIDs ids: [String]) -> AuthProvider {
         if ids.contains("apple.com") { return .apple }
         if ids.contains("google.com") { return .google }
         return .anonymous

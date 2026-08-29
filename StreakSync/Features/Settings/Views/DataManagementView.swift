@@ -136,7 +136,10 @@ private extension DataManagementView {
         // storage, so a delete/reinstall wipes it. State-tied inline messaging (not a
         // toast/modal), placed with the existing Sign In CTA so it doesn't nag twice.
         Label {
-            Text("Your streaks and results are saved only on this device. Sign in to back them up — otherwise they're lost if StreakSync is deleted or reinstalled.")
+            Text("""
+                Your streaks and results are saved only on this device. Sign in to back \
+                them up — otherwise they're lost if StreakSync is deleted or reinstalled.
+                """)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

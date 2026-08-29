@@ -138,22 +138,25 @@ extension AppState {
                         let parser = GameResultParser()
                         let fixedResult = try parser.parse(result.sharedText, for: game)
                         
- logger.info("Reparsed result: \(fixedResult.displayScore), completed: \(fixedResult.completed)")
+                        logger.info("Reparsed result: \(fixedResult.displayScore), completed: \(fixedResult.completed)")
                         
                         // Always update to ensure consistency (even if completion status is the same)
                         if fixedResult.completed != result.completed || fixedResult.score != result.score {
                             updatedResults[index] = fixedResult
                             didUpdate = true
- logger.info("Fixed Connections result: \(result.displayScore) -> \(fixedResult.displayScore), completed: \(result.completed) -> \(fixedResult.completed)")
+                            logger.info("""
+                                Fixed Connections result: \(result.displayScore) -> \(fixedResult.displayScore), \
+                                completed: \(result.completed) -> \(fixedResult.completed)
+                                """)
                         } else {
- logger.info("ℹ No changes needed for this result")
+                            logger.info("ℹ No changes needed for this result")
                         }
                     } catch {
- logger.warning("Failed to reparse Connections result: \(error)")
- logger.warning("Original shared text: \(result.sharedText)")
+                        logger.warning("Failed to reparse Connections result: \(error)")
+                        logger.warning("Original shared text: \(result.sharedText)")
                     }
                 } else {
- logger.warning("Could not find Connections game in games list")
+                    logger.warning("Could not find Connections game in games list")
                 }
             }
         }

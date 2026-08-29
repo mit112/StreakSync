@@ -128,7 +128,10 @@ extension AppState {
         // Mark migration as complete
         UserDefaults.standard.set(true, forKey: migrationKey)
 
- logger.info("Migrated to simplified notification system with smart default time: \(smartTime.hour):\(String(format: "%02d", smartTime.minute))")
+        logger.info("""
+            Migrated to simplified notification system with smart default time: \
+            \(smartTime.hour):\(String(format: "%02d", smartTime.minute))
+            """)
     }
 
     /// Calculate smart default time based on user's typical play patterns

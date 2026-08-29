@@ -69,6 +69,16 @@ struct FriendManagementView: View {
 // MARK: - Sections
 
 private extension FriendManagementView {
+    /// Body of the share-sheet invite. Kept out of the `ShareLink` call so the
+    /// App Store URL doesn't blow past the line-length limit.
+    func inviteMessage(code: String) -> String {
+        """
+        My StreakSync friend code is \(code). Tap to add me — or get StreakSync free on \
+        the App Store (https://apps.apple.com/us/app/streaksync-puzzle-tracker/id6755203446) \
+        and enter the code under Add a Friend.
+        """
+    }
+
     var myCodeSection: some View {
         Section {
             if let code = myFriendCode {
@@ -88,7 +98,7 @@ private extension FriendManagementView {
                         ShareLink(
                             item: inviteURL,
                             subject: Text("Add me on StreakSync"),
-                            message: Text("My StreakSync friend code is \(code). Tap to add me — or get StreakSync free on the App Store (https://apps.apple.com/us/app/streaksync-puzzle-tracker/id6755203446) and enter the code under Add a Friend.")
+                            message: Text(inviteMessage(code: code))
                         ) {
                             Label("Share", systemImage: "square.and.arrow.up")
                                 .font(.subheadline)
@@ -335,5 +345,4 @@ private extension FriendManagementView {
             // than blanking the UI or surfacing a transient error to the user.
         }
     }
-
 }

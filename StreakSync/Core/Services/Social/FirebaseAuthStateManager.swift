@@ -468,11 +468,14 @@ final class FirebaseAuthStateManager: ObservableObject {
                 self.authProvider = Self.detectProvider(for: user)
 
                 if let user {
- self.logger.info("Auth: signed in (uid=\(user.uid, privacy: .private), anon=\(user.isAnonymous), provider=\(self.authProvider.rawValue))")
+                    self.logger.info("""
+                        Auth: signed in (uid=\(user.uid, privacy: .private), \
+                        anon=\(user.isAnonymous), provider=\(self.authProvider.rawValue))
+                        """)
                 } else {
- self.logger.info("Auth: signed out")
+                    self.logger.info("Auth: signed out")
                     if previousUser != nil {
- self.logger.info("Re-authenticating anonymously…")
+                        self.logger.info("Re-authenticating anonymously…")
                         await self.signInAnonymously()
                     }
                 }

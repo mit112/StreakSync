@@ -179,7 +179,6 @@ struct ModernGameCard: View {
                 .symbolRenderingMode(.hierarchical)
         }
     }
-    
 }
 
 // MARK: - Modern Card Button Style

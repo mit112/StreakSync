@@ -109,10 +109,9 @@ final class GameCatalog {
         let idsToSave = favoriteGameIDs.map { $0.uuidString }
         do {
             try persistenceService.save(idsToSave, forKey: favoritesKey)
- logger.info("Saved \(idsToSave.count) favorite games")
+            logger.info("Saved \(idsToSave.count) favorite games")
         } catch {
- logger.error("Failed to save favorites: \(error)")
+            logger.error("Failed to save favorites: \(error)")
         }
     }
-    
 }

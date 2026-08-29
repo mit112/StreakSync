@@ -350,6 +350,5 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
                 }
             }
         }
-
     }
 }

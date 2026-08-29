@@ -286,8 +286,10 @@ class AchievementCheckerTests: XCTestCase {
         var achievements = [AchievementFactory.createPersonalBestAchievement()]
         // Higher scores are better: 50, then 75, then 60 = 1 personal best (75 beats 50)
         let results = [
-            makeResult(gameId: higherGame.id, gameName: higherGame.name, date: dayOffset(-2, from: now), score: 50, maxAttempts: 100, completed: true),
-            makeResult(gameId: higherGame.id, gameName: higherGame.name, date: dayOffset(-1, from: now), score: 75, maxAttempts: 100, completed: true),
+            makeResult(gameId: higherGame.id, gameName: higherGame.name,
+                       date: dayOffset(-2, from: now), score: 50, maxAttempts: 100, completed: true),
+            makeResult(gameId: higherGame.id, gameName: higherGame.name,
+                       date: dayOffset(-1, from: now), score: 75, maxAttempts: 100, completed: true),
             makeResult(gameId: higherGame.id, gameName: higherGame.name, date: now, score: 60, maxAttempts: 100, completed: true)
         ]
 
