@@ -67,9 +67,18 @@ swiftlint
 
 Pipe through `| xcpretty` for readable output if xcpretty is installed.
 
+### The lint gate is the CLI, not the build phase
+
+Run `swiftlint` from the terminal and check the exit code. **Do not trust the SwiftLint Run
+Script build phase** — `ENABLE_USER_SCRIPT_SANDBOXING = YES` confines it, so it lints 2 files
+out of 213 and reports a green "0 violations" while the CLI on the same tree reports errors.
+Baseline as of 2026-08-29: `swiftlint` exits **0** with 389 warnings against a
+`warning_threshold` of 400 — that threshold is itself an error-severity rule, so adding ~11
+warnings turns the gate red.
+
 ### Running tests — read this before concluding "the runner is broken"
 
-The unit suite runs fine: **436 tests pass** (`-only-testing:StreakSyncTests`). Prefer
+The unit suite runs fine: **438 tests pass** (`-only-testing:StreakSyncTests`). Prefer
 XcodeBuildMCP: `build_sim(buildForTesting: true)` then
 `test_sim(testProductsPath: <that>, extraArgs: ["-only-testing:StreakSyncTests"])`.
 
