@@ -155,16 +155,14 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
 - **UI tests cover none of the three riskiest journeys**: share-extension import, friend-request
   accept, notification deep link. All three have caused real regressions before. The 8 existing
   UI tests are the same ones added in Feb 2026.
-- **UI tests are excluded from CI**, but the recorded reason is wrong. The claim that
-  `ShareExtensionIngestionTests.testAppGroupQueue_WriteLoadClear` and
-  `FirstShareCelebrationTriggerTests` run ~6–7 min each and dominate the job is **false as
-  measured on 2026-08-29**: `testAppGroupQueue_WriteLoadClear` takes **0.043s**, each
-  `FirstShareCelebrationTriggerTests` case takes 0.005–0.007s, and the slowest test in the whole
-  suite is **0.069s** (`AnalyticsComputerTests.test_computePersonalBests_bestScore_detected`).
-  All 454 recorded cases execute in **0.47s combined**. The ~56s wall clock for
-  `-only-testing:StreakSyncTests` is compile, simulator boot and test-host bring-up — not test
-  bodies. Whatever that cost once was, it is gone, and the exclusion has no measured
-  justification left.
+- ~~**UI tests are excluded from CI**~~ — **fixed 2026-08-29.** The recorded reason was
+  measured false (see the correction above), and the exclusion was hiding a real regression:
+  `testSettingsSubscreensOpenAndReturn` and `testCrossFeatureNavigationStress` had been RED
+  since the Settings subscreens became pushed details in a `NavigationStack` and dropped their
+  "Done" button (`NotificationSettingsView.swift:117`, DESIGN_AUDIT §4.5). The tests still
+  tapped "Done". Both now pop via the navigation bar back button, and the UI target is scoped
+  into `ci.yml`. Measured: 10 UI tests, **264s serial** / 615s parallel — serial is faster
+  because clone booting dominates, so `-parallel-testing-enabled NO` stays.
 - **Device notification shakedown never executed.** `docs/notification-runtime-device-shakedown.md`
   is a runbook written in Feb 2026 and never run: permission-state matrix, timezone/DST changes
   mid-schedule, snooze re-arm. Needs a physical device, no code. Note it is **gitignored**

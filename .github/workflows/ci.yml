@@ -93,6 +93,15 @@ jobs:
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO | "$FMT"
 
+      # UI tests were excluded here on the belief that two unit tests ran ~6-7 min
+      # each. Measured 2026-08-29, that was false: all 454 unit cases execute in
+      # 0.47s combined and the whole unit target is ~56s wall clock. The UI target
+      # is 264s serial for 10 tests (parallel is *slower* here at 615s - booting
+      # clones dominates, which is also the documented source of "Failed to prepare
+      # device 'Clone N'" flakiness, so -parallel-testing-enabled NO stays).
+      # ~5.5 min of tests locally against a 45 min budget. The exclusion was also
+      # hiding a real regression: two UI tests had been red since the Settings
+      # subscreens became pushed details.
       - name: Test
         run: |
           set -o pipefail
@@ -104,6 +113,7 @@ jobs:
             -skipPackagePluginValidation \
             -resultBundlePath TestResults \
             -only-testing:StreakSyncTests \
+            -only-testing:StreakSyncUITests \
             -parallel-testing-enabled NO \
             -maximum-concurrent-test-simulator-destinations 1 \
             CODE_SIGNING_ALLOWED=NO | "$FMT"

@@ -40,6 +40,15 @@ final class StreakSyncUITests: XCTestCase {
         return tab
     }
 
+    /// Settings subscreens are pushed details in a `NavigationStack`, not sheets, so they
+    /// have no "Done" button — `NotificationSettingsView` persists on pop instead
+    /// (DESIGN_AUDIT §4.5). Pop via the navigation bar's leading back button.
+    private func popSettingsDetail(titled title: String) {
+        let backButton = app.navigationBars[title].buttons.firstMatch
+        XCTAssertTrue(backButton.waitForExistence(timeout: 5), "No back button on '\(title)'")
+        backButton.tap()
+    }
+
     private func manageFriendsControl() -> XCUIElement {
         let byIdentifier = app.descendants(matching: .any)
             .matching(identifier: "friends.manage.button")
@@ -129,19 +138,19 @@ final class StreakSyncUITests: XCTestCase {
         XCTAssertTrue(notificationsRow.waitForExistence(timeout: 8), "Notifications row missing")
         notificationsRow.tap()
         XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 8), "Notifications screen did not open")
-        app.buttons["Done"].firstMatch.tap()
+        popSettingsDetail(titled: "Notifications")
 
         let appearanceRow = app.staticTexts["Appearance"].firstMatch
         XCTAssertTrue(appearanceRow.waitForExistence(timeout: 8), "Appearance row missing")
         appearanceRow.tap()
         XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 8), "Appearance screen did not open")
-        app.buttons["Done"].firstMatch.tap()
+        popSettingsDetail(titled: "Appearance")
 
         let dataRow = app.staticTexts["Data & Privacy"].firstMatch
         XCTAssertTrue(dataRow.waitForExistence(timeout: 8), "Data & Privacy row missing")
         dataRow.tap()
         XCTAssertTrue(app.navigationBars["Data & Privacy"].waitForExistence(timeout: 8), "Data & Privacy screen did not open")
-        app.navigationBars.buttons.firstMatch.tap()
+        popSettingsDetail(titled: "Data & Privacy")
 
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 8), "Failed to return to Settings root")
     }
@@ -190,7 +199,7 @@ final class StreakSyncUITests: XCTestCase {
         XCTAssertTrue(notificationsRow.waitForExistence(timeout: 8))
         notificationsRow.tap()
         XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 8))
-        app.buttons["Done"].firstMatch.tap()
+        popSettingsDetail(titled: "Notifications")
 
         openTab(named: "Friends")
         let manageButton = manageFriendsControl()
