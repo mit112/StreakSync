@@ -16,12 +16,23 @@ struct AtRiskTodaySection: View {
         appState.getGamesAtRisk()
     }
 
+    /// Names up to three at-risk games, then counts the remainder.
+    ///
+    /// Extracted from `body` so the arithmetic is testable: it lived inline, uncovered,
+    /// and said "and 3 more" when two games were left over, because it subtracted the
+    /// two named in the singular branch rather than the three actually listed.
+    static func subtitle(for displayNames: [String], namedLimit: Int = 3) -> String {
+        let named = displayNames.prefix(namedLimit).joined(separator: ", ")
+        let remainder = displayNames.count - namedLimit
+        guard remainder > 0 else { return named }
+        return "\(named), and \(remainder) more"
+    }
+
     var body: some View {
         if !atRiskGames.isEmpty {
             let count = atRiskGames.count
             let title = count == 1 ? "Don't lose your streak" : "Don't lose your streaks"
-            let names = atRiskGames.prefix(3).map { $0.displayName }.joined(separator: ", ")
-            let subtitle = count == 1 ? names : (count <= 3 ? names : "\(names), and \(count - 2) more")
+            let subtitle = Self.subtitle(for: atRiskGames.map(\.displayName))
 
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 HStack {
