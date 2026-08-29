@@ -46,8 +46,10 @@ struct AnalyticsDashboardView: View {
         let scroll = ScrollView {
             LazyVStack(spacing: 24, pinnedViews: [.sectionHeaders]) {
                 Section {
-                    if viewModel.isLoading && !viewModel.hasData {
-                        // Initial load — no data yet
+                    if !viewModel.hasData {
+                        // No payload yet. `isLoading` only flips to true inside the load
+                        // task, i.e. one render AFTER onAppear, so gating on it here
+                        // would flash the empty state before the first load even starts.
                         loadingPlaceholder
                             .padding(.horizontal, 16)
                     } else {
@@ -105,6 +107,26 @@ struct AnalyticsDashboardView: View {
 
     @ViewBuilder
     private var contentSection: some View {
+        // At-Risk Today (only when viewing All Games). It reads live AppState rather than
+        // the range-scoped analytics payload, so it stays useful on a day with nothing
+        // logged yet — hence it sits outside the empty-state branch below.
+        if viewModel.selectedGame == nil {
+            AtRiskTodaySection()
+        }
+
+        if viewModel.hasDataForCurrentSelection {
+            populatedSections
+        } else {
+            AnalyticsEmptyStateSection(
+                message: viewModel.emptyStateMessage,
+                isFilteredToOneGame: viewModel.selectedGame != nil,
+                onShowAllGames: { viewModel.selectGame(nil) }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var populatedSections: some View {
         // Overview stats
         if let overview = viewModel.overview {
             OverviewStatsSection(
@@ -113,11 +135,6 @@ struct AnalyticsDashboardView: View {
                 timeRange: viewModel.selectedTimeRange,
                 selectedGame: viewModel.selectedGame
             )
-        }
-
-        // At-Risk Today (only when viewing All Games)
-        if viewModel.selectedGame == nil {
-            AtRiskTodaySection()
         }
 
         // Streak trends chart

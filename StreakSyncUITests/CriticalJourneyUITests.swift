@@ -138,6 +138,29 @@ final class CriticalJourneyUITests: XCTestCase {
         )
     }
 
+    // MARK: - Analytics empty state
+
+    /// The Analytics tab used to render a blank screen for anyone with no data: its
+    /// content was a run of `if`s with no `else`. The fix branches on
+    /// `hasDataForCurrentSelection`, but that branch lives inside a SwiftUI `body` and
+    /// has no unit-test seam — both of its inputs and both of its outputs are unit
+    /// tested, the branch between them needs the simulator. This is that check.
+    @MainActor
+    func testAnalyticsShowsAnEmptyStateRatherThanABlankScreen() {
+        app.launchArguments += ["--uitest-reset"]
+        app.launch()
+        waitForTabBar()
+
+        let analytics = app.buttons["View Analytics"].firstMatch
+        XCTAssertTrue(analytics.waitForExistence(timeout: 20), "No way into Analytics from Home")
+        analytics.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["No Results Yet"].waitForExistence(timeout: 15),
+            "Analytics rendered nothing for a user with no data"
+        )
+    }
+
     // MARK: - Journey 3: Friend request accept
 
     /// Runs against the in-memory social service, because a UI test cannot seed

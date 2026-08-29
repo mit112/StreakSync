@@ -2,7 +2,7 @@
 //  AnalyticsViewModelTests.swift
 //  StreakSyncTests
 //
-//  Ranking, chart shaping, and category rollup in the Analytics feature view model.
+//  Ranking, chart shaping, and game selection in the Analytics feature view model.
 //
 
 import Foundation
@@ -23,34 +23,19 @@ final class AnalyticsViewModelTests: XCTestCase {
 
     // MARK: - Fixtures
 
-    /// Three games whose ranking by games-played is deliberately different from their
-    /// ranking by max streak, so a test can tell the two sort keys apart.
+    /// Three games whose ranking by games-played is deliberately different from the order
+    /// they are passed in, so a test can tell a real sort from a pass-through.
     ///
-    /// | game        | totalGamesPlayed | maxStreak | category  |
-    /// |-------------|------------------|-----------|-----------|
-    /// | Wordle      | 3                | 20        | nytGames  |
-    /// | Quordle     | 9                | 2         | word      |
-    /// | SpellingBee | 6                | 11        | nytGames  |
+    /// | game        | totalGamesPlayed |
+    /// |-------------|------------------|
+    /// | Wordle      | 3                |
+    /// | Quordle     | 9                |
+    /// | SpellingBee | 6                |
     private func mixedRankings() -> [GameAnalytics] {
         [
-            AnalyticsFeatureFixtures.makeGameAnalytics(
-                game: Game.wordle,
-                currentStreak: 1,
-                maxStreak: 20,
-                totalGamesPlayed: 3
-            ),
-            AnalyticsFeatureFixtures.makeGameAnalytics(
-                game: Game.quordle,
-                currentStreak: 1,
-                maxStreak: 2,
-                totalGamesPlayed: 9
-            ),
-            AnalyticsFeatureFixtures.makeGameAnalytics(
-                game: Game.spellingBee,
-                currentStreak: 4,
-                maxStreak: 11,
-                totalGamesPlayed: 6
-            )
+            AnalyticsFeatureFixtures.makeGameAnalytics(game: Game.wordle, totalGamesPlayed: 3),
+            AnalyticsFeatureFixtures.makeGameAnalytics(game: Game.quordle, totalGamesPlayed: 9),
+            AnalyticsFeatureFixtures.makeGameAnalytics(game: Game.spellingBee, totalGamesPlayed: 6)
         ]
     }
 
@@ -66,20 +51,6 @@ final class AnalyticsViewModelTests: XCTestCase {
         let top = viewModel.getMostActiveGames(limit: 2)
 
         XCTAssertEqual(top.map(\.game.id), [Game.quordle.id, Game.spellingBee.id])
-    }
-
-    // MARK: - Longest Streaks
-
-    /// The two "top N" lists on the Analytics tab render side by side, so swapping their
-    /// sort keys is invisible in review. SpellingBee (max 11, played 6) outranks Quordle
-    /// (max 2, played 9) only when the key is max streak.
-    func test_getLongestStreaks_sortsByMaxStreak_notByGamesPlayed() {
-        let viewModel = AnalyticsFeatureFixtures.makeViewModel()
-        viewModel.analyticsData = AnalyticsFeatureFixtures.makeData(gameAnalytics: mixedRankings())
-
-        let top = viewModel.getLongestStreaks(limit: 2)
-
-        XCTAssertEqual(top.map(\.game.id), [Game.wordle.id, Game.spellingBee.id])
     }
 
     // MARK: - Streak Trend Chart Shaping
@@ -101,21 +72,6 @@ final class AnalyticsViewModelTests: XCTestCase {
         XCTAssertEqual(secondaries, [12, 9])
         XCTAssertEqual(points.map(\.date), trends.map(\.date), "Chart points keep the trend ordering")
         XCTAssertEqual(points.first?.label, "Active Streaks")
-    }
-
-    // MARK: - Category Distribution
-
-    /// Wordle (3) and Spelling Bee (6) are both `.nytGames`, so the rollup has to
-    /// accumulate. An assignment instead of `+=` leaves .nytGames at 6.
-    func test_getGameCategoryDistribution_accumulatesGamesSharingACategory() {
-        let viewModel = AnalyticsFeatureFixtures.makeViewModel()
-        viewModel.analyticsData = AnalyticsFeatureFixtures.makeData(gameAnalytics: mixedRankings())
-
-        let distribution = viewModel.getGameCategoryDistribution()
-
-        XCTAssertEqual(distribution[.nytGames], 9, "Wordle 3 + Spelling Bee 6")
-        XCTAssertEqual(distribution[.word], 9, "Quordle alone")
-        XCTAssertEqual(distribution.count, 2, "Only categories with analytics appear")
     }
 
     // MARK: - Current Game Analytics

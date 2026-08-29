@@ -2,7 +2,7 @@
 //  AnalyticsViewModelScopeTests.swift
 //  StreakSyncTests
 //
-//  Saved-scope restoration, reload gating, staleness, and CSV export for Analytics.
+//  Saved-scope restoration, reload gating, and CSV export for Analytics.
 //
 
 import Foundation
@@ -70,21 +70,6 @@ final class AnalyticsViewModelScopeTests: XCTestCase {
         await viewModel.changeTimeRange(to: .month)
         XCTAssertNotNil(viewModel.analyticsData, "A different range must reload")
         XCTAssertEqual(viewModel.selectedTimeRange, .month)
-    }
-
-    // MARK: - Staleness
-
-    func test_shouldRefreshData_withNoLoadedData_isTrue() {
-        let viewModel = AnalyticsFeatureFixtures.makeViewModel()
-
-        XCTAssertTrue(viewModel.shouldRefreshData())
-    }
-
-    func test_shouldRefreshData_withJustBuiltData_isFalse() {
-        let viewModel = AnalyticsFeatureFixtures.makeViewModel()
-        viewModel.analyticsData = AnalyticsFeatureFixtures.makeData()
-
-        XCTAssertFalse(viewModel.shouldRefreshData())
     }
 
     // MARK: - CSV Export

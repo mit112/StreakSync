@@ -46,10 +46,6 @@ final class AnalyticsViewModel: ObservableObject {
         return analyticsService.games
     }
     
-    var favoriteGames: [Game] {
-        analyticsService.favoriteGames
-    }
-    
     var personalBests: [PersonalBest] {
         analyticsData?.personalBests ?? []
     }
@@ -155,19 +151,6 @@ final class AnalyticsViewModel: ObservableObject {
         }
     }
     
-    /// Get game category distribution
-    func getGameCategoryDistribution() -> [GameCategory: Int] {
-        guard let data = analyticsData else { return [:] }
-        
-        var distribution: [GameCategory: Int] = [:]
-        for gameAnalytics in data.gameAnalytics {
-            let category = gameAnalytics.game.category
-            distribution[category, default: 0] += gameAnalytics.totalGamesPlayed
-        }
-        
-        return distribution
-    }
-    
     /// Get most active games (by total games played)
     func getMostActiveGames(limit: Int = 5) -> [GameAnalytics] {
         guard let data = analyticsData else { return [] }
@@ -176,33 +159,6 @@ final class AnalyticsViewModel: ObservableObject {
             .sorted { $0.totalGamesPlayed > $1.totalGamesPlayed }
             .prefix(limit)
             .map { $0 }
-    }
-    
-    /// Get longest streaks
-    func getLongestStreaks(limit: Int = 5) -> [GameAnalytics] {
-        guard let data = analyticsData else { return [] }
-        
-        return data.gameAnalytics
-            .sorted { $0.maxStreak > $1.maxStreak }
-            .prefix(limit)
-            .map { $0 }
-    }
-    
-    /// Get recent activity summary
-    func getRecentActivitySummary() -> (totalGames: Int, completionRate: Double, activeStreaks: Int) {
-        guard let overview = overview else { return (0, 0.0, 0) }
-        
-        return (
-            totalGames: overview.totalGamesPlayed,
-            completionRate: overview.averageCompletionRate,
-            activeStreaks: overview.totalActiveStreaks
-        )
-    }
-    
-    /// Check if data is stale and needs refresh
-    func shouldRefreshData() -> Bool {
-        guard let lastUpdated = analyticsData?.lastUpdated else { return true }
-        return Date().timeIntervalSince(lastUpdated) > 300 // 5 minutes
     }
     
     /// Get time range display name - isolated to only change when time range changes
@@ -215,17 +171,8 @@ final class AnalyticsViewModel: ObservableObject {
         selectedGame?.displayName ?? "All Games"
     }
     
-    /// Get selected game ID for animation tracking - only changes when game changes
-    var selectedGameId: UUID? {
-        selectedGame?.id
-    }
-    
-    /// Get time range for animation tracking - only changes when time range changes
-    var timeRangeForAnimation: AnalyticsTimeRange {
-        selectedTimeRange
-    }
-    
-    /// Check if current selection has data
+    /// Check if current selection has data.
+    /// Drives the Analytics dashboard's empty state — see `AnalyticsEmptyStateSection`.
     var hasDataForCurrentSelection: Bool {
         guard let data = analyticsData else { return false }
         
@@ -273,38 +220,5 @@ final class AnalyticsViewModel: ObservableObject {
         cachedCSV = csv
         cachedCSVTimestamp = dataTimestamp
         return csv
-    }
-}
-
-// MARK: - Analytics View Model Extensions
-
-extension AnalyticsViewModel {
-    /// Get formatted streak trend summary
-    func getStreakTrendSummary() -> String {
-        guard !currentStreakTrends.isEmpty else { return "No data available" }
-        
-        guard let latest = currentStreakTrends.last else { return "No data available" }
-        let previous = currentStreakTrends.count > 1 ? currentStreakTrends[currentStreakTrends.count - 2] : latest
-        
-        let trend = latest.totalActiveStreaks - previous.totalActiveStreaks
-        let trendText = trend > 0 ? "+\(trend)" : trend < 0 ? "\(trend)" : "No change"
-        
-        return "\(latest.totalActiveStreaks) active streaks (\(trendText))"
-    }
-    
-    /// Get formatted completion rate summary
-    func getCompletionRateSummary() -> String {
-        guard let overview = overview else { return "No data available" }
-        
-        let rate = overview.averageCompletionRate * 100
-        return String(format: "%.0f%% completion rate", rate)
-    }
-    
-    /// Get formatted streak consistency summary
-    func getStreakConsistencySummary() -> String {
-        guard let overview = overview else { return "No data available" }
-        
-        let consistency = overview.streakConsistency * 100
-        return String(format: "%.0f%% consistency", consistency)
     }
 }
