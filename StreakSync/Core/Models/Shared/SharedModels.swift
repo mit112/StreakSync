@@ -361,6 +361,19 @@ struct GroupedGameResult: Identifiable, Codable {
     var hasMedium: Bool { completedDifficulties.contains("Medium") }
     var hasHard: Bool { completedDifficulties.contains("Hard") }
     
+    /// True when at least one difficulty has been recorded for this puzzle.
+    ///
+    /// Both call sites used to derive this by testing
+    /// `completionStatus.contains("Completed")`. No case of `completionStatus` contains
+    /// that substring — they are "1/3 Complete", "2/3 Complete", "All Complete" and
+    /// "Not Started" — so the test was always false: the Pips month summary permanently
+    /// read "0 completed" and Pips calendar days were never tinted.
+    ///
+    /// Known caveat, deliberately not changed here: `completedDifficulties` does not
+    /// filter on `GameResult.completed`, so a failed attempt still counts. Fixing that
+    /// changes which difficulty dots appear, which is a separate user-visible decision.
+    var hasAnyCompletion: Bool { !completedDifficulties.isEmpty }
+
     var completionStatus: String {
         let count = completedDifficulties.count
         switch count {

@@ -105,7 +105,7 @@ struct HistoryCalendarDayView: View {
 
     private var backgroundColor: Color {
         if let grouped = groupedResult {
-            return grouped.completionStatus.contains("Completed") ? gameColor.opacity(0.15) : Color(.tertiarySystemFill)
+            return grouped.hasAnyCompletion ? gameColor.opacity(0.15) : Color(.tertiarySystemFill)
         } else if let result = result {
             return result.completed ? gameColor.opacity(0.15) : Color.red.opacity(0.1)
         }

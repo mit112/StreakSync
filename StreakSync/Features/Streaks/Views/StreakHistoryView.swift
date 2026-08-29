@@ -264,7 +264,7 @@ struct StreakHistoryView: View {
 
     private var totalGamesCompleted: Int {
         game?.name.lowercased() == "pips"
-            ? monthGroupedResults.filter { $0.completionStatus.contains("Completed") }.count
+            ? monthGroupedResults.filter(\.hasAnyCompletion).count
             : monthResults.filter(\.completed).count
     }
 
