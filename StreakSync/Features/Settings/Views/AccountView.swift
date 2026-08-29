@@ -452,6 +452,13 @@ private extension AccountView {
 
             isDeletingAccount = false
             profile = nil
+        } catch FirebaseSocialError.networkUnavailable {
+            // deleteAllUserData probes the server before destroying anything, so this
+            // means nothing was deleted. Say that, rather than reusing the generic
+            // networkUnavailable copy, which promises to upload scores later.
+            isDeletingAccount = false
+            errorMessage = "You need an internet connection to delete your account. "
+                + "Nothing has been deleted — reconnect and try again."
         } catch {
             isDeletingAccount = false
             errorMessage = "Failed to delete account: \(error.localizedDescription)"

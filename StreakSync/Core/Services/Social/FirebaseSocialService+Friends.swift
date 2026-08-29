@@ -379,8 +379,31 @@ extension FirebaseSocialService {
 
     // MARK: - Account Deletion
 
+    /// Bounded reachability probe, to be called BEFORE anything is destroyed.
+    ///
+    /// Firestore writes never return while the client is offline — the headers say so
+    /// outright — and a Firestore write cannot be cancelled, so there is no timeout to
+    /// wrap the deletion in. Without this, Delete Account sat on an unescapable spinner
+    /// with no error, which is not an acceptable state for an App Store-mandated flow.
+    ///
+    /// A `source: .server` read is the one operation here that IS bounded: it fails
+    /// within the SDK's own online-state ceiling instead of hanging. Same pattern as the
+    /// reads elsewhere in this file. Nothing has been deleted when this throws, so the
+    /// failure is clean and the user can simply retry.
+    private func requireServerReachable(uid: String) async throws {
+        do {
+            _ = try await db.collection("users").document(uid).getDocument(source: .server)
+        } catch {
+            logger.warning("Aborting account deletion — server unreachable")
+            throw FirebaseSocialError.networkUnavailable
+        }
+    }
+
     func deleteAllUserData() async throws {
         let uid = try requireUID()
+
+        try await requireServerReachable(uid: uid)
+
         logger.info("Starting full account data deletion for user \(uid)")
 
         var errors: [Error] = []
