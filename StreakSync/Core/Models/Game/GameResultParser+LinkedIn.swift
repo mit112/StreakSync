@@ -176,117 +176,152 @@ extension GameResultParser {
     
     // MARK: - LinkedIn Pinpoint Parser
     func parseLinkedInPinpoint(_ text: String, gameId: UUID) throws -> GameResult {
-        // Updated patterns to handle multiple Pinpoint share formats:
-        // Format 1 (Original): "Pinpoint #522 | 5 guesses\n1️⃣  | 1% match\n2️⃣  | 5% match\n3️⃣  | 82% match\n4️⃣  | 28% match\n5️⃣  | 100% match 📌\nlnkd.in/pinpoint."
-        // Format 2 (New): "Pinpoint #542\n🤔 📌 ⬜ ⬜ ⬜ (2/5)\n🏅 I'm in the Top 25% of my connections today!\nlnkd.in/pinpoint."
-        // Format 3 (New): "Pinpoint #542\n🤔 📌 ⬜ ⬜ ⬜ (2/5)\n🏅 I'm in the Top 10% of all players today!\nlnkd.in/pinpoint."
-        
-        // First try the new emoji-based format (flexible):
-        // Accept any emoji sequence before the parenthesized score, e.g.:
-        // "🤔 🤔 🤔 🤔 📌 (5/5)" or "🤔 📌 ⬜ ⬜ ⬜ (2/5)"
-        let emojiPattern = #"Pinpoint\s+#(\d+)[\s\S]*?(?:[🤔📌⬜⬛🟩🟨🟧🟦🟪🟫⚫⚪\s]+)?\((\d+)/(\d+)\)"#
-        
-        if let emojiRegex = try? NSRegularExpression(pattern: emojiPattern, options: .caseInsensitive),
-           let emojiMatch = emojiRegex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) {
-            // Extract puzzle number
-            guard emojiMatch.range(at: 1).location != NSNotFound,
-                  let puzzleRange = Range(emojiMatch.range(at: 1), in: text) else {
-                throw ParsingError.invalidFormat
-            }
-            let puzzleNumber = String(text[puzzleRange])
-            
-            // Extract guess count from (X/Y) format
-            guard emojiMatch.range(at: 2).location != NSNotFound,
-                  let guessRange = Range(emojiMatch.range(at: 2), in: text),
-                  let maxRange = Range(emojiMatch.range(at: 3), in: text) else {
-                throw ParsingError.invalidFormat
-            }
-            
-            let guessCount = Int(String(text[guessRange])) ?? 0
-            let maxAttempts = Int(String(text[maxRange])) ?? 5
-            
-            // Check for completion - look for 📌 emoji in the pattern
-            let isCompleted = text.contains("📌")
-            
-            return GameResult(
-                gameId: gameId,
-                gameName: "linkedinpinpoint",
-                date: Date(),
-                score: guessCount,
-                maxAttempts: maxAttempts,
-                completed: isCompleted,
-                sharedText: text,
-                parsedData: [
-                    "puzzleNumber": puzzleNumber,
-                    "guessCount": "\(guessCount)",
-                    "gameType": "word_association",
-                    "displayScore": "\(guessCount) guesses",
-                    "shareFormat": "emoji_based"
-                ]
-            )
+        // Two share formats:
+        // Emoji grid: "Pinpoint #542\n🤔 📌 ⬜ ⬜ ⬜ (2/5)\n🏅 …\nlnkd.in/pinpoint."
+        // Original:   "Pinpoint #522 | 5 guesses\n1️⃣ | 1% match\n…\n5️⃣ | 100% match 📌"
+        if let result = try parsePinpointEmojiFormat(text, gameId: gameId) {
+            return result
         }
-        
-        // Fallback to original format parsing.
+        return try parsePinpointOriginalFormat(text, gameId: gameId)
+    }
+
+    /// Emoji-grid format. Returns nil when the text isn't in this format so the
+    /// caller can fall back; throws only when the grid matched but is malformed.
+    private func parsePinpointEmojiFormat(_ text: String, gameId: UUID) throws -> GameResult? {
+        // Accept any emoji sequence before the parenthesized score, e.g.
+        // "🤔 🤔 🤔 🤔 📌 (5/5)" or "🤔 📌 ⬜ ⬜ ⬜ (2/5)".
+        let pattern = #"Pinpoint\s+#(\d+)[\s\S]*?(?:[🤔📌⬜⬛🟩🟨🟧🟦🟪🟫⚫⚪\s]+)?\((\d+)/(\d+)\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+              let match = regex.firstMatch(
+                  in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)
+              ) else {
+            return nil
+        }
+        guard let puzzleRange = Range(match.range(at: 1), in: text),
+              let guessRange = Range(match.range(at: 2), in: text),
+              let maxRange = Range(match.range(at: 3), in: text) else {
+            throw ParsingError.invalidFormat
+        }
+        let puzzleNumber = String(text[puzzleRange])
+        let guessCount = Int(String(text[guessRange])) ?? 0
+        let maxAttempts = Int(String(text[maxRange])) ?? 5
+
+        // The 📌 has to sit in *this* puzzle's own row. Scanning the whole share let a
+        // pin from another game in a combined daily post mark this puzzle solved.
+        let row = Range(match.range, in: text).map { String(text[$0]) } ?? text
+        let isCompleted = row.contains("📌")
+
+        return GameResult(
+            gameId: gameId,
+            gameName: "linkedinpinpoint",
+            date: Date(),
+            score: pinpointScore(guessCount: guessCount, maxAttempts: maxAttempts),
+            maxAttempts: maxAttempts,
+            completed: isCompleted,
+            sharedText: text,
+            parsedData: pinpointParsedData(
+                puzzleNumber: puzzleNumber, guessCount: guessCount,
+                isCompleted: isCompleted, shareFormat: "emoji_based"
+            )
+        )
+    }
+
+    /// Original percent-match format.
+    private func parsePinpointOriginalFormat(_ text: String, gameId: UUID) throws -> GameResult {
         // The second "guesses" capture is wrapped together with its own lazy scan
         // (like the first) rather than left as a separate trailing optional group —
         // otherwise the regex engine is satisfied by the empty match immediately
         // after the first optional group and never searches further for it (same
         // dead-capture-group defect as the Zip backtrack pattern above).
-        let originalPattern = #"Pinpoint\s+#(\d+)(?:\s*\|\s*(\d+)\s+guesses)?(?:[\s\S]*?(\d+)\s+guesses)?"#
-        
-        guard let regex = try? NSRegularExpression(pattern: originalPattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)) else {
-            throw ParsingError.invalidFormat
-        }
-        
-        // Extract puzzle number
-        guard match.range(at: 1).location != NSNotFound,
+        let pattern = #"Pinpoint\s+#(\d+)(?:\s*\|\s*(\d+)\s+guesses)?(?:[\s\S]*?(\d+)\s+guesses)?"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+              let match = regex.firstMatch(
+                  in: text, options: [], range: NSRange(location: 0, length: text.utf16.count)
+              ),
               let puzzleRange = Range(match.range(at: 1), in: text) else {
             throw ParsingError.invalidFormat
         }
         let puzzleNumber = String(text[puzzleRange])
-        
-        // Extract guess count (try both formats)
+        let maxAttempts = 5 // Pinpoint allows up to 5 guesses
+
+        // Read only this puzzle's slice of the share. Players post their whole daily
+        // set in one comment, and Crossclimb's "Fill order: 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣" row
+        // alone would otherwise be counted as Pinpoint guesses — and two such rows
+        // sum past maxAttempts and trip GameResult's scoring assert.
+        let segment = pinpointSegment(of: text, matching: match.range)
+
         var guessCount = 0
-        if match.range(at: 2).location != NSNotFound,
-           let guessRange = Range(match.range(at: 2), in: text) {
-            guessCount = Int(String(text[guessRange])) ?? 0
-        } else if match.range(at: 3).location != NSNotFound,
-                  let guessRange = Range(match.range(at: 3), in: text) {
-            guessCount = Int(String(text[guessRange])) ?? 0
+        if let range = Range(match.range(at: 2), in: text) ?? Range(match.range(at: 3), in: text) {
+            guessCount = Int(String(text[range])) ?? 0
         }
-        
-        // If no explicit guess count, count the emoji lines
         if guessCount == 0 {
-            let emojiPattern = #"(\d+️⃣)"#
-            if let emojiRegex = try? NSRegularExpression(pattern: emojiPattern, options: .caseInsensitive) {
-                let emojiMatches = emojiRegex.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
-                guessCount = emojiMatches.count
-            }
+            guessCount = pinpointKeycapCount(in: segment)
         }
-        
-        // Check for completion - look for 100% match or 📌 emoji
-        let isCompleted = text.contains("100% match") || text.contains("📌")
-        
-        // For Pinpoint, score is the number of guesses (lower is better)
-        let score = guessCount > 0 ? guessCount : 1
-        
+
+        let isCompleted = segment.contains("100% match") || segment.contains("📌")
+
         return GameResult(
             gameId: gameId,
             gameName: "linkedinpinpoint",
             date: Date(),
-            score: score,
-            maxAttempts: 5, // Pinpoint typically allows up to 5 guesses
+            score: pinpointScore(guessCount: guessCount, maxAttempts: maxAttempts),
+            maxAttempts: maxAttempts,
             completed: isCompleted,
             sharedText: text,
-            parsedData: [
-                "puzzleNumber": puzzleNumber,
-                "guessCount": "\(guessCount)",
-                "gameType": "word_association",
-                "displayScore": guessCount > 0 ? "\(guessCount) guesses" : "Completed",
-                "shareFormat": "original"
-            ]
+            parsedData: pinpointParsedData(
+                puzzleNumber: puzzleNumber, guessCount: guessCount,
+                isCompleted: isCompleted, shareFormat: "original"
+            )
         )
+    }
+
+    /// The slice of a combined share belonging to this puzzle: from the matched
+    /// "Pinpoint #N" header up to its own `lnkd.in/pinpoint` footer.
+    private func pinpointSegment(of text: String, matching matchRange: NSRange) -> String {
+        guard let range = Range(matchRange, in: text) else { return text }
+        let rest = text[range.lowerBound...]
+        guard let footer = rest.range(of: "lnkd.in/pinpoint", options: .caseInsensitive) else {
+            return String(rest)
+        }
+        return String(rest[..<footer.lowerBound])
+    }
+
+    private func pinpointKeycapCount(in segment: String) -> Int {
+        guard let regex = try? NSRegularExpression(pattern: #"(\d+️⃣)"#, options: .caseInsensitive) else {
+            return 0
+        }
+        return regex.numberOfMatches(
+            in: segment, options: [], range: NSRange(location: 0, length: segment.utf16.count)
+        )
+    }
+
+    /// Never fabricate a guess count. 1 is the *best possible* Pinpoint score, so the
+    /// old `guessCount > 0 ? guessCount : 1` claimed a flawless solve for a puzzle
+    /// that may never have been solved — and then won `computePersonalBests`'
+    /// `min(by: score)`. An unreadable count records nil, the same convention as
+    /// Wordle's "X/6" and Queens' unparseable time. The upper bound also keeps the
+    /// value inside `GameResult`'s `.lowerGuesses` assert if a stray keycap row
+    /// inflates the count.
+    private func pinpointScore(guessCount: Int, maxAttempts: Int) -> Int? {
+        (guessCount >= 1 && guessCount <= maxAttempts) ? guessCount : nil
+    }
+
+    private func pinpointParsedData(
+        puzzleNumber: String, guessCount: Int, isCompleted: Bool, shareFormat: String
+    ) -> [String: String] {
+        [
+            "puzzleNumber": puzzleNumber,
+            // Empty rather than "0": GameResultDisplay.pinpointDisplayScore keys off a
+            // non-empty guessCount and would otherwise render a literal "0 guesses".
+            "guessCount": guessCount > 0 ? "\(guessCount)" : "",
+            "gameType": "word_association",
+            // The Share Extension sheet shows this string verbatim; "Completed" for an
+            // unsolved puzzle told the user the opposite of the truth.
+            "displayScore": guessCount > 0
+                ? (guessCount == 1 ? "1 guess" : "\(guessCount) guesses")
+                : (isCompleted ? "Solved" : "Did not solve"),
+            "shareFormat": shareFormat
+        ]
     }
     
     // MARK: - LinkedIn Zip Parser

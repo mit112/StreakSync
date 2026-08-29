@@ -170,7 +170,9 @@ extension GameResult {
             return score == 1 ? "1 guess" : "\(score) guesses"
         }
 
-        return "Completed"
+        // No readable guess count. Only say "Completed" if it actually was —
+        // otherwise this contradicted the ❌ shown beside it.
+        return completed ? "Completed" : "Did not solve"
     }
     
     private var strandsDisplayScore: String {
