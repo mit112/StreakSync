@@ -237,12 +237,41 @@ final class NotificationCoordinator: ObservableObject {
     }
     
     private func handleGameDeepLinkWithName(_ name: String) {
-        let target = name.lowercased()
-        if let game = appState?.games.first(where: { $0.name.lowercased() == target }) {
+        if let game = Self.resolveGame(named: name, in: appState?.games ?? []) {
             handleGameDeepLinkWithId(game.id)
         } else {
             logger.error("Game not found for name: \(name)")
         }
+    }
+
+    /// Resolves a `streaksync://game?name=…` payload against the game catalog.
+    ///
+    /// The slug match on `Game.name` (e.g. "minicrossword") is tried FIRST and is
+    /// byte-for-byte the old behaviour, so internal callers that already pass slugs
+    /// are unaffected. Only when that misses do we fall back to the human-readable
+    /// `displayName` — which is what an external caller actually types, e.g.
+    /// `streaksync://game?name=Mini%20Crossword`.
+    ///
+    /// Deliberately not `private` so the matching rule can be unit-tested directly
+    /// instead of through a NotificationCenter round trip and a NavigationPath.
+    static func resolveGame(named name: String, in games: [Game]) -> Game? {
+        let slugTarget = name.lowercased()
+        if let game = games.first(where: { $0.name.lowercased() == slugTarget }) {
+            return game
+        }
+
+        // Lowercase + drop whitespace on BOTH sides so "Mini Crossword",
+        // "mini crossword" and "MINI CROSSWORD" all land on the same game.
+        // Verified unambiguous: no two entries in Game.allAvailableGames share a
+        // normalised display name (see DeepLinkNameMatchingTests).
+        let displayTarget = normalizedDisplayName(name)
+        guard !displayTarget.isEmpty else { return nil }
+        return games.first(where: { normalizedDisplayName($0.displayName) == displayTarget })
+    }
+
+    /// Case- and whitespace-insensitive form of a display name.
+    private static func normalizedDisplayName(_ value: String) -> String {
+        value.lowercased().filter { !$0.isWhitespace }
     }
 
     private func handleAchievementDeepLinkWithId(_ achievementId: UUID) {

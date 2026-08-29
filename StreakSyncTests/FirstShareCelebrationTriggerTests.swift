@@ -6,31 +6,65 @@
 //  notification exactly once on the 0→1 transition.
 //
 
+import Foundation
 @testable import StreakSync
 import XCTest
+
+/// Thread-safe recorder for the celebration notification.
+///
+/// `addObserver(forName:object:queue:using:)` declares its block
+/// `NS_SWIFT_SENDABLE`, so the closure can neither capture the non-Sendable
+/// `XCTestCase` nor mutate its `@MainActor` stored properties. The closure captures
+/// this reference type by value instead; the `@MainActor` test bodies read the
+/// recorded values back through the lock.
+private final class CelebrationRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    private var lastGameName: String?
+
+    var notificationCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+
+    var capturedGameName: String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return lastGameName
+    }
+
+    func record(gameName: String?) {
+        lock.lock()
+        count += 1
+        lastGameName = gameName
+        lock.unlock()
+    }
+}
 
 @MainActor
 final class FirstShareCelebrationTriggerTests: XCTestCase {
     private var appState: AppState?
     private var observer: NSObjectProtocol?
-    private var notificationCount: Int = 0
-    private var capturedGameName: String?
+    private var recorder = CelebrationRecorder()
 
     override func setUp() async throws {
         try await super.setUp()
         UserDefaults.standard.removeObject(forKey: AppConstants.Onboarding.hasSeenFirstShareCelebration)
-        notificationCount = 0
-        capturedGameName = nil
+
+        let recorder = CelebrationRecorder()
+        self.recorder = recorder
 
         appState = AppState()
 
+        // Capture `recorder` explicitly so `self` is never captured by the
+        // @Sendable observer block.
         observer = NotificationCenter.default.addObserver(
             forName: .appFirstShareCelebrationRequested,
             object: nil,
             queue: .main
-        ) { [weak self] note in
-            self?.notificationCount += 1
-            self?.capturedGameName = note.userInfo?["gameName"] as? String
+        ) { [recorder] note in
+            recorder.record(gameName: note.userInfo?["gameName"] as? String)
         }
     }
 
@@ -62,20 +96,23 @@ final class FirstShareCelebrationTriggerTests: XCTestCase {
     func testFirstResultPostsCelebrationNotification() {
         let result = makeResult(gameName: "Wordle")
         _ = appState?.addGameResult(result)
-        XCTAssertEqual(notificationCount, 1)
-        XCTAssertEqual(capturedGameName, "Wordle")
+        XCTAssertEqual(recorder.notificationCount, 1)
+        XCTAssertEqual(recorder.capturedGameName, "Wordle")
         XCTAssertTrue(UserDefaults.standard.bool(forKey: AppConstants.Onboarding.hasSeenFirstShareCelebration))
     }
 
     func testSecondResultDoesNotPostCelebration() {
         _ = appState?.addGameResult(makeResult(gameName: "Wordle"))
         _ = appState?.addGameResult(makeResult(gameName: "Connections"))
-        XCTAssertEqual(notificationCount, 1, "Should fire only on the 0→1 transition, not on subsequent adds")
+        XCTAssertEqual(
+            recorder.notificationCount, 1,
+            "Should fire only on the 0→1 transition, not on subsequent adds"
+        )
     }
 
     func testCelebrationDoesNotRepeatIfFlagAlreadySet() {
         UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenFirstShareCelebration)
         _ = appState?.addGameResult(makeResult())
-        XCTAssertEqual(notificationCount, 0)
+        XCTAssertEqual(recorder.notificationCount, 0)
     }
 }
