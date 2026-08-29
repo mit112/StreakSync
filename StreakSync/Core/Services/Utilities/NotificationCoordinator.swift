@@ -87,10 +87,20 @@ final class NotificationCoordinator: ObservableObject {
             NotificationCenter.default.addObserver(
                 forName: .openGameRequested, object: nil, queue: .main
             ) { [weak self] notification in
-                guard let payload = notification.object as? [String: Any],
-                      let gameId = payload[AppConstants.DeepLinkKeys.gameId] as? UUID else { return }
+                guard let payload = notification.object as? [String: Any] else { return }
+                // Pull the Sendable values out here: `[String: Any]` can't cross into the
+                // @MainActor Task under Swift 6 strict concurrency.
+                let gameId = payload[AppConstants.DeepLinkKeys.gameId] as? UUID
+                // AppGroupURLSchemeHandler posts this for `streaksync://game?name=…`
+                // and reported success, but nothing consumed it.
+                let gameName = payload[AppConstants.DeepLinkKeys.name] as? String
+                guard gameId != nil || gameName != nil else { return }
                 Task { @MainActor [weak self] in
-                    self?.handleGameDeepLinkWithId(gameId)
+                    if let gameId {
+                        self?.handleGameDeepLinkWithId(gameId)
+                    } else if let gameName {
+                        self?.handleGameDeepLinkWithName(gameName)
+                    }
                 }
             }
         )
@@ -217,15 +227,26 @@ final class NotificationCoordinator: ObservableObject {
     
     private func handleGameDeepLinkWithId(_ gameId: UUID) {
         if let game = appState?.games.first(where: { $0.id == gameId }) {
- logger.info("Handling game deep link by id: \(gameId)")
-            navigationCoordinator?.navigateTo(.gameDetail(game))
+            logger.info("Handling game deep link by id: \(gameId)")
+            // `navigateTo` appends to whichever tab is showing, so a deep link arriving
+            // while the user sits on Friends/Settings pushed game detail onto that stack.
+            navigationCoordinator?.switchToTabAndNavigate(.home, destination: .gameDetail(game))
         } else {
- logger.error("Game not found for id: \(gameId)")
+            logger.error("Game not found for id: \(gameId)")
         }
     }
     
+    private func handleGameDeepLinkWithName(_ name: String) {
+        let target = name.lowercased()
+        if let game = appState?.games.first(where: { $0.name.lowercased() == target }) {
+            handleGameDeepLinkWithId(game.id)
+        } else {
+            logger.error("Game not found for name: \(name)")
+        }
+    }
+
     private func handleAchievementDeepLinkWithId(_ achievementId: UUID) {
- logger.info("Handling achievement deep link: \(achievementId)")
+        logger.info("Handling achievement deep link: \(achievementId)")
         
         // Navigate to achievements
         navigationCoordinator?.navigateTo(.achievements)
