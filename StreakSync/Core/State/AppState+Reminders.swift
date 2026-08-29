@@ -24,7 +24,7 @@ extension AppState {
         let remindersEnabled = UserDefaults.standard.bool(forKey: AppConstants.NotificationSettings.remindersEnabled)
         guard remindersEnabled else {
             await NotificationScheduler.shared.cancelAllStreakReminders()
- logger.info("Streak reminders disabled - cancelled all notifications")
+            logger.info("Streak reminders disabled - cancelled all notifications")
             return
         }
 
@@ -36,7 +36,7 @@ extension AppState {
         // The daily was already cancelled at snooze time; resume only once the window passes.
         if let snoozedUntil = UserDefaults.standard.object(forKey: AppConstants.NotificationSettings.snoozedUntil) as? Date {
             if snoozedUntil > Date() {
- logger.info("Reminder snoozed until \(snoozedUntil) - skipping daily reminder scheduling")
+                logger.info("Reminder snoozed until \(snoozedUntil) - skipping daily reminder scheduling")
                 return
             }
             UserDefaults.standard.removeObject(forKey: AppConstants.NotificationSettings.snoozedUntil)
@@ -55,22 +55,22 @@ extension AppState {
            lastSig == signature,
            let lastAt = lastReminderScheduleAt,
            now.timeIntervalSince(lastAt) < 300 { // 5 minutes
- logger.debug("Skipping reminder reschedule (unchanged within debounce window)")
+            logger.debug("Skipping reminder reschedule (unchanged within debounce window)")
             return
         }
 
- logger.info("Found \(gamesAtRisk.count) games at risk: \(gamesAtRisk.map { $0.name }.joined(separator: ", "))")
+        logger.info("Found \(gamesAtRisk.count) games at risk: \(gamesAtRisk.map { $0.name }.joined(separator: ", "))")
 
         if gamesAtRisk.isEmpty {
             await NotificationScheduler.shared.cancelDailyStreakReminder()
- logger.debug("No games at risk - cancelled daily reminder")
+            logger.debug("No games at risk - cancelled daily reminder")
         } else {
             await NotificationScheduler.shared.scheduleDailyStreakReminder(
                 games: gamesAtRisk,
                 hour: preferredHour,
                 minute: preferredMinute
             )
- logger.info("Scheduled daily reminder at \(preferredHour):\(String(format: "%02d", preferredMinute)) for \(gamesAtRisk.count) games")
+            logger.info("Scheduled daily reminder at \(preferredHour):\(String(format: "%02d", preferredMinute)) for \(gamesAtRisk.count) games")
         }
 
         lastAtRiskGamesSignature = signature
@@ -154,7 +154,7 @@ extension AppState {
 
         let reminderHour = max(6, mostCommonHour - 2)
 
- logger.info("Smart default time: Most common play hour: \(mostCommonHour), Setting reminder for: \(reminderHour):00")
+        logger.info("Smart default time: Most common play hour: \(mostCommonHour), Setting reminder for: \(reminderHour):00")
 
         return (hour: reminderHour, minute: 0)
     }

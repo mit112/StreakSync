@@ -79,7 +79,7 @@ final class FirestoreAchievementSyncService {
                         // The setter runs migrateAchievements, which strips retired
                         // categories from the merge result and appends missing new ones.
                         appState.tieredAchievements = merged
- logger.info("Pulled and merged tiered achievements from Firestore")
+                        logger.info("Pulled and merged tiered achievements from Firestore")
                     }
                 }
             }
@@ -112,10 +112,10 @@ final class FirestoreAchievementSyncService {
             ])
 
             status = .success(Date())
- logger.info("Achievement sync completed")
+            logger.info("Achievement sync completed")
         } catch {
             let message = userFriendlyMessage(for: error)
- logger.error("Achievement sync failed: \(error.localizedDescription)")
+            logger.error("Achievement sync failed: \(error.localizedDescription)")
             status = .error(message)
         }
     }
@@ -131,9 +131,9 @@ final class FirestoreAchievementSyncService {
             try await db.collection("users").document(uid)
                 .collection("sync").document("achievements").delete()
             status = .idle
- logger.info("Deleted remote achievement data")
+            logger.info("Deleted remote achievement data")
         } catch {
- logger.error("Failed to delete remote achievement data: \(error.localizedDescription)")
+            logger.error("Failed to delete remote achievement data: \(error.localizedDescription)")
         }
     }
 

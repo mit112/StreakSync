@@ -143,7 +143,7 @@ final class AppGroupBridge: ObservableObject {
             hasNewResults = true
             lastResultProcessedTime = Date()
 
- logger.info("Dispatching \(queuedResults.count) queued results for durable ingestion")
+            logger.info("Dispatching \(queuedResults.count) queued results for durable ingestion")
 
             // "quiet" marks a genuine multi-result backlog so the ingestion side can
             // drain it without firing one haptic/notification per result. A lone
@@ -153,7 +153,7 @@ final class AppGroupBridge: ObservableObject {
 
             for result in queuedResults {
                 latestResult = result
- logger.info("Dispatching queued result: \(result.gameName)")
+                logger.info("Dispatching queued result: \(result.gameName)")
 
                 // Post notification with the result object. Cleanup happens in
                 // acknowledgeIngestedResult after a confirmed durable write.
@@ -176,7 +176,7 @@ final class AppGroupBridge: ObservableObject {
             // Load the result
             if let result = try? await dataManager.loadGameResult(forKey: AppConstants.AppGroup.latestResultKey) {
                 latestResult = result
- logger.info("Loaded new result: \(result.gameName)")
+                logger.info("Loaded new result: \(result.gameName)")
 
                 // Post notification with the result object. The single-result key
                 // is cleared by acknowledgeIngestedResult only after a confirmed
@@ -202,7 +202,7 @@ final class AppGroupBridge: ObservableObject {
         dataManager.removeData(forKey: AppConstants.AppGroup.latestResultKey)
         hasNewResults = false
         latestResult = nil
- logger.info("Cleared latest result")
+        logger.info("Cleared latest result")
     }
 
     /// Clears all App Group data (queue, legacy entries, single-result key).

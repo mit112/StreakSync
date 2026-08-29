@@ -79,7 +79,7 @@ final class MockSocialService: SocialService {
             }
         }
         try save(existing, forKey: scoresKey)
- logger.info("Stored \(scores.count) scores locally (total: \(existing.count))")
+        logger.info("Stored \(scores.count) scores locally (total: \(existing.count))")
     }
 
     func deleteDailyScore(dateUTC: Date, gameId: UUID) async throws {
@@ -87,7 +87,7 @@ final class MockSocialService: SocialService {
         let dateInt = dateUTC.utcYYYYMMDD
         let remaining = existing.filter { !($0.dateInt == dateInt && $0.gameId == gameId) }
         try save(remaining, forKey: scoresKey)
- logger.info("Retracted \(existing.count - remaining.count) local score(s)")
+        logger.info("Retracted \(existing.count - remaining.count) local score(s)")
     }
     
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {

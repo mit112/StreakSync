@@ -40,7 +40,7 @@ final class AppGroupDarwinNotificationHandler {
         )
         
         isObserving = true
- logger.info("Started observing Darwin notifications")
+        logger.info("Started observing Darwin notifications")
     }
     
     func stopObserving() {
@@ -53,12 +53,12 @@ final class AppGroupDarwinNotificationHandler {
         
         isObserving = false
         onNotificationReceived = nil
- logger.info("Stopped observing Darwin notifications")
+        logger.info("Stopped observing Darwin notifications")
     }
     
     // MARK: - Private Methods
     private func handleDarwinNotification() async {
- logger.info("Received Darwin notification for new result")
+        logger.info("Received Darwin notification for new result")
         await onNotificationReceived?()
     }
     

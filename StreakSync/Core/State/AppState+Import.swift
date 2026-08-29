@@ -15,7 +15,7 @@ extension AppState {
     /// Rebuild streaks from imported game results
     @MainActor
     func rebuildStreaksFromResults() async {
- logger.info("Rebuilding streaks from results")
+        logger.info("Rebuilding streaks from results")
         
         // Group results by game
         let resultsByGame = Dictionary(grouping: recentResults) { $0.gameId }
@@ -104,7 +104,7 @@ extension AppState {
         // Ensure all games have streak entries (including games with zero results)
         self.streaks = ensureStreaksForAllGames(newStreaks)
         
- logger.info("Rebuilt \(newStreaks.count) streaks")
+        logger.info("Rebuilt \(newStreaks.count) streaks")
     }
     
     /// Fix existing Connections results with updated completion logic
@@ -117,10 +117,10 @@ extension AppState {
         // Find all Connections results
         let connectionsResults = recentResults.filter { $0.gameName.lowercased() == "connections" }
         
- logger.info("Fixing existing Connections results with updated completion logic")
+        logger.info("Fixing existing Connections results with updated completion logic")
         
         guard !connectionsResults.isEmpty else {
- logger.info("ℹ No Connections results found to fix")
+            logger.info("ℹ No Connections results found to fix")
             defaults.set(true, forKey: "connectionsFixV2Complete")
             return
         }
@@ -130,7 +130,7 @@ extension AppState {
         
         for (index, result) in recentResults.enumerated() {
             if result.gameName.lowercased() == "connections" {
- logger.info("Checking Connections result: \(result.displayScore), completed: \(result.completed)")
+                logger.info("Checking Connections result: \(result.displayScore), completed: \(result.completed)")
                 
                 // Reparse the Connections result with updated logic
                 if let game = games.first(where: { $0.name.lowercased() == "connections" }) {
@@ -174,9 +174,9 @@ extension AppState {
             invalidateCache()
             NotificationCenter.default.post(name: .appGameDataUpdated, object: nil)
             
- logger.info("Fixed existing Connections results and rebuilt streaks")
+            logger.info("Fixed existing Connections results and rebuilt streaks")
         } else {
- logger.debug("ℹ No Connections results needed fixing")
+            logger.debug("ℹ No Connections results needed fixing")
         }
         
         // Mark migration as permanently complete
@@ -189,7 +189,7 @@ extension AppState {
         await saveGameResults()
         await saveStreaks()
         await saveTieredAchievements()
- logger.info("All data saved successfully")
+        logger.info("All data saved successfully")
     }
 
     // MARK: - App Store Review Mode
@@ -201,7 +201,7 @@ extension AppState {
         socialService = ReviewModeSocialService()
         reviewModeEnabled = true
         await applyReviewSeedData()
- logger.info("Review mode activated")
+        logger.info("Review mode activated")
     }
 
     @MainActor
@@ -262,6 +262,6 @@ extension AppState {
         await rebuildStreaksFromResults()
         await normalizeStreaksForMissedDays()
         await checkAllAchievements()
- logger.info("Review seed data applied: \(results.count) results")
+        logger.info("Review seed data applied: \(results.count) results")
     }
 }

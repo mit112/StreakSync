@@ -141,7 +141,7 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - Cleanup
     func cleanup() {
         removeObservers()
- logger.info("NotificationCoordinator cleaned up")
+        logger.info("NotificationCoordinator cleaned up")
     }
     
     // MARK: - Notification Handlers
@@ -158,7 +158,7 @@ final class NotificationCoordinator: ObservableObject {
         //   4. If app is active + result was added + not quiet: fire streak haptic.
         //   5. If app is backgrounded + result was added: schedule local notification
         //      via NotificationScheduler.scheduleResultImportedNotification.
- logger.info("Handling game result: \(result.gameName) - \(result.displayScore)")
+        logger.info("Handling game result: \(result.gameName) - \(result.displayScore)")
 
         Task { @MainActor [weak self] in
             guard let self = self else { return }
@@ -199,7 +199,7 @@ final class NotificationCoordinator: ObservableObject {
                 HapticManager.shared.trigger(.streakUpdate)
             } else {
                 let reason = !isActive ? "app not active" : !added ? "duplicate/invalid result" : "quiet batch"
- self.logger.debug("Haptics suppressed: \(reason)")
+                self.logger.debug("Haptics suppressed: \(reason)")
 
                 // Notify the user via local notification when the app is backgrounded
                 // and the result was successfully added (e.g. from Share Extension).
@@ -239,11 +239,11 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - App Lifecycle
     
     private func handleAppDidBecomeActive() async {
- logger.info("App became active (via notification)")
+        logger.info("App became active (via notification)")
         
         // Skip expensive operations if navigating from notification
         if appState?.isNavigatingFromNotification == true {
- logger.info("Skipping share extension check - navigating from notification")
+            logger.info("Skipping share extension check - navigating from notification")
             return
         }
         
@@ -252,12 +252,12 @@ final class NotificationCoordinator: ObservableObject {
     
     private func handleAppWillResignActive() {
         // Downgrade to debug to avoid duplicate lifecycle noise; AppContainer handles monitoring stop.
- logger.debug("App will resign active (NotificationCoordinator)")
+        logger.debug("App will resign active (NotificationCoordinator)")
     }
     
     private func handleShareExtensionResult() async {
         // No-op: AppGroupBridge's Darwin observer triggers the check; avoid duplicate processing here.
- logger.info("Received Share Extension notification (handled by bridge)")
+        logger.info("Received Share Extension notification (handled by bridge)")
     }
     
     // MARK: - UI Updates
@@ -266,12 +266,12 @@ final class NotificationCoordinator: ObservableObject {
         // Debounce to avoid rapid repeated refreshes from batch operations
         let now = Date()
         if let last = lastUIRefreshAt, now.timeIntervalSince(last) < uiRefreshDebounceInterval {
- logger.debug("Skipping UI refresh (debounced)")
+            logger.debug("Skipping UI refresh (debounced)")
             return
         }
         lastUIRefreshAt = now
         
- logger.info("Triggering UI refresh")
+        logger.info("Triggering UI refresh")
         refreshID = UUID()
         
         // Post dedicated UI refresh notification (not .gameResultReceived, which
@@ -285,7 +285,7 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - Public Methods
     
     func handleURLScheme(_ url: URL) -> Bool {
- logger.info("NotificationCoordinator handling URL: \(url.absoluteString)")
+        logger.info("NotificationCoordinator handling URL: \(url.absoluteString)")
         return appGroupBridge?.handleURLScheme(url) ?? false
     }
 }

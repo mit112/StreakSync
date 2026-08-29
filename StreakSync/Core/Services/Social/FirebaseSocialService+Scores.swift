@@ -20,7 +20,7 @@ extension FirebaseSocialService {
             let friends = try await listFriends()
             return [uid] + friends.map(\.id)
         } catch {
- logger.warning("Failed to fetch friends for allowedReaders, using self only")
+            logger.warning("Failed to fetch friends for allowedReaders, using self only")
             return [uid]
         }
     }
@@ -77,14 +77,14 @@ extension FirebaseSocialService {
             try await batch.commit()
             pendingScores.removeAll()
             pendingScoreStore.save(pendingScores)
- logger.info("Published \(filtered.count) scores to Firebase")
+            logger.info("Published \(filtered.count) scores to Firebase")
         } catch {
             let socialError = FirebaseSocialError.from(error)
             // Always queue for retry — even "non-retryable" errors like permissionDenied
             // can be transient (e.g., App Check enforcement misconfiguration).
             pendingScores.append(contentsOf: filtered)
             pendingScoreStore.save(pendingScores)
- logger.warning("Queued \(filtered.count) scores for retry (error: \(error.localizedDescription))")
+            logger.warning("Queued \(filtered.count) scores for retry (error: \(error.localizedDescription))")
             throw socialError
         }
     }
@@ -101,7 +101,7 @@ extension FirebaseSocialService {
 
         do {
             try await db.collection("scores").document(docId).delete()
- logger.info("Retracted published score for \(gameId.uuidString) on \(dateInt)")
+            logger.info("Retracted published score for \(gameId.uuidString) on \(dateInt)")
         } catch {
             throw FirebaseSocialError.from(error)
         }
@@ -110,7 +110,7 @@ extension FirebaseSocialService {
     func flushPendingScoresIfNeeded() async {
         guard !pendingScores.isEmpty else { return }
         guard let currentUID = uid else {
- logger.debug("Skipping pending score flush — not authenticated")
+            logger.debug("Skipping pending score flush — not authenticated")
             return
         }
         // Snapshot scores to flush but do NOT clear from Keychain yet —
@@ -133,12 +133,12 @@ extension FirebaseSocialService {
             // Clear from Keychain only AFTER successful commit
             pendingScores.removeAll()
             pendingScoreStore.save(pendingScores)
- logger.info("Flushed \(toFlush.count) pending scores")
+            logger.info("Flushed \(toFlush.count) pending scores")
         } catch {
             // Re-queue on failure (scores are still in pendingScores, just re-save)
             pendingScores.append(contentsOf: toFlush)
             pendingScoreStore.save(pendingScores)
- logger.warning("Re-queued \(toFlush.count) scores after flush failure: \(error.localizedDescription)")
+            logger.warning("Re-queued \(toFlush.count) scores after flush failure: \(error.localizedDescription)")
         }
     }
 
@@ -192,9 +192,9 @@ extension FirebaseSocialService {
         }
         do {
             try await batch.commit()
- logger.info("Reconciled \(filtered.count) scores from last 7 days")
+            logger.info("Reconciled \(filtered.count) scores from last 7 days")
         } catch {
- logger.warning("Score reconciliation failed: \(error.localizedDescription)")
+            logger.warning("Score reconciliation failed: \(error.localizedDescription)")
         }
     }
 
@@ -233,9 +233,9 @@ extension FirebaseSocialService {
                 try await batch.commit()
             }
 
- logger.info("Reconciled allowedReaders on \(snapshot.documents.count) scores after friendship change")
+            logger.info("Reconciled allowedReaders on \(snapshot.documents.count) scores after friendship change")
         } catch {
- logger.warning("Failed to reconcile allowedReaders: \(error.localizedDescription)")
+            logger.warning("Failed to reconcile allowedReaders: \(error.localizedDescription)")
         }
     }
 }

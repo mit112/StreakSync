@@ -208,7 +208,7 @@ extension FirebaseSocialService {
     func removeFriend(friendshipId: String) async throws {
         let docRef = db.collection("friendships").document(friendshipId)
         try await docRef.delete()
- logger.info("Removed friendship \(friendshipId)")
+        logger.info("Removed friendship \(friendshipId)")
         invalidateFriendsCache()
 
         // Update allowedReaders to revoke ex-friend's access to past scores
@@ -226,11 +226,11 @@ extension FirebaseSocialService {
         // a friendship doc can hit the Watch/offline-persistence false-denial bug class.
         let snapshot = try await friendshipDoc.getDocument(source: .server)
         guard snapshot.exists else {
- logger.warning("No friendship found between \(currentUID) and \(targetId)")
+            logger.warning("No friendship found between \(currentUID) and \(targetId)")
             return
         }
         try await friendshipDoc.delete()
- logger.info("Removed friendship with user \(targetId)")
+        logger.info("Removed friendship with user \(targetId)")
         invalidateFriendsCache()
 
         // Update allowedReaders to revoke ex-friend's access to past scores
@@ -276,7 +276,7 @@ extension FirebaseSocialService {
             "displayName": displayName
         ], forDocument: db.collection("friendCodes").document(code))
         try await batch.commit()
- logger.info("Generated friend code: \(code)")
+        logger.info("Generated friend code: \(code)")
         return code
     }
 

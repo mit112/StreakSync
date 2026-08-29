@@ -39,10 +39,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 settings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: 100 * 1024 * 1024))
                 Firestore.firestore().settings = settings
 
- logger.info("Firebase configured in AppDelegate")
+                logger.info("Firebase configured in AppDelegate")
             } else {
                 // Local-only mode: the app still launches and every offline feature works.
- logger.error("GoogleService-Info.plist missing or unreadable — running without Firebase")
+                logger.error("GoogleService-Info.plist missing or unreadable — running without Firebase")
             }
         }
 

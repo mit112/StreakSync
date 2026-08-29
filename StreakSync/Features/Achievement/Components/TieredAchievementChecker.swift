@@ -235,7 +235,7 @@ struct TieredAchievementChecker {
                     tier: newTier,
                     timestamp: Date()
                 ))
-logger.info("Unlocked Streak Master \(newTier.displayName) - \(bestStreak) days")
+                logger.info("Unlocked Streak Master \(newTier.displayName) - \(bestStreak) days")
             }
         }
 
@@ -261,7 +261,7 @@ logger.info("Unlocked Streak Master \(newTier.displayName) - \(bestStreak) days"
                     tier: newTier,
                     timestamp: Date()
                 ))
-logger.info("Unlocked Game Collector \(newTier.displayName) - \(snapshot.totalGamesPlayed) games")
+                logger.info("Unlocked Game Collector \(newTier.displayName) - \(snapshot.totalGamesPlayed) games")
             }
         }
 
@@ -287,7 +287,7 @@ logger.info("Unlocked Game Collector \(newTier.displayName) - \(snapshot.totalGa
                     tier: newTier,
                     timestamp: Date()
                 ))
-logger.info("Unlocked Perfectionist \(newTier.displayName) - \(snapshot.successCount) perfect games")
+                logger.info("Unlocked Perfectionist \(newTier.displayName) - \(snapshot.successCount) perfect games")
             }
         }
 
@@ -313,7 +313,7 @@ logger.info("Unlocked Perfectionist \(newTier.displayName) - \(snapshot.successC
                     tier: newTier,
                     timestamp: Date()
                 ))
-logger.info("Unlocked Daily Devotee \(newTier.displayName) - \(snapshot.consecutiveDaysPlayed) consecutive days")
+                logger.info("Unlocked Daily Devotee \(newTier.displayName) - \(snapshot.consecutiveDaysPlayed) consecutive days")
             }
         }
 
@@ -366,7 +366,7 @@ logger.info("Unlocked Variety Player \(newTier.displayName) - \(snapshot.uniqueG
                     tier: newTier,
                     timestamp: Date()
                 ))
-logger.info("Unlocked Speed Demon \(newTier.displayName) - minimal-attempt wins: \(snapshot.minimalAttemptWins)")
+                logger.info("Unlocked Speed Demon \(newTier.displayName) - minimal-attempt wins: \(snapshot.minimalAttemptWins)")
             }
         }
 
@@ -392,7 +392,7 @@ logger.info("Unlocked Speed Demon \(newTier.displayName) - minimal-attempt wins:
                     tier: newTier,
                     timestamp: Date()
                 ))
-logger.info("Unlocked Marathon Runner \(newTier.displayName) - \(snapshot.uniqueDayCount) active days")
+                logger.info("Unlocked Marathon Runner \(newTier.displayName) - \(snapshot.uniqueDayCount) active days")
             }
         }
 
@@ -418,7 +418,7 @@ logger.info("Unlocked Marathon Runner \(newTier.displayName) - \(snapshot.unique
                     tier: newTier,
                     timestamp: Date()
                 ))
-logger.info("Unlocked Personal Best \(newTier.displayName) - \(snapshot.personalBestCount) personal bests")
+                logger.info("Unlocked Personal Best \(newTier.displayName) - \(snapshot.personalBestCount) personal bests")
             }
         }
 
@@ -444,7 +444,7 @@ logger.info("Unlocked Personal Best \(newTier.displayName) - \(snapshot.personal
                     tier: newTier,
                     timestamp: Date()
                 ))
-logger.info("Unlocked Social Player \(newTier.displayName) - \(snapshot.friendCount) friends")
+                logger.info("Unlocked Social Player \(newTier.displayName) - \(snapshot.friendCount) friends")
             }
         }
 
@@ -476,7 +476,7 @@ logger.info("Unlocked Social Player \(newTier.displayName) - \(snapshot.friendCo
                     tier: newTier,
                     timestamp: Date()
                 ))
-logger.info("Unlocked Completionist \(newTier.displayName) - \(goldOrAboveCount) categories at Gold+")
+                logger.info("Unlocked Completionist \(newTier.displayName) - \(goldOrAboveCount) categories at Gold+")
             }
         }
 

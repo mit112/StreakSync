@@ -78,7 +78,7 @@ final class FirebaseAuthStateManager: ObservableObject {
 
     func ensureAuthenticated() async {
         guard currentUser == nil else {
- logger.debug("User already authenticated: \(self.currentUser?.uid ?? "unknown", privacy: .private)")
+            logger.debug("User already authenticated: \(self.currentUser?.uid ?? "unknown", privacy: .private)")
             return
         }
         await signInAnonymously()
@@ -91,10 +91,10 @@ final class FirebaseAuthStateManager: ObservableObject {
         do {
             let result = try await auth.signInAnonymously()
             authProvider = .anonymous
- logger.info("Anonymous auth: uid=\(result.user.uid, privacy: .private)")
+            logger.info("Anonymous auth: uid=\(result.user.uid, privacy: .private)")
         } catch {
             authError = FirebaseAuthError.from(error)
- logger.error("Anonymous auth failed: \(error.localizedDescription)")
+            logger.error("Anonymous auth failed: \(error.localizedDescription)")
         }
         isAuthenticating = false
     }
@@ -138,7 +138,7 @@ final class FirebaseAuthStateManager: ObservableObject {
                 // Link anonymous account → Apple to preserve UID + data
                 let user = existingUser
                 let result = try await user.link(with: credential)
- logger.info("Linked anonymous account to Apple: uid=\(result.user.uid, privacy: .private)")
+                logger.info("Linked anonymous account to Apple: uid=\(result.user.uid, privacy: .private)")
                 // Update display name from Apple if provided
                 await updateDisplayNameFromApple(appleCredential.fullName, user: result.user)
                 // The auth state listener does not fire on a same-UID link, so publish
@@ -147,21 +147,21 @@ final class FirebaseAuthStateManager: ObservableObject {
             } else {
                 // Fresh sign-in (or re-auth)
                 let result = try await auth.signIn(with: credential)
- logger.info("Apple Sign-In: uid=\(result.user.uid, privacy: .private)")
+                logger.info("Apple Sign-In: uid=\(result.user.uid, privacy: .private)")
                 await updateDisplayNameFromApple(appleCredential.fullName, user: result.user)
             }
             currentNonce = nil
         } catch let error as NSError where error.code == AuthErrorCode.credentialAlreadyInUse.rawValue {
             // The Apple credential is already linked to a different Firebase account.
             // Sign in with that account instead (user previously signed in on another device).
- logger.warning("Apple credential already in use — signing in to existing account")
+            logger.warning("Apple credential already in use — signing in to existing account")
             if let updatedCredential = error.userInfo[AuthErrorUserInfoUpdatedCredentialKey] as? AuthCredential {
                 let result = try await auth.signIn(with: updatedCredential)
- logger.info("Signed in to existing Apple account: uid=\(result.user.uid, privacy: .private)")
+                logger.info("Signed in to existing Apple account: uid=\(result.user.uid, privacy: .private)")
             } else {
                 // Fallback: try signing in directly
                 let result = try await auth.signIn(with: credential)
- logger.info("Fallback Apple sign-in: uid=\(result.user.uid, privacy: .private)")
+                logger.info("Fallback Apple sign-in: uid=\(result.user.uid, privacy: .private)")
             }
             currentNonce = nil
         } catch {
@@ -223,7 +223,7 @@ final class FirebaseAuthStateManager: ObservableObject {
                 // Link anonymous account → Google to preserve UID + data
                 let user = existingUser
                 let linkResult = try await user.link(with: credential)
- logger.info("Linked anonymous account to Google: uid=\(linkResult.user.uid, privacy: .private)")
+                logger.info("Linked anonymous account to Google: uid=\(linkResult.user.uid, privacy: .private)")
                 await updateDisplayNameFromGoogle(result.user, firebaseUser: linkResult.user)
                 // The auth state listener does not fire on a same-UID link, so publish
                 // the upgraded user by hand or the UI keeps showing the anonymous state.
@@ -231,18 +231,18 @@ final class FirebaseAuthStateManager: ObservableObject {
             } else {
                 // Fresh sign-in
                 let authResult = try await auth.signIn(with: credential)
- logger.info("Google Sign-In: uid=\(authResult.user.uid, privacy: .private)")
+                logger.info("Google Sign-In: uid=\(authResult.user.uid, privacy: .private)")
                 await updateDisplayNameFromGoogle(result.user, firebaseUser: authResult.user)
             }
         } catch let error as GIDSignInError where error.code == .canceled {
             // User cancelled — not an error
- logger.debug("Google Sign-In cancelled by user")
+            logger.debug("Google Sign-In cancelled by user")
         } catch let error as NSError where error.code == AuthErrorCode.credentialAlreadyInUse.rawValue {
             // Google credential already linked to another Firebase account
- logger.warning("Google credential already in use — signing in to existing account")
+            logger.warning("Google credential already in use — signing in to existing account")
             if let updatedCredential = error.userInfo[AuthErrorUserInfoUpdatedCredentialKey] as? AuthCredential {
                 let authResult = try await auth.signIn(with: updatedCredential)
- logger.info("Signed in to existing Google account: uid=\(authResult.user.uid, privacy: .private)")
+                logger.info("Signed in to existing Google account: uid=\(authResult.user.uid, privacy: .private)")
             } else {
                 authError = FirebaseAuthError.accountExistsWithDifferentCredential
                 throw FirebaseAuthError.accountExistsWithDifferentCredential
@@ -266,9 +266,9 @@ final class FirebaseAuthStateManager: ObservableObject {
         let request = changeRequest
         do {
             try await request.commitChanges()
- logger.info("Updated Firebase display name from Google: \(name)")
+            logger.info("Updated Firebase display name from Google: \(name)")
         } catch {
- logger.warning("Failed to set display name from Google: \(error.localizedDescription)")
+            logger.warning("Failed to set display name from Google: \(error.localizedDescription)")
         }
     }
 
@@ -279,9 +279,9 @@ final class FirebaseAuthStateManager: ObservableObject {
             try auth.signOut()
             GIDSignIn.sharedInstance.signOut()
             authProvider = .anonymous
- logger.info("Signed out")
+            logger.info("Signed out")
         } catch {
- logger.error("Sign out failed: \(error.localizedDescription)")
+            logger.error("Sign out failed: \(error.localizedDescription)")
         }
     }
 
@@ -342,7 +342,7 @@ final class FirebaseAuthStateManager: ObservableObject {
         currentNonce = nil
         do {
             try await user.reauthenticate(with: credential)
- logger.info("Reauthenticated with Apple for account deletion")
+            logger.info("Reauthenticated with Apple for account deletion")
         } catch {
             throw FirebaseAuthError.from(error)
         }
@@ -375,7 +375,7 @@ final class FirebaseAuthStateManager: ObservableObject {
         )
         do {
             try await user.reauthenticate(with: credential)
- logger.info("Reauthenticated with Google for account deletion")
+            logger.info("Reauthenticated with Google for account deletion")
         } catch {
             throw FirebaseAuthError.from(error)
         }
@@ -405,11 +405,11 @@ final class FirebaseAuthStateManager: ObservableObject {
         currentNonce = nil
         do {
             let result = try await user.link(with: credential)
- logger.info("Linked Apple to existing account: uid=\(result.user.uid, privacy: .private)")
+            logger.info("Linked Apple to existing account: uid=\(result.user.uid, privacy: .private)")
             await updateDisplayNameFromApple(appleCredential.fullName, user: result.user)
             publishLinkedUser(result.user)
         } catch let error as NSError where error.code == AuthErrorCode.credentialAlreadyInUse.rawValue {
- logger.warning("Apple already linked to a different account — cannot connect")
+            logger.warning("Apple already linked to a different account — cannot connect")
             throw FirebaseAuthError.accountExistsWithDifferentCredential
         } catch {
             throw FirebaseAuthError.from(error)
@@ -443,13 +443,13 @@ final class FirebaseAuthStateManager: ObservableObject {
                 accessToken: result.user.accessToken.tokenString
             )
             let linkResult = try await user.link(with: credential)
- logger.info("Linked Google to existing account: uid=\(linkResult.user.uid, privacy: .private)")
+            logger.info("Linked Google to existing account: uid=\(linkResult.user.uid, privacy: .private)")
             await updateDisplayNameFromGoogle(result.user, firebaseUser: linkResult.user)
             publishLinkedUser(linkResult.user)
         } catch let error as GIDSignInError where error.code == .canceled {
- logger.debug("Google link cancelled by user")
+            logger.debug("Google link cancelled by user")
         } catch let error as NSError where error.code == AuthErrorCode.credentialAlreadyInUse.rawValue {
- logger.warning("Google already linked to a different account — cannot connect")
+            logger.warning("Google already linked to a different account — cannot connect")
             throw FirebaseAuthError.accountExistsWithDifferentCredential
         } catch {
             throw FirebaseAuthError.from(error)
@@ -491,9 +491,9 @@ final class FirebaseAuthStateManager: ObservableObject {
         let request = changeRequest
         do {
             try await request.commitChanges()
- logger.info("Updated Firebase display name: \(name)")
+            logger.info("Updated Firebase display name: \(name)")
         } catch {
- logger.warning("Failed to set display name: \(error.localizedDescription)")
+            logger.warning("Failed to set display name: \(error.localizedDescription)")
         }
     }
 

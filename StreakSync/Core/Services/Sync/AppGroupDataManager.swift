@@ -89,7 +89,7 @@ final class AppGroupDataManager {
         do {
             return try decoder.decode(GameResult.self, from: data)
         } catch {
- logger.error("Failed to decode game result: \(error)")
+            logger.error("Failed to decode game result: \(error)")
             // Provide the required string argument describing what data was corrupted
             throw AppError.persistence(.dataCorrupted(dataType: "GameResult"))
         }
@@ -104,13 +104,13 @@ final class AppGroupDataManager {
         userDefaults.set(data, forKey: key)
         userDefaults.synchronize()
         
- logger.debug("Saved game result to key: \(key)")
+        logger.debug("Saved game result to key: \(key)")
     }
     
     func removeData(forKey key: String) {
         userDefaults?.removeObject(forKey: key)
         userDefaults?.synchronize()
- logger.debug("Removed data for key: \(key)")
+        logger.debug("Removed data for key: \(key)")
     }
     
     /// Loads queued results and returns both results and the keys that were loaded.
@@ -197,11 +197,11 @@ final class AppGroupDataManager {
         do {
             let results = try decoder.decode([GameResult].self, from: data)
             if !results.isEmpty {
- logger.info("Loaded \(results.count) legacy queued results (array)")
+                logger.info("Loaded \(results.count) legacy queued results (array)")
             }
             return results
         } catch {
- logger.error("Failed to decode legacy queued results array: \(error)")
+            logger.error("Failed to decode legacy queued results array: \(error)")
             return nil
         }
     }
@@ -211,7 +211,7 @@ final class AppGroupDataManager {
         guard let userDefaults = userDefaults else { return }
         userDefaults.removeObject(forKey: AppConstants.AppGroup.queuedResultsKey)
         userDefaults.synchronize()
- logger.info("Cleared legacy queued results array")
+        logger.info("Cleared legacy queued results array")
     }
     
     func clearAll() {

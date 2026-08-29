@@ -61,7 +61,7 @@ final class AppContainer: ObservableObject {
         // Note: Firebase is configured in AppDelegate.didFinishLaunchingWithOptions
         // which runs before SwiftUI creates this @StateObject.
         
- logger.info("Initializing AppContainer (preview: \(isPreview), test: \(isTest))")
+        logger.info("Initializing AppContainer (preview: \(isPreview), test: \(isTest))")
         
         // Initialize services in dependency order
         
@@ -136,7 +136,7 @@ final class AppContainer: ObservableObject {
             await self.achievementSyncService.syncIfEnabled()
         }
         
- logger.info("AppContainer initialized successfully")
+        logger.info("AppContainer initialized successfully")
     }
     
     // MARK: - Dependency Wiring
@@ -319,12 +319,12 @@ final class AppContainer: ObservableObject {
     ///   6. Flush pending social scores if FirebaseSocialService is wired.
     ///   7. Stop AppGroupBridge monitoring after 5 seconds.
     func handleAppBecameActive() async {
- logger.info("App became active")
+        logger.info("App became active")
 
         // In Guest Mode we avoid refreshing host data from persistence or
         // triggering cloud sync; guest sessions are local-only.
         if appState.isGuestMode {
- logger.info("Guest Mode active – skipping host data refresh on app activation")
+            logger.info("Guest Mode active – skipping host data refresh on app activation")
             return
         }
 
@@ -336,7 +336,7 @@ final class AppContainer: ObservableObject {
 
         // Use lightweight refresh if we're navigating from notification
         if appState.isNavigatingFromNotification {
- logger.info("Using lightweight data refresh - navigating from notification")
+            logger.info("Using lightweight data refresh - navigating from notification")
             await appState.refreshDataForNotification()
 
             // Reset the flag after a short delay
@@ -377,19 +377,19 @@ final class AppContainer: ObservableObject {
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(5))
             appGroupBridge.stopMonitoringForResults()
- logger.info("Stopped monitoring after 5 seconds")
+            logger.info("Stopped monitoring after 5 seconds")
         }
     }
     
     /// Call when app will resign active
     func handleAppWillResignActive() {
- logger.info("App will resign active")
+        logger.info("App will resign active")
         appGroupBridge.stopMonitoringForResults()
     }
     
     /// Handle URL scheme
     func handleURLScheme(_ url: URL) -> Bool {
- logger.info("Handling URL: \(url.absoluteString)")
+        logger.info("Handling URL: \(url.absoluteString)")
         return appGroupBridge.handleURLScheme(url)
     }
     

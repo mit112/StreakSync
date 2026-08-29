@@ -109,7 +109,7 @@ final class AppState {
         setupInitialData()
         setupDayChangeListener()
 
- logger.info("AppState initialized with persistence support")
+        logger.info("AppState initialized with persistence support")
     }
 
     // MARK: - Initial Setup
@@ -117,7 +117,7 @@ final class AppState {
     private func setupInitialData() {
         self.games = Game.allAvailableGames
         self.streaks = games.map { GameStreak.empty(for: $0) }
- logger.debug("Initial data setup complete")
+        logger.debug("Initial data setup complete")
     }
 
     private func setupDayChangeListener() {
@@ -130,7 +130,7 @@ final class AppState {
                 self?.handleDayChange()
             }
         }
- logger.debug("Day change listener setup complete")
+        logger.debug("Day change listener setup complete")
     }
 
     deinit {
@@ -145,10 +145,10 @@ final class AppState {
         // checkAndScheduleStreakReminders rewrites the OS daily reminder with guest
         // at-risk games. Skip entirely until the host session resumes.
         guard !isGuestMode else {
- logger.info("Day changed during Guest Mode - skipping refresh")
+            logger.info("Day changed during Guest Mode - skipping refresh")
             return
         }
- logger.info("Day changed - refreshing UI data")
+        logger.info("Day changed - refreshing UI data")
         invalidateCache()
 
         Task {
@@ -156,25 +156,25 @@ final class AppState {
             await normalizeStreaksForMissedDays()
             await checkAllAchievements()
             await checkAndScheduleStreakReminders()
- logger.info("UI refreshed for new day")
+            logger.info("UI refreshed for new day")
         }
     }
 
     // MARK: - Game Refresh (for new games)
 
     func refreshGames() {
- logger.info("Refreshing games from catalog...")
+        logger.info("Refreshing games from catalog...")
         let newGames = Game.allAvailableGames
 
         for newGame in newGames {
             if !self.games.contains(where: { $0.id == newGame.id }) {
                 self.games.append(newGame)
                 self.streaks.append(GameStreak.empty(for: newGame))
- logger.info("Added new game: \(newGame.displayName)")
+                logger.info("Added new game: \(newGame.displayName)")
             }
         }
 
- logger.info("Games refresh complete. Total games: \(self.games.count)")
+        logger.info("Games refresh complete. Total games: \(self.games.count)")
     }
 
     // MARK: - Convenience Accessors
@@ -243,7 +243,7 @@ final class AppState {
 
         Task { @MainActor in
             await reconcileAfterResultSetChanged()
- logger.info("Removed game result and recomputed dependent state")
+            logger.info("Removed game result and recomputed dependent state")
         }
     }
 
@@ -286,10 +286,10 @@ logger.info("Completed checking all achievements")
         guard game.name.lowercased() == "pips" else { return [] }
 
         let pipsResults = recentResults.filter { $0.gameId == game.id }
- logger.debug("getGroupedResults: Found \(pipsResults.count) Pips results")
+        logger.debug("getGroupedResults: Found \(pipsResults.count) Pips results")
 
         let groupedByPuzzle = Dictionary(grouping: pipsResults) { $0.parsedData["puzzleNumber"] ?? "unknown" }
- logger.debug("getGroupedResults: Grouped into \(groupedByPuzzle.count) puzzles")
+        logger.debug("getGroupedResults: Grouped into \(groupedByPuzzle.count) puzzles")
 
         var groupedResults: [GroupedGameResult] = []
 
@@ -298,9 +298,9 @@ logger.info("Completed checking all achievements")
 
             let sortedResults = results.sorted { $0.date > $1.date }
 
- logger.debug("Puzzle #\(puzzleNumber): \(sortedResults.count) results")
+            logger.debug("Puzzle #\(puzzleNumber): \(sortedResults.count) results")
             for result in sortedResults {
- logger.debug("- \(result.parsedData["difficulty"] ?? "?") - \(result.parsedData["time"] ?? "?")")
+                logger.debug("- \(result.parsedData["difficulty"] ?? "?") - \(result.parsedData["time"] ?? "?")")
             }
 
             groupedResults.append(GroupedGameResult(
@@ -313,7 +313,7 @@ logger.info("Completed checking all achievements")
         }
 
         groupedResults.sort { $0.date > $1.date }
- logger.debug("getGroupedResults: Returning \(groupedResults.count) grouped results")
+        logger.debug("getGroupedResults: Returning \(groupedResults.count) grouped results")
         return groupedResults
     }
 
@@ -328,7 +328,7 @@ logger.info("Completed checking all achievements")
         currentError = error
         errorMessage = error.errorDescription
         isLoading = false
- logger.error("App error: \(error.localizedDescription)")
+        logger.error("App error: \(error.localizedDescription)")
     }
 
     func clearError() {
@@ -361,7 +361,7 @@ logger.info("Completed checking all achievements")
 
     /// Clears visible state for Guest Mode without touching persistence.
     func clearForGuestMode() {
- logger.info("Clearing visible state for Guest Mode")
+        logger.info("Clearing visible state for Guest Mode")
         recentResults = []
         streaks = games.map { GameStreak.empty(for: $0) }
         _tieredAchievements = AchievementFactory.createDefaultAchievements()
@@ -375,7 +375,7 @@ logger.info("Completed checking all achievements")
         streaks: [GameStreak],
         achievements: [TieredAchievement]
     ) {
- logger.info("Restoring host state from Guest Mode snapshot")
+        logger.info("Restoring host state from Guest Mode snapshot")
         recentResults = results
         self.streaks = streaks
         _tieredAchievements = achievements

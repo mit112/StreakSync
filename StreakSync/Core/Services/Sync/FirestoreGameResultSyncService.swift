@@ -229,9 +229,9 @@ final class FirestoreGameResultSyncService {
         Task {
             do {
                 try await uploadResult(result, to: collectionRef)
- logger.info("Uploaded game result \(result.id.uuidString)")
+                logger.info("Uploaded game result \(result.id.uuidString)")
             } catch {
- logger.error("Failed to upload game result: \(error.localizedDescription)")
+                logger.error("Failed to upload game result: \(error.localizedDescription)")
                 // Firestore offline cache will retry automatically when back online
             }
         }
@@ -245,9 +245,9 @@ final class FirestoreGameResultSyncService {
         do {
             try await db.collection("users").document(uid)
                 .collection("gameResults").document(id.uuidString).delete()
- logger.info("Deleted game result \(id.uuidString) from Firestore")
+            logger.info("Deleted game result \(id.uuidString) from Firestore")
         } catch {
- logger.error("Failed to delete game result from Firestore: \(error.localizedDescription)")
+            logger.error("Failed to delete game result from Firestore: \(error.localizedDescription)")
         }
     }
 

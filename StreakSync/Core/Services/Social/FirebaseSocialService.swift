@@ -101,7 +101,7 @@ final class FirebaseSocialService: SocialService {
     func clearPendingScores() async {
         pendingScores.removeAll()
         pendingScoreStore.save(pendingScores)
- logger.info("Cleared pending scores queue")
+        logger.info("Cleared pending scores queue")
     }
 
     /// The current authenticated user ID, safe to read from any isolation context.
@@ -127,7 +127,7 @@ final class FirebaseSocialService: SocialService {
             guard let self = self else { return }
             if user != nil {
                 Task { @MainActor in
- self.logger.info("Auth state changed — user authenticated, flushing pending scores")
+                    self.logger.info("Auth state changed — user authenticated, flushing pending scores")
                     await self.flushPendingScoresIfNeeded()
                 }
             }
@@ -140,7 +140,7 @@ final class FirebaseSocialService: SocialService {
 
     func requireUID() throws -> String {
         guard let uid = uid else {
- logger.warning("Attempted Firebase operation without authentication")
+            logger.warning("Attempted Firebase operation without authentication")
             throw FirebaseSocialError.notAuthenticated
         }
         return uid
@@ -182,7 +182,7 @@ final class FirebaseSocialService: SocialService {
             ], merge: true)
             return UserProfile(id: currentUID, displayName: resolvedName, authProvider: provider, createdAt: now, updatedAt: now)
         } catch {
- logger.error("Failed to ensure profile: \(error.localizedDescription)")
+            logger.error("Failed to ensure profile: \(error.localizedDescription)")
             throw FirebaseSocialError.from(error)
         }
     }
@@ -194,7 +194,7 @@ final class FirebaseSocialService: SocialService {
             let data = doc.data() ?? [:]
             return Self.parseUserProfile(id: currentUID, data: data)
         } catch {
- logger.error("Failed to fetch profile: \(error.localizedDescription)")
+            logger.error("Failed to fetch profile: \(error.localizedDescription)")
             throw FirebaseSocialError.from(error)
         }
     }
@@ -214,7 +214,7 @@ final class FirebaseSocialService: SocialService {
             fields["photoURL"] = photoURL
         }
         try await db.collection("users").document(currentUID).setData(fields, merge: true)
- logger.info("Updated profile (provider: \(authProvider ?? "unchanged"))")
+        logger.info("Updated profile (provider: \(authProvider ?? "unchanged"))")
     }
 
     func lookupUser(byId userId: String) async throws -> UserProfile? {

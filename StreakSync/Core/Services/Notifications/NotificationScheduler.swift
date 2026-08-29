@@ -43,7 +43,7 @@ final class NotificationScheduler {
     
     // MARK: - Setup
     func registerCategories() async {
- logger.info("Registering notification categories")
+        logger.info("Registering notification categories")
         
         var categories: Set<UNNotificationCategory> = []
         
@@ -106,7 +106,7 @@ final class NotificationScheduler {
         categories.insert(resultCategory)
         
         center.setNotificationCategories(categories)
- logger.info("Notification categories registered")
+        logger.info("Notification categories registered")
     }
     
     // MARK: - Shared Content Builder
@@ -153,7 +153,7 @@ final class NotificationScheduler {
     // MARK: - Daily Streak Reminder
     func scheduleDailyStreakReminder(games: [Game], hour: Int, minute: Int) async {
         guard await checkPermissionStatus() == .authorized else {
- logger.warning("Cannot schedule reminder: notifications not authorized")
+            logger.warning("Cannot schedule reminder: notifications not authorized")
             return
         }
         
@@ -180,9 +180,9 @@ final class NotificationScheduler {
         
         do {
             try await center.add(request)
- logger.info("Scheduled daily streak reminder at \(hour):\(String(format: "%02d", minute)) for \(games.count) games")
+            logger.info("Scheduled daily streak reminder at \(hour):\(String(format: "%02d", minute)) for \(games.count) games")
         } catch {
- logger.error("Failed to schedule daily streak reminder: \(error.localizedDescription)")
+            logger.error("Failed to schedule daily streak reminder: \(error.localizedDescription)")
         }
     }
     
@@ -234,7 +234,7 @@ final class NotificationScheduler {
 
     func scheduleOneOffSnoozeReminder(games: [Game], daysFromNow: Int, hour: Int, minute: Int) async {
         guard await checkPermissionStatus() == .authorized else {
- logger.warning("Cannot schedule snooze: notifications not authorized")
+            logger.warning("Cannot schedule snooze: notifications not authorized")
             return
         }
         
@@ -249,7 +249,7 @@ final class NotificationScheduler {
             minute: minute,
             calendar: calendar
         ) else {
- logger.error("Failed to resolve one-off snooze reminder date components")
+            logger.error("Failed to resolve one-off snooze reminder date components")
             return
         }
         
@@ -262,15 +262,15 @@ final class NotificationScheduler {
         
         do {
             try await center.add(request)
- logger.info("Scheduled one-off snooze reminder for +\(daysFromNow)d at \(hour):\(String(format: "%02d", minute)) (\(games.count) games)")
+            logger.info("Scheduled one-off snooze reminder for +\(daysFromNow)d at \(hour):\(String(format: "%02d", minute)) (\(games.count) games)")
         } catch {
- logger.error("Failed to schedule one-off snooze reminder: \(error.localizedDescription)")
+            logger.error("Failed to schedule one-off snooze reminder: \(error.localizedDescription)")
         }
     }
     
     func cancelDailyStreakReminder() async {
         center.removePendingNotificationRequests(withIdentifiers: ["daily_streak_reminder"])
- logger.info("Cancelled daily streak reminder")
+        logger.info("Cancelled daily streak reminder")
     }
     
     func cancelAllStreakReminders() async {
@@ -288,7 +288,7 @@ final class NotificationScheduler {
         
         if !streakReminderIds.isEmpty {
             center.removePendingNotificationRequests(withIdentifiers: streakReminderIds)
- logger.info("Cancelled \(streakReminderIds.count) legacy streak reminders")
+            logger.info("Cancelled \(streakReminderIds.count) legacy streak reminders")
         }
     }
 
@@ -296,7 +296,7 @@ final class NotificationScheduler {
 
     func cancelAllNotifications() async {
         center.removeAllPendingNotificationRequests()
- logger.info("Cancelled all pending notifications")
+        logger.info("Cancelled all pending notifications")
     }
 
     // MARK: - Achievement Notification
@@ -358,7 +358,7 @@ final class NotificationScheduler {
     /// Clean up all existing notifications before applying new settings
     /// This prevents accumulation of old notifications when settings change
     func cleanupAndRescheduleNotifications() async {
- logger.info("Cleaning up streak reminders before rescheduling...")
+        logger.info("Cleaning up streak reminders before rescheduling...")
         
         let pendingRequests = await center.pendingNotificationRequests()
         let idsToRemove = pendingRequests.compactMap { request in
@@ -369,16 +369,16 @@ final class NotificationScheduler {
         
         if !idsToRemove.isEmpty {
             center.removePendingNotificationRequests(withIdentifiers: idsToRemove)
- logger.info("Removed \(idsToRemove.count) streak reminder notifications before rescheduling")
+            logger.info("Removed \(idsToRemove.count) streak reminder notifications before rescheduling")
         } else {
- logger.info("ℹ No streak-related notifications to clean up")
+            logger.info("ℹ No streak-related notifications to clean up")
         }
     }
     
     /// Debug method to log current notification state
     func logCurrentNotificationState() async {
         let pendingRequests = await center.pendingNotificationRequests()
- logger.info("Current notification state: \(pendingRequests.count) pending notifications")
+        logger.info("Current notification state: \(pendingRequests.count) pending notifications")
         
         for request in pendingRequests {
             let triggerDescription: String
@@ -390,7 +390,7 @@ final class NotificationScheduler {
                 triggerDescription = "Unknown trigger type"
             }
             
- logger.info("\(request.identifier): \(request.content.title) - \(triggerDescription)")
+            logger.info("\(request.identifier): \(request.content.title) - \(triggerDescription)")
         }
     }
     
@@ -423,9 +423,9 @@ final class NotificationScheduler {
         
         do {
             try await center.add(request)
- logger.info("Scheduled test daily reminder for \(games.count) games")
+            logger.info("Scheduled test daily reminder for \(games.count) games")
         } catch {
- logger.error("Failed to schedule test reminder: \(error.localizedDescription)")
+            logger.error("Failed to schedule test reminder: \(error.localizedDescription)")
         }
     }
     

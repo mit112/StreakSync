@@ -27,14 +27,14 @@ final class AppGroupResultMonitor {
     func startMonitoring(onNewResult: @escaping () async -> Void) {
         // Event-driven via Darwin notifications and lifecycle; no polling needed
         guard !isMonitoring else { return }
- logger.info("Enabling event-driven monitoring (no polling)")
+        logger.info("Enabling event-driven monitoring (no polling)")
         isMonitoring = true
         monitoringTask?.cancel()
         monitoringTask = nil
     }
     
     func stopMonitoring() {
- logger.debug("Stopping continuous monitoring")
+        logger.debug("Stopping continuous monitoring")
         isMonitoring = false
         monitoringTask?.cancel()
         monitoringTask = nil

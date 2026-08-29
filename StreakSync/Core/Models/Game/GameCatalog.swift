@@ -48,17 +48,17 @@ final class GameCatalog {
     
     // MARK: - Initialization
     init() {
- logger.debug("Starting game catalog initialization")
+        logger.debug("Starting game catalog initialization")
         loadAllGames()
         loadFavorites()
- logger.debug("Game catalog initialization complete. Loaded \(self.allGames.count) games")
+        logger.debug("Game catalog initialization complete. Loaded \(self.allGames.count) games")
         
         // Check for empty icons
         let emptyIconGames = allGames.filter { $0.iconSystemName.isEmpty }
         if !emptyIconGames.isEmpty {
- logger.warning("FOUND GAMES WITH EMPTY ICONS:")
+            logger.warning("FOUND GAMES WITH EMPTY ICONS:")
             for game in emptyIconGames {
- logger.warning("- \(game.displayName) (\(game.name)): icon='\(game.iconSystemName)'")
+                logger.warning("- \(game.displayName) (\(game.name)): icon='\(game.iconSystemName)'")
             }
         }
     }
@@ -66,17 +66,17 @@ final class GameCatalog {
     // MARK: - Game Loading
     private func loadAllGames() {
         self.allGames = Game.allAvailableGames
- logger.info("Loaded \(self.allGames.count) games into catalog")
+        logger.info("Loaded \(self.allGames.count) games into catalog")
     }
     
     // MARK: - Favorites Management
     func toggleFavorite(_ gameId: UUID) {
         if favoriteGameIDs.contains(gameId) {
             favoriteGameIDs.remove(gameId)
- logger.info("Removed game from favorites: \(gameId)")
+            logger.info("Removed game from favorites: \(gameId)")
         } else {
             favoriteGameIDs.insert(gameId)
- logger.info("Added game to favorites: \(gameId)")
+            logger.info("Added game to favorites: \(gameId)")
         }
         saveFavorites()
     }
@@ -93,13 +93,13 @@ final class GameCatalog {
     
     // MARK: - Persistence
     private func loadFavorites() {
- logger.info("Loading favorite games...")
+        logger.info("Loading favorite games...")
         
         if let savedIDs = persistenceService.load([String].self, forKey: favoritesKey) {
             favoriteGameIDs = Set(savedIDs.compactMap { UUID(uuidString: $0) })
- logger.info("Loaded \(self.favoriteGameIDs.count) favorite games")
+            logger.info("Loaded \(self.favoriteGameIDs.count) favorite games")
         } else {
- logger.info("No saved favorites found - starting with empty favorites")
+            logger.info("No saved favorites found - starting with empty favorites")
             // Don't default to any favorites - let user choose
             favoriteGameIDs = Set()
         }
