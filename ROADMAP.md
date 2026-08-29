@@ -3,11 +3,20 @@
 **Compiled 2026-08-29, revised the same day.** Every item below was verified against the code,
 not copied forward from an older document.
 
-This supersedes the "open items" sections of `CODEBASE_AUDIT.md`, `DESIGN_AUDIT.md`,
-`UI_SYSTEM_AUDIT.md`, `REDDIT_LAUNCH_AUDIT.md`, `SECURITY_AUDIT.md`,
-`.superpowers/audit_2026-07-24_findings.md`, the three `*_MODULE_ANALYSIS.md` files, and the
-`docs/shakedown-*.md` set. Those stay useful as findings archives; they are **not** accurate
-status. A large majority of what they list as open has in fact shipped.
+This supersedes the "open items" sections of every earlier audit ledger. Two groups:
+
+- **In the repo**, under `docs/archive/` — `UI_SYSTEM_AUDIT.md`, `REDDIT_LAUNCH_AUDIT.md`,
+  `SECURITY_AUDIT.md`, `UI_AUDIT_RESEARCH_ASKS.md`. Each carries a banner saying so.
+- **Local-only, by design** — `CODEBASE_AUDIT.md`, `DESIGN_AUDIT.md`, the three
+  `*_MODULE_ANALYSIS.md` files, `docs/shakedown-*.md`, and
+  `.superpowers/audit_2026-07-24_findings.md`. `.gitignore` deliberately excludes these as
+  internal development docs and QA artifacts. **If you cloned this repo they do not exist for
+  you, and nothing below depends on them** — they are named only so a reader who does have
+  them locally knows they are superseded too.
+
+All of them stay useful as findings archives; none is accurate status. A large majority of
+what they list as open has in fact shipped — five parallel agents re-derived a backlog from
+them on 2026-08-29 and roughly 70% came back already fixed.
 
 App is live: <https://apps.apple.com/us/app/streaksync-puzzle-tracker/id6755203446>.
 Release path is Xcode Cloud — push to `main` archives and delivers to TestFlight.
@@ -21,7 +30,7 @@ Release path is Xcode Cloud — push to `main` archives and delivers to TestFlig
 | 1 | **Crashlytics** | Needs `FirebaseCrashlytics` added as a package product to the app target in Xcode. That's a `.pbxproj` edit, which the project rules forbid me from hand-editing. | 5 min in Xcode + ~20 lines of init code |
 | 2 | **Product analytics** | `FirebaseAnalytics` is not linked at all. The app target's only package products are `GoogleSignIn`, `FirebaseAuth`, `FirebaseFirestore` and `FirebaseAppCheck`, so this is the same `.pbxproj` edit as Crashlytics — not a code-only change. See §2.3. | 5 min in Xcode, then instrumentation |
 | 3 | **Firebase budget alert** | Google Cloud Console, project `streaksync-55ca0`. No cost guardrail exists. | 5 min |
-| 4 | **App Check enforcement** | Code is fully scaffolded (`Core/Config/AppCheckSetup.swift`, `FirebaseAppCheck` already linked) but the provider factory is commented out at `App/AppDelegate.swift:22`. Needs a debug token registered in Firebase Console first, then uncomment. This is `SECURITY_AUDIT.md`'s only unresolved finding (H5). | 15 min |
+| 4 | **App Check enforcement** | Code is fully scaffolded (`Core/Config/AppCheckSetup.swift`, `FirebaseAppCheck` already linked) but the provider factory is commented out at `App/AppDelegate.swift:22`. Needs a debug token registered in Firebase Console first, then uncomment. This is `docs/archive/SECURITY_AUDIT.md`'s only unresolved finding (H5). | 15 min |
 | 5 | **App Store Connect API key** | Users and Access ▸ Integrations. Would let the release flow run unattended instead of via an app-specific password. | 10 min |
 | 6 | **The in-Xcode SwiftLint phase is a false green** | See below — the fix is a target build-setting change. | 2 min |
 | 7 | **Create the Widget Extension target** | All 22 source files are written and lint/typecheck clean; the target itself is a `.pbxproj` edit. `StreakSyncWidget/README.md` has the setup, the entitlement, and the four files to add to membership. | 10 min in Xcode |
@@ -158,7 +167,9 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
   justification left.
 - **Device notification shakedown never executed.** `docs/notification-runtime-device-shakedown.md`
   is a runbook written in Feb 2026 and never run: permission-state matrix, timezone/DST changes
-  mid-schedule, snooze re-arm. Needs a physical device, no code.
+  mid-schedule, snooze re-arm. Needs a physical device, no code. Note it is **gitignored**
+  (`docs/notification-runtime-*.md`), so it exists only on the machine it was written on — it
+  is an unexecuted runbook rather than an archive, and it gates the pre-merge device test.
 - **Dynamic Type coverage is thin**: 11 of ~164 files reference `@ScaledMetric` /
   `dynamicTypeSize` / `sizeCategory`.
 

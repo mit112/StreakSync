@@ -1,5 +1,12 @@
 # Reddit Launch Audit — StreakSync
 
+> **Findings archive — not status.** This is the pre-Reddit-launch audit as it stood on 2026-08-07.
+> Its open-items sections are superseded by [`ROADMAP.md`](../../ROADMAP.md), which is the
+> only document verified line-by-line against the code. A large majority of what this file
+> lists as open has since shipped — five parallel agents re-derived a backlog from these
+> ledgers on 2026-08-29 and roughly 70% of it came back already fixed. Kept for the findings
+> and the reasoning behind them, not for the state.
+
 **Date:** 2026-08-07
 **Purpose:** Pre-publicity hardening. StreakSync is live on the App Store; before promoting on Reddit / HN / AI-dev subs (where scrutiny of indie + AI-built apps is high), find and fix the issues most likely to surface as public complaints.
 

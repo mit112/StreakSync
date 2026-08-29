@@ -1,5 +1,12 @@
 # StreakSync Firebase Security Audit
 
+> **Findings archive — not status.** This is the Firebase security audit as it stood on 2026-02-26.
+> Its open-items sections are superseded by [`ROADMAP.md`](../../ROADMAP.md), which is the
+> only document verified line-by-line against the code. A large majority of what this file
+> lists as open has since shipped — five parallel agents re-derived a backlog from these
+> ledgers on 2026-08-29 and roughly 70% of it came back already fixed. Kept for the findings
+> and the reasoning behind them, not for the state.
+
 **Date:** February 26, 2026
 **Auditor:** Claude (automated)
 **Project:** streaksync-55ca0

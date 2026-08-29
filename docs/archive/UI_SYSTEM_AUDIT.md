@@ -1,5 +1,12 @@
 # StreakSync UI System Audit — 2026-08-06
 
+> **Findings archive — not status.** This is the UI system audit as it stood on 2026-08-06.
+> Its open-items sections are superseded by [`ROADMAP.md`](../../ROADMAP.md), which is the
+> only document verified line-by-line against the code. A large majority of what this file
+> lists as open has since shipped — five parallel agents re-derived a backlog from these
+> ledgers on 2026-08-29 and roughly 70% of it came back already fixed. Kept for the findings
+> and the reasoning behind them, not for the state.
+
 Full-throttle audit of spacing, symmetry, and type across all 173 Swift files, plus live
 runtime measurement on iPhone 17 Pro (iOS 27) at default and AX5 text sizes.
 
