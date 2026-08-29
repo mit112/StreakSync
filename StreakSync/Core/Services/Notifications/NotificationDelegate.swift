@@ -154,7 +154,10 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
             
         case NotificationCategory.resultImported.identifier:
             await handleOpenGame(gameIdString: gameIdString)
-            
+
+        case NotificationCategory.friendActivity.identifier:
+            await handleOpenFriends()
+
         default:
             logger.info("Unknown notification category: \(categoryIdentifier)")
         }
@@ -178,6 +181,25 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @u
         navigationCoordinator?.navigateToGame(gameId: gameId)
     }
     
+    @MainActor private func handleOpenFriends() async {
+        // Expected flow when a friend-activity nudge is tapped:
+        //   1. Set isNavigatingFromNotification so AppContainer.handleAppBecameActive
+        //      takes the lightweight refreshDataForNotification path (and clears the
+        //      flag a second later) instead of a full refresh.
+        //   2. navigationCoordinator.navigateToFriends() switches to the Friends tab and
+        //      pops it to root, so the leaderboard — not a stale pushed detail — is what
+        //      the user lands on.
+        //   3. FriendsView.task runs viewModel.load(), which refetches friends and
+        //      today's leaderboard and re-arms the Firestore listeners.
+        //   4. That load reassigns viewModel.leaderboard, which re-runs the nudge
+        //      evaluation — the cooldown stamp written at schedule time is what keeps it
+        //      from immediately scheduling another one.
+        // The nudge carries no gameId, so there is deliberately no handleOpenGame here.
+        logger.info("Opening Friends tab from friend activity notification")
+        appState?.isNavigatingFromNotification = true
+        navigationCoordinator?.navigateToFriends()
+    }
+
     @MainActor private func handleSnooze(days: Int) async {
         logger.info("Snoozing reminder for \(days) days")
         

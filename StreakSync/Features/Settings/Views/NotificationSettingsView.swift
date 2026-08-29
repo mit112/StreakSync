@@ -16,6 +16,8 @@ final class NotificationSettingsViewModel: ObservableObject {
     @Published var remindersEnabled = true
     @Published var reminderHour = 19 // 7 PM default
     @Published var reminderMinute = 0
+    /// Opt-out toggle for the friend-activity nudge. Default ON, like remindersEnabled.
+    @Published var friendActivityNudgeEnabled = true
     @Published var showPermissionFlow = false
     @Published var showPermissionDenied = false
     
@@ -31,6 +33,7 @@ final class NotificationSettingsViewModel: ObservableObject {
         remindersEnabled = userDefaults.bool(forKey: AppConstants.NotificationSettings.remindersEnabled)
         reminderHour = userDefaults.object(forKey: AppConstants.NotificationSettings.reminderHour) as? Int ?? 19
         reminderMinute = userDefaults.object(forKey: AppConstants.NotificationSettings.reminderMinute) as? Int ?? 0
+        friendActivityNudgeEnabled = FriendActivityNudgePolicy.isEnabled(defaults: userDefaults)
         
         Task {
             await checkPermissionStatus()
@@ -41,6 +44,16 @@ final class NotificationSettingsViewModel: ObservableObject {
         userDefaults.set(remindersEnabled, forKey: AppConstants.NotificationSettings.remindersEnabled)
         userDefaults.set(reminderHour, forKey: AppConstants.NotificationSettings.reminderHour)
         userDefaults.set(reminderMinute, forKey: AppConstants.NotificationSettings.reminderMinute)
+        userDefaults.set(
+            friendActivityNudgeEnabled,
+            forKey: AppConstants.NotificationSettings.friendActivityNudgeEnabled
+        )
+
+        // Turning the nudge off has to take effect now, not at the next evaluation — a
+        // nudge decided earlier today is already pending and would still fire tonight.
+        if !friendActivityNudgeEnabled {
+            Task { await NotificationScheduler.shared.cancelFriendActivityNudge() }
+        }
         
         // Reschedule reminders with new settings
         Task {
@@ -105,6 +118,7 @@ struct NotificationSettingsView: View {
                     permissionSection
                 } else {
                 settingsSection
+                friendActivitySection
                 }
         }
         .listStyle(.insetGrouped)
@@ -166,6 +180,7 @@ struct NotificationSettingsView: View {
         Section("What you'll get") {
             Label("A gentle daily reminder when a streak is at risk", systemImage: "bell.badge")
             Label("A nudge when you unlock a new achievement tier", systemImage: "trophy")
+            Label("An occasional heads-up when friends have played and you haven't", systemImage: "person.2")
         }
     }
 
@@ -207,6 +222,22 @@ struct NotificationSettingsView: View {
         }
     }
     
+    // MARK: - Friend Activity Section
+    private var friendActivitySection: some View {
+        Section {
+            Toggle("Friend Activity", isOn: $viewModel.friendActivityNudgeEnabled)
+                .font(.headline)
+        } header: {
+            Text("Friends")
+        } footer: {
+            Text("""
+                An occasional evening nudge when at least two friends have played and you \
+                haven't. At most one every few days, never on a day you've already played, \
+                and never on a day that already has a streak reminder.
+                """)
+        }
+    }
+
     // MARK: - Notification Preview Section
     private var notificationPreviewSection: some View {
         VStack(alignment: .leading, spacing: 12) {

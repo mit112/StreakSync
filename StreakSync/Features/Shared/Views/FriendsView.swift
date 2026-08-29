@@ -103,6 +103,35 @@ struct FriendsView: View {
         .onChange(of: viewModel.friends.count) { _, newCount in
             container.appState.cachedFriendCount = newCount
         }
+        .onChange(of: viewModel.leaderboard) { _, rows in
+            // Expected flow when today's friend leaderboard lands (first load, pull to
+            // refresh, or the Firestore score listener firing):
+            //   1. Skip guest and review-mode sessions — their friends aren't this
+            //      device owner's, and review mode must not write real settings state
+            //      (same reason AppState.cachedFriendCount is gated on it).
+            //   2. Skip unless the date pager is parked on today; yesterday's scores are
+            //      not a reason to nudge tonight.
+            //   3. NotificationScheduler.scheduleFriendActivityNudgeIfNeeded reads the
+            //      opt-out toggle, the cooldown stamp and the pending request list, then
+            //      hands all of it to FriendActivityNudgePolicy.decide. No network call.
+            //   4. decide returns nil — schedule nothing — unless 2+ friends played, the
+            //      user has not, no streak reminder is pending, and the cooldown elapsed.
+            //   5. On a decision, one non-repeating request is added for the user's own
+            //      reminder time today and friendActivityLastNudgeAt is stamped, which is
+            //      what stops the next listener callback from scheduling a second one.
+            //   6. A tap lands in NotificationDelegate.handleDefaultAction
+            //      (FRIEND_ACTIVITY) -> NavigationCoordinator.navigateToFriends().
+            guard !container.appState.isGuestMode,
+                  !container.appState.reviewModeEnabled,
+                  Calendar.current.isDateInToday(viewModel.selectedDateUTC) else { return }
+            Task {
+                await NotificationScheduler.shared.scheduleFriendActivityNudgeIfNeeded(
+                    friends: viewModel.friends,
+                    todaysLeaderboard: rows,
+                    userPlayedToday: !container.appState.todaysResults.isEmpty
+                )
+            }
+        }
         .onChange(of: viewModel.selectedDateUTC) { _, _ in
             viewModel.handleSelectedDateChange()
         }

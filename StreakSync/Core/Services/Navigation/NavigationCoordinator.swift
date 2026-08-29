@@ -273,6 +273,14 @@ final class NavigationCoordinator: ObservableObject {
         popToRoot(in: .home)
     }
 
+    /// Navigate to the Friends tab. Used by the friend-activity nudge, which is about the
+    /// leaderboard as a whole rather than any one game, so it pops to root instead of
+    /// dropping the user onto whatever detail was last pushed on that tab.
+    func navigateToFriends() {
+        switchToTab(.friends)
+        popToRoot(in: .friends)
+    }
+
     /// Navigate to achievements with optional highlight
     func navigateToAchievements(highlightId: UUID? = nil) {
         self.highlightedAchievementId = highlightId

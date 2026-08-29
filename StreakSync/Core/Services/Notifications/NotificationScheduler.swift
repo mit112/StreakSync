@@ -14,6 +14,7 @@ enum NotificationCategory: String, CaseIterable {
     case streakReminder = "STREAK_REMINDER"
     case achievementUnlocked = "ACHIEVEMENT_UNLOCKED"
     case resultImported = "RESULT_IMPORTED"
+    case friendActivity = "FRIEND_ACTIVITY"
     
     var identifier: String { rawValue }
 }
@@ -35,8 +36,8 @@ final class NotificationScheduler {
     static let shared = NotificationScheduler()
     
     // MARK: - Properties
-    private let center = UNUserNotificationCenter.current()
-    private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationScheduler")
+    let center = UNUserNotificationCenter.current()
+    let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationScheduler")
 
     // MARK: - Initialization
     private init() {}
@@ -104,6 +105,9 @@ final class NotificationScheduler {
             options: [.customDismissAction]
         )
         categories.insert(resultCategory)
+
+        // Friend Activity Category — defined in NotificationScheduler+Social.swift
+        categories.insert(Self.friendActivityCategory)
         
         center.setNotificationCategories(categories)
         logger.info("Notification categories registered")

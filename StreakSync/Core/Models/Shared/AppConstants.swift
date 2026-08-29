@@ -65,6 +65,12 @@ enum AppConstants {
         static let migrationCompleted = "notificationSystemMigrated_v2"
         /// Date until which the daily streak reminder is suppressed after a snooze.
         static let snoozedUntil = "streakReminderSnoozedUntil"
+        /// Opt-out toggle for the friend-activity nudge. Absent means ON, matching
+        /// `remindersEnabled`; resolve it via `FriendActivityNudgePolicy.isEnabled`
+        /// rather than `bool(forKey:)`, which would read an unset key as `false`.
+        static let friendActivityNudgeEnabled = "friendActivityNudgeEnabled"
+        /// Date the last friend-activity nudge was scheduled. Drives the cooldown.
+        static let friendActivityLastNudgeAt = "friendActivityLastNudgeAt"
     }
 
     // MARK: - Onboarding Keys
