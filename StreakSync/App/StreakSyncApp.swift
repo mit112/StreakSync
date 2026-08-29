@@ -79,6 +79,12 @@ struct StreakSyncApp: App {
             navigationCoordinator: container.navigationCoordinator
         )
 
+        #if DEBUG
+        // Must precede the load: a test asserting "this result arrived" is worthless
+        // if an earlier run's result is still on disk to satisfy it.
+        await UITestSupport.resetStateIfRequested(appState: container.appState)
+        #endif
+
         // 1) Local-first paint: load cached data and normalize before any network.
         await container.appState.loadPersistedData()
         await container.appState.normalizeStreaksForMissedDays()
@@ -87,6 +93,14 @@ struct StreakSyncApp: App {
             isInitialized = true
             logger.info("Local data loaded — UI painted; syncing in background")
         }
+
+        #if DEBUG
+        // Test-only. Runs after the local-first paint so seeded state lands on a
+        // live UI and travels the same pipeline a real share or deep link would.
+        await UITestSupport.applyLaunchSeeds { url in
+            _ = container.handleURLScheme(url)
+        }
+        #endif
 
         // 2) Background sync — runs after paint, applied reactively via @Observable.
         Task {

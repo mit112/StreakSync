@@ -152,9 +152,19 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
 - **The widget extension has no tests of its own** and cannot have any until the target exists.
   `WidgetSnapshotTests` covers the shared payload and the app-side builder; the timeline
   providers and views are untested.
-- **UI tests cover none of the three riskiest journeys**: share-extension import, friend-request
-  accept, notification deep link. All three have caused real regressions before. The 8 existing
-  UI tests are the same ones added in Feb 2026.
+- ~~**UI tests cover none of the three riskiest journeys**~~ — **fixed 2026-08-29.**
+  `StreakSyncUITests/CriticalJourneyUITests.swift` covers share-extension import,
+  notification deep link (both that it opens the right game *and* that it routes via Home
+  rather than the visible tab), and friend-request accept. All three journeys begin outside
+  the app — in an extension process, in Firestore, in SpringBoard — so each test enters at
+  the first point the app owns, through a `#if DEBUG` launch-argument seam
+  (`App/UITestSupport.swift`). None of it exists in a Release binary.
+  What is deliberately **not** covered, stated per test: the extension's own App Group write
+  and the Darwin notification (two processes), the OS delivering the URL to `onOpenURL`
+  (Apple's code), and the Firestore write behind accept (covered by the rules suite).
+  All four were confirmed to fail with the seams disabled. The share-import one initially
+  passed with them disabled — it was reading a result its own earlier run had left on the
+  simulator — which is why it now takes `--uitest-reset` first.
 - ~~**UI tests are excluded from CI**~~ — **fixed 2026-08-29.** The recorded reason was
   measured false (see the correction above), and the exclusion was hiding a real regression:
   `testSettingsSubscreensOpenAndReturn` and `testCrossFeatureNavigationStress` had been RED

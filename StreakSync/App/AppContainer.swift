@@ -119,7 +119,19 @@ final class AppContainer: ObservableObject {
         self.firebaseAuthManager = FirebaseAuthStateManager()
         
         // 9. Social service (Firebase-backed; falls back to local cache patterns in service)
+        #if DEBUG
+        // A UI test cannot seed Firestore, so the friend-request journey runs against
+        // the in-memory service instead. Only ever taken under --uitesting.
+        if UITestSupport.usesStubSocialService {
+            let mock = MockSocialService()
+            mock.seedPendingFriendRequest()
+            self.socialService = mock
+        } else {
+            self.socialService = FirebaseSocialService()
+        }
+        #else
         self.socialService = FirebaseSocialService()
+        #endif
         // Attach to app state
         self.appState.socialService = socialService
         

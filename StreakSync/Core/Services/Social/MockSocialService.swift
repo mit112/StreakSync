@@ -22,6 +22,10 @@ final class MockSocialService: SocialService {
     private let userKey = "social_mock_user_profile"
     private let scoresKey = "social_mock_scores"
     private let logger = Logger(subsystem: "com.streaksync.app", category: "MockSocialService")
+
+    /// In-memory friendship state. Empty unless a UI test seeds it.
+    private var seededPendingRequests: [Friendship] = []
+    private var seededFriends: [UserProfile] = []
     
     nonisolated var pendingScoreCount: Int { 0 }
     nonisolated var currentUserId: String? { MockSocialService.deviceUserId() }
@@ -57,12 +61,41 @@ final class MockSocialService: SocialService {
     func updateProfile(displayName: String?, authProvider: String?) async throws { }
     
     // MARK: - Friends
-    func listFriends() async throws -> [UserProfile] { return [] }
+    func listFriends() async throws -> [UserProfile] { seededFriends }
     func sendFriendRequest(toUserId: String, recipientDisplayName: String?) async throws -> Bool { false }
-    func acceptFriendRequest(friendshipId: String) async throws { }
+
+    /// Moves the seeded request into the friends list, which is what accepting does.
+    func acceptFriendRequest(friendshipId: String) async throws {
+        guard let index = seededPendingRequests.firstIndex(where: { $0.id == friendshipId }) else { return }
+        let request = seededPendingRequests.remove(at: index)
+        seededFriends.append(UserProfile(
+            id: request.userId1,
+            displayName: request.senderDisplayName ?? "Friend",
+            authProvider: "anonymous",
+            createdAt: request.createdAt,
+            updatedAt: Date()
+        ))
+    }
+
     func removeFriend(friendshipId: String) async throws { }
     func removeFriend(userId: String) async throws { }
-    func pendingRequests() async throws -> [Friendship] { return [] }
+    func pendingRequests() async throws -> [Friendship] { seededPendingRequests }
+
+    /// Test-only. Seeds one incoming request so a UI test can exercise accepting it.
+    func seedPendingFriendRequest(
+        from senderId: String = "uitest_sender",
+        displayName: String = "Test Friend"
+    ) {
+        seededPendingRequests = [Friendship(
+            id: "uitest_friendship",
+            userId1: senderId,
+            userId2: currentUserId ?? "uitest_me",
+            status: .pending,
+            createdAt: Date(),
+            senderDisplayName: displayName,
+            recipientDisplayName: nil
+        )]
+    }
     func generateFriendCode() async throws -> String { "MOCK01" }
     func lookupByFriendCode(_ code: String) async throws -> UserProfile? { nil }
     
