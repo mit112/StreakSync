@@ -37,7 +37,7 @@ struct AchievementUnlockCelebrationView: View {
             ReducedMotionCelebrationView(unlock: unlock, celebrationCoordinator: celebrationCoordinator)
         } else {
             fullCelebrationView
-                .modifier(AccessibilityEnhancedModifier(unlock: unlock, isVisible: phase != .hidden))
+                .modifier(AccessibilityEnhancedModifier(unlock: unlock))
         }
     }
     

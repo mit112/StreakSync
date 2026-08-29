@@ -51,6 +51,7 @@ struct AtRiskTodaySection: View {
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
                                 .background(Capsule().fill(game.backgroundColor.color.opacity(0.15)))
+                                .minTapTarget()
                             }
                             .buttonStyle(.plain)
                         }

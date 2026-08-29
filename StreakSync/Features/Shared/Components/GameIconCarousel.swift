@@ -71,8 +71,7 @@ struct GameIconCarousel: View {
         }
         .frame(height: fixedHeight)
         .clipped()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Game \(currentIndex + 1) of \(max(1, totalCount))"))
+        .accessibilityElement(children: .contain)
     }
 }
 

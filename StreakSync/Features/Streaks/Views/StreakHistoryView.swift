@@ -73,6 +73,8 @@ struct StreakHistoryView: View {
                     .font(.title2).foregroundStyle(gameColor)
                     .symbolEffect(.bounce, value: selectedMonth)
             }
+            .minTapTarget()
+            .accessibilityLabel("Previous month")
             .hoverEffect(.lift)
 
             Spacer()
@@ -99,6 +101,8 @@ struct StreakHistoryView: View {
                     .font(.title2).foregroundStyle(gameColor)
                     .symbolEffect(.bounce, value: selectedMonth)
             }
+            .minTapTarget()
+            .accessibilityLabel("Next month")
             .disabled(Calendar.current.isDate(selectedMonth, equalTo: Date(), toGranularity: .month))
             .hoverEffect(.lift)
         }

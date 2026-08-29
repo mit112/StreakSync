@@ -162,9 +162,11 @@ private struct IOS26SettingsNavigationRow<Destination: View>: View {
                     }
                 }
             } icon: {
+                // Decorative: the adjacent title already carries the whole meaning.
                 Image.safeSystemName(icon, fallback: "gear")
                     .foregroundStyle(iconColor)
                     .frame(width: 28)
+                    .accessibilityHidden(true)
             }
         }
     }
@@ -191,9 +193,11 @@ private struct IOS26SettingsLinkRow: View {
                         .accessibilityHidden(true)
                 }
             } icon: {
+                // Decorative: the adjacent title already carries the whole meaning.
                 Image.safeSystemName(icon, fallback: "gear")
                     .foregroundStyle(iconColor)
                     .frame(width: 28)
+                    .accessibilityHidden(true)
             }
         }
     }

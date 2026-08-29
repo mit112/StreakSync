@@ -8,10 +8,11 @@
 import SwiftUI
 
 // MARK: - Accessibility Enhanced Celebration Modifier
+/// Supplies the celebration's VoiceOver semantics only. Announcements are owned by
+/// `AchievementUnlockCelebrationView`'s own two-stage sequence — posting a third one
+/// here interrupted them mid-sentence.
 struct AccessibilityEnhancedModifier: ViewModifier {
-    @AccessibilityFocusState private var isAnnouncementFocused: Bool
     let unlock: AchievementUnlock
-    let isVisible: Bool
     @Environment(\.dismiss) private var dismiss
 
     func body(content: Content) -> some View {
@@ -23,11 +24,6 @@ struct AccessibilityEnhancedModifier: ViewModifier {
             .accessibilityAction {
                 dismiss()
             }
-            .onChange(of: isVisible) { _, visible in
-                if visible {
-                    announceUnlock()
-                }
-            }
     }
     
     private var accessibilityLabel: String {
@@ -36,20 +32,6 @@ struct AccessibilityEnhancedModifier: ViewModifier {
         \(unlock.achievement.description).
         Your current progress is \(unlock.achievement.progress.currentValue).
         """
-    }
-    
-    private func announceUnlock() {
-        // Post accessibility announcement
-        UIAccessibility.post(
-            notification: .announcement,
-            argument: "Achievement unlocked! \(unlock.tier.displayName) \(unlock.achievement.displayName)"
-        )
-        
-        // Focus on the announcement
-        Task {
-            try? await Task.sleep(nanoseconds: UInt64(0.5 * 1_000_000_000))
-            isAnnouncementFocused = true
-        }
     }
 }
 

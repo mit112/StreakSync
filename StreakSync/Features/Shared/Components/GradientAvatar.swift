@@ -11,19 +11,22 @@ struct GradientAvatar: View {
     let initials: String
     var size: CGFloat = 32
     @Environment(\.colorScheme) private var colorScheme
-    
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1
+
+    private var scaledSize: CGFloat { size * scale }
+
     var body: some View {
         ZStack {
             LinearGradient(colors: palette(for: initials), startPoint: .topLeading, endPoint: .bottomTrailing)
-                .frame(width: size, height: size)
+                .frame(width: scaledSize, height: scaledSize)
                 .clipShape(Circle())
                 .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 1))
             Text(initials)
-                .font(.system(size: size * 0.45, weight: .semibold))
+                .font(.system(size: scaledSize * 0.45, weight: .semibold))
                 .foregroundStyle(.white)
                 .shadow(radius: 1)
         }
-        .frame(width: size, height: size)
+        .frame(width: scaledSize, height: scaledSize)
         .accessibilityHidden(true)
     }
     

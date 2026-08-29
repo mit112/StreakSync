@@ -126,6 +126,7 @@ struct GameDetailView: View {
         } label: {
             Image(systemName: "square.and.arrow.up")
         }
+        .accessibilityLabel("Share")
         .pressable(hapticType: .buttonTap)
     }
     

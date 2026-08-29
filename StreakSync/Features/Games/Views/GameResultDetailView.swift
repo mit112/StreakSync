@@ -59,11 +59,13 @@ struct GameResultDetailView: View {
                             } label: {
                                 Image(systemName: "pencil")
                             }
+                            .accessibilityLabel("Edit result")
                             Button(role: .destructive) {
                                 showingDeleteConfirmation = true
                             } label: {
                                 Image(systemName: "trash")
                             }
+                            .accessibilityLabel("Delete result")
                         }
                     }
                 }
