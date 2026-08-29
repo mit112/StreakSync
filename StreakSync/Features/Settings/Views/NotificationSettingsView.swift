@@ -79,17 +79,12 @@ final class NotificationSettingsViewModel: ObservableObject {
     
     #if DEBUG
     func testNotification() async {
-        // Send immediate test notification
-        let gamesAtRisk = appState?.games.filter { game in
-            guard let streak = appState?.streaks.first(where: { $0.gameId == game.id }),
-                  streak.currentStreak > 0 else {
-                return false
-            }
-            return true
-        }.prefix(3).map { $0 } ?? []
-        
+        // Send immediate test notification. Mirror the scheduler exactly by asking
+        // AppState which games are at risk (active streak AND not played today).
+        let gamesAtRisk = Array(appState?.getGamesAtRisk().prefix(3) ?? [])
+
         if !gamesAtRisk.isEmpty {
-            await NotificationScheduler.shared.scheduleTestDailyReminder(games: Array(gamesAtRisk))
+            await NotificationScheduler.shared.scheduleTestDailyReminder(games: gamesAtRisk)
         }
     }
     #endif
@@ -250,14 +245,9 @@ struct NotificationSettingsView: View {
     }
     
     private var previewNotificationBody: String {
-        let gamesAtRisk = appState.games.filter { game in
-            guard let streak = appState.streaks.first(where: { $0.gameId == game.id }),
-                  streak.currentStreak > 0 else {
-                return false
-            }
-            return true
-        }
-        
+        // Same source of truth as the scheduler: active streak AND not played today.
+        let gamesAtRisk = appState.getGamesAtRisk()
+
         if gamesAtRisk.isEmpty {
             return "No games with active streaks at risk"
         } else if gamesAtRisk.count == 1 {
