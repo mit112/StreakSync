@@ -177,29 +177,84 @@ struct AchievementSnapshot {
     }
 }
 
+// MARK: - Achievement Metric
+
+/// One table row per snapshot-driven achievement category.
+///
+/// The nine per-category checkers used to be near-identical 25-line copies of the same
+/// find-index / read-old-tier / update / emit-unlock shape, and that duplication is what
+/// let Completionist read a stale Variety Player tier. Adding a category is now one row
+/// in `TieredAchievementChecker.snapshotMetrics`, evaluated in declaration order.
+private struct AchievementMetric: Sendable {
+    let category: AchievementCategory
+    /// Unit shown in the unlock log line ("games", "active days", ...).
+    let unit: String
+    /// Receives the matched achievement as well as the snapshot, so a metric can floor
+    /// itself at its own stored value instead of only reading the snapshot.
+    let value: @Sendable (AchievementSnapshot, TieredAchievement) -> Int
+}
+
 // MARK: - Achievement Checker
 
 struct TieredAchievementChecker {
     private let logger = Logger(subsystem: "com.streaksync.app", category: "AchievementChecker")
 
+    /// Snapshot-driven categories, in evaluation order. Streak Master (extra predicate
+    /// clause plus an early exit) and Completionist (value derived from the other rows'
+    /// tiers) are deliberately not in this table — see `checkAllAchievements`.
+    private static let snapshotMetrics: [AchievementMetric] = [
+        AchievementMetric(category: .gameCollector, unit: "games") { snapshot, _ in
+            snapshot.totalGamesPlayed
+        },
+        AchievementMetric(category: .perfectionist, unit: "perfect games") { snapshot, _ in
+            snapshot.successCount
+        },
+        AchievementMetric(category: .dailyDevotee, unit: "consecutive days") { snapshot, _ in
+            snapshot.consecutiveDaysPlayed
+        },
+        // `snapshot.uniqueGameIds` carries the union with the caller's lifetime
+        // `uniqueGamesEver`. Floor it at the stored value too: a device restored from a
+        // >500-result history can pull down an achievement whose true count predates
+        // anything in the synced window, and Variety Player must never walk backwards.
+        AchievementMetric(category: .varietyPlayer, unit: "different games") { snapshot, achievement in
+            max(achievement.progress.currentValue, snapshot.uniqueGameIds.count)
+        },
+        AchievementMetric(category: .speedDemon, unit: "minimal-attempt wins") { snapshot, _ in
+            snapshot.minimalAttemptWins
+        },
+        AchievementMetric(category: .marathonRunner, unit: "active days") { snapshot, _ in
+            snapshot.uniqueDayCount
+        },
+        AchievementMetric(category: .personalBest, unit: "personal bests") { snapshot, _ in
+            snapshot.personalBestCount
+        },
+        AchievementMetric(category: .socialPlayer, unit: "friends") { snapshot, _ in
+            snapshot.friendCount
+        }
+    ]
+
     // MARK: - Check All Achievements
 
+    /// Order is load-bearing: Completionist counts how many *other* categories sit at
+    /// Gold or above, so every other category must already have been updated in this
+    /// same pass before it runs.
     func checkAllAchievements(
         snapshot: AchievementSnapshot,
         streaks: [GameStreak],
         currentAchievements: inout [TieredAchievement]
     ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
+        var unlocks = checkStreakMaster(streaks: streaks, achievements: &currentAchievements)
 
-        unlocks.append(contentsOf: checkStreakMaster(streaks: streaks, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkGameCollector(snapshot: snapshot, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkPerfectionist(snapshot: snapshot, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkDailyDevotee(snapshot: snapshot, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkVarietyPlayer(snapshot: snapshot, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkSpeedDemon(snapshot: snapshot, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkMarathonRunner(snapshot: snapshot, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkPersonalBest(snapshot: snapshot, achievements: &currentAchievements))
-        unlocks.append(contentsOf: checkSocialPlayer(snapshot: snapshot, achievements: &currentAchievements))
+        for metric in Self.snapshotMetrics {
+            unlocks.append(contentsOf: applyProgress(
+                to: &currentAchievements,
+                name: metric.category.displayName,
+                unit: metric.unit,
+                matching: { $0.category == metric.category },
+                value: { metric.value(snapshot, $0) }
+            ))
+        }
+
         // Completionist runs AFTER all others (depends on their tiers)
         unlocks.append(contentsOf: checkCompletionist(achievements: &currentAchievements))
 
@@ -208,257 +263,34 @@ struct TieredAchievementChecker {
 
     // MARK: - Streak Master
 
+    /// Not table-driven: it matches the all-games row rather than any per-game row, and
+    /// skips the update entirely when there is no streak yet.
     private func checkStreakMaster(
         streaks: [GameStreak],
         achievements: inout [TieredAchievement]
     ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
         // Evaluate best streak across all games (deterministic)
         let bestStreak = streaks.map { max($0.currentStreak, $0.maxStreak) }.max() ?? 0
-        guard bestStreak > 0 else { return unlocks }
+        guard bestStreak > 0 else { return [] }
 
-        if let index = achievements.firstIndex(where: {
-            $0.category == .streakMaster &&
-            $0.requirements.first?.specificGameId == nil
-        }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: bestStreak)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-                logger.info("Unlocked Streak Master \(newTier.displayName) - \(bestStreak) days")
-            }
-        }
-
-        return unlocks
-    }
-
-    // MARK: - Game Collector
-
-    private func checkGameCollector(
-        snapshot: AchievementSnapshot,
-        achievements: inout [TieredAchievement]
-    ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
-        if let index = achievements.firstIndex(where: { $0.category == .gameCollector }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: snapshot.totalGamesPlayed)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-                logger.info("Unlocked Game Collector \(newTier.displayName) - \(snapshot.totalGamesPlayed) games")
-            }
-        }
-
-        return unlocks
-    }
-
-    // MARK: - Perfectionist
-
-    private func checkPerfectionist(
-        snapshot: AchievementSnapshot,
-        achievements: inout [TieredAchievement]
-    ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
-        if let index = achievements.firstIndex(where: { $0.category == .perfectionist }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: snapshot.successCount)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-                logger.info("Unlocked Perfectionist \(newTier.displayName) - \(snapshot.successCount) perfect games")
-            }
-        }
-
-        return unlocks
-    }
-
-    // MARK: - Daily Devotee
-
-    private func checkDailyDevotee(
-        snapshot: AchievementSnapshot,
-        achievements: inout [TieredAchievement]
-    ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
-        if let index = achievements.firstIndex(where: { $0.category == .dailyDevotee }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: snapshot.consecutiveDaysPlayed)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-                logger.info("Unlocked Daily Devotee \(newTier.displayName) - \(snapshot.consecutiveDaysPlayed) consecutive days")
-            }
-        }
-
-        return unlocks
-    }
-
-    // MARK: - Variety Player
-
-    private func checkVarietyPlayer(
-        snapshot: AchievementSnapshot,
-        achievements: inout [TieredAchievement]
-    ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
-        if let index = achievements.firstIndex(where: { $0.category == .varietyPlayer }) {
-            let oldTier = achievements[index].progress.currentTier
-            // `snapshot.uniqueGameIds` carries the union with the caller's lifetime
-            // `uniqueGamesEver`. Floor it at the stored value too: a device restored from
-            // a >500-result history can pull down an achievement whose true count predates
-            // anything in the synced window, and Variety Player must never walk backwards.
-            let lifetimeCount = max(achievements[index].progress.currentValue, snapshot.uniqueGameIds.count)
-            achievements[index].updateProgress(value: lifetimeCount)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-                logger.info("Unlocked Variety Player \(newTier.displayName) - \(lifetimeCount) different games")
-            }
-        }
-
-        return unlocks
-    }
-
-    // MARK: - Speed Demon
-
-    private func checkSpeedDemon(
-        snapshot: AchievementSnapshot,
-        achievements: inout [TieredAchievement]
-    ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
-        if let index = achievements.firstIndex(where: { $0.category == .speedDemon }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: snapshot.minimalAttemptWins)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-                logger.info("Unlocked Speed Demon \(newTier.displayName) - minimal-attempt wins: \(snapshot.minimalAttemptWins)")
-            }
-        }
-
-        return unlocks
-    }
-
-    // MARK: - Marathon Runner
-
-    private func checkMarathonRunner(
-        snapshot: AchievementSnapshot,
-        achievements: inout [TieredAchievement]
-    ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
-        if let index = achievements.firstIndex(where: { $0.category == .marathonRunner }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: snapshot.uniqueDayCount)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-                logger.info("Unlocked Marathon Runner \(newTier.displayName) - \(snapshot.uniqueDayCount) active days")
-            }
-        }
-
-        return unlocks
-    }
-
-    // MARK: - Personal Best
-
-    private func checkPersonalBest(
-        snapshot: AchievementSnapshot,
-        achievements: inout [TieredAchievement]
-    ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
-        if let index = achievements.firstIndex(where: { $0.category == .personalBest }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: snapshot.personalBestCount)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-                logger.info("Unlocked Personal Best \(newTier.displayName) - \(snapshot.personalBestCount) personal bests")
-            }
-        }
-
-        return unlocks
-    }
-
-    // MARK: - Social Player
-
-    private func checkSocialPlayer(
-        snapshot: AchievementSnapshot,
-        achievements: inout [TieredAchievement]
-    ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
-        if let index = achievements.firstIndex(where: { $0.category == .socialPlayer }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: snapshot.friendCount)
-
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-                logger.info("Unlocked Social Player \(newTier.displayName) - \(snapshot.friendCount) friends")
-            }
-        }
-
-        return unlocks
+        return applyProgress(
+            to: &achievements,
+            name: AchievementCategory.streakMaster.displayName,
+            unit: "days",
+            matching: {
+                $0.category == .streakMaster && $0.requirements.first?.specificGameId == nil
+            },
+            value: { _ in bestStreak }
+        )
     }
 
     // MARK: - Completionist (meta-achievement, runs after all others)
 
+    /// Not table-driven: its value comes from the whole `achievements` array, read before
+    /// the mutation so Completionist can never fold in its own tier.
     private func checkCompletionist(
         achievements: inout [TieredAchievement]
     ) -> [AchievementUnlock] {
-        var unlocks: [AchievementUnlock] = []
-
         // Count categories (excluding completionist itself) at Gold or above
         let goldOrAboveCount = achievements.filter { achievement in
             achievement.category != .completionist &&
@@ -466,22 +298,47 @@ struct TieredAchievementChecker {
             (achievement.progress.currentTier?.rawValue ?? 0) >= AchievementTier.gold.rawValue
         }.count
 
-        if let index = achievements.firstIndex(where: { $0.category == .completionist }) {
-            let oldTier = achievements[index].progress.currentTier
-            achievements[index].updateProgress(value: goldOrAboveCount)
+        return applyProgress(
+            to: &achievements,
+            name: AchievementCategory.completionist.displayName,
+            unit: "categories at Gold+",
+            matching: { $0.category == .completionist },
+            value: { _ in goldOrAboveCount }
+        )
+    }
 
-            if let newTier = achievements[index].progress.currentTier,
-               oldTier != newTier {
-                unlocks.append(AchievementUnlock(
-                    achievement: achievements[index],
-                    tier: newTier,
-                    timestamp: Date()
-                ))
-                logger.info("Unlocked Completionist \(newTier.displayName) - \(goldOrAboveCount) categories at Gold+")
-            }
+    // MARK: - Shared Progress Application
+
+    /// The single place a tier is ever raised: find the achievement, apply the metric's
+    /// value, and emit an unlock when that crossed into a new tier.
+    private func applyProgress(
+        to achievements: inout [TieredAchievement],
+        name: String,
+        unit: String,
+        matching predicate: (TieredAchievement) -> Bool,
+        value: (TieredAchievement) -> Int
+    ) -> [AchievementUnlock] {
+        guard let index = achievements.firstIndex(where: predicate) else { return [] }
+
+        let oldTier = achievements[index].progress.currentTier
+        // `value` is handed the matched achievement, not just the snapshot, so a metric
+        // can floor itself at its own stored `progress.currentValue`.
+        let newValue = value(achievements[index])
+        achievements[index].updateProgress(value: newValue)
+
+        guard let newTier = achievements[index].progress.currentTier, newTier != oldTier else {
+            return []
         }
 
-        return unlocks
+        let summary = "\(name) \(newTier.displayName) - \(newValue) \(unit)"
+        logger.info("Unlocked \(summary, privacy: .public)")
+
+        let unlock = AchievementUnlock(
+            achievement: achievements[index],
+            tier: newTier,
+            timestamp: Date()
+        )
+        return [unlock]
     }
 }
 

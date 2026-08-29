@@ -3,7 +3,8 @@
 //  StreakSyncTests
 //
 //  Guards the ordering contract between Variety Player and Completionist,
-//  and the progress bar's floor at an already-earned tier.
+//  Variety Player's monotonic floor, and the progress bar's floor at an
+//  already-earned tier.
 //
 
 @testable import StreakSync
@@ -61,6 +62,41 @@ final class AchievementOrderingRegressionTests: XCTestCase {
             "Completionist must count Variety Player's Gold in the same pass"
         )
         XCTAssertEqual(completionist?.progress.currentTier, .bronze)
+    }
+
+    /// Variety Player is lifetime-scoped and must never walk backwards. The snapshot
+    /// unions the capped result window with `uniqueGamesEver`, but BOTH of those are
+    /// bounded by what this device has seen: sync pulls at most 500 results, so a device
+    /// restored from a longer history can hold a Variety Player value that predates
+    /// everything in the window. The checker therefore also floors the new value at the
+    /// achievement's own stored `currentValue`.
+    ///
+    /// Deleting that floor looks like a clean simplification of the checker and is not —
+    /// it silently demotes restored users. This test is what makes that irreversible.
+    func testVarietyPlayerNeverWalksBackwardsBelowItsStoredValue() {
+        let app = AppState()
+        XCTAssertGreaterThanOrEqual(app.games.count, 2, "needs 2 distinct games")
+
+        // Everything this device can still see is 2 games — window and lifetime set alike.
+        let visible = Array(app.games.prefix(2))
+        app.recentResults = visible.map { makeResult(gameId: $0.id, gameName: $0.name) }
+        app._uniqueGamesEver = Set(visible.map(\.id))
+
+        // But the restored achievement already records 12 lifetime games.
+        var seeded = AchievementFactory.createDefaultAchievements()
+        guard let index = seeded.firstIndex(where: { $0.category == .varietyPlayer }) else {
+            return XCTFail("missing Variety Player achievement")
+        }
+        seeded[index].updateProgress(value: 12)
+        app._tieredAchievements = seeded
+
+        app.recalculateAllTieredAchievementProgress()
+
+        let variety = app.tieredAchievements.first { $0.category == .varietyPlayer }
+        XCTAssertEqual(
+            variety?.progress.currentValue, 12,
+            "Variety Player must floor at its stored value, not fall back to the 2 visible games"
+        )
     }
 
     /// Tiers are never revoked, and `progressDescription` already floors the displayed
