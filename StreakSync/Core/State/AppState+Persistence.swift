@@ -66,7 +66,11 @@ extension AppState {
         lastDataLoad = Date()
         
         // Share Extension ingestion is handled by AppGroupBridge (event-driven); no direct sync here
-        
+
+        // A fresh install has never published one, so without this the widget shows its
+        // placeholder until the user's next result rather than their first launch.
+        publishWidgetSnapshot()
+
         logger.info("Data loading complete with tiered achievements")
     }
     

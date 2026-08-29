@@ -120,6 +120,10 @@ extension AppState {
             // must be recomputed against what actually remains.
             if (needsFullRecompute || didPrune) && !deferReconciliation {
                 await self.reconcileAfterResultSetChanged()
+            } else {
+                // reconcileAfterResultSetChanged publishes for us; on the ordinary
+                // today's-result path nothing else would.
+                self.publishWidgetSnapshot()
             }
         }
 

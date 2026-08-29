@@ -34,5 +34,9 @@ extension AppState {
         await saveGameResults()
         await saveStreaks()
         await saveTieredAchievements()
+
+        // Single funnel for wholesale result-set changes (sync merges, imports,
+        // restores, deletes, pruning), so one call here covers all of them.
+        publishWidgetSnapshot()
     }
 }

@@ -156,6 +156,8 @@ final class AppState {
             await normalizeStreaksForMissedDays()
             await checkAllAchievements()
             await checkAndScheduleStreakReminders()
+            // Rolls hasPlayedToday back to false and re-arms every at-risk flag.
+            publishWidgetSnapshot()
             logger.info("UI refreshed for new day")
         }
     }
