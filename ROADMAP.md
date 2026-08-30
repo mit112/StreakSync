@@ -21,6 +21,13 @@ them on 2026-08-29 and roughly 70% came back already fixed.
 App is live: <https://apps.apple.com/us/app/streaksync-puzzle-tracker/id6755203446>.
 Release path is Xcode Cloud — push to `main` archives and delivers to TestFlight.
 
+**Status 2026-08-29 (end of the third pass):** `finish-e2e-2026-08-28` is **merged and pushed**
+to `main` (`a8b695c`), 48 commits. CI is **green including UI tests** — the first time UI tests
+have ever passed in CI here. Marketing version is **1.24**; 1.23 was already approved, so that
+train was closed and the first two upload attempts were rejected (ITMS-90186 / ITMS-90062).
+Gates: `build_sim` clean and warning-free, `swiftlint` **exit 0** (375 violations, 0 serious,
+275 files), **678 tests passed / 0 failed** (660 unit + 18 UI).
+
 ---
 
 ## 1. Blocked on you — I can't do these from here
@@ -155,6 +162,11 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
 
 ## 4. Testing gaps
 
+> UI tests now run in CI (18 cases). The traps that made that hard are recorded in CLAUDE.md:
+> unit tests execute *inside the app* as its test host and pollute its `UserDefaults`, and a
+> reset that clears too much resurrects first-run onboarding, which covers the UI with a
+> permission sheet on any simulator whose authorization is still `.notDetermined`.
+
 - **7 subsystems have no test file at all**: `Core/Config`, `Core/Errors`, `Features/Analytics`,
   `Features/Dashboard`, `Features/Onboarding`, `Features/Streaks`, `Design System`. Beware the
   naming traps — `StreakLogicTests` tests `Core/State`, not `Features/Streaks`.
@@ -268,3 +280,49 @@ serious, 245 files), unit suite **455 passed / 0 failed**.
 `StreakSyncTests/FirstShareCelebrationTriggerTests.swift:32-33` (non-Sendable capture, main
 actor-isolated mutation from a Sendable closure). Untouched by this pass — they only became
 visible when the test target recompiled.
+
+
+---
+
+## 7. Fixed in the third 2026-08-29 pass
+
+Everything below is on `main`. The pattern worth noting: most of these were **not** in the
+backlog — they were found by doing the backlog items.
+
+**Found by widening CI**
+- Two UI tests had been red since the Settings subscreens became pushed details and dropped
+  their "Done" button (DESIGN_AUDIT §4.5). The app was right; the tests were stale. The CI
+  exclusion had hidden it since February.
+- A cancelled analytics load stranded the screen on a **permanent spinner** — the placeholder
+  was gated on `analyticsData == nil` and the cancellation guard returned before assigning.
+  Only reproduced on a slower machine.
+
+**Found by building a test seam**
+- `flushPendingScoresIfNeeded` doubled its Keychain queue on every failure, compounding per
+  retry (two scores became sixty-four after five). Fixing it surfaced a worse one: **both**
+  success paths called `removeAll()`, so a successful publish destroyed an uncommitted backlog
+  from earlier days. One pure helper now serves both call sites.
+
+**Found by deleting duplication**
+- Variety Player's monotonic floor had **no test** — the ordering test passes with it removed,
+  so nothing stopped a future reader deleting it as a redundant `max()`.
+
+**Found by re-scoping**
+- Delete Account could hang unescapably offline: it awaits `deleteAllUserData()` first, and a
+  Firestore write neither returns nor cancels while offline. Now gated on a bounded
+  `source: .server` probe. `docs/firestore-timeout-rescope.md` has the analysis; the verdict
+  was **do not build a timeout**, and all four of its recommendations are implemented.
+
+**Also shipped:** display-name matching for `streaksync://game?name=`, three Swift 6 concurrency
+warnings cleared, 135 tests across seven previously-untested subsystems, a friend-activity
+nudge, achievement sync failures surfaced honestly, interactive friend writes no longer hanging,
+Analytics empty state, and three verified display bugs (Pips always reading "0 completed", the
+at-risk "and N more" off-by-one, 16 `String(format:)` calls with no placeholder).
+
+**Verification discipline:** every logic change was mutation-proven — the fix reverted, the
+failing value predicted, confirmed, restored. That caught one genuinely vacuous test of mine:
+the share-import UI test passed against a simulator holding data its own earlier run had left.
+
+**Still never run on hardware.** Account switching, the friend nudge, notification routing, and
+especially the friend-writes offline and rules-rejection paths. A green suite here never
+exercises "no network".
