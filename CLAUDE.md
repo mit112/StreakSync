@@ -80,8 +80,10 @@ silently unlinted.
 
 ### Running tests — read this before concluding "the runner is broken"
 
-The unit suite runs fine: **455 tests pass** (`-only-testing:StreakSyncTests`), in about a
-minute. Prefer XcodeBuildMCP: `build_sim(buildForTesting: true)` then
+The unit suite runs fine: as of 2026-08-31, **658 pass / 0 fail / 6 skipped**
+(`-only-testing:StreakSyncTests`) in about a minute. The 6 skips are deliberate — all of
+`PendingSaveStoreTests`, via `XCTSkipUnless(probeSucceeded, "Keychain unavailable in this
+environment")`. That reconciles: `StreakSyncTests/` holds 664 `func test*`, and 658 + 6 = 664. Prefer XcodeBuildMCP: `build_sim(buildForTesting: true)` then
 `test_sim(testProductsPath: <that>, extraArgs: ["-only-testing:StreakSyncTests"])`.
 
 When counting results out of a raw `xcodebuild` log, match `passed on 'Clone` rather than
