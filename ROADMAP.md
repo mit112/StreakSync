@@ -399,17 +399,33 @@ test, so nobody deletes it as a redundant call.
 |---|---|
 | `build_sim` | **SUCCEEDED**, 0 warnings, 0 errors |
 | `swiftlint` | **exit 0** — 375 violations, 0 serious, 275 files. The changed files add **zero** new violations. |
-| Unit suite (`-only-testing:StreakSyncTests`) | **658 passed / 0 failed**, exit 0, 66s |
+| Unit suite (`-only-testing:StreakSyncTests`) | **658 passed / 0 failed / 6 skipped**, exit 0, 66s |
 | Mutation proof | New test confirmed failing against a stubbed `hasGapInStreak` |
 
-> **The combined unit+UI run did not go green, and it is not this pass's changes.** After
-> `simctl privacy reset all` and `-parallel-testing-enabled NO`, the run aborted at 580s with
-> `Failed to establish communication with the test runner (Underlying Error: Channel
-> disconnected)`, failing `testAppLaunchesToTabLayout` and `testCrossFeatureNavigationStress`.
-> Six UI tests had already passed; the **unit suite never executed at all**, which is why it
-> was then run separately and passed. This is a session-level runner disconnect, not an
-> assertion failure, and the machine was under real memory pressure at the time (~6 GB swap
-> in use, ~41% memory free). Neither change in this pass can reach those tests — one is an
-> auth-provider-upgrade path no UI test exercises, the other is a unit test file. Worth
-> watching on the next CI run before concluding anything about the UI suite's health.
+The unit count reconciles exactly, which is worth stating because §7 above reports "660 unit"
+and this pass only added one test: there are **664 `func test*` in `StreakSyncTests/`**, of
+which **6 skip deliberately** — all of `PendingSaveStoreTests`, via
+`XCTSkipUnless(probeSucceeded, "Keychain unavailable in this environment")`, which probes the
+Keychain in `setUpWithError` and skips only where it genuinely does not work. 658 + 6 = 664.
+§7's 660 does not reconcile against that and should be treated as the unreliable figure.
+
+> **The combined unit+UI run could not be verified on this machine tonight.** It was run
+> twice, both times after `simctl privacy reset all` and with `-parallel-testing-enabled NO`.
+> Both failed, at the infrastructure level, on **different** tests:
+>
+> | Run | Failed | Reported cause |
+> |---|---|---|
+> | 1 | `testAppLaunchesToTabLayout`, `testCrossFeatureNavigationStress` | `Failed to establish communication with the test runner (Underlying Error: Channel disconnected)` — aborted at 580s, and the **unit suite never executed at all** |
+> | 2 | `testSharedResultReachesTheDashboard` | `Simulator device failed to launch com.mitsheth.StreakSyncUITests.xctrunner` → `FBProcessExit Code=64 "The process failed to launch"`, `RequestDenied ... (SBMainWorkspace)`. 662 tests passed, including the whole unit suite. |
+>
+> Neither is an assertion failure — both are the runner process failing to start or stay
+> connected — and a different test failed each time, which is the signature of resource
+> flakiness rather than a regression. The machine was under sustained memory pressure
+> throughout (~6 GB swap in use, 41–53% memory free).
+>
+> This pass's changes are an unlikely cause: one is an auth-provider-upgrade path no UI test
+> exercises, the other is a unit test file, and the unit suite passed cleanly twice.
+> **The honest status is therefore: unit suite green (658/0, twice); UI suite unverified
+> here.** CI is the arbiter — it ran the UI suite green on 2026-08-29 and should be checked
+> before drawing any conclusion about the UI tests' health.
 
