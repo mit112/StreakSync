@@ -337,6 +337,11 @@ final class AppContainer: ObservableObject {
         )
         await gameResultSyncService.syncIfNeeded()
         await appState.rebuildStreaksFromResults()
+        // A rebuild only sees gaps *between* results, so it leaves a streak whose last
+        // completed result is days old reading as active. Every other sync site pairs
+        // these two; this one did not, so a provider upgrade could resurrect an expired
+        // streak until the next day change or foreground.
+        await appState.normalizeStreaksForMissedDays()
         await achievementSyncService.syncIfEnabled()
         logger.info("Auth: provider upgrade complete")
     }

@@ -228,4 +228,50 @@ final class NormalizeStreaksTests: XCTestCase {
         XCTAssertEqual(resultB?.currentStreak, 0, "Game B has gap — should break")
         XCTAssertEqual(resultB?.maxStreak, 5, "Game B max streak preserved")
     }
+
+    // MARK: - The rebuild/normalize pairing
+
+    /// Pins the invariant that the production `rebuild → normalize` call sites depend on:
+    /// `rebuildStreaksFromResults()` only inspects gaps *between* results, so it cannot
+    /// break a streak for days that merely passed. Without this test nothing stops a
+    /// reader deleting a `normalizeStreaksForMissedDays()` call as redundant — which is
+    /// exactly the defect that reached `AppContainer.handleProviderUpgraded`.
+    func testRebuildAloneLeavesAnExpiredStreakActive() async {
+        // Wordle's deterministic UUID from GameDefinitions, so the rebuild — which skips
+        // results whose gameId matches no known game — actually produces a streak.
+        // swiftlint:disable:next force_unwrapping
+        let wordleId = UUID(uuidString: "550e8400-e29b-41d4-a716-446655440000")!
+
+        // Three consecutive completed days, the most recent of them 3 days ago.
+        for daysAgo in 3...5 {
+            appState.recentResults.append(
+                GameResult(
+                    gameId: wordleId,
+                    gameName: "wordle",
+                    date: date(daysAgo: daysAgo),
+                    score: 3,
+                    maxAttempts: 6,
+                    completed: true,
+                    sharedText: "Wordle 1,234 3/6"
+                )
+            )
+        }
+
+        await appState.rebuildStreaksFromResults()
+
+        let afterRebuild = appState.streaks.first { $0.gameId == wordleId }
+        XCTAssertEqual(
+            afterRebuild?.currentStreak, 3,
+            "Rebuild counts three consecutive completed days; it has no notion of 'today'"
+        )
+
+        await appState.normalizeStreaksForMissedDays(referenceDate: Date())
+
+        let afterNormalize = appState.streaks.first { $0.gameId == wordleId }
+        XCTAssertEqual(
+            afterNormalize?.currentStreak, 0,
+            "Two full days were missed since the last completion — the streak is dead"
+        )
+        XCTAssertEqual(afterNormalize?.maxStreak, 3, "The all-time best survives the break")
+    }
 }
