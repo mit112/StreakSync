@@ -1,366 +1,289 @@
 # Streak Logic Documentation
 
-> **Unverified since 2025-12-05, and known to be wrong in at least one place.**
-> Streak logic has changed materially since this was written — the UTC/timezone fix, the
-> day-change pipeline, and several correctness fixes through 2026. Treat it as background,
-> not as a specification, and check the code before relying on any claim here.
+> **Verified against the code on 2026-08-31.** Every claim below was checked against the
+> current source, and every file/line reference was read rather than carried forward. The
+> previous revision (2025-12-05) was wrong in its headline claim and described three
+> subsystems that no longer exist; see [What changed in this pass](#what-changed-in-this-pass)
+> at the end for the list, so a reader who remembers the old text knows what to unlearn.
 >
-> Concretely: the bolded "Critical Point" below asserts that
-> `normalizeStreaksForMissedDays()` is **NOT** called on day change. It is —
-> `AppState.handleDayChange()` calls it at `StreakSync/Core/State/AppState.swift:156`, right
-> after `rebuildStreaksFromResults()`. The consequence the document draws from that claim
-> ("streaks remain active on a new day until actual game results show a gap or the app is
-> launched") therefore does not hold either.
->
-> A full verification pass over this file has not been done and is its own task; see
-> `ROADMAP.md`.
+> Line numbers are accurate as of commit `3db2189`. Treat symbol names as the durable
+> reference and line numbers as a hint.
 
 ## Overview
-This document explains how streaks work across games in StreakSync, including when they reset and what functions trigger streak recomputation.
 
-## What Happens on a New Day
+A **streak** is a per-game count of consecutive calendar days on which the user *completed*
+that game. Streaks are stored as `GameStreak` values in `AppState.streaks`, one per game,
+and are always derived from `AppState.recentResults` — the results are the source of truth,
+the streaks are a cache.
 
-### Key Behavior: Streaks Do NOT Automatically Break on New Day
+Two functions maintain them, and understanding the split is the whole model:
 
-**Important**: When a new day starts, streaks do **NOT** automatically break if no game has been played yet. The streak remains active until one of the following occurs:
+| | `updateStreak(for:)` | `rebuildStreaksFromResults()` |
+|---|---|---|
+| Scope | One game, one new result | Every game, all results |
+| Cost | O(1) | O(results) |
+| Used by | `addGameResult` only | Everything else |
+| Can it *lower* a streak to 0 for a missed day? | No | No |
 
-#### Scenario 1: Game Played Yesterday, New Day Starts (No Game Played Today Yet)
-- **What Happens**: Streak remains **active** and unchanged
-- **Why**: `rebuildStreaksFromResults()` only looks at existing game results. Since today has no results yet, it can't detect a gap
-- **When It Breaks**: 
-  - When a game is played today but shows a gap (e.g., last completed game was 2+ days ago)
-  - When the app is launched and `normalizeStreaksForMissedDays()` runs
-  - When a result is deleted
+Neither can break a streak for a day that simply passed with no play, because both only
+look at results that exist. That job belongs to a third function,
+`normalizeStreaksForMissedDays(referenceDate:)`, and **it must be called after every
+rebuild.** This pairing is the single most important invariant in this document.
 
-#### Scenario 2: Game Played Today (Same Day)
-- **What Happens**: 
-  - If completed: Streak extends if yesterday was also completed, otherwise starts at 1
-  - If failed: Streak breaks immediately (resets to 0)
-- **Logic**: Uses `calculateUpdatedStreak()` to determine if consecutive day or gap
+## The three functions
 
-#### Scenario 3: Game Played Today But Last Game Was 2+ Days Ago
-- **What Happens**: Streak breaks and starts new streak at 1
-- **Why**: Gap detection in `calculateUpdatedStreak()` detects `daysBetween > 1`
+### 1. `updateStreak(for: GameResult)` — incremental
 
-### Day Change Flow
+`Core/State/AppState+GameLogic.swift:14`
 
-When `DayChangeDetector` detects a new day:
+Finds the streak for `result.gameId`, delegates to `calculateUpdatedStreak`, writes the
+array back via `setStreaks()`. If no streak exists for the game it logs a warning and
+returns — it does not create one. **The caller is responsible for saving.**
 
-```swift
-handleDayChange()
-  → rebuildStreaksFromResults()  // Recalculates from existing results
-  → checkAllAchievements()
-  → checkAndScheduleStreakReminders()
-  // NOTE: normalizeStreaksForMissedDays() is NOT called here
-```
+### 2. `calculateUpdatedStreak(current:with:)` — the core rule
 
-**Critical Point**: `normalizeStreaksForMissedDays()` is **NOT** called on day change. It's only called:
-- On app launch (`loadPersistedData()`)
-- After game result deletion
-
-This means streaks remain active on a new day until actual game results show a gap or the app is launched.
-
-## Streak Reset Conditions
-
-### 1. **Failed Game (Immediate Reset)**
-- **Location**: `AppState+GameLogic.swift:103-110`
-- **Condition**: When a game result is added with `completed == false`
-- **Action**: Streak is immediately reset to 0
-- **Code**:
-```swift
-if result.completed {
-    // ... streak extension logic ...
-} else {
-    // Failed game - break streak
-    newCurrentStreak = 0
-    newStreakStartDate = nil
-}
-```
-
-### 2. **Gap in Completed Games (Consecutive Day Break)**
-- **Location**: `AppState+GameLogic.swift:72-90`
-- **Condition**: When a completed game is added but there's a gap of more than 1 day since the last completed game
-- **Action**: Current streak resets to 1 (new streak starts)
-- **Logic**:
-  - If `daysBetween == 1`: Streak extends (consecutive day)
-  - If `daysBetween == 0`: Streak maintains (same day)
-  - If `daysBetween > 1`: Streak breaks and starts at 1
-
-### 3. **Missed Day Detection (Normalization)**
-- **Location**: `AppState+Persistence.swift:180-260`
-- **Condition**: When `normalizeStreaksForMissedDays()` detects an actual gap in completed games
-- **Action**: Streak is reset to 0 if there's a missing day in completed game results
-- **Key Logic**: Only breaks streaks if there's an actual gap in completed games, NOT just because time has passed
-- **Function**: `shouldBreakStreakForGame()` checks for gaps in completed game results
-
-## Streak Computation Functions
-
-### Primary Functions
-
-#### 1. `updateStreak(for: GameResult)` - Incremental Update
-- **Location**: `AppState+GameLogic.swift:15-37`
-- **Purpose**: Updates a single streak when a new game result is added
-- **Called From**:
-  - `AppState.addGameResult()` (line 513, 642)
-  - `AppState.addGameResultReturningAdded()` (line 642)
-- **Flow**:
-  1. Finds existing streak for the game
-  2. Calls `calculateUpdatedStreak()` to compute new streak
-  3. Updates streaks array via `setStreaks()`
-  4. **Note**: Caller must save streaks (not saved automatically)
-
-#### 2. `calculateUpdatedStreak(current:with:)` - Streak Calculation Logic
-- **Location**: `AppState+GameLogic.swift:39-129`
-- **Purpose**: Core logic for calculating streak updates
-- **Logic**:
-  - **Completed Game**:
-    - If streak is 0: Start new streak at 1
-    - If streak > 0: Check days between plays
-      - 1 day gap: Extend streak
-      - 0 days (same day): Maintain streak
-      - >1 day gap: Reset to 1 (new streak)
-  - **Failed Game**: Reset to 0
-- **Updates**: `currentStreak`, `maxStreak`, `streakStartDate`, `lastPlayedDate`, totals
-
-#### 3. `rebuildStreaksFromResults()` - Full Rebuild
-- **Location**: `AppState+Import.swift:17-108`
-- **Purpose**: Rebuilds all streaks from scratch using all game results
-- **Called From**:
-  - `AppState.handleDayChange()` (line 264) - On day change
-  - `AppState.removeGameResult()` (line 728) - After deletion
-  - `AppState.loadPersistedData()` - Not directly, but via normalization
-  - `UserDataSyncService` (lines 408, 468) - After CloudKit sync
-  - `CloudKitSubscriptionManager` (lines 39, 53) - After remote changes
-  - `AppContainer` (line 301) - On app initialization
-  - `StreakSyncApp` (line 150) - On app launch
-  - `SettingsComponents` (line 660) - Manual rebuild trigger
-- **Flow**:
-  1. Groups results by game
-  2. Sorts results chronologically
-  3. Calculates streaks by iterating through completed games
-  4. Tracks consecutive days (only completed games count)
-  5. Breaks streak on gaps or failed games
-  6. Replaces entire streaks array
-- **Important Limitation**: Only checks gaps **between** existing results, not gaps between last result and **today**
-- **Fix**: Always call `normalizeStreaksForMissedDays()` after `rebuildStreaksFromResults()` to check for gaps up to today
-
-#### 4. `normalizeStreaksForMissedDays()` - Streak Normalization
-- **Location**: `AppState+Persistence.swift:180-220`
-- **Purpose**: Checks and breaks streaks that should be broken due to missed days
-- **Called From**:
-  - `AppState.loadPersistedData()` (line 54) - On app launch
-  - `AppState.removeGameResult()` (line 730) - After deletion
-- **Key Feature**: Only breaks streaks if there's an actual gap in completed games (not just time elapsed)
-- **Helper**: `shouldBreakStreakForGame()` checks for gaps in completed results
-
-## Trigger Points for Streak Recalculation
-
-### Automatic Triggers
-
-#### 1. **New Game Result Added**
-- **Function**: `AppState.addGameResult(_:)`
-- **Location**: `AppState.swift:457-590`
-- **Actions**:
-  1. Calls `updateStreak(for: result)` synchronously (line 513, 642)
-  2. Posts notifications: `GameResultAdded`, `GameDataUpdated`, `RefreshGameData`
-  3. Saves streaks asynchronously (line 555, 681)
-  4. Calls `checkAndScheduleStreakReminders()`
-
-#### 2. **Day Change Detected**
-- **Detector**: `DayChangeDetector` (checks every minute + app lifecycle events)
-- **Notification**: `.dayDidChange`
-- **Handler**: `AppState.handleDayChange()`
-- **Location**: `AppState.swift:256-273`
-- **Actions**:
-  1. Invalidates cache
-  2. Calls `rebuildStreaksFromResults()` - Full rebuild (recalculates from existing results only)
-  3. Checks achievements
-  4. Reschedules streak reminders
-- **Important**: `normalizeStreaksForMissedDays()` is **NOT** called on day change
-- **Result**: Streaks remain active if no game has been played yet today. They only break when:
-  - A game is played and shows a gap
-  - App is launched (normalization runs)
-  - A result is deleted
-
-#### 3. **App Launch/Initialization**
-- **Location**: `StreakSyncApp.initializeApp()` → `AppState.loadPersistedData()`
-- **Actions**:
-  1. Loads persisted data (including streaks)
-  2. Calls `normalizeStreaksForMissedDays()` - Checks for missed days
-  3. Performs CloudKit sync (if available)
-  4. Calls `rebuildStreaksFromResults()` - Rebuilds from synced results
-  5. **Calls `normalizeStreaksForMissedDays()` again** - Checks for gaps up to today after rebuild
-  6. Ensures streaks exist for all games
-- **Bug Fix**: Added normalization after rebuild to fix issue where streaks showed as active even when games weren't played for days
-
-#### 4. **Game Result Deleted**
-- **Function**: `AppState.removeGameResult(_:)`
-- **Location**: `AppState.swift:718-744`
-- **Actions**:
-  1. Removes result from array
-  2. Rebuilds cache
-  3. Calls `rebuildStreaksFromResults()` - Full rebuild
-  4. Calls `normalizeStreaksForMissedDays()` - Check for now-missed days
-  5. Recomputes achievements
-  6. Saves all data
-  7. Posts `GameDataUpdated` notification
-
-#### 5. **CloudKit Sync Events**
-- **Service**: `UserDataSyncService`
-- **Actions**: Calls `rebuildStreaksFromResults()` after syncing results
-- **Service**: `CloudKitSubscriptionManager`
-- **Actions**: Calls `rebuildStreaksFromResults()` after remote changes
-
-### Manual Triggers
-
-#### 1. **Settings - Force Rebuild**
-- **Location**: `SettingsComponents.swift:660`
-- **Function**: `forceRebuildAllStreaks()`
-- **Action**: Full rebuild + save + notifications
-
-#### 2. **Connections Fix**
-- **Location**: `AppState+Import.swift:174`
-- **Function**: `fixExistingConnectionsResults()`
-- **Action**: After fixing Connections results, rebuilds streaks
-
-## Notification System
-
-### Notifications Posted When Streaks Change
-
-1. **`GameResultAdded`**
-   - Posted: When a new game result is added
-   - Listeners: Dashboard views, Analytics views
-
-2. **`GameDataUpdated`**
-   - Posted: When game data (including streaks) changes
-   - Listeners: Dashboard views, Game detail views, Analytics views, Achievement store
-
-3. **`RefreshGameData`**
-   - Posted: When specific game data needs refresh
-   - Listeners: Dashboard views, Game detail views
-
-### Notification Flow
-```
-addGameResult() 
-  → updateStreak() 
-  → setStreaks() 
-  → Post notifications (GameResultAdded, GameDataUpdated, RefreshGameData)
-  → Save streaks asynchronously
-```
-
-## Streak Calculation Rules
-
-### What Counts Toward Streaks
-- **Only completed games** count toward streaks
-- Failed games (`completed == false`) break streaks immediately
-- Multiple plays on the same day don't increment streak (maintains current)
-
-### Consecutive Day Logic
-- Streak extends when: Completed game on day N, then completed game on day N+1
-- Streak breaks when: Gap of 2+ days between completed games
-- Streak resets when: Failed game is played
-
-### Streak State Properties
-- `currentStreak`: Current consecutive days (only completed games)
-- `maxStreak`: Highest streak achieved (never decreases)
-- `streakStartDate`: Date when current streak started
-- `lastPlayedDate`: Date of most recent game (completed or failed)
-- `totalGamesPlayed`: Total games played (completed + failed)
-- `totalGamesCompleted`: Total completed games only
-
-## Important Notes
-
-### 1. **Streak Updates Are Synchronous, Saves Are Asynchronous**
-- `updateStreak()` updates streaks immediately in memory
-- Streaks are saved asynchronously via `saveStreaks()`
-- This ensures UI updates immediately while persistence happens in background
-
-### 2. **Full Rebuild vs Incremental Update**
-- **Incremental**: `updateStreak()` - Fast, used when adding single result
-- **Full Rebuild**: `rebuildStreaksFromResults()` - Slower, used for:
-  - Day changes
-  - After deletions
-  - After sync operations
-  - When data integrity needs verification
-
-### 3. **Normalization Only Checks Gaps**
-- `normalizeStreaksForMissedDays()` doesn't rebuild streaks
-- It only checks if existing streaks should be broken due to gaps
-- **Called only on**:
-  - App launch (`loadPersistedData()`)
-  - After game result deletion
-- **NOT called on day change** - This is why streaks don't automatically break on a new day
-- Uses `shouldBreakStreakForGame()` to check for actual gaps in completed game results
-
-### 4. **Guest Mode Behavior**
-- Streak updates are skipped in Guest Mode (`isGuestMode` check)
-- Guest sessions operate in memory only
-- Host streaks are preserved and restored when Guest Mode exits
-
-## Summary Flow Diagram
+`Core/State/AppState+GameLogic.swift:38`. Pure: takes a streak and a result, returns a new
+streak. This is the function to read if you want the rules.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    STREAK UPDATE FLOW                        │
-└─────────────────────────────────────────────────────────────┘
-
-New Game Result Added
-    │
-    ├─→ updateStreak(for: result)
-    │       │
-    │       └─→ calculateUpdatedStreak()
-    │               │
-    │               ├─→ Completed & Consecutive Day? → Extend streak
-    │               ├─→ Completed & Same Day? → Maintain streak
-    │               ├─→ Completed & Gap >1 day? → Reset to 1
-    │               └─→ Failed? → Reset to 0
-    │
-    ├─→ Post Notifications (GameResultAdded, GameDataUpdated)
-    │
-    └─→ Save Streaks (async)
-
-Day Change Detected
-    │
-    └─→ rebuildStreaksFromResults()
-            │
-            └─→ Recalculate all streaks from scratch
-
-App Launch
-    │
-    ├─→ Load Persisted Streaks
-    │
-    └─→ normalizeStreaksForMissedDays()
-            │
-            └─→ Check for gaps → Break streaks if needed
-
-Game Result Deleted
-    │
-    ├─→ rebuildStreaksFromResults()
-    │
-    └─→ normalizeStreaksForMissedDays()
+result.completed == false  →  currentStreak = 0, streakStartDate = nil
+result.completed == true:
+    currentStreak == 0     →  currentStreak = 1, streakStartDate = result.date
+    else, by daysBetween(lastPlayedDate, result.date):
+        ==  1              →  currentStreak += 1        (consecutive day)
+        <=  0              →  unchanged                 (same day OR historical backfill)
+        >   1              →  currentStreak = 1         (gap; new streak starts)
+    maxStreak = max(maxStreak, currentStreak)
 ```
 
-## Key Files Reference
+Two subtleties that are easy to break and are deliberate:
 
-- **Streak Model**: `StreakSync/Core/Models/Streak/StreakModels.swift`
-- **Streak Update Logic**: `StreakSync/Core/State/AppState+GameLogic.swift`
-- **Streak Rebuild Logic**: `StreakSync/Core/State/AppState+Import.swift`
-- **Streak Normalization**: `StreakSync/Core/State/AppState+Persistence.swift`
-- **Day Change Detection**: `StreakSync/Core/Services/Utilities/DayChangeDetector.swift`
-- **Main App State**: `StreakSync/Core/State/AppState.swift`
+- **`daysBetween <= 0`, not `== 0`.** A backfilled result older than `lastPlayedDate`
+  yields a negative `daysBetween`. Without the `<=`, it fell through to the "gap" branch
+  and reset a healthy streak to 1 while backdating `streakStartDate`.
+- **`lastPlayedDate` never moves backwards** — it is `max(current.lastPlayedDate,
+  result.date)` (line 55), so importing an old result cannot rewind the game's recency.
 
----
+`daysBetween` (`Core/Services/Utilities/GameDateHelper.swift:82`) compares
+`calendar.startOfDay` values, so it is a **calendar-day** difference, not elapsed hours.
 
-## November 2025 Updates
+### 3. `rebuildStreaksFromResults()` — full recompute
 
-- **Refresh Data Self-Healing**
-  - `AppState.refreshData()` now calls `rebuildStreaksFromResults()` followed by `normalizeStreaksForMissedDays()` after reloading persisted data.
-  - This ensures streaks are always recomputed from the authoritative source of truth (`recentResults`) whenever the dashboard or game detail is refreshed or the app comes back to the foreground.
-  - Fixes cases where streak summaries could drift out of sync with actual results (e.g. a Zip result existing while the Zip streak showed 0).
+`Core/State/AppState+Import.swift:17`
 
-- **Calendar-Day Status & Activity**
-  - `GameDateHelper` now computes "Today", "Yesterday", and "X days ago" using **calendar-day** comparisons via `startOfDay(for:)` instead of raw elapsed time.
-  - `GameStreak.isActive` is `true` only when the last played date is today or yesterday; games played 2+ calendar days ago are considered inactive even if less than 48 hours have passed.
-  - This keeps streak activity and status text correct across midnight boundaries and during early-morning launches.
+Groups `recentResults` by game, sorts each group chronologically, and replays the same
+rules to produce a fresh streak per game. Then `ensureStreaksForAllGames` adds empty
+streaks for games with no results.
 
+Two things it does that the incremental path does not:
 
+- **`maxStreak` has a monotonic floor** (line 80): it is raised to the previously persisted
+  `maxStreak` for that game. Without this, a user past the `maxResults` cap (500,
+  `AppConstants.Storage.maxResults`) would watch their all-time best shrink as old results
+  were pruned.
+- `totalGamesPlayed` / `totalGamesCompleted` are recomputed as `results.count` and the
+  completed count **within the retained window** — they get *no* such floor. See
+  [Known caveat: totals drift](#known-caveat-totals-drift).
+
+**Limitation, by construction:** it only sees gaps *between* results. A game last completed
+five days ago still comes out of a rebuild with a non-zero `currentStreak`, because nothing
+in the result set says "and then the user stopped". That is what the next function is for.
+
+### 4. `normalizeStreaksForMissedDays(referenceDate: Date = Date())` — break expired streaks
+
+`Core/State/AppState+Persistence.swift:132`
+
+Builds a per-game `Set` of days that have a completed result, then for each streak with
+`currentStreak > 0` walks day by day from `lastPlayedDate` up to (but not including)
+`referenceDate`. The first day with no completed result means the streak is dead, and it is
+reset to `currentStreak = 0, streakStartDate = nil`. `maxStreak`, the totals and
+`lastPlayedDate` are preserved. Persists and invalidates the cache only if something changed.
+
+- The helper is `hasGapInStreak(completedDays:lastPlayedDate:referenceDate:calendar:)`
+  (line 188), pre-indexed so the check is O(days) rather than O(days × results).
+- **Playing yesterday keeps the streak alive today.** The loop stops *before*
+  `referenceDate`, so today's absence never breaks a streak — you get the whole day to play.
+- **It can only lower a streak, never raise one.** Normalizing does not repair an
+  under-counted streak; only a rebuild can.
+- If a game has no completed results at all, it returns `false` (no break). That is
+  deliberate: a streak whose supporting results were pruned by the `maxResults` cap should
+  not be destroyed on the strength of evidence the app no longer has.
+- `referenceDate` is injectable purely as a test seam (`NormalizeStreaksTests`).
+
+## The invariant: rebuild is always followed by normalize
+
+Because a rebuild cannot detect "the user stopped playing", **every call to
+`rebuildStreaksFromResults()` must be followed by `normalizeStreaksForMissedDays()`.**
+
+Production call sites, all of which honour it:
+
+| Site | Trigger |
+|---|---|
+| `AppState.handleDayChange()` — `AppState.swift:155-156` | Midnight rollover |
+| `AppState.refreshData()` — `AppState+Persistence.swift:427-428` | Pull-to-refresh / foreground |
+| `AppState.reconcileAfterResultSetChanged()` — `AppState+Reconciliation.swift:27-28` | Any wholesale result-set change |
+| `StreakSyncApp.initializeApp()` — `StreakSyncApp.swift:124-125` | After the launch Firestore sync |
+| `AppContainer.handleAppBecameActive()` — `AppContainer.swift:451-452` | Foreground, if sync is stale (>300s) |
+| `AppContainer` auth-change handler — `AppContainer.swift:284-285` | UID change / sign-in |
+| `AppContainer.handleProviderUpgraded(...)` — `AppContainer.swift:339, 344` | Linking a second auth provider |
+
+`GuestSessionManager.swift:136-137` pairs them too, when restoring the host session.
+
+> `handleProviderUpgraded` rebuilt **without** normalizing until 2026-08-31 — a provider
+> upgrade could leave an expired streak reading as active until the next day change or
+> foreground. `NormalizeStreaksTests.testRebuildAloneLeavesAnExpiredStreakActive` now pins
+> the invariant so the pairing is not mistaken for redundancy again.
+
+## Entry points
+
+### A game result is added
+
+`AppState.addGameResult(_:deferReconciliation:)` — `AppState+ResultAddition.swift:20`.
+Calls `updateStreak(for:)` (line 67), posts `.appGameDataUpdated` (line 84), then
+asynchronously `saveStreaks()` (104), `publishWidgetSnapshot()` (126) and
+`checkAndScheduleStreakReminders()` (135). Prunes to `maxResults` (line 108) once the cap
+is exceeded.
+
+Note this path does **not** normalize — it does not need to. Adding a result can only
+extend or reset a streak via the rules above, and a same-day add cannot create a missed day.
+
+### A game result is deleted
+
+`AppState.removeGameResult(_:)` — `AppState.swift:232`. Removes the result, writes a
+tombstone into `deletedResultIds` so a cold resync cannot resurrect it, retracts the
+published social score, then delegates everything else to
+`reconcileAfterResultSetChanged()`.
+
+### Wholesale result-set changes
+
+`AppState.reconcileAfterResultSetChanged()` — `AppState+Reconciliation.swift:22` — is the
+single funnel for sync merges, backup imports, restores, deletes and pruning. Order is
+load-bearing and documented in the source: caches and streaks first, then achievements
+(which read them), then the UI notification, then the slower writes.
+
+### Day change
+
+`DayChangeDetector` posts `.dayDidChange`; `AppState.handleDayChange()`
+(`AppState.swift:142`) rebuilds, normalizes, checks achievements, reschedules reminders and
+republishes the widget snapshot. **It returns early in Guest Mode** — otherwise
+`checkAllAchievements` would union host data and the reminder rewrite would use guest
+at-risk games.
+
+### App launch
+
+`StreakSyncApp.initializeApp()` — `StreakSyncApp.swift`:
+
+1. Local-first paint: `loadPersistedData()` then `normalizeStreaksForMissedDays()` (89-90).
+2. UI is marked initialized — the user sees cached, normalized streaks before any network.
+3. In the background: Firebase auth, notification categories, `syncIfNeeded()`, then
+   `rebuildStreaksFromResults()` + `normalizeStreaksForMissedDays()` (124-125), then
+   `checkAndScheduleStreakReminders()`.
+
+`loadPersistedData()` (`AppState+Persistence.swift:18`) itself does **not** rebuild. It
+loads, fixes legacy Connections results, normalizes, recomputes achievements and publishes
+a widget snapshot. It returns early in Guest Mode or Review Mode, and debounces re-entry
+within 1 second.
+
+## Modes that suppress streak work
+
+- **Guest Mode** (`isGuestMode`) — `handleDayChange`, `loadPersistedData` and `refreshData`
+  all return early. The guest session is in-memory; `GuestSessionManager` restores and then
+  rebuild+normalizes host streaks when it ends.
+- **Review Mode** (`reviewModeEnabled`) — `loadPersistedData` returns early so seeded demo
+  data is not overwritten.
+
+## Notifications
+
+Exactly **one** notification announces that streaks changed: `GameDataUpdated`, declared as
+`AppConstants.Notification.gameDataUpdated` and posted as `.appGameDataUpdated`. It is
+posted by `addGameResult` (`AppState+ResultAddition.swift:84`) and by
+`reconcileAfterResultSetChanged` (`AppState+Reconciliation.swift:33`).
+
+The only notification flowing the other way — an *input* that triggers streak work — is
+`.dayDidChange` (`DayChangeDetector.swift:113`), observed at `AppState.swift:125`.
+
+## `GameStreak` reference
+
+`Core/Models/Streak/StreakModels.swift:43`. A `Codable`, `Sendable` struct with `let`
+properties — updates replace the value, never mutate it.
+
+| Property | Meaning |
+|---|---|
+| `currentStreak` | Consecutive days completed; 0 when broken |
+| `maxStreak` | All-time best; floored at `currentStreak` in `init`, never lowered by a rebuild |
+| `totalGamesPlayed` | Completed **and** failed, within the retained window after a rebuild |
+| `totalGamesCompleted` | Completed only, same caveat |
+| `lastPlayedDate` | Most recent play, completed or failed; never moves backwards |
+| `streakStartDate` | First day of the current streak; `nil` when broken |
+
+Computed: `completionRate` / `successRate` (identical formulas), `completionPercentage`,
+`isActive` (last play was today or yesterday, per
+`GameDateHelper.isGameResultActive`), `streakStatus` (`.broken` if `currentStreak == 0`,
+else `.active` / `.inactive` from `isActive`).
+
+The initializer carries `precondition`s — negative counts, `totalGamesCompleted >
+totalGamesPlayed`, and an empty `gameName` all trap. `precondition` is **live in Release**,
+so a bad construction crashes users, not just the test host.
+
+### Known caveat: totals drift
+
+`updateStreak` increments `totalGamesPlayed` / `totalGamesCompleted` without bound, while
+`rebuildStreaksFromResults` recomputes them from the ≤500-result window. For a user past
+the cap, any rebuild snaps both totals down. `maxStreak` is explicitly protected from this;
+these two are not.
+
+Impact is mostly bounded because the common consumers use them as a **ratio**
+(`completionRate` in sorting, and the percentage on `ModernGameCard` /
+`GameCompactCardView`) — numerator and denominator shrink together.
+
+The one place the absolute number is user-visible is
+`GameDetailViewModel.shareGameStats()` (`GameDetailViewModel.swift:119`), which puts
+`Total Games: <totalGamesPlayed>` into the shared text. For a user past the cap that figure
+under-reports after any rebuild. Recorded because it is real and undocumented, not because
+it is urgent — it needs a lifetime counter of the kind `activeDaysEver` / `uniqueGamesEver`
+already use, which is a product decision rather than a bug fix.
+
+Note the Analytics figures (`OverviewStatsSection`, `MostActiveGamesSection`, …) are *not*
+affected: they come from `AnalyticsComputer` over the result set directly, not from
+`GameStreak`.
+
+## Key files
+
+| Concern | File |
+|---|---|
+| Model | `Core/Models/Streak/StreakModels.swift` |
+| Incremental update | `Core/State/AppState+GameLogic.swift` |
+| Full rebuild | `Core/State/AppState+Import.swift` |
+| Normalization, load/save | `Core/State/AppState+Persistence.swift` |
+| Recompute funnel | `Core/State/AppState+Reconciliation.swift` |
+| Result addition | `Core/State/AppState+ResultAddition.swift` |
+| Day boundaries | `Core/Services/Utilities/GameDateHelper.swift` |
+| Day change detection | `Core/Services/Utilities/DayChangeDetector.swift` |
+| Tests | `StreakSyncTests/NormalizeStreaksTests.swift`, `StreakLogicTests.swift` |
+
+## What changed in this pass
+
+Corrections to the 2025-12-05 revision, for readers who remember it:
+
+1. **The headline claim was backwards.** It asserted in bold, in three places, that
+   `normalizeStreaksForMissedDays()` is *not* called on day change, and drew the conclusion
+   that "streaks remain active on a new day until actual game results show a gap or the app
+   is launched". It **is** called (`AppState.swift:156`), and the conclusion did not hold.
+2. **CloudKit is gone.** An entire trigger section described `UserDataSyncService` and
+   `CloudKitSubscriptionManager`. Neither symbol exists anywhere in the tree; sync is
+   Firestore.
+3. **The "Settings — Force Rebuild" manual trigger is gone.** Neither
+   `SettingsComponents.swift` nor `forceRebuildAllStreaks()` exists.
+4. **Two of the three documented notifications never existed.** `GameResultAdded` and
+   `RefreshGameData` have zero occurrences in the tree.
+5. **The normalization helper was renamed.** `shouldBreakStreakForGame()` does not exist;
+   it is `hasGapInStreak(completedDays:lastPlayedDate:referenceDate:calendar:)`.
+6. **The app-launch flow was wrong.** `loadPersistedData()` does not rebuild, and the
+   documented CloudKit step does not happen.
+7. **`AppState+Reconciliation.swift` was entirely undocumented**, despite now being the
+   funnel that deletion and every sync path go through.
+8. Undocumented behaviours now covered: the `daysBetween <= 0` backfill guard, the
+   `lastPlayedDate` monotonic guard, the `maxStreak` cap floor, the `referenceDate` test
+   seam, Guest/Review mode suppression, `publishWidgetSnapshot()` in the day-change and
+   reconcile flows, and the totals-drift caveat.
+9. Every line-number reference was stale; all were re-read.
