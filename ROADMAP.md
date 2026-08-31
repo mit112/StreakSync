@@ -28,6 +28,11 @@ train was closed and the first two upload attempts were rejected (ITMS-90186 / I
 Gates: `build_sim` clean and warning-free, `swiftlint` **exit 0** (375 violations, 0 serious,
 275 files), **678 tests passed / 0 failed** (660 unit + 18 UI).
 
+**Status 2026-08-31:** a small follow-up pass on branch `overnight-2026-08-31`, not merged.
+Verified `STREAK_LOGIC_DOCUMENTATION.md` end to end, fixed the one code bug that surfaced
+from doing so, refreshed `CLAUDE.md`'s drifted simulator UDIDs, and retired four stale
+entries below. See **§8** — including a combined-run failure that needs watching.
+
 ---
 
 ## 1. Blocked on you — I can't do these from here
@@ -41,7 +46,7 @@ Gates: `build_sim` clean and warning-free, `swiftlint` **exit 0** (375 violation
 | 5 | **App Store Connect API key** | Users and Access ▸ Integrations. Would let the release flow run unattended instead of via an app-specific password. | 10 min |
 | 6 | **The in-Xcode SwiftLint phase is a false green** | See below — the fix is a target build-setting change. | 2 min |
 | 7 | **Create the Widget Extension target** | All 22 source files are written and lint/typecheck clean; the target itself is a `.pbxproj` edit. `StreakSyncWidget/README.md` has the setup, the entitlement, and the four files to add to membership. | 10 min in Xcode |
-| 8 | **Device-test + merge `finish-e2e-2026-08-28`** | Merging to `main` triggers Xcode Cloud → a real TestFlight build. Outward-facing, so it needs your explicit go-ahead. The account-switch and notification changes have never run on hardware. | — |
+| 8 | **Device-test the merged work** | The branch itself merged on 2026-08-29 (`a8b695c`); what is still outstanding is the hardware run. Account switching, the friend nudge, notification routing, and the friend-writes offline / rules-rejection paths have never executed on a device, and a green simulator suite never exercises "no network". | — |
 
 **Crashlytics is the one that matters.** The app has been live since May with zero production
 crash visibility.
@@ -125,9 +130,11 @@ first `import FirebaseAnalytics` will not compile. Adding the product is a `.pbx
 puts this in §1 alongside Crashlytics (now item 2 there). Both want the same trip into Xcode.
 
 ### 2.4 Friends feature has no proactive pull — **shipped 2026-08-29**
-`NotificationScheduler` has no social scheduling function. Friends is entirely pull-based — you
-only see activity if you go looking. A "you and 3 friends played today" nudge is the obvious
-counterpart to the existing streak reminder.
+The body of this entry still described the gap after it was closed, which read as a
+contradiction. Corrected 2026-08-31: `NotificationScheduler+Social.swift` exists and defines
+`FriendActivityNudge` / `FriendActivityNudgeInput` / `FriendActivityNudgePolicy`, with a
+`friendActivity` notification category registered in `NotificationScheduler.swift:110` and
+handled in `NotificationDelegate.swift:158`. Covered by `SocialNotificationSchedulingTests`.
 
 ### 2.5 Undecided
 Aggregate/cross-game leaderboard (`DESIGN_AUDIT.md` §8 decision #4) was never decided.
@@ -147,16 +154,17 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
 | ~~Pips month summary always read "0 completed"~~ | `SharedModels.swift` | **Fixed 2026-08-29.** Two call sites tested `completionStatus.contains("Completed")`; no case of that property contains the substring (they are "1/3 Complete", "All Complete", "Not Started"), so both were permanently false and Pips calendar days were never tinted. Replaced with a `hasAnyCompletion` boolean — deriving behaviour from display copy was the real defect. |
 | ~~At-risk section miscounted the unnamed games~~ | `AtRiskTodaySection.swift` | **Fixed 2026-08-29.** Listed three names then said "and `count - 2` more", so five at-risk games read "and 3 more". Arithmetic extracted out of the `View` body, which is why an off-by-one survived uncovered. |
 | ~~16 `String(format:)` calls with no placeholder~~ | `AppError+ErrorDetails.swift` | **Fixed 2026-08-29.** Every one targeted a string with no specifier, silently discarding the content type / game / key / URL. The `.strings` copy is deliberate prose, so the fix was deleting the dead formatting, not forcing `%@` back in — no user-visible change. Translator comments still advertised `%@`, which had become a hazard; rewritten, with a test asserting no raw placeholder reaches the user. |
-| `completedDifficulties` counts failed attempts | `SharedModels.swift:356` | **Open, needs a call.** It does not filter on `GameResult.completed`, so a failed Pips attempt counts toward the completion total and lights a difficulty dot. Fixing it changes which dots appear — user-visible, hence not folded into the fix above. |
+| `completedDifficulties` counts failed attempts | `SharedModels.swift:356` | **Open, needs a call — but the blast radius is now known (2026-08-31).** It does not filter on `GameResult.completed`, so a failed Pips attempt counts toward the completion total and lights a difficulty dot. The reason it stayed open is that fixing it changes which dots appear. What was missing is how reachable it is: the Pips parser hardcodes `completed: true` (`GameResultParser+Other.swift:255`, "If we can parse it, it was completed"), so a Pips result with `completed == false` **cannot come from a share import at all**. The only way to produce one is the manual edit path (`editGameResult` / `GameResult.replacing(completed:)`). So this is a one-line filter whose only observable effect is on results the user deliberately marked failed — which is arguably the behaviour they'd expect anyway. Your call; it is a 2-minute change either way. |
 | ~~Interactive friend writes hung offline~~ | `+DeferredWrites.swift` | **Fixed 2026-08-29.** Six writes awaited a server ack that never arrives offline and cannot be cancelled. Now fired without awaiting, but keeping the completion handler — dropping it would trade the hang for a silent rules rejection. Failures reach the existing Manage Friends alert with per-operation copy and rollback. **Not hardware-verified.** |
 | ~~Analytics tab was blank for new users~~ | `AnalyticsEmptyStateSection.swift` | **Fixed 2026-08-29.** Content was ten `if`s with no `else`. Now branches on `hasDataForCurrentSelection`, a property written for exactly this and never wired up. Ten dead members deleted with their tests. Covered by a UI test, since the branch lives in a SwiftUI `body`. |
 | Achievements sync as one base64 blob | `FirestoreAchievementSyncService.swift` | Guarded (warns 450KB, fails 700KB) but the single-document design is unchanged, and the failure surfaces only as an internal `status` enum nothing displays. |
 | ~~No Firestore request timeout~~ | `docs/firestore-timeout-rescope.md` | **Re-scoped 2026-08-29 — do not build a timeout.** Reads are already time-boxed by the SDK (`getDocuments` is a one-shot Watch listener released when `OnlineStateTracker` flips Offline at `kOnlineStateTimeout = 10s`). Writes are the opposite: the headers state the completion "will not be called while the client is offline", so every `try await setData/commit` suspends *forever* — and a Firestore write structurally cannot be cancelled, so the obvious `withThrowingTaskGroup` timeout silently does nothing. The real damage is five awaited writes behind an interactive spinner, worst of all the App Store-mandated **Delete Account** flow (`AccountView.swift:442`). See the doc for the recommended fixes, which are cheaper than a timeout. |
-| `TieredAchievementChecker` duplication | 8 near-identical ~25-line `check*` functions | ~150–200 lines removable via one generic helper. This shape is what produced the Completionist ordering bug fixed in this pass. |
+| ~~`TieredAchievementChecker` duplication~~ | — | **Stale entry, removed 2026-08-31.** It described "8 near-identical ~25-line `check*` functions"; the file now holds exactly two (`checkStreakMaster`, `checkCompletionist`), both deliberately kept out of the table because they are genuinely special, plus a `snapshotMetrics` table driving the rest. The dedup this row asked for was already done in the second 2026-08-29 pass. |
 | Streaks/achievements in UserDefaults | `PersistenceService.swift:20` | Self-acknowledged as fine at current size; only `gameResults` is file-backed. |
 | `Task.sleep`-based timing | `AppContainer.handleAppBecameActive` | A 1s reset and a 5s Share-Extension monitoring window. No known user-visible bug. |
 | Unlimited friendCode minting | `firestore.rules:123` | Low severity: a signed-in user can create unbounded `friendCodes` docs. App Check (item 4) is the intended mitigation. |
-| Name-keyed deep link matches the slug, not the display name | `NotificationCoordinator.swift:238` | `streaksync://game?name=…` now works, but matches `game.name` (`"minicrossword"`, `"linkedinqueens"`), so `name=Mini%20Crossword` still finds nothing. Fine for internal callers; worth widening if the scheme is ever documented publicly. |
+| ~~Name-keyed deep link matches the slug, not the display name~~ | — | **Stale entry, removed 2026-08-31.** §7 already recorded display-name matching as shipped; this row contradicted it. `SharedModels.swift:324` matches `$0.name.lowercased() == normalizedName \|\| $0.displayName.lowercased() == normalizedName`, so `name=Mini%20Crossword` resolves. Covered by `DeepLinkNameMatchingTests` and the `testNameKeyedDeepLinkOpensGameDetail` UI test. |
+| Achievement snapshot totals are not cap-protected | `TieredAchievementChecker.swift:87` | **New, found 2026-08-31.** `AchievementSnapshot` explicitly defends two of its four cumulative metrics against the 500-result cap — `uniqueGameIds` unions with `lifetimeUniqueGameIds`, and `uniqueDayCount` is `max(uniqueDays.count, lifetimeActiveDayCount)`. Its siblings `totalGamesPlayed: results.count` and `successCount` get no such floor, so **Game Collector** and **Perfectionist** progress stalls or goes backwards once a user passes the cap. Not data loss: `TieredAchievementModels.swift:259` floors the bar at the earned tier, so tiers already won are never revoked — it is the progress toward the *next* tier that regresses. The fix is the same shape as the two that already exist (persisted lifetime counters), which means a migration, so it was recorded rather than done unattended. |
 
 ---
 
@@ -167,9 +175,16 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
 > reset that clears too much resurrects first-run onboarding, which covers the UI with a
 > permission sheet on any simulator whose authorization is still `.notDetermined`.
 
-- **7 subsystems have no test file at all**: `Core/Config`, `Core/Errors`, `Features/Analytics`,
-  `Features/Dashboard`, `Features/Onboarding`, `Features/Streaks`, `Design System`. Beware the
-  naming traps — `StreakLogicTests` tests `Core/State`, not `Features/Streaks`.
+- ~~**7 subsystems have no test file at all**~~ — **stale, corrected 2026-08-31.** Six of the
+  seven were covered by the 135 tests §7 records; this bullet was never updated to match.
+  `Core/Errors` → `AppErrorLocalizationTests` / `AppErrorAnalyticsTests`; `Features/Analytics`
+  → six `Analytics*Tests` files; `Features/Onboarding` → `ShareOnboardingFlagIsolationTests` /
+  `ShareDiscoveryGateTests`; `Features/Streaks` → three `StreakHistory*Tests`; `Design System`
+  → `DesignSystemTokenTests` / `DesignSystemColorProbe`; `Core/Config` → `ColorHexParsingTests`.
+  **`Features/Dashboard` is the one that genuinely remains** — no dedicated test file; it is
+  touched only incidentally by `ShareOnboardingFlagIsolationTests` and the UI suite. Beware the
+  naming trap that made this hard to audit: `StreakLogicTests` tests `Core/State`, not
+  `Features/Streaks`.
 - **The widget extension has no tests of its own** and cannot have any until the target exists.
   `WidgetSnapshotTests` covers the shared payload and the app-side builder; the timeline
   providers and views are untested.
@@ -201,11 +216,8 @@ Liquid Glass adoption (`glassEffect`) — zero uses; both audits agree current r
   is an unexecuted runbook rather than an archive, and it gates the pre-merge device test.
 - **Dynamic Type coverage is thin**: 11 of ~164 files reference `@ScaledMetric` /
   `dynamicTypeSize` / `sizeCategory`.
-- **`STREAK_LOGIC_DOCUMENTATION.md` needs a verification pass.** Last touched 2025-12-05 and
-  wrong on its headline claim: it states in bold that `normalizeStreaksForMissedDays()` is not
-  called on day change, and `AppState.swift:156` calls it. The file now carries a banner saying
-  so, but the other 350 lines are unchecked. Streak logic is the core of the app and has had
-  several real bugs, so a wrong specification is worse than none.
+- ~~**`STREAK_LOGIC_DOCUMENTATION.md` needs a verification pass.**~~ — **done 2026-08-31.**
+  Every claim re-derived from the source and every line reference re-read; see §8.
 
 ---
 
@@ -326,3 +338,78 @@ the share-import UI test passed against a simulator holding data its own earlier
 **Still never run on hardware.** Account switching, the friend nudge, notification routing, and
 especially the friend-writes offline and rules-rejection paths. A green suite here never
 exercises "no network".
+
+---
+
+## 8. The 2026-08-31 pass
+
+Scope was deliberately narrow: the one remaining zero-risk backlog item (the streak-logic
+doc verification), the staleness it exposed, and whatever bugs fell out of doing it. No
+speculative refactors — the Dynamic Type sweep and the `TieredAchievementChecker` dedup were
+considered and skipped, the first because no runnable gate proves a layout change didn't
+regress, the second because it turned out to be already done (see §3).
+
+**The doc pass paid for itself.** `STREAK_LOGIC_DOCUMENTATION.md` is now verified line by
+line. It was worse than its own banner admitted: besides the known-backwards headline claim,
+it documented three subsystems that no longer exist (`UserDataSyncService`,
+`CloudKitSubscriptionManager`, `SettingsComponents.forceRebuildAllStreaks`), two
+notifications that never existed anywhere in the tree (`GameResultAdded`, `RefreshGameData`),
+and a normalization helper under the wrong name (`shouldBreakStreakForGame` — it is
+`hasGapInStreak`). Every line reference was stale. The rewrite documents what is actually
+there, including behaviours that had never been written down: the `daysBetween <= 0` backfill
+guard, the `lastPlayedDate` monotonic guard, the `maxStreak` cap floor, Guest/Review-mode
+suppression, and `AppState+Reconciliation.swift` — the funnel that deletion and every sync
+path now go through, which the old doc did not mention at all.
+
+**One real bug, found by writing the doc down.** Enumerating the `rebuild → normalize`
+pairing to document it made the odd one out obvious:
+`AppContainer.handleProviderUpgraded(to:displayName:)` rebuilt streaks **without**
+normalizing, alone among the seven sites. Because a rebuild only inspects gaps *between*
+results, linking a second auth provider could leave an expired streak reading as active until
+the next day change or foreground. Fixed with the one line that matches every sibling site.
+
+The honest limit on that fix: `handleProviderUpgraded` is `private`, needs auth mocks, and
+there is no `AppContainer` test file, so **the call site itself is not covered**. What is now
+covered is the invariant it depends on —
+`NormalizeStreaksTests.testRebuildAloneLeavesAnExpiredStreakActive` asserts that a rebuild
+alone leaves a three-day-old streak reading 3, and that normalize then takes it to 0. Verified
+non-vacuous by mutation: stubbing `hasGapInStreak` to `return false` fails it (and three
+sibling tests). This is the `uniqueGamesEver` lesson from §7 applied — the pairing now has a
+test, so nobody deletes it as a redundant call.
+
+**Also corrected**
+
+- `CLAUDE.md` simulator UDIDs had drifted; **every copy-pasteable `xcodebuild` command in it
+  was broken.** 8 references updated (iPhone 17 Pro is now `35FE3AEC-…`, Max `D5C61B1E-…`).
+- Four stale ROADMAP entries retired against the code, not against memory: the
+  `TieredAchievementChecker` dedup (already done), the name-keyed deep link (already
+  shipped, and it contradicted §7 two sections above it), §2.4's body (still described the
+  gap its own heading said was closed), and "7 subsystems have no test file" (six of the
+  seven now have one; only `Features/Dashboard` genuinely remains).
+- `completedDifficulties` is still your call, but is no longer an open question — the Pips
+  parser hardcodes `completed: true`, so the only reachable trigger is a manual edit. See §3.
+- One new finding recorded rather than fixed: `AchievementSnapshot` protects two of its four
+  cumulative metrics from the 500-result cap and not the other two, so Game Collector and
+  Perfectionist progress regresses past the cap. Needs persisted counters plus a migration,
+  which is not unattended work. See §3.
+
+### Gates
+
+| Gate | Result |
+|---|---|
+| `build_sim` | **SUCCEEDED**, 0 warnings, 0 errors |
+| `swiftlint` | **exit 0** — 375 violations, 0 serious, 275 files. The changed files add **zero** new violations. |
+| Unit suite (`-only-testing:StreakSyncTests`) | **658 passed / 0 failed**, exit 0, 66s |
+| Mutation proof | New test confirmed failing against a stubbed `hasGapInStreak` |
+
+> **The combined unit+UI run did not go green, and it is not this pass's changes.** After
+> `simctl privacy reset all` and `-parallel-testing-enabled NO`, the run aborted at 580s with
+> `Failed to establish communication with the test runner (Underlying Error: Channel
+> disconnected)`, failing `testAppLaunchesToTabLayout` and `testCrossFeatureNavigationStress`.
+> Six UI tests had already passed; the **unit suite never executed at all**, which is why it
+> was then run separately and passed. This is a session-level runner disconnect, not an
+> assertion failure, and the machine was under real memory pressure at the time (~6 GB swap
+> in use, ~41% memory free). Neither change in this pass can reach those tests — one is an
+> auth-provider-upgrade path no UI test exercises, the other is a unit test file. Worth
+> watching on the next CI run before concluding anything about the UI suite's health.
+
