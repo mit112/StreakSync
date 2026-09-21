@@ -59,6 +59,9 @@ final class AppState {
 
     // MARK: - Social & Analytics
     var socialService: SocialService?
+    /// The real social service, parked while Review Mode swaps in `ReviewModeSocialService`
+    /// so `exitReviewMode()` can put it back. Not observed — nothing renders from it.
+    @ObservationIgnored var socialServiceBeforeReviewMode: SocialService?
     
     /// Celebration coordinator for achievement unlocks. Set by AppContainer after init.
     @ObservationIgnored weak var celebrationCoordinator: AchievementCelebrationCoordinator?

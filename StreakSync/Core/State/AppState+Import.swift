@@ -201,10 +201,39 @@ extension AppState {
     /// Triggered by tapping the version label 5× in Settings → About.
     @MainActor
     func activateReviewMode() async {
+        socialServiceBeforeReviewMode = socialService
         socialService = ReviewModeSocialService()
         reviewModeEnabled = true
         await applyReviewSeedData()
         logger.info("Review mode activated")
+    }
+
+    /// Leaves demo mode and puts the user's real data back on screen.
+    ///
+    /// The restore is just a reload, and that is safe *because* demo mode never writes:
+    /// every persistence path short-circuits on `reviewModeEnabled`
+    /// (`AppState+Persistence.swift` results/streaks, `AppState+TieredAchievements.swift`,
+    /// `AppState+Widget.swift`), so the real results, streaks and achievements are still
+    /// on disk exactly as they were left. There is nothing to undo.
+    ///
+    /// Expected flow: clear the flag (which unblocks persistence again) -> put the real
+    /// social service back so Friends stops serving seeded rows -> reload from disk, which
+    /// replaces the seeded results and streaks -> any result that arrived while demo mode
+    /// was on is still in the App Group queue, because `saveGameResultsConfirmingDurability`
+    /// refused to acknowledge it, and gets ingested on the next foreground.
+    @MainActor
+    func exitReviewMode() async {
+        guard reviewModeEnabled else { return }
+        reviewModeEnabled = false
+        socialService = socialServiceBeforeReviewMode
+        socialServiceBeforeReviewMode = nil
+        // `loadPersistedData()` debounces itself to one call per second. Entering demo
+        // mode is itself preceded by loads, so without clearing this the Exit button
+        // would silently no-op and leave seeded data on screen — the restore has to be
+        // unconditional.
+        lastDataLoad = nil
+        await loadPersistedData()
+        logger.info("Review mode exited — real data reloaded from disk")
     }
 
     @MainActor

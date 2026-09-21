@@ -234,7 +234,19 @@ extension AppState {
             logger.debug("Guest Mode active – skipping saveGameResults()")
             return true
         }
-        if reviewModeEnabled { return true }
+        // Demo mode deliberately writes nothing, so claiming durability here would be a
+        // lie — and `NotificationCoordinator.swift:195` uses this answer to decide whether
+        // to drop the result from the App Group queue. Returning true is exactly the
+        // "clearing-before-persist" loss this method's contract exists to prevent: a real
+        // result shared while demo data was on screen was acknowledged, dropped from the
+        // queue, and gone at the next launch. Returning false keeps it queued, so it
+        // imports for real once demo mode ends (the flag is in-memory, so at latest on
+        // relaunch). Guest Mode above keeps returning true on purpose — a guest session's
+        // results are meant to be ephemeral.
+        if reviewModeEnabled {
+            logger.debug("Review Mode active – not persisting, and reporting so to the caller")
+            return false
+        }
         do {
             try persistenceService.save(
                 self.recentResults,

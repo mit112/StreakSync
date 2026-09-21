@@ -31,6 +31,27 @@ struct ContentView: View {
                 .foregroundStyle(.black)
             }
             
+            if container.appState.reviewModeEnabled {
+                HStack {
+                    Image(systemName: "eye.fill")
+                    Text("Demo Data Active")
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Button("Exit") {
+                        Task { await container.appState.exitReviewMode() }
+                    }
+                    .fontWeight(.semibold)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 4)
+                // Same treatment as Guest Mode above: black on orange is ~9.5:1 (WCAG AA).
+                .background(Color.orange)
+                .foregroundStyle(.black)
+                .accessibilityElement(children: .contain)
+            }
+
             // Sync status banner — shows when offline or scores are pending.
             // Suppressed on Friends, which owns that tab's single offline/failure
             // explanation; unchanged on Home, Awards, and Settings (DESIGN_AUDIT §4.5).

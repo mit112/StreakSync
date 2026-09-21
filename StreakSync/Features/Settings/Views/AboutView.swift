@@ -42,6 +42,12 @@ struct AboutView: View {
                     Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
                         .foregroundStyle(appState.reviewModeEnabled ? .orange : .secondary)
                         .onTapGesture {
+                            // Deliberately reachable in Release: this is how App Review
+                            // populates the app (Guideline 2.1, commit 09d42ed). It is
+                            // safe to leave shipping because demo mode no longer claims
+                            // durability it doesn't have — see
+                            // `saveGameResultsConfirmingDurability` — and ContentView
+                            // shows a persistent banner with a way out.
                             versionTapCount += 1
                             if versionTapCount >= 5 && !appState.reviewModeEnabled {
                                 showingReviewModeAlert = true
