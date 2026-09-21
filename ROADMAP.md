@@ -559,3 +559,40 @@ App Check debug token; `ENABLE_USER_SCRIPT_SANDBOXING = NO`; the Widget Extensio
 FirebaseAnalytics (still unlinked — there is no way to measure whether the publicity converted);
 and an in-app review prompt (zero `requestReview` calls, **1 rating** on the App Store, and
 `requestReview` needs no `.pbxproj` change).
+
+### Addendum — the Widget Extension target now exists, on a branch
+
+Retires §1 item 7. `StreakSyncWidgetExtension` was created with Xcode 27's MCP
+`XcodeNewTarget` rather than by hand, so the "never edit `.pbxproj` directly" rule held
+throughout. It lives on **`widget-target-2026-09-21`**, not `main`, because it does not build
+until four existing files are ticked into its membership — the one part of this that has no
+MCP equivalent:
+
+```
+StreakSync/Core/Models/Shared/WidgetSnapshot.swift
+StreakSync/Core/Models/Shared/SharedModels.swift
+StreakSync/Core/Models/Shared/CodableColor.swift
+StreakSync/Core/Models/Game/GameDefinitions.swift
+```
+
+That list is `StreakSyncWidget/README.md`'s and maps exactly to the 86 remaining
+"cannot find type" errors. Nothing else should be added — `GameCatalog` is `@MainActor` over
+`UserDefaults.standard`, and anything under `Core/Services/` drags in Firebase.
+
+Three template defaults were wrong and are fixed on that branch: deployment target **27.0**
+on a project whose app targets 18.6 (an iOS-27-only widget), `MARKETING_VERSION 1.0` (Apple
+rejects an extension whose version differs from the app's — that bump is now a **three**-place
+change), and no entitlements at all, so it could not have read the App Group it depends on.
+Three widget sources also needed `import OSLog`: Swift 6's `MemberImportVisibility` no longer
+accepts a re-export, which `swiftc -typecheck` never enforced.
+
+**What this changes generally:** `XcodeNewTarget` and `UpdateTargetBuildSetting` mean §1's
+"blocked on you because it's a `.pbxproj` edit" framing is largely obsolete. Item 6
+(`ENABLE_USER_SCRIPT_SANDBOXING = NO`) is now doable the same way. Items 1 and 2 are not —
+**no MCP tool adds a Swift Package product to a target**, which is why Crashlytics needed a
+human and FirebaseAnalytics still will.
+
+Also newly reachable from here: `GetTopCrashIssues` / `GetCrashIssueLogs` read Apple's crash
+signatures for the **live** app (the Organizer data that has existed, unexamined, since May),
+and `DeviceInteractionSynthesize` does tap/swipe/screenshot on a simulator **or a physical
+device**, which retires the AXe dependency.
