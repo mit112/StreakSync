@@ -7,6 +7,9 @@
 
 import FirebaseAppCheck
 import FirebaseCore
+#if canImport(FirebaseCrashlytics)
+import FirebaseCrashlytics
+#endif
 import FirebaseFirestore
 import OSLog
 import UIKit
@@ -46,6 +49,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 Firestore.firestore().settings = settings
 
                 logger.info("Firebase configured in AppDelegate")
+
+                // Crash reporting. Guarded on the import so this file still builds if the
+                // FirebaseCrashlytics package product is ever removed from the target —
+                // and so the `#else` branch below stays an honest, visible reminder rather
+                // than a silent no-op. Collection is set explicitly rather than relying on
+                // the implicit default, so the state is greppable.
+                #if canImport(FirebaseCrashlytics)
+                Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
+                logger.info("Crashlytics collection enabled")
+                #else
+                logger.warning("FirebaseCrashlytics not linked — this build has no crash reporting")
+                #endif
             } else {
                 // Local-only mode: the app still launches and every offline feature works.
                 logger.error("GoogleService-Info.plist missing or unreadable — running without Firebase")

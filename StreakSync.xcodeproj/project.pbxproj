@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		412EA4343061AD6900AF0494 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 412EA4333061AD6900AF0494 /* FirebaseCrashlytics */; };
 		CC5DBF292F3E7D9300984B3B /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = CC5DBF282F3E7D9300984B3B /* GoogleSignIn */; };
 		CC732BFB2E2E0455005D65D8 /* .swiftlint.yml in Resources */ = {isa = PBXBuildFile; fileRef = CC732BFA2E2E0455005D65D8 /* .swiftlint.yml */; };
 		CC7B0EA62EE36B02004BB228 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = CC7B0EA52EE36B02004BB228 /* FirebaseAuth */; };
@@ -137,6 +138,7 @@
 			files = (
 				CCE1A3D22F3F8D8C004D0FD8 /* FirebaseAppCheck in Frameworks */,
 				CC7B0EA62EE36B02004BB228 /* FirebaseAuth in Frameworks */,
+				412EA4343061AD6900AF0494 /* FirebaseCrashlytics in Frameworks */,
 				CC7B0EA82EE36B02004BB228 /* FirebaseFirestore in Frameworks */,
 				CC5DBF292F3E7D9300984B3B /* GoogleSignIn in Frameworks */,
 			);
@@ -241,6 +243,7 @@
 				CC7B0EA72EE36B02004BB228 /* FirebaseFirestore */,
 				CC5DBF282F3E7D9300984B3B /* GoogleSignIn */,
 				CCE1A3D12F3F8D8C004D0FD8 /* FirebaseAppCheck */,
+				412EA4333061AD6900AF0494 /* FirebaseCrashlytics */,
 			);
 			productName = StreakSync;
 			productReference = CCD1ECDB2E2DBF1100053DAC /* StreakSync.app */;
@@ -874,6 +877,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		412EA4333061AD6900AF0494 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CC7B0EA42EE36B02004BB228 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
 		CC5DBF282F3E7D9300984B3B /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = CC5DBF272F3E7D9300984B3B /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
