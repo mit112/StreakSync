@@ -85,6 +85,16 @@
 			);
 			target = 411086523061C3BF002DACD4 /* StreakSyncWidgetExtension */;
 		};
+		412EABCB3061C72800AF0494 /* Exceptions for "StreakSync" folder in "StreakSyncWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Core/Models/Game/GameDefinitions.swift,
+				Core/Models/Shared/CodableColor.swift,
+				Core/Models/Shared/SharedModels.swift,
+				Core/Models/Shared/WidgetSnapshot.swift,
+			);
+			target = 411086523061C3BF002DACD4 /* StreakSyncWidgetExtension */;
+		};
 		CCA36BFF2E47B81400761153 /* Exceptions for "StreakSync" folder in "StreakSyncShareExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -134,6 +144,7 @@
 			exceptions = (
 				CCF3B2372E3034D600C4ABCE /* Exceptions for "StreakSync" folder in "StreakSync" target */,
 				CCA36BFF2E47B81400761153 /* Exceptions for "StreakSync" folder in "StreakSyncShareExtension" target */,
+				412EABCB3061C72800AF0494 /* Exceptions for "StreakSync" folder in "StreakSyncWidgetExtension" target */,
 			);
 			path = StreakSync;
 			sourceTree = "<group>";
