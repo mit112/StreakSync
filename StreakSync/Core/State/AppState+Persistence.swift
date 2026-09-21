@@ -112,9 +112,19 @@ extension AppState {
             [GameStreak].self,
             forKey: UserDefaultsPersistenceService.Keys.streaks
         ) {
+            // Must cover *every* precondition in `GameStreak.init` — preconditions are
+            // live in Release (only Debug sets -Onone), and `normalizeStreaksForMissedDays`
+            // reconstructs streaks through that initializer on the launch path, before
+            // `rebuildStreaksFromResults` gets a chance to repair anything. Checking a
+            // subset let a negative pair through (played -5, completed -10 satisfies
+            // `completed <= played`) and would trap the app into a launch crash loop.
             let validStreaks = persisted.filter { streak in
                 streak.currentStreak >= 0 &&
-                streak.totalGamesPlayed >= streak.totalGamesCompleted
+                streak.maxStreak >= 0 &&
+                streak.totalGamesPlayed >= 0 &&
+                streak.totalGamesCompleted >= 0 &&
+                streak.totalGamesCompleted <= streak.totalGamesPlayed &&
+                !streak.gameName.isEmpty
             }
             setStreaks(ensureStreaksForAllGames(validStreaks))
         } else {
