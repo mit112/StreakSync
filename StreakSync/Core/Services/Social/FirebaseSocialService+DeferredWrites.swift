@@ -167,6 +167,28 @@ extension FirebaseSocialService {
         }
     }
 
+    /// Starts a write to the signed-in user's own `/users` document and returns at once.
+    ///
+    /// Expected flow: fire -> Firestore applies the write to its local cache immediately ->
+    /// the caller returns and its spinner clears -> the write replays to the server on the
+    /// next connection -> the completion runs only once the server has answered, so a
+    /// non-nil error there is a genuine rejection, never a network stall.
+    ///
+    /// Awaiting these was an unescapable hang for exactly the reason documented at the top
+    /// of this file, and it sat on the **new-user path**: the first Friends-tab visit
+    /// (`ensureProfile`, behind `isLoading`) and the moment straight after an Apple/Google
+    /// sign-in (`updateProfile`, behind a no-cancel overlay). Deliberately NOT routed
+    /// through `fireWrite` — that reports into `FriendManagementView`'s alert, and no sheet
+    /// owns a profile write, so a rejection is logged rather than surfaced.
+    func fireProfileWrite(_ data: [String: Any], on ref: DocumentReference, describedAs operation: String) {
+        // Hoisted out of the closure: `logger` is MainActor-isolated, the completion is not.
+        let log = logger
+        ref.setData(data, merge: true) { error in
+            guard let error else { return }
+            log.error("Deferred \(operation, privacy: .public) write rejected: \(error.localizedDescription)")
+        }
+    }
+
     /// Expected flow once the server has rejected a fired-but-not-awaited friend write:
     ///   1. Firestore already dropped the local overlay (`LocalStore::RejectBatch`) before
     ///      calling us, so its cache is back to the server's truth.

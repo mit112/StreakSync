@@ -174,12 +174,12 @@ final class FirebaseSocialService: SocialService {
                 ?? "Player"
             let providerIDs = authUser?.providerData.map { $0.providerID } ?? []
             let provider = AppContainer.deriveProvider(fromProviderIDs: providerIDs).rawValue
-            try await doc.setData([
+            fireProfileWrite([
                 "displayName": resolvedName,
                 "authProvider": provider,
                 "createdAt": Timestamp(date: now),
                 "updatedAt": Timestamp(date: now)
-            ], merge: true)
+            ], on: doc, describedAs: "create profile")
             return UserProfile(id: currentUID, displayName: resolvedName, authProvider: provider, createdAt: now, updatedAt: now)
         } catch {
             logger.error("Failed to ensure profile: \(error.localizedDescription)")
@@ -213,7 +213,7 @@ final class FirebaseSocialService: SocialService {
         if let photoURL = auth.currentUser?.photoURL?.absoluteString {
             fields["photoURL"] = photoURL
         }
-        try await db.collection("users").document(currentUID).setData(fields, merge: true)
+        fireProfileWrite(fields, on: db.collection("users").document(currentUID), describedAs: "update profile")
         logger.info("Updated profile (provider: \(authProvider ?? "unchanged"))")
     }
 
