@@ -560,13 +560,12 @@ FirebaseAnalytics (still unlinked — there is no way to measure whether the pub
 and an in-app review prompt (zero `requestReview` calls, **1 rating** on the App Store, and
 `requestReview` needs no `.pbxproj` change).
 
-### Addendum — the Widget Extension target now exists, on a branch
+### Addendum — the Widget Extension target now exists and is merged
 
-Retires §1 item 7. `StreakSyncWidgetExtension` was created with Xcode 27's MCP
+**§1 item 7 is closed.** `StreakSyncWidgetExtension` was created with Xcode 27's MCP
 `XcodeNewTarget` rather than by hand, so the "never edit `.pbxproj` directly" rule held
-throughout. It lives on **`widget-target-2026-09-21`**, not `main`, because it does not build
-until four existing files are ticked into its membership — the one part of this that has no
-MCP equivalent:
+throughout, and it is merged to `main`. Everything was automated except ticking four existing
+files into its membership, which is the one part with no MCP equivalent:
 
 ```
 StreakSync/Core/Models/Shared/WidgetSnapshot.swift
@@ -575,9 +574,21 @@ StreakSync/Core/Models/Shared/CodableColor.swift
 StreakSync/Core/Models/Game/GameDefinitions.swift
 ```
 
-That list is `StreakSyncWidget/README.md`'s and maps exactly to the 86 remaining
-"cannot find type" errors. Nothing else should be added — `GameCatalog` is `@MainActor` over
+That list is `docs/widget-extension.md`'s and matched the 86 "cannot find type" errors
+exactly. Nothing else should be added — `GameCatalog` is `@MainActor` over
 `UserDefaults.standard`, and anything under `Core/Services/` drags in Firebase.
+
+Verified before merging: **0 errors and 0 warnings in both Debug and Release**, `swiftlint
+lint --no-cache` exit 0 at 379 (identical to `main`, 0 in widget files), **667 unit / 0
+failed**, **15 UI / 0 failed**, and the `.appex` confirmed inside the app's `PlugIns` with
+`Metadata.appintents` emitted — so the Siri/Shortcuts intents are live rather than inert.
+Adding the target also cleared the app's last build warning.
+
+Two traps worth recording. The scheme builds **Release**, so looking for the `.appex` in
+`Debug-iphonesimulator` wrongly suggests it never built. And `StreakSyncWidget/` is a
+synchronized folder, so **every file in it ships as a resource inside the `.appex`** — the
+widget README was doing exactly that, and now lives at `docs/widget-extension.md`. Don't put
+docs or scratch files in that folder.
 
 Three template defaults were wrong and are fixed on that branch: deployment target **27.0**
 on a project whose app targets 18.6 (an iOS-27-only widget), `MARKETING_VERSION 1.0` (Apple
