@@ -152,6 +152,18 @@ class ShareViewController: UIViewController {
             return
         }
 
+        // `GameResult`'s initializer only *asserts* these invariants, and asserts are
+        // compiled out of Release — so an invalid result is returned normally here and
+        // then silently dropped by `AppState.addGameResult`'s `guard result.isValid`.
+        // Checking it here is what stops the user being shown a green "Saved" for a
+        // result the app is going to throw away.
+        guard result.isValid else {
+            logger.error("Parsed an invalid \(game.displayName, privacy: .public) result; refusing to report success")
+            setFailure("Couldn't read a valid score from your \(game.displayName) result. "
+                       + expectedFormatHint(for: game))
+            return
+        }
+
         // Only reveal the success card once the App Group write is confirmed. If the
         // container is unresolvable or serialization fails, the write silently no-ops —
         // show the failure card rather than a false "Saved" (T1-1).
