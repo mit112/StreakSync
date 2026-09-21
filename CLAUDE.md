@@ -32,27 +32,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (no code signing needed for simulator)
 xcodebuild build \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=35FE3AEC-7786-43DA-AE66-F09B99786D1D' \
+  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO -quiet \
   2>&1 | xcsift -w
 
 # Run all tests (unit + UI)
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=35FE3AEC-7786-43DA-AE66-F09B99786D1D' \
+  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
 
 # Run a single test class
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=35FE3AEC-7786-43DA-AE66-F09B99786D1D' \
+  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests
 
 # Run a single test method
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=35FE3AEC-7786-43DA-AE66-F09B99786D1D' \
+  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests/testStreakContinuation
 
@@ -66,6 +66,26 @@ swiftlint
 ```
 
 Pipe through `| xcpretty` for readable output if xcpretty is installed.
+
+### Run the lint gate with `--no-cache`
+
+`swiftlint` caches per-file results and the cache **can go stale after an edit**, silently
+under-reporting. Measured 2026-09-21 on this repo: a cached `swiftlint` run reported
+**0 violations** for `StreakSyncShareExtension/ShareViewController.swift` while
+`swiftlint lint --no-cache` on the same tree reported **5** in that file — including a
+`line_length` and a `file_length` violation that had just been introduced. Whole-repo
+totals differed by 5 (375 cached vs 380 uncached). A cached run is fine for a quick
+look; **the gate is `swiftlint lint --no-cache`**, and "my changes added no new
+violations" is only meaningful when both sides of the comparison were uncached.
+
+To get a trustworthy before/after, lint `HEAD` in a throwaway worktree rather than
+trusting a remembered number:
+
+```bash
+git worktree add --detach /tmp/baseline HEAD
+(cd /tmp/baseline && swiftlint lint --no-cache | tail -1)
+git worktree remove --force /tmp/baseline
+```
 
 ### The lint gate is the CLI, not the build phase
 
@@ -86,9 +106,27 @@ The unit suite runs fine: as of 2026-08-31, **658 pass / 0 fail / 6 skipped**
 environment")`. That reconciles: `StreakSyncTests/` holds 664 `func test*`, and 658 + 6 = 664. Prefer XcodeBuildMCP: `build_sim(buildForTesting: true)` then
 `test_sim(testProductsPath: <that>, extraArgs: ["-only-testing:StreakSyncTests"])`.
 
-When counting results out of a raw `xcodebuild` log, match `passed on 'Clone` rather than
-anchoring on `^Test case` — parallel clones interleave their output and will truncate the
-occasional line's prefix, silently undercounting.
+**Don't count tests by grepping the log — read the result bundle.** Pass
+`-resultBundlePath Out.xcresult`, then:
+
+```bash
+xcrun xcresulttool get test-results summary --path Out.xcresult | jq \
+  '{result, totalTestCount, passedTests, failedTests, skippedTests}'
+```
+
+Verified 2026-09-21 against the unit target: `{"result":"Passed","totalTestCount":664,
+"passedTests":658,"failedTests":0,"skippedTests":6}` — exactly the documented baseline,
+from one command. `build-results` is the equivalent for warnings and errors. This has been
+available since Xcode 16; the project simply never used it.
+
+Log-scraping is the fallback, and it is genuinely treacherous — it over- *and*
+under-counts. Measured 2026-09-21 on the UI target: the log printed
+`Executed 18 tests` and 18 `Test Case … passed` lines, but only **15 distinct test names**,
+and `StreakSyncUITests/` contains exactly **15 `func test*`**. Three cases are counted twice
+across suite levels. **The UI suite is 15 tests, not 18** — every "18 UI tests" figure in
+this repo's history came from that artifact. If you must scrape, match `passed on 'Clone`
+rather than `^Test case` (parallel clones truncate prefixes) and always `sort -u` the test
+names before counting.
 
 - `Early unexpected exit, operation never finished bootstrapping — Test crashed with
   signal abrt before establishing connection` means **the test host aborted**, not that the
@@ -193,45 +231,31 @@ Rules in `firestore.rules` with a 62-case pen test suite in `firestore-rules-tes
 - Sensitive data goes in Keychain (`KeychainService`), never UserDefaults
 
 
-## Toolchain — two Xcodes, on purpose
+## Toolchain — one Xcode, as of 2026-09-21
 
 | Job | Xcode | Path |
 |---|---|---|
-| Daily dev, tests, simulators | 27.0 Beta 6 (27A5252f, `xcode-select` default) | `/Applications/Xcode-27.0.0-Beta.6.app` |
-| **App Store archives** | **26.6 (17F113)** | `/Applications/Xcode-26.6.0.app` |
+| Everything — dev, tests, simulators, archives | **27.0 GA (27A266a)** | `/Applications/Xcode-27.0.0.app` |
 
-The App Store rejects binaries built with a beta Xcode, so releases must be cut
-with the release Xcode. 26.6 is also the exact build CI uses, so the archive
-toolchain is the one that proves the suite green.
+The two-Xcode split this section used to describe is **obsolete**. It existed
+because the App Store rejects binaries built with a beta Xcode, so archives
+needed a separate release toolchain. 27.0 shipped GA, the beta was removed, and
+27.0 GA now serves both jobs. `xcodes installed` is the authority.
 
-> **State as of 2026-08-27:** the release Xcode (26.6) was uninstalled to reclaim
-> disk during the Beta 3 → Beta 6 upgrade, so **only the beta is installed right
-> now.** Reinstall the release toolchain before the next App Store archive:
-> `xcodes install "26.6"` (installs to `/Applications/Xcode-26.6.0.app`), then
-> `DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer xcodebuild -downloadPlatform iOS`.
-> Note: betas installed via `xcodes` are named `Xcode-<version>-Beta.N.app` (e.g.
-> `Xcode-27.0.0-Beta.6.app`), **not** `Xcode-beta.app` — update paths accordingly
-> if you script against the beta.
+> **Machine was reset 2026-09-03.** Xcode 27.0 GA was installed 2026-09-21 and the
+> iOS platform downloaded the same day (`xcodebuild -downloadPlatform iOS`) — a
+> fresh Xcode ships **no simulator runtimes at all**, so `simctl list runtimes`
+> comes back empty and every `-destination` fails until you download it. Simulator
+> devices then have to be created by hand; only the ones listed below exist.
 
-**`open -a` does not work for the release Xcode.** Both bundles declare
-`CFBundleIdentifier = com.apple.dt.Xcode`, so LaunchServices resolves the
-document to the higher-versioned beta and fails with `-10664`
-(`kLSIncompatibleApplicationVersionErr`). Launch the binary directly instead:
+Since there is only one Xcode, `open -a Xcode` works again and the `-10664`
+`kLSIncompatibleApplicationVersionErr` workaround is no longer needed. (It applied
+because two bundles both declared `CFBundleIdentifier = com.apple.dt.Xcode`, so
+LaunchServices always resolved to the higher-versioned one.)
 
-```bash
-nohup /Applications/Xcode-26.6.0.app/Contents/MacOS/Xcode \
-  ~/dev/StreakSync/StreakSync.xcodeproj >/dev/null 2>&1 &
-```
-
-For CLI work, select the toolchain per command with `DEVELOPER_DIR` rather than
-switching the global `xcode-select` default.
-
-Each Xcode needs its own platform download — a fresh install can build for the
-simulator but fails device/archive builds with "iOS <version> is not installed":
-
-```bash
-DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer xcodebuild -downloadPlatform iOS
-```
+If a second Xcode is ever installed alongside this one, select per command with
+`DEVELOPER_DIR` rather than switching the global `xcode-select` default, and
+remember each Xcode needs its own `xcodebuild -downloadPlatform iOS`.
 
 ### Release flow (all CLI, no Organizer)
 
@@ -241,7 +265,7 @@ Version components compare numerically, so 1.22 follows 1.21 (1.3 would be *lowe
 
 ```bash
 # 1. Archive
-DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer xcodebuild archive \
+DEVELOPER_DIR=/Applications/Xcode-27.0.0.app/Contents/Developer xcodebuild archive \
   -project StreakSync.xcodeproj -scheme StreakSync \
   -destination 'generic/platform=iOS' \
   -archivePath ~/Library/Developer/Xcode/Archives/<date>/StreakSync-<ver>.xcarchive \
@@ -287,17 +311,21 @@ Connect — Xcode Cloud only delivers the build.
 
 **Always reference simulators by UDID, not by name.**
 
-- iPhone 17 Pro: `35FE3AEC-7786-43DA-AE66-F09B99786D1D` (iOS 27.0 — preferred)
-- iPhone 17 Pro Max: `D5C61B1E-2BCE-44CF-BD4F-9E1D78A519A1` (iOS 27.0)
+- iPhone 17 Pro: `FF93212D-752B-4632-89CA-51888898E072` (iOS 27.0 — preferred)
+- iPhone 18 Pro Max: `FBE80628-0338-4A91-9B61-F26BB33818BC` (iOS 27.0)
+
+> There is no iPhone 17 Pro Max device right now — create one only if you need it
+> (`xcrun simctl create "iPhone 17 Pro Max" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max com.apple.CoreSimulator.SimRuntime.iOS-27-0`).
+> Each booted simulator costs roughly 2.6 GB, and disk on this machine is tight.
 
 > **UDID drift:** These UDIDs change whenever Xcode is reinstalled or simulators are re-created. If `xcodebuild` rejects the destination with "device not found", run `xcrun simctl list devices available | grep "iPhone 17 Pro"` and update this file.
 
 Preferred destination string:
-`platform=iOS Simulator,id=35FE3AEC-7786-43DA-AE66-F09B99786D1D`
+`platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072`
 
 **Always launch apps with:**
 ```bash
-xcrun simctl launch --terminate-running-process --console-pty 35FE3AEC-7786-43DA-AE66-F09B99786D1D com.mitsheth.StreakSync
+xcrun simctl launch --terminate-running-process --console-pty FF93212D-752B-4632-89CA-51888898E072 com.mitsheth.StreakSync
 ```
 `--terminate-running-process` is mandatory — without it, launch silently does nothing if the app is already running.
 

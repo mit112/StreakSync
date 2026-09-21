@@ -429,3 +429,133 @@ Keychain in `setUpWithError` and skips only where it genuinely does not work. 65
 > here.** CI is the arbiter — it ran the UI suite green on 2026-08-29 and should be checked
 > before drawing any conclusion about the UI tests' health.
 
+
+---
+
+## 9. The 2026-09-21 pass — publicity readiness
+
+Scope: "is the app production-ready" ahead of a publicity push. Nine code fixes, a version
+bump to **1.25**, Crashlytics finally linked, and three documentation facts corrected that
+had been wrong for months.
+
+### The four that actually mattered
+
+1. **`streaksync.app` was never registered.** Verified across three resolvers: no A record
+   and **no NS record**, while `web.dev` and `mit112.github.io` resolved fine on the same
+   resolvers. Five user-facing links pointed at it — Website, Privacy Policy (×2), and the
+   support `mailto:` used by both Settings and every critical error alert — and there was no
+   MX record, so `support@streaksync.app` bounced. A dead in-app privacy policy link is also
+   Guideline 5.1.1 exposure. Fixed by centralizing the URLs in `AppConstants.ExternalLinks`
+   (they were duplicated literals across four files, which is *why* every copy was wrong)
+   and pointing them at GitHub Pages. The Pages **root was 404** — only `/privacy` and
+   `/support/` existed — so `docs/index.md` was added.
+
+2. **The App Store is serving 1.23.** Confirmed via the iTunes lookup API against a control
+   (NYT Games) after a first query returned nulls. **1.24 was delivered to TestFlight on
+   2026-08-29 and never submitted for review**, so the entire 48-commit `finish-e2e` merge —
+   20+ correctness fixes — is not live. Everyone installing from publicity gets the old build.
+
+3. **The Share Extension showed a green "Saved!" for results the app then dropped.**
+   `processText` went parse → save → success card with no `isValid` check, while
+   `GameResult`'s initializer only *asserts* its invariants — and asserts are stripped in
+   Release (confirmed: `-Onone` is Debug-only, so Release runs at `-O`). `addGameResult`'s
+   `guard result.isValid` then discarded the result with nothing but a `logger.warning`.
+   Reachable from ordinary messy input: a combined multi-game post or a truncated share.
+   Fixed with a guard that reuses the existing failure copy.
+
+4. **Demo mode silently destroyed real results.** `saveGameResultsConfirmingDurability()`
+   returned `true` in Review Mode *without writing* — and `NotificationCoordinator.swift:195`
+   uses that answer to decide whether to drop the result from the App Group queue. That is
+   exactly the clearing-before-persist loss the method's own doc comment says it exists to
+   prevent (T1-2). A result shared while demo data was on screen was acknowledged, dropped,
+   and gone at the next launch. It now returns `false`, so the result stays queued and
+   imports for real once demo mode ends. Guest Mode deliberately still returns `true` —
+   a guest session's results are meant to be ephemeral, and a test pins that distinction.
+
+   **Review Mode itself was left reachable in Release on purpose.** An earlier draft of this
+   pass put the 5-tap trigger behind `#if DEBUG`; that was reverted on discovering commit
+   `09d42ed` — *"tap version label 5× … for App Review (2.1)"*. Removing it would likely have
+   re-triggered the same Guideline 2.1 rejection it was written to fix. Instead it is now
+   honest: `ContentView` shows a persistent "Demo Data Active / Exit" banner, and
+   `AppState.exitReviewMode()` restores real data by reloading from disk — safe precisely
+   because demo mode never writes. That reload had to clear `lastDataLoad` first, or
+   `loadPersistedData()`'s one-second debounce would have made the Exit button a silent no-op.
+
+### Also fixed
+
+- **Privacy manifests declared no data collection** while `docs/privacy.md` — linked from
+  inside the app — enumerates display name, email, game results, Firebase UID and friend
+  connections. Now declares UserID / Name / EmailAddress / OtherUserContent (Linked, not
+  Tracking), and adds reason code **`1C8F.1`** alongside `CA92.1` on both targets, which the
+  App Group UserDefaults access across the Share Extension boundary requires. This class of
+  defect arrives as an ITMS-91053 email after upload, so a green archive proves nothing.
+- **Quadratic leaderboard reads.** The score listener called `refreshLeaderboard()` on every
+  sibling write with no debounce — `(friends+1)×games` documents per event, compounding to
+  `G²·N·(N+1)` across a morning (~23,000 reads for one user at N=50). A
+  `requestRefreshDebounced` had existed since forever with **zero callers**. Added
+  `requestLeaderboardRefreshDebounced` on its own task handle (sharing the existing one would
+  let a score event cancel a pending full refresh and silently skip the friends reload), wired
+  to both listener registration sites.
+- **A corrupt persisted streak could have caused a launch crash loop.** `GameStreak.init` has
+  six live preconditions; the load filter checked two, and `normalizeStreaksForMissedDays`
+  reconstructs through that initializer on the launch path — *before*
+  `rebuildStreaksFromResults` can repair anything. The filter even admitted a negative pair
+  (played −5, completed −10 satisfies `completed <= played`). Now checks all six. No code was
+  found that produces such data, so this is robustness, not a known-live bug.
+- **New-user hang.** `ensureProfile` and `updateProfile` used raw awaited `setData`, which
+  never returns offline and cannot be cancelled — on the first Friends-tab visit and straight
+  after Apple/Google sign-in. Routed through a new `fireProfileWrite`, deliberately *not*
+  through `fireWrite` (that reports into `FriendManagementView`'s alert, and no sheet owns a
+  profile write). **Least verifiable change in this pass — needs a device.**
+- Dashboard hero rendered `EmptyView` for a user with no streaks — a blank gap at the top of
+  the first screen a new user sees. Onboarding claimed "16 supported games"; there are 15.
+
+### Corrected facts that had been wrong for months
+
+- **The UI suite is 15 tests, not 18.** The log prints `Executed 18 tests` and 18
+  `Test Case … passed` lines, but only **15 distinct names**, and `StreakSyncUITests/` holds
+  exactly 15 `func test*`. Three are double-counted across suite levels. Every "18 UI tests"
+  figure in this repo — including CI's — came from that artifact.
+- **`swiftlint`'s cache under-reports.** A cached run reported **0** violations for a file
+  that `--no-cache` showed had **5**, two of them newly introduced. Whole-repo totals differed
+  by 5. `swiftlint lint --no-cache` is the gate; see `CLAUDE.md`.
+- **"Zero crash visibility" was overstated.** Apple's Xcode Organizer has been collecting
+  crash reports for the live app since May. Unexamined, not absent.
+
+### Toolchain
+
+Xcode 27.0 GA (27A266a) replaced 27.0 Beta 6 — the two-Xcode split in `CLAUDE.md` is obsolete
+and was rewritten. The reset machine had **no simulator runtimes at all**, so
+`xcodebuild -downloadPlatform iOS` and a hand-created device were needed before any gate could
+run; UDIDs updated again. Firebase moved **12.6.0 → 12.19.2** (13 minor versions) plus a broad
+dependency refresh when Crashlytics was added — accepted deliberately, and the reason device
+testing is now required rather than advisable. The first two builds after it failed with 117
+`cannot find type 'ExprBridge'` errors inside firebase-ios-sdk; root cause was one stale
+precompiled module (`FIRFieldValue.h has been modified since the module file was built`), fixed
+by `xcodebuild clean`, not by touching the SDK.
+
+### Gates
+
+| Gate | Result |
+|---|---|
+| `xcodebuild build` | **SUCCEEDED** — 0 errors, 1 warning (an AppIntents metadata note) |
+| `swiftlint lint --no-cache` | **exit 0** — 379 violations, 0 serious. Violation set **identical to HEAD**; the new test file adds 0 |
+| Unit (`-only-testing:StreakSyncTests`) | **667 tests, 661 passed, 6 skipped, 0 failed** |
+| UI (`-only-testing:StreakSyncUITests`) | **15 tests, 15 passed, 0 failed** |
+| Mutation proof | `testReviewModeDoesNotClaimDurability` confirmed **failing** against the restored bug, while both control tests still passed |
+| Runtime | App launched on the simulator: `Firebase configured in AppDelegate` / `Crashlytics collection enabled` — proving the `#if canImport` true branch, not the `#else` |
+
+Test counts read from the result bundle (`xcresulttool get test-results summary`), not scraped
+from the log.
+
+### Still open, and only you can do it
+
+Firebase **budget alert** (nothing caps spend on Blaze during a traffic spike); confirm the
+`scores` composite index on `userId` + `allowedReaders` + `dateInt` exists — `firestore.indexes.json`
+declares only two of the three, and if it is genuinely missing then
+`reconcileAllowedReadersForFriendshipChange` has been failing into a swallowed `catch`, leaving
+**removed friends with read access to 30 days of scores**; confirm deployed rules match the repo;
+App Check debug token; `ENABLE_USER_SCRIPT_SANDBOXING = NO`; the Widget Extension target;
+FirebaseAnalytics (still unlinked — there is no way to measure whether the publicity converted);
+and an in-app review prompt (zero `requestReview` calls, **1 rating** on the App Store, and
+`requestReview` needs no `.pbxproj` change).
