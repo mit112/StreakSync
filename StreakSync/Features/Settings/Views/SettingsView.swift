@@ -95,7 +95,7 @@ private struct IOS26SettingsContent: View {
                     AboutView()
                 }
 
-                if let privacyURL = URL(string: "https://streaksync.app/privacy") {
+                if let privacyURL = URL(string: AppConstants.ExternalLinks.privacyPolicy) {
                     IOS26SettingsLinkRow(
                         icon: "hand.raised.circle",
                         iconColor: StreakSyncBrand.primary,
@@ -104,7 +104,7 @@ private struct IOS26SettingsContent: View {
                     )
                 }
 
-                if let supportURL = URL(string: "mailto:support@streaksync.app") {
+                if let supportURL = URL(string: "mailto:\(AppConstants.ExternalLinks.supportEmail)") {
                     IOS26SettingsLinkRow(
                         icon: "envelope.circle",
                         iconColor: StreakSyncBrand.primary,

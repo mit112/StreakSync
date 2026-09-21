@@ -75,7 +75,7 @@ struct ErrorAlertModifier: ViewModifier {
         
         """
         
-        if let url = URL(string: "mailto:support@streaksync.app?subject=\(subject)&body=\(body)") {
+        if let url = URL(string: "mailto:\(AppConstants.ExternalLinks.supportEmail)?subject=\(subject)&body=\(body)") {
             UIApplication.shared.open(url)
         }
     }

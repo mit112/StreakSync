@@ -78,7 +78,7 @@ struct AboutView: View {
 
             // Links Section
             Section {
-                if let websiteURL = URL(string: "https://streaksync.app") {
+                if let websiteURL = URL(string: AppConstants.ExternalLinks.website) {
                     Link(destination: websiteURL) {
                         HStack {
                             Label("Website", systemImage: "globe")
@@ -90,7 +90,7 @@ struct AboutView: View {
                     }
                 }
 
-                if let privacyURL = URL(string: "https://streaksync.app/privacy") {
+                if let privacyURL = URL(string: AppConstants.ExternalLinks.privacyPolicy) {
                     Link(destination: privacyURL) {
                         HStack {
                             Label("Privacy Policy", systemImage: "hand.raised")
@@ -102,7 +102,7 @@ struct AboutView: View {
                     }
                 }
 
-                if let supportEmailURL = URL(string: "mailto:support@streaksync.app") {
+                if let supportEmailURL = URL(string: "mailto:\(AppConstants.ExternalLinks.supportEmail)") {
                     Link(destination: supportEmailURL) {
                         HStack {
                             Label("Contact Support", systemImage: "envelope")

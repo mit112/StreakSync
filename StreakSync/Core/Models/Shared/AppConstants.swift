@@ -44,6 +44,16 @@ enum AppConstants {
         static let darwinNotificationName = "com.streaksync.app.newResult"
     }
 
+    // MARK: - External Links
+    /// Canonical user-facing URLs. Centralized because these were previously
+    /// duplicated as literals across four files, every copy pointing at a
+    /// domain that was never registered.
+    enum ExternalLinks {
+        static let website = "https://mit112.github.io/StreakSync/"
+        static let privacyPolicy = "https://mit112.github.io/StreakSync/privacy"
+        static let supportEmail = "sheth.mit@northeastern.edu"
+    }
+
     // MARK: - Deep Link Keys
     enum DeepLinkKeys {
         static let gameId = "gameId"
