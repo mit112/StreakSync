@@ -71,38 +71,67 @@ struct StreakSummaryHero: View {
     }
 
     var body: some View {
-        if hasAnyActivity {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 0) {
-                    horizontalMetrics
-                }
+        Group {
+            if hasAnyActivity {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 0) {
+                        horizontalMetrics
+                    }
 
-                Grid(horizontalSpacing: Spacing.lg, verticalSpacing: Spacing.md) {
-                    gridMetricRows
-                }
+                    Grid(horizontalSpacing: Spacing.lg, verticalSpacing: Spacing.md) {
+                        gridMetricRows
+                    }
 
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    ForEach(metrics) { metric in
-                        metricView(metric)
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        ForEach(metrics) { metric in
+                            metricView(metric)
+                        }
                     }
                 }
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity)
-            .background {
-                RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
-                    // Use a brighter surface so the hero stands out against the grouped dashboard background.
-                    .fill(Color(.systemBackground))
-                    .strokeBorder(colorScheme == .dark ? Color(.separator) : Color.black.opacity(0.08), lineWidth: 0.75)
-                    .shadow(
-                        color: .black.opacity(colorScheme == .dark ? 0.18 : 0.08),
-                        radius: colorScheme == .dark ? 8 : 10,
-                        x: 0,
-                        y: colorScheme == .dark ? 4 : 4
-                    )
+            } else {
+                emptyState
             }
         }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .background {
+            RoundedRectangle(cornerRadius: CornerRadius.card, style: .continuous)
+                // Use a brighter surface so the hero stands out against the grouped dashboard background.
+                .fill(Color(.systemBackground))
+                .strokeBorder(colorScheme == .dark ? Color(.separator) : Color.black.opacity(0.08), lineWidth: 0.75)
+                .shadow(
+                    color: .black.opacity(colorScheme == .dark ? 0.18 : 0.08),
+                    radius: colorScheme == .dark ? 8 : 10,
+                    x: 0,
+                    y: colorScheme == .dark ? 4 : 4
+                )
+        }
+    }
+
+    /// The hero is metrics-only, so with nothing to count it previously rendered
+    /// `EmptyView` — a blank gap at the top of the very first screen a new user
+    /// sees. The guidance card directly below owns the call to action, so this
+    /// names the state and orients without competing for the primary action.
+    private var emptyState: some View {
+        HStack(spacing: Spacing.md) {
+            Image.safeSystemName("flame", fallback: "flame")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("No active streaks")
+                    .font(.subheadline.weight(.semibold))
+
+                Text("Share a result from any puzzle to start one.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("No active streaks. Share a result from any puzzle to start one.")
     }
 
     @ViewBuilder
@@ -159,6 +188,7 @@ struct StreakSummaryHero: View {
     VStack(spacing: 20) {
         StreakSummaryHero(activeStreakCount: 3, longestCurrentStreak: 14, atRiskCount: 2, completedTodayCount: 1)
         StreakSummaryHero(activeStreakCount: 1, longestCurrentStreak: 1, atRiskCount: 0, completedTodayCount: 0)
+        StreakSummaryHero(activeStreakCount: 0, longestCurrentStreak: 0, atRiskCount: 0, completedTodayCount: 0)
     }
     .padding()
 }
