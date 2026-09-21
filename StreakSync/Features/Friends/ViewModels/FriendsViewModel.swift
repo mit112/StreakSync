@@ -44,6 +44,7 @@ final class FriendsViewModel: ObservableObject {
     // Fallback polling timer (only used when listeners are nil, e.g. MockSocialService)
     private var refreshTimer: Timer?
     private var refreshDebounceTask: Task<Void, Never>?
+    private var leaderboardDebounceTask: Task<Void, Never>?
     // NotificationCenter observer tokens for proper cleanup
     private var backgroundObserver: (any NSObjectProtocol)?
     private var foregroundObserver: (any NSObjectProtocol)?
@@ -100,6 +101,19 @@ final class FriendsViewModel: ObservableObject {
         }
     }
     
+    /// Coalesces score-listener callbacks. The listener fires once per sibling
+    /// write, so refreshing per event re-reads the whole visible score set —
+    /// (friends + 1) x games documents every time — which compounds quadratically
+    /// in friend count across a morning when everyone posts.
+    func requestLeaderboardRefreshDebounced(delayMs: UInt64 = 180) {
+        leaderboardDebounceTask?.cancel()
+        leaderboardDebounceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delayMs * 1_000_000)
+            guard !Task.isCancelled else { return }
+            await self?.refreshLeaderboard()
+        }
+    }
+
     func refreshLeaderboard() async {
         do {
             let (start, end) = dateRange()
@@ -174,8 +188,7 @@ final class FriendsViewModel: ObservableObject {
             startDateInt: startInt,
             endDateInt: endInt
         ) { [weak self] in
-            guard let self else { return }
-            Task { await self.refreshLeaderboard() }
+            self?.requestLeaderboardRefreshDebounced()
         }
         
         // Friendship listener — triggers full reload when friends are added/removed
@@ -208,8 +221,7 @@ final class FriendsViewModel: ObservableObject {
             startDateInt: start.utcYYYYMMDD,
             endDateInt: end.utcYYYYMMDD
         ) { [weak self] in
-            guard let self else { return }
-            Task { await self.refreshLeaderboard() }
+            self?.requestLeaderboardRefreshDebounced()
         }
     }
     
@@ -267,6 +279,8 @@ final class FriendsViewModel: ObservableObject {
     func cleanup() {
         refreshDebounceTask?.cancel()
         refreshDebounceTask = nil
+        leaderboardDebounceTask?.cancel()
+        leaderboardDebounceTask = nil
         tearDownListeners()
         if let obs = backgroundObserver {
             NotificationCenter.default.removeObserver(obs)
