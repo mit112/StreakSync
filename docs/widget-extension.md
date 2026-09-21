@@ -1,8 +1,22 @@
 # StreakSyncWidget
 
-WidgetKit extension for StreakSync. Source only — the Xcode target does not exist
-yet, because creating it requires editing `StreakSync.xcodeproj/project.pbxproj`,
-which project rules forbid. Nothing here compiles until a human adds the target.
+> Lives in `docs/` rather than beside the source: `StreakSyncWidget/` is an Xcode 16
+> synchronized folder, so anything in it is copied into the built `.appex` as a resource —
+> this file was shipping inside the widget bundle.
+
+WidgetKit extension for StreakSync.
+
+**The target now exists** (`StreakSyncWidgetExtension`, created 2026-09-21). It builds, links,
+and is embedded in the app's *Embed Foundation Extensions* phase. It was created with Xcode
+27's MCP `XcodeNewTarget`, not by hand — editing `project.pbxproj` directly is still
+forbidden, but it is no longer the only way to add a target.
+
+The four main-app files listed under "Required file membership" below **are** in the target's
+membership; that step is done. The section is kept because it is the authoritative list of
+what may be shared with the widget, and the reasons for the exclusions still bind.
+
+<details>
+<summary>How the target was originally added (kept for reference)</summary>
 
 ## Adding the target
 
@@ -20,6 +34,8 @@ which project rules forbid. Nothing here compiles until a human adds the target.
 4. Set `MARKETING_VERSION` to match the app and the Share Extension. Apple
    rejects an extension whose `CFBundleShortVersionString` differs from the app,
    so this has to be bumped on all three targets from now on.
+
+</details>
 
 ## Entitlement
 

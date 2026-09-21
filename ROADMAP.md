@@ -45,7 +45,7 @@ entries below. See **§8** — including a combined-run failure that needs watch
 | 4 | **App Check enforcement** | Code is fully scaffolded (`Core/Config/AppCheckSetup.swift`, `FirebaseAppCheck` already linked) but the provider factory is commented out at `App/AppDelegate.swift:22`. Needs a debug token registered in Firebase Console first, then uncomment. This is `docs/archive/SECURITY_AUDIT.md`'s only unresolved finding (H5). | 15 min |
 | 5 | **App Store Connect API key** | Users and Access ▸ Integrations. Would let the release flow run unattended instead of via an app-specific password. | 10 min |
 | 6 | **The in-Xcode SwiftLint phase is a false green** | See below — the fix is a target build-setting change. | 2 min |
-| 7 | **Create the Widget Extension target** | All 22 source files are written and lint/typecheck clean; the target itself is a `.pbxproj` edit. `StreakSyncWidget/README.md` has the setup, the entitlement, and the four files to add to membership. | 10 min in Xcode |
+| 7 | **Create the Widget Extension target** | All 22 source files are written and lint/typecheck clean; the target itself is a `.pbxproj` edit. `docs/widget-extension.md` has the setup, the entitlement, and the four files to add to membership. | 10 min in Xcode |
 | 8 | **Device-test the merged work** | The branch itself merged on 2026-08-29 (`a8b695c`); what is still outstanding is the hardware run. Account switching, the friend nudge, notification routing, and the friend-writes offline / rules-rejection paths have never executed on a device, and a green simulator suite never exercises "no network". | — |
 
 **Crashlytics is the one that matters.** The app has been live since May with zero production
@@ -81,7 +81,7 @@ three accessory families, plus a configurable single-game widget), App Intents f
 game and answering "what's my Wordle streak" in Siri/Shortcuts.
 
 Nothing compiles until **you create the Widget Extension target in Xcode** — see
-`StreakSyncWidget/README.md` for the setup, the one entitlement, and the exact four main-app
+`docs/widget-extension.md` for the setup, the one entitlement, and the exact four main-app
 files to add to its membership. Verified as far as possible without a target: clean
 `swiftc -typecheck` under Swift 6 with `-application-extension`, and 0 SwiftLint violations
 across all 22 files. Runtime layout is unverified; the medium family's chip fit at

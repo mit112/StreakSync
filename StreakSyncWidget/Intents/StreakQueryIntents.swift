@@ -7,6 +7,7 @@
 
 import AppIntents
 import Foundation
+import OSLog
 
 /// Opens a game's detail screen through the app's registered `streaksync://`
 /// scheme. Deliberately a deep link rather than a direct navigation call: the
