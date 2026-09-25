@@ -367,6 +367,14 @@ extension AppState {
                         forKey: key
                     )
                 }
+            case Self.activeDaysEverKey:
+                if let days = _activeDaysEver {
+                    try persistenceService.save(days, forKey: key)
+                }
+            case Self.uniqueGamesEverKey:
+                if let gameIds = _uniqueGamesEver {
+                    try persistenceService.save(gameIds, forKey: key)
+                }
             default:
                 logger.warning("Unknown pending save key: '\(key)'")
                 return true // Drop unknown keys

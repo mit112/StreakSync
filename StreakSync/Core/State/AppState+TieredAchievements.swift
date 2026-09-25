@@ -241,6 +241,7 @@ extension AppState {
             logger.info("Saved unique games ever set with \(setToSave.count) entries")
         } catch {
             logger.error("Failed to save unique games set: \(error)")
+            Self.pendingSaveStore.enqueue(key: Self.uniqueGamesEverKey)
         }
     }
 }
