@@ -116,6 +116,12 @@ final class FirestoreGameResultSyncService {
             logger.info("Guest Mode active – skipping game result sync")
             return
         }
+        // Review Mode's seeded results are in `recentResults`; a merge would push them
+        // into the signed-in user's real cloud history.
+        if appState.reviewModeEnabled {
+            logger.info("Review Mode active – skipping game result sync")
+            return
+        }
         guard let uid = currentUserId else {
             logger.warning("No authenticated user – skipping game result sync")
             syncState = .offline

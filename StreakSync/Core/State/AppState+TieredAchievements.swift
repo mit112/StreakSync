@@ -220,6 +220,7 @@ extension AppState {
             logger.debug("Guest Mode active – skipping saveActiveDaysEver()")
             return
         }
+        if reviewModeEnabled { return }
         do {
             try persistenceService.save(activeDaysEver, forKey: Self.activeDaysEverKey)
         } catch {

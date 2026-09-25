@@ -57,4 +57,36 @@ final class ReviewModeDurabilityTests: XCTestCase {
 
         XCTAssertTrue(durable, "Guest results are intentionally ephemeral; requeueing would resurrect a guest's data")
     }
+
+    /// The lifetime active-days set is monotonic, so a demo day that reaches disk is
+    /// permanent — it would count toward Marathon Runner forever.
+    func testReviewModeDoesNotPersistActiveDays() async {
+        let persistence = MockPersistenceService()
+        let appState = AppState(persistenceService: persistence)
+        appState.reviewModeEnabled = true
+
+        appState._activeDaysEver = [Calendar.current.startOfDay(for: Date())]
+        await appState.saveActiveDaysEver()
+
+        XCTAssertNil(
+            persistence.load(Set<Date>.self, forKey: AppState.activeDaysEverKey),
+            "Demo mode must not write the lifetime active-days set"
+        )
+    }
+
+    /// `loadPersistedData()` never touches the lazy lifetime caches, so without an explicit
+    /// reset, demo days folded in during Review Mode (e.g. by a delete's reconcile) outlive
+    /// it and get written by the next real result.
+    func testExitingReviewModeDropsDemoLifetimeSets() async {
+        let appState = makeAppState()
+        await appState.activateReviewMode()
+        appState.recordActiveDays(from: appState.recentResults)
+        appState.recordUniqueGames(from: appState.recentResults)
+        XCTAssertFalse(appState.activeDaysEver.isEmpty, "Precondition: demo days were folded in")
+
+        await appState.exitReviewMode()
+
+        XCTAssertTrue(appState.activeDaysEver.isEmpty, "Demo days must not survive exiting Review Mode")
+        XCTAssertTrue(appState.uniqueGamesEver.isEmpty, "Demo games must not survive exiting Review Mode")
+    }
 }

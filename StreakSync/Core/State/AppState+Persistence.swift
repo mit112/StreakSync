@@ -317,6 +317,9 @@ extension AppState {
     /// Flushes any pending saves that failed previously.
     /// Called on app activation to retry with current in-memory state.
     func flushPendingSaves() async {
+        // A retry re-saves in-memory state, which in Review Mode is seed data. Leave the
+        // items queued; they flush on the first activation after demo mode ends.
+        if reviewModeEnabled { return }
         let store = Self.pendingSaveStore
         let items = store.loadPendingItems()
         guard !items.isEmpty else { return }

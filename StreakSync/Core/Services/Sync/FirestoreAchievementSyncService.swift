@@ -75,7 +75,7 @@ final class FirestoreAchievementSyncService {
 
     func syncIfEnabled() async {
         guard let appState else { return }
-        if appState.isGuestMode { return }
+        if appState.isGuestMode || appState.reviewModeEnabled { return }
         guard isSyncEnabled else { return }
         guard let uid = currentUserId else {
             status = .error(.notSignedIn)
