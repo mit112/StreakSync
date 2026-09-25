@@ -67,11 +67,6 @@ enum AppConstants {
         static let reminderHour = "streakReminderHour"
         static let reminderMinute = "streakReminderMinute"
         static let firstLaunchPromptShown = "notificationFirstLaunchPromptShown"
-        static let smartRemindersEnabled = "smartRemindersEnabled"
-        static let smartRemindersLastComputed = "smartRemindersLastComputed"
-        static let smartReminderWindowStartHour = "smartReminderWindowStartHour"
-        static let smartReminderWindowEndHour = "smartReminderWindowEndHour"
-        static let smartReminderCoveragePercent = "smartReminderCoveragePercent"
         static let migrationCompleted = "notificationSystemMigrated_v2"
         /// Date until which the daily streak reminder is suppressed after a snooze.
         static let snoozedUntil = "streakReminderSnoozedUntil"

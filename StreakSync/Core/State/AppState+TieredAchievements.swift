@@ -243,24 +243,9 @@ extension AppState {
             logger.error("Failed to save unique games set: \(error)")
         }
     }
-    
-    func loadTieredAchievements() async {
-        if let saved = persistenceService.load([TieredAchievement].self, forKey: Self.tieredAchievementsKey) {
-            _tieredAchievements = migrateAchievements(saved)
-            let migratedCount = _tieredAchievements?.count ?? 0
-            logger.info("Loaded \(saved.count) tiered achievements (migrated to \(migratedCount))")
-        } else {
-            // Initialize with default achievements
-            _tieredAchievements = AchievementFactory.createDefaultAchievements()
-            await saveTieredAchievements()
-            logger.info("Initialized default tiered achievements")
-        }
-    }
-    
-    // (Legacy achievement helpers removed)
 }
 
-// MARK: - Update loadPersistedData
+// MARK: - Recalculation
 extension AppState {
     // Recalculate progress from existing data
     internal func recalculateAllTieredAchievementProgress() {

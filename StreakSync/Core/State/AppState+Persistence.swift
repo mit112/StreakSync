@@ -13,8 +13,6 @@ extension AppState {
     // MARK: - Dependencies
     // Removed stored/computed coordinator to avoid sending non-Sendable self across actors.
     
-    // In your existing AppState implementation, update the loadPersistedData method:
-
     func loadPersistedData() async {
         // In Guest Mode we never reload host data from persistence; the guest
         // session operates purely in memory and is managed by GuestSessionManager.
