@@ -52,7 +52,7 @@ struct AtRiskTodaySection: View {
                     HStack(spacing: 8) {
                         ForEach(atRiskGames, id: \.id) { game in
                             Button {
-                                BrowserLauncher.shared.launchGame(game)
+                                BrowserLauncher.launchGame(game)
                             } label: {
                                 HStack(spacing: 6) {
                                     Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")

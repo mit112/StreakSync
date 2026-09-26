@@ -30,7 +30,6 @@ final class AppContainer: ObservableObject {
 
     // MARK: - UI Services
     let hapticManager: HapticManager
-    let browserLauncher: BrowserLauncher
     let achievementCelebrationCoordinator: AchievementCelebrationCoordinator
 
     // MARK: - Firebase Services
@@ -90,7 +89,6 @@ final class AppContainer: ObservableObject {
         
         // 5. UI services
         self.hapticManager = HapticManager.shared
-        self.browserLauncher = BrowserLauncher.shared
         
         // 5a. Firestore game result sync
         self.gameResultSyncService = FirestoreGameResultSyncService(appState: appState)
