@@ -35,22 +35,7 @@ class GameManagementState: ObservableObject {
         saveArchivedGames()
     }
     
-    func archiveGames(_ gameIds: [UUID]) {
-        archivedGameIds.formUnion(gameIds)
-        saveArchivedGames()
-    }
-    
-    func unarchiveAll() {
-        archivedGameIds.removeAll()
-        saveArchivedGames()
-    }
-    
     // MARK: - Order Management
-    func moveGame(from source: IndexSet, to destination: Int) {
-        gameOrder.move(fromOffsets: source, toOffset: destination)
-        saveGameOrder()
-    }
-    
     func reorderGames(_ games: [Game]) {
         // Initialize order if empty
         if gameOrder.isEmpty {

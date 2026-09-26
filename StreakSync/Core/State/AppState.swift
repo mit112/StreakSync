@@ -7,10 +7,10 @@
 //    +DuplicateDetection  — isDuplicateResult, buildResultsCache
 //    +ResultAddition      — addGameResult, social publishing
 //    +GameLogic           — streak updates, calculateUpdatedStreak
-//    +Reminders           — streak risk detection, smart reminder engine
+//    +Reminders           — streak risk detection, reminder scheduling
 //    +Persistence         — save/load, normalization, refresh
 //    +TieredAchievements  — achievement checking, persistence, recompute
-//    +Import              — rebuildStreaksFromResults, Connections fix, saveAllData
+//    +Import              — rebuildStreaksFromResults, Connections fix, Review Mode
 //
 
 import Foundation
@@ -388,28 +388,5 @@ final class AppState {
             await saveStreaks()
             await saveTieredAchievements()
         }
-    }
-}
-
-// MARK: - GameResult iOS Extensions
-extension GameResult {
-    /// iOS-specific validation including date normalization
-    var isValidForIOS: Bool {
-        guard isValid else { return false }
-
-        let now = Date()
-        let calendar = Calendar.current
-
-        if let hourFromNow = calendar.date(byAdding: .hour, value: 1, to: now),
-           date > hourFromNow {
-            return false
-        }
-
-        if let yearAgo = calendar.date(byAdding: .year, value: -1, to: now),
-           date < yearAgo {
-            return false
-        }
-
-        return true
     }
 }

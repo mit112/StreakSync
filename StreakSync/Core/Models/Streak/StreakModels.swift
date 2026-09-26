@@ -29,14 +29,6 @@ enum StreakStatus: String, CaseIterable, Sendable {
         case .broken: return "xmark.circle"
         }
     }
-    
-    var localizedTitle: String {
-        switch self {
-        case .active: return NSLocalizedString("streak.active", comment: "Active")
-        case .inactive: return NSLocalizedString("streak.inactive", comment: "Inactive")
-        case .broken: return NSLocalizedString("streak.broken", comment: "Broken")
-        }
-    }
 }
 
 // MARK: - Game Streak Model
@@ -105,16 +97,6 @@ struct GameStreak: Identifiable, Codable, Hashable, Sendable {
         if currentStreak == 0 { return .broken }
         if isActive { return .active }
         return .inactive
-    }
-    
-    var displayText: String {
-        if currentStreak == 0 {
-            return NSLocalizedString("streak.no_streak", comment: "No streak")
-        } else if currentStreak == 1 {
-            return NSLocalizedString("streak.days_singular", comment: "1 day")
-        } else {
-            return String(format: NSLocalizedString("streak.days_plural", comment: "%d days"), currentStreak)
-        }
     }
     
     var lastPlayedText: String {

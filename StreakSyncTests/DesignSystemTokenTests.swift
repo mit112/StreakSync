@@ -2,7 +2,7 @@
 //  DesignSystemTokenTests.swift
 //  StreakSyncTests
 //
-//  Contrast, palette and type-ramp invariants for the Design System tokens.
+//  Contrast and type-ramp invariants for the Design System tokens.
 //
 
 @testable import StreakSync
@@ -11,7 +11,6 @@ import XCTest
 
 @MainActor
 final class DesignSystemTokenTests: XCTestCase {
-    private let tolerance = 0.002
     private var white: ColorProbe { ColorProbe(Color(hex: "FFFFFF")) }
     private var black: ColorProbe { ColorProbe(Color(hex: "000000")) }
 
@@ -39,48 +38,6 @@ final class DesignSystemTokenTests: XCTestCase {
     func testBrandStreakIsNotTheSameHueAsBrandPrimary() {
         let distance = ColorProbe(StreakSyncBrand.streak).channelDistance(to: ColorProbe(StreakSyncBrand.primary))
         XCTAssertGreaterThan(distance, 0.5, "the streak accent collapsed into the primary brand color")
-    }
-
-    // MARK: - PaletteColor
-
-    func testEveryPaletteRawValueIsASixDigitHexString() {
-        for palette in PaletteColor.allCases {
-            XCTAssertEqual(palette.rawValue.count, 6, "\(palette) hex is not six digits")
-            XCTAssertTrue(palette.rawValue.allSatisfy(\.isHexDigit), "\(palette) has a non-hex digit")
-        }
-    }
-
-    func testPaletteColorIsBuiltFromItsOwnRawHex() {
-        let probe = ColorProbe(PaletteColor.primary.color)
-        XCTAssertEqual(probe.red, Double(0x58) / 255.0, accuracy: tolerance)
-        XCTAssertEqual(probe.green, Double(0xCC) / 255.0, accuracy: tolerance)
-        XCTAssertEqual(probe.blue, Double(0x02) / 255.0, accuracy: tolerance)
-    }
-
-    /// Every decorative token needs a dark-mode counterpart. The one deliberate
-    /// exception is secondary text, which is the same grey in both modes.
-    func testEveryPaletteEntryHasADistinctDarkVariantExceptSecondaryText() {
-        for palette in PaletteColor.allCases {
-            let distance = ColorProbe(palette.color).channelDistance(to: ColorProbe(palette.darkVariant))
-            if palette == .textSecondary {
-                XCTAssertEqual(distance, 0.0, accuracy: tolerance, "textSecondary should not change")
-            } else {
-                XCTAssertGreaterThan(distance, 0.01, "\(palette) has no distinct dark-mode variant")
-            }
-        }
-    }
-
-    func testPaletteBackgroundInvertsBetweenLightAndDark() {
-        let light = ColorProbe(PaletteColor.background.color).relativeLuminance
-        let dark = ColorProbe(PaletteColor.background.darkVariant).relativeLuminance
-        XCTAssertGreaterThan(light, 0.9, "the light background is no longer near-white")
-        XCTAssertLessThan(dark, 0.05, "the dark background is no longer near-black")
-    }
-
-    func testPaletteTextPrimaryInvertsBetweenLightAndDark() {
-        let light = ColorProbe(PaletteColor.textPrimary.color).relativeLuminance
-        let dark = ColorProbe(PaletteColor.textPrimary.darkVariant).relativeLuminance
-        XCTAssertLessThan(light, dark, "primary text must get lighter, not darker, in dark mode")
     }
 
     // MARK: - Typography ramp

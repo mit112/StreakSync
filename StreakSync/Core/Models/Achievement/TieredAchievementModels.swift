@@ -62,17 +62,6 @@ enum AchievementTier: Int, CaseIterable, Codable, Sendable {
             return "crown.fill"
         }
     }
-    
-    var glowIntensity: Double {
-        switch self {
-        case .bronze: return 0.2
-        case .silver: return 0.3
-        case .gold: return 0.4
-        case .diamond: return 0.5
-        case .master: return 0.4
-        case .legendary: return 0.4
-        }
-    }
 }
 
 // MARK: - Achievement Category
@@ -301,10 +290,6 @@ struct TieredAchievement: Identifiable, Codable, Hashable, Sendable {
     
     var isUnlocked: Bool {
         progress.currentTier != nil
-    }
-    
-    var highestUnlockedTier: AchievementTier? {
-        progress.currentTier
     }
     
     var nextTierRequirement: TierRequirement? {

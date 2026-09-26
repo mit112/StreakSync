@@ -186,15 +186,6 @@ extension AppState {
         defaults.set(true, forKey: "connectionsFixV2Complete")
     }
     
-    /// Save all data to persistence using the canonical save methods
-    @MainActor
-    func saveAllData() async {
-        await saveGameResults()
-        await saveStreaks()
-        await saveTieredAchievements()
-        logger.info("All data saved successfully")
-    }
-
     // MARK: - App Store Review Mode
 
     /// Swaps to the demo social service and seeds 14 days of game results.
