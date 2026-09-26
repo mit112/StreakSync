@@ -12,9 +12,9 @@ import SwiftUI
 extension AppState {
     // MARK: - Tiered Achievement Storage
     
-    internal static let tieredAchievementsKey = "tieredAchievements"
-    internal static let uniqueGamesEverKey = "uniqueGamesEver"
-    internal static let activeDaysEverKey = "activeDaysEver"
+    internal static let tieredAchievementsKey = UserDefaultsPersistenceService.Keys.tieredAchievements
+    internal static let uniqueGamesEverKey = UserDefaultsPersistenceService.Keys.uniqueGamesEver
+    internal static let activeDaysEverKey = UserDefaultsPersistenceService.Keys.activeDaysEver
     
     var tieredAchievements: [TieredAchievement] {
         get {

@@ -55,6 +55,19 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
         static let achievements = "streaksync_achievements"
         static let streaks = "streaksync_streaks"
         static let deletedResultIds = "streaksync_deleted_result_ids"
+        static let tieredAchievements = "tieredAchievements"
+        static let activeDaysEver = "activeDaysEver"
+        static let uniqueGamesEver = "uniqueGamesEver"
+
+        /// Everything that belongs to one account. Archive, restore and clear all use this
+        /// one list: they each had their own copy, and all three named only the legacy
+        /// `achievements` key while the live achievements, active-days and unique-games
+        /// stores stayed behind — so an account switch or "Delete All Data" left them in
+        /// place for the next account.
+        static let accountScoped = [
+            gameResults, achievements, streaks, deletedResultIds,
+            tieredAchievements, activeDaysEver, uniqueGamesEver
+        ]
     }
     
     /// File URL for game results (Documents directory)
@@ -116,8 +129,7 @@ final class UserDefaultsPersistenceService: PersistenceServiceProtocol {
     }
     
     func clearAll() {
-        let keys = [Keys.gameResults, Keys.achievements, Keys.streaks, Keys.deletedResultIds]
-        for key in keys {
+        for key in Keys.accountScoped {
             remove(forKey: key)
         }
         logger.info("Cleared all persistence data")

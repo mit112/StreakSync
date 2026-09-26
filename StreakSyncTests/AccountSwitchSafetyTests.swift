@@ -138,6 +138,51 @@ final class AccountSwitchSafetyTests: XCTestCase {
         XCTAssertFalse(service.hasArchive(namespace: "uid-A"), "a restored archive is consumed")
     }
 
+    /// The live achievements and the lifetime active-days / unique-games sets are account
+    /// data too. Left out of the archive, they stayed live for the next account — whose
+    /// Marathon Runner and Variety Player then counted the previous account's history.
+    func testArchiveCoversAchievementsAndLifetimeSets() throws {
+        let suiteName = "AccountSwitchSafetyTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let service = UserDefaultsPersistenceService(userDefaults: defaults)
+        let keys = [
+            UserDefaultsPersistenceService.Keys.tieredAchievements,
+            UserDefaultsPersistenceService.Keys.activeDaysEver,
+            UserDefaultsPersistenceService.Keys.uniqueGamesEver
+        ]
+        for key in keys {
+            try service.save(["account-A"], forKey: key)
+        }
+
+        service.archiveAll(namespace: "uid-A")
+        defer { service.restoreArchive(namespace: "uid-A") }
+        for key in keys {
+            XCTAssertNil(service.load([String].self, forKey: key), "\(key) stayed live after the switch")
+        }
+
+        XCTAssertTrue(service.restoreArchive(namespace: "uid-A"))
+        for key in keys {
+            XCTAssertEqual(service.load([String].self, forKey: key), ["account-A"], "\(key) was not restored")
+        }
+    }
+
+    /// "Delete All Data" must reach the same stores.
+    func testClearAllRemovesAchievementsAndLifetimeSets() throws {
+        let suiteName = "AccountSwitchSafetyTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let service = UserDefaultsPersistenceService(userDefaults: defaults)
+        let key = UserDefaultsPersistenceService.Keys.activeDaysEver
+        try service.save(["day"], forKey: key)
+
+        service.clearAll()
+
+        XCTAssertNil(service.load([String].self, forKey: key))
+    }
+
     /// Restoring an account this device has never archived must be a no-op rather than
     /// wiping whatever is currently live.
     func testRestoringAnUnknownNamespaceLeavesLiveDataAlone() throws {

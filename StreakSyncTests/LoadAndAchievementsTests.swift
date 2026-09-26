@@ -2,7 +2,7 @@
 //  LoadAndAchievementsTests.swift
 //  StreakSyncTests
 //
-//  Regression tests for load debouncing and tiered achievements save-if-changed behavior.
+//  Regression tests for load debouncing, achievement persistence and Delete All Data.
 //
 
 @testable import StreakSync
@@ -97,6 +97,25 @@ final class LoadAndAchievementsTests: XCTestCase {
         XCTAssertEqual(loaded.progress.currentTier, .gold, "Precondition: the recompute still earns gold")
         XCTAssertEqual(loaded.progress.tierUnlockDates[.bronze], unlockedAt, "Bronze unlock date was rewritten")
         XCTAssertEqual(loaded.progress.tierUnlockDates[.gold], unlockedAt, "Gold unlock date was rewritten")
+    }
+
+    // MARK: - Delete All Data
+
+    /// "Delete All Data" empties the stores, so the lazy lifetime caches must not keep
+    /// serving (and later re-saving) the deleted history.
+    func testClearAllDataDropsCachedLifetimeSets() async {
+        let appState = AppState(persistenceService: MockPersistenceService())
+        appState.recordActiveDays(from: [
+            GameResult(
+                gameId: Game.wordle.id, gameName: Game.wordle.name, date: Date(),
+                score: 3, maxAttempts: 6, completed: true, sharedText: "Wordle 1,900 3/6"
+            )
+        ])
+        XCTAssertFalse(appState.activeDaysEver.isEmpty, "Precondition: a day was recorded")
+
+        await appState.clearAllData()
+
+        XCTAssertTrue(appState.activeDaysEver.isEmpty, "Deleted active days are still served from the cache")
     }
 
     // MARK: - Migration Tests

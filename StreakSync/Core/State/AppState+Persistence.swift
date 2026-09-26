@@ -435,6 +435,8 @@ extension AppState {
         gameResultsCache.removeAll()
         
         persistenceService.clearAll()
+        _activeDaysEver = nil
+        _uniqueGamesEver = nil
         invalidateCache()
         
         logger.info("Cleared all app data")
