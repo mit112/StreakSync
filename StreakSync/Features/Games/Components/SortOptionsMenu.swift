@@ -27,7 +27,6 @@ enum GameSortOption: String, CaseIterable, Identifiable {
         case .completionRate:            return "percent"
         }
     }
-    
 }
 // MARK: - Sort Direction Enum
 enum SortDirection: String, CaseIterable {
