@@ -11,10 +11,8 @@ struct ImprovedDashboardView: View {
     // MARK: - Environment & State
     @Environment(AppState.self) private var appState
     @EnvironmentObject private var coordinator: NavigationCoordinator
-    @Environment(GameCatalog.self) private var gameCatalog
     @EnvironmentObject private var gameManagementState: GameManagementState
 
-    @AppStorage("userName") private var userName: String = ""
     @AppStorage("gameDisplayMode") private var displayMode: GameDisplayMode = .card
 
     @State private var searchText = ""

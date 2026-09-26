@@ -10,7 +10,6 @@ import SwiftUI
 // MARK: - Most Active Games Section
 struct MostActiveGamesSection: View {
     let activeGames: [GameAnalytics]
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {

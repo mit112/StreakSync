@@ -9,7 +9,6 @@ import SwiftUI
 
 struct GameManagementView: View {
     @Environment(AppState.self) private var appState
-    @Environment(GameCatalog.self) private var gameCatalog
     
     @EnvironmentObject private var managementState: GameManagementState
     @State private var showingArchived = false

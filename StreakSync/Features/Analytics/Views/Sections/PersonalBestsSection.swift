@@ -10,7 +10,6 @@ import SwiftUI
 // MARK: - Personal Bests Section
 struct PersonalBestsSection: View {
     let personalBests: [PersonalBest]
-    @Environment(\.colorScheme) private var colorScheme
 
     private var meaningfulPersonalBests: [PersonalBest] {
         personalBests.filter { personalBest in

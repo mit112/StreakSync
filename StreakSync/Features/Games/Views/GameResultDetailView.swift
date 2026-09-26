@@ -13,7 +13,6 @@ struct GameResultDetailView: View {
     let result: GameResult
     var onDelete: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(AppState.self) private var appState
     @State private var showingDeleteConfirmation = false
     @State private var showingEditSheet = false

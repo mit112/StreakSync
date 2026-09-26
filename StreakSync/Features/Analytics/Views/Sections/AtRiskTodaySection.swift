@@ -10,7 +10,6 @@ import SwiftUI
 // MARK: - At-Risk Today Section
 struct AtRiskTodaySection: View {
     @Environment(AppState.self) private var appState
-    @Environment(\.colorScheme) private var colorScheme
 
     private var atRiskGames: [Game] {
         appState.getGamesAtRisk()

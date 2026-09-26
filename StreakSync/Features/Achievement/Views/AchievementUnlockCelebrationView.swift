@@ -19,7 +19,6 @@ struct AchievementUnlockCelebrationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AccessibilityFocusState private var isAnnouncementFocused: Bool
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     
     var celebrationCoordinator: AchievementCelebrationCoordinator?
     
