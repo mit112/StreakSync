@@ -395,14 +395,13 @@ final class AppContainer: ObservableObject {
     /// Expected flow on app foreground:
     ///   1. If guest mode active → return (guest sessions are local-only).
     ///   2. Flush any saves that failed in a previous session (appState.flushPendingSaves).
-    ///   3. Start AppGroupBridge monitoring for incoming Share Extension results.
-    ///   4. Refresh app data:
+    ///   3. Refresh app data (Share Extension results are ingested separately, by
+    ///      AppGroupBridge's own didBecomeActive / Darwin observers):
     ///      - If navigating from a notification → refreshDataForNotification (lightweight).
     ///      - Else, if AppGroupBridge has no new results → appState.refreshData (UserDefaults).
-    ///   5. Time-gated Firestore sync (>5 min since last sync): syncIfNeeded →
+    ///   4. Time-gated Firestore sync (>5 min since last sync): syncIfNeeded →
     ///      rebuildStreaksFromResults → normalizeStreaksForMissedDays → achievement sync.
-    ///   6. Flush pending social scores if FirebaseSocialService is wired.
-    ///   7. Stop AppGroupBridge monitoring after 5 seconds.
+    ///   5. Flush pending social scores if FirebaseSocialService is wired.
     func handleAppBecameActive() async {
         logger.info("App became active")
 
@@ -415,9 +414,6 @@ final class AppContainer: ObservableObject {
 
         // Retry any saves that failed in a previous session
         await appState.flushPendingSaves()
-
-        // Start monitoring for share extension results
-        appGroupBridge.startMonitoringForResults()
 
         // Use lightweight refresh if we're navigating from notification
         if appState.isNavigatingFromNotification {
@@ -457,19 +453,6 @@ final class AppContainer: ObservableObject {
         if let firebaseSocial = socialService as? FirebaseSocialService {
             await firebaseSocial.flushPendingScoresIfNeeded()
         }
-
-        // Stop monitoring after 5 seconds
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(5))
-            appGroupBridge.stopMonitoringForResults()
-            logger.info("Stopped monitoring after 5 seconds")
-        }
-    }
-    
-    /// Call when app will resign active
-    func handleAppWillResignActive() {
-        logger.info("App will resign active")
-        appGroupBridge.stopMonitoringForResults()
     }
     
     /// Handle URL scheme

@@ -38,8 +38,6 @@ enum AppConstants {
     
     // MARK: - Notification Names
     enum Notification {
-        static let gameResultReceived = "gameResultReceived"
-        static let shareExtensionResultAvailable = "shareExtensionResultAvailable"
         static let gameDataUpdated = "GameDataUpdated"
         static let darwinNotificationName = "com.streaksync.app.newResult"
     }

@@ -91,14 +91,11 @@ struct ContentView: View {
     private func handleScenePhaseChange(_ phase: ScenePhase) {
         switch phase {
         case .active:
-            // No need to update theme - it follows system automatically
             Task {
                 await container.handleAppBecameActive()
                 await evaluateFirstLaunchNotificationPromptIfNeeded()
             }
-        case .inactive:
-            container.handleAppWillResignActive()
-        case .background:
+        case .inactive, .background:
             break
         @unknown default:
             break

@@ -32,18 +32,12 @@ final class NotificationCoordinator: ObservableObject {
         // Observers will be set up by AppContainer after dependencies are wired
     }
     
-    deinit {
-        // Cleanup happens automatically when observers are deallocated
-        // No need to manually remove observers in deinit
-    }
-    
     // MARK: - Setup
     func setupObservers() {
         logger.info("Setting up notification observers")
         removeObservers()
         setupGameResultObservers()
         setupDeepLinkObservers()
-        setupLifecycleObservers()
         logger.info("Set up \(self.observers.count) notification observers")
     }
 
@@ -56,17 +50,6 @@ final class NotificationCoordinator: ObservableObject {
                 let quiet = notification.userInfo?["quiet"] as? Bool ?? false
                 Task { @MainActor [weak self] in
                     self?.handleGameResult(result, quiet: quiet)
-                }
-            }
-        )
-
-        observers.append(
-            NotificationCenter.default.addObserver(
-                forName: .init(AppConstants.Notification.shareExtensionResultAvailable),
-                object: nil, queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    await self?.handleShareExtensionResult()
                 }
             }
         )
@@ -114,30 +97,6 @@ final class NotificationCoordinator: ObservableObject {
                 else { return }
                 Task { @MainActor [weak self] in
                     self?.handleAchievementDeepLinkWithId(achievementId)
-                }
-            }
-        )
-    }
-
-    private func setupLifecycleObservers() {
-        observers.append(
-            NotificationCenter.default.addObserver(
-                forName: UIApplication.didBecomeActiveNotification,
-                object: nil, queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    await self?.handleAppDidBecomeActive()
-                }
-            }
-        )
-
-        observers.append(
-            NotificationCenter.default.addObserver(
-                forName: UIApplication.willResignActiveNotification,
-                object: nil, queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.handleAppWillResignActive()
                 }
             }
         )
@@ -284,30 +243,6 @@ final class NotificationCoordinator: ObservableObject {
         if let tiered = appState?.tieredAchievements.first(where: { $0.id == achievementId }) {
             navigationCoordinator?.presentSheet(.tieredAchievementDetail(tiered))
         }
-    }
-    
-    // MARK: - App Lifecycle
-    
-    private func handleAppDidBecomeActive() async {
-        logger.info("App became active (via notification)")
-        
-        // Skip expensive operations if navigating from notification
-        if appState?.isNavigatingFromNotification == true {
-            logger.info("Skipping share extension check - navigating from notification")
-            return
-        }
-        
-        // No-op: AppGroupBridge owns lifecycle share checks to avoid duplicates
-    }
-    
-    private func handleAppWillResignActive() {
-        // Downgrade to debug to avoid duplicate lifecycle noise; AppContainer handles monitoring stop.
-        logger.debug("App will resign active (NotificationCoordinator)")
-    }
-    
-    private func handleShareExtensionResult() async {
-        // No-op: AppGroupBridge's Darwin observer triggers the check; avoid duplicate processing here.
-        logger.info("Received Share Extension notification (handled by bridge)")
     }
     
     // MARK: - UI Updates
