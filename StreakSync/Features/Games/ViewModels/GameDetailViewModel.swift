@@ -13,7 +13,6 @@ final class GameDetailViewModel: ObservableObject {
     let gameId: UUID
     @Published private(set) var currentStreak: GameStreak
     @Published private(set) var recentResults: [GameResult] = []
-    @Published private(set) var gameAchievements: [TieredAchievement] = []
     
     private weak var appState: AppState?
     private let logger = Logger(subsystem: "com.streaksync.app", category: "GameDetailViewModel")
@@ -91,12 +90,6 @@ final class GameDetailViewModel: ObservableObject {
         recentResults = appState.recentResults
             .filter { $0.gameId == gameId }
             .sorted { $0.date > $1.date }
-        
-        // Load game-specific tiered achievements if any are scoped by specificGameId
-        gameAchievements = appState.tieredAchievements
-            .filter { ta in
-                ta.requirements.contains(where: { $0.specificGameId == nil || $0.specificGameId == gameId })
-            }
         
         logger.info("Loaded data for game: \(gameName)")
     }

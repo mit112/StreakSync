@@ -11,7 +11,6 @@ import UIKit
 
 @MainActor
 final class FriendsViewModel: ObservableObject {
-    @Published var myDisplayName: String = ""
     @Published var friends: [UserProfile] = []
     @Published var leaderboard: [LeaderboardRow] = []
     @Published var isLoading: Bool = false
@@ -67,7 +66,6 @@ final class FriendsViewModel: ObservableObject {
         defer { isLoading = false }
         do {
             let me = try await socialService.ensureProfile(displayName: nil)
-            myDisplayName = me.displayName
             myUserId = me.id
             friends = try await socialService.listFriends()
             let (start, end) = dateRange()
