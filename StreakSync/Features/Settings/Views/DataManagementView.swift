@@ -457,7 +457,7 @@ private extension DataManagementView {
             do {
                 let importedData = try decoder.decode(ExportData.self, from: jsonData)
 
-                try validateImportData(importedData)
+                try importedData.validate()
 
                 let actualCount = await importDataToAppState(importedData)
 
@@ -487,18 +487,6 @@ private extension DataManagementView {
             await showImportError("Cannot access the selected file.")
         } catch {
             await showImportError("Import failed: \(error.localizedDescription)")
-        }
-    }
-
-    func validateImportData(_ data: ExportData) throws {
-        if data.version > 1 {
-            throw ImportError.invalidVersion
-        }
-
-        for result in data.gameResults {
-            if result.gameName.isEmpty || result.date > Date() {
-                throw ImportError.corruptedData
-            }
         }
     }
 
