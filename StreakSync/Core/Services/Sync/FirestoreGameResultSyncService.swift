@@ -144,6 +144,10 @@ final class FirestoreGameResultSyncService {
             let allDeleted = localDeleted.union(remoteDeleted)
             let newTombstones = localDeleted.subtracting(remoteDeleted)
 
+            // The next incremental sync fetches `lastModified > watermark`, so the watermark
+            // must be taken before this fetch. Stamping it at the end skipped every doc another
+            // device wrote while this sync was uploading and reconciling.
+            let fetchStartedAt = Date()
             let remoteResults = try await fetchRemoteResults(from: ref)
             let merged = GameResultSyncMerge.filterDeleted(
                 GameResultSyncMerge.mergeResults(local: appState.recentResults, remote: remoteResults),
@@ -177,10 +181,12 @@ final class FirestoreGameResultSyncService {
 
             // Re-read current results after all async operations — results may have been
             // added via Share Extension or manual entry during the upload suspension.
+            // Deletions made during the suspension count too, or the merge would restore
+            // a result the user just deleted from the pre-deletion `remoteResults`.
             let currentResults = appState.recentResults
             let mergedFinal = GameResultSyncMerge.filterDeleted(
                 GameResultSyncMerge.mergeResults(local: currentResults, remote: remoteResults),
-                deletedIds: allDeleted
+                deletedIds: allDeleted.union(appState.deletedResultIds)
             )
             .sorted { $0.date > $1.date }
             // Cap to the newest maxResults — applied only here, after `toPush` was computed
@@ -195,7 +201,7 @@ final class FirestoreGameResultSyncService {
             await appState.reconcileAfterResultSetChanged()
 
             syncState = .synced(lastSyncDate: Date())
-            saveLastSyncTimestamp(Date())
+            saveLastSyncTimestamp(fetchStartedAt)
             logger.info("Game result sync completed. Total: \(finalMerged.count)")
         } catch {
             logger.error("Game result sync failed: \(error.localizedDescription)")
