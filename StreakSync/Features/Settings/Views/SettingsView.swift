@@ -10,7 +10,6 @@ import SwiftUI
 // MARK: - Settings View
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
-    @EnvironmentObject private var coordinator: NavigationCoordinator
 
     var body: some View {
         IOS26SettingsContent(viewModel: viewModel)

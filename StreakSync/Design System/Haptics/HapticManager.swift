@@ -5,7 +5,6 @@
 //  Created by MiT on 7/24/25.
 //
 
-import OSLog
 import SwiftUI
 import UIKit
 
@@ -14,7 +13,6 @@ import UIKit
 public final class HapticManager {
     // Singleton instance
     public static let shared = HapticManager()
-    private let logger = Logger(subsystem: "com.streaksync.app", category: "HapticManager")
     
     // Haptic generators
     private let impactLight = UIImpactFeedbackGenerator(style: .light)

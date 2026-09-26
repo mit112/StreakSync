@@ -11,7 +11,6 @@ struct CategoryFilterView: View {
     @Binding var selectedCategory: GameCategory?
     let categories: [GameCategory]
     
-    @State private var scrollPosition: GameCategory?
     @Environment(\.colorScheme) private var colorScheme
     
     private let allCategoriesId = "all_categories" // Define a constant for the ID

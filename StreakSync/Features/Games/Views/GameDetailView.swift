@@ -13,7 +13,6 @@ struct GameDetailView: View {
     
     @StateObject internal var viewModel: GameDetailViewModel
     @Environment(AppState.self) internal var appState
-    @EnvironmentObject private var coordinator: NavigationCoordinator
     
     @State internal var showingManualEntry = false
     @State internal var showingShareSheet = false
