@@ -22,7 +22,6 @@ final class FriendsViewModel: ObservableObject {
     /// Day currently selected by the user (stored at the local calendar's start-of-day). Converted to UTC when querying.
     @Published var selectedDateUTC: Date = Calendar.current.startOfDay(for: Date())
     @Published var selectedGameId: UUID?
-    @Published var isPresentingManageFriends: Bool = false
     @Published var isPresentingDatePicker: Bool = false
     @Published var currentGamePage: Int = 0
     @Published var myUserId: String?
@@ -43,7 +42,6 @@ final class FriendsViewModel: ObservableObject {
     private var friendshipListenerHandle: SocialServiceListenerHandle?
     // Fallback polling timer (only used when listeners are nil, e.g. MockSocialService)
     private var refreshTimer: Timer?
-    private var refreshDebounceTask: Task<Void, Never>?
     private var leaderboardDebounceTask: Task<Void, Never>?
     // NotificationCenter observer tokens for proper cleanup
     private var backgroundObserver: (any NSObjectProtocol)?
@@ -92,14 +90,6 @@ final class FriendsViewModel: ObservableObject {
     }
     
     // Debounced refresh to avoid rapid reloads on quick UI changes
-    func requestRefreshDebounced(delayMs: UInt64 = 180) {
-        refreshDebounceTask?.cancel()
-        refreshDebounceTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: delayMs * 1_000_000)
-            guard !Task.isCancelled else { return }
-            await self?.refresh()
-        }
-    }
     
     /// Coalesces score-listener callbacks. The listener fires once per sibling
     /// write, so refreshing per event re-reads the whole visible score set —
@@ -277,8 +267,6 @@ final class FriendsViewModel: ObservableObject {
     }
     
     func cleanup() {
-        refreshDebounceTask?.cancel()
-        refreshDebounceTask = nil
         leaderboardDebounceTask?.cancel()
         leaderboardDebounceTask = nil
         tearDownListeners()

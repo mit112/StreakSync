@@ -378,41 +378,4 @@ final class NotificationScheduler {
             logger.info("ℹ No streak-related notifications to clean up")
         }
     }
-    
-    // MARK: - Test Methods
-    #if DEBUG
-    func scheduleTestDailyReminder(games: [Game]) async {
-        guard await checkPermissionStatus() == .authorized else { return }
-        
-        let content = UNMutableNotificationContent()
-        
-        if games.count == 1 {
-            content.title = "🧪 Test Streak Reminder"
-            content.body = "Don't lose your \(games[0].displayName) streak"
-        } else {
-            let names = games.map { $0.displayName }.joined(separator: ", ")
-            content.title = "🧪 Test Streak Reminders"
-            content.body = "Don't lose your streaks in \(names)"
-        }
-        
-        content.sound = .default
-        content.categoryIdentifier = NotificationCategory.streakReminder.identifier
-        content.userInfo = ["type": "daily_streak_reminder_test"]
-        
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: "test_daily_reminder_\(UUID().uuidString)",
-            content: content,
-            trigger: trigger
-        )
-        
-        do {
-            try await center.add(request)
-            logger.info("Scheduled test daily reminder for \(games.count) games")
-        } catch {
-            logger.error("Failed to schedule test reminder: \(error.localizedDescription)")
-        }
-    }
-    
-    #endif
 }

@@ -332,11 +332,6 @@ final class AppState {
         logger.error("App error: \(error.localizedDescription)")
     }
 
-    func clearError() {
-        errorMessage = nil
-        currentError = nil
-    }
-
     // MARK: - Internal Setters for Extensions
 
     internal func setRecentResults(_ results: [GameResult]) {

@@ -14,7 +14,6 @@ final class GameDetailViewModel: ObservableObject {
     @Published private(set) var currentStreak: GameStreak
     @Published private(set) var recentResults: [GameResult] = []
     @Published private(set) var gameAchievements: [TieredAchievement] = []
-    @Published var showingShareError = false
     
     private weak var appState: AppState?
     private let logger = Logger(subsystem: "com.streaksync.app", category: "GameDetailViewModel")
@@ -109,42 +108,4 @@ final class GameDetailViewModel: ObservableObject {
         loadGameData()
     }
     
-    func shareGameStats() {
-        let stats = """
-        📊 My \(currentStreak.gameName) Stats
-        
-        Current Streak: \(currentStreak.currentStreak) days 🔥
-        Best Streak: \(currentStreak.maxStreak) days 🏆
-        Success Rate: \(currentStreak.completionPercentage)
-        Total Games: \(currentStreak.totalGamesPlayed)
-        
-        Tracked with StreakSync!
-        """
-        
-        // Share implementation
-        guard let windowScene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first(where: { $0.activationState == .foregroundActive }),
-              let rootViewController = windowScene.windows.first?.rootViewController else {
-            showingShareError = true
-            return
-        }
-        
-        let activityController = UIActivityViewController(
-            activityItems: [stats],
-            applicationActivities: nil
-        )
-        
-        if let popover = activityController.popoverPresentationController {
-            popover.sourceView = rootViewController.view
-            popover.sourceRect = CGRect(
-                x: rootViewController.view.bounds.midX,
-                y: rootViewController.view.bounds.midY,
-                width: 0,
-                height: 0
-            )
-        }
-        
-        rootViewController.present(activityController, animated: true)
-    }
 }

@@ -28,17 +28,6 @@ enum GameSortOption: String, CaseIterable, Identifiable {
         }
     }
     
-    var shortName: String {
-        switch self {
-        case .lastPlayed:
-            return "Recent"
-        case .name:
-            return "A-Z"
-        case .streakLength:
-            return "Streak"
-        case .completionRate:            return "Success"
-        }
-    }
 }
 // MARK: - Sort Direction Enum
 enum SortDirection: String, CaseIterable {
