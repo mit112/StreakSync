@@ -89,4 +89,18 @@ final class ReviewModeDurabilityTests: XCTestCase {
         XCTAssertTrue(appState.activeDaysEver.isEmpty, "Demo days must not survive exiting Review Mode")
         XCTAssertTrue(appState.uniqueGamesEver.isEmpty, "Demo games must not survive exiting Review Mode")
     }
+
+    /// Tiers only ever rise, so demo progress left in the cache would be kept by the exit
+    /// reload's recompute and then saved as the user's own.
+    func testExitingReviewModeDropsDemoAchievementProgress() async {
+        let appState = makeAppState()
+        await appState.activateReviewMode()
+        let demoTier = appState.tieredAchievements.first { $0.category == .streakMaster }?.progress.currentTier
+        XCTAssertNotNil(demoTier, "Precondition: the 14-day demo streak earns a Streak Master tier")
+
+        await appState.exitReviewMode()
+
+        let realTier = appState.tieredAchievements.first { $0.category == .streakMaster }?.progress.currentTier
+        XCTAssertNil(realTier, "Demo Streak Master progress survived exiting Review Mode")
+    }
 }

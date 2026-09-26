@@ -224,8 +224,9 @@ extension AppState {
         // would silently no-op and leave seeded data on screen — the restore has to be
         // unconditional.
         lastDataLoad = nil
-        // The lifetime sets are lazy caches that `loadPersistedData()` never touches; drop
-        // them so any demo days or games folded in while demo mode was on are re-read from disk.
+        // These are lazy caches that `loadPersistedData()` never resets; drop them so demo
+        // progress, days and games folded in while demo mode was on are re-read from disk.
+        _tieredAchievements = nil
         _activeDaysEver = nil
         _uniqueGamesEver = nil
         await loadPersistedData()
