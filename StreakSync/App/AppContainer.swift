@@ -26,10 +26,8 @@ final class AppContainer: ObservableObject {
     
     let gameCatalog: GameCatalog
     let gameManagementState: GameManagementState
-    let socialSettingsService: SocialSettingsService
 
     // MARK: - UI Services
-    let hapticManager: HapticManager
     let achievementCelebrationCoordinator: AchievementCelebrationCoordinator
 
     // MARK: - Firebase Services
@@ -87,9 +85,6 @@ final class AppContainer: ObservableObject {
         // 4. Sync services
         self.appGroupBridge = AppGroupBridge.shared
         
-        // 5. UI services
-        self.hapticManager = HapticManager.shared
-        
         // 5a. Firestore game result sync
         self.gameResultSyncService = FirestoreGameResultSyncService(appState: appState)
         // 5b. Guest Mode manager (local-only guest sessions)
@@ -104,7 +99,6 @@ final class AppContainer: ObservableObject {
         #endif
         
         self.gameManagementState = GameManagementState()
-        self.socialSettingsService = SocialSettingsService.shared
         
         // 6. Notification handling
         self.notificationCoordinator = NotificationCoordinator()
