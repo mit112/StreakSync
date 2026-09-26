@@ -119,7 +119,6 @@ struct ContentView: View {
             GameResultDetailView(result: result)
                 .environmentObject(container)
             
-        // Legacy achievement detail removed
         case .tieredAchievementDetail(let achievement):
             navigationCoordinator.tieredAchievementDetailSheet(for: achievement)
                 .environmentObject(container)

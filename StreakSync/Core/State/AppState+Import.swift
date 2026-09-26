@@ -10,8 +10,6 @@ import OSLog
 import SwiftUI
 
 extension AppState {
-    // Legacy achievement import removed in tiered-only system
-    
     /// Rebuild streaks from imported game results
     @MainActor
     func rebuildStreaksFromResults() async {

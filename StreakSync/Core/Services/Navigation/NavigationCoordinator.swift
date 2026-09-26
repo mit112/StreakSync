@@ -59,9 +59,6 @@ final class NavigationCoordinator: ObservableObject {
     /// Triggers presentation of the friend management sheet with join code
     @Published var shouldShowJoinSheet: Bool = false
     
-    // MARK: - Legacy path (for migration)
-    @Published var path = NavigationPath()
-    
     enum Destination: Hashable {
         case gameDetail(Game)
         case streakHistory(GameStreak)
@@ -129,7 +126,6 @@ final class NavigationCoordinator: ObservableObject {
     
     enum SheetDestination: Identifiable {
         case gameResult(GameResult)
-        // Legacy achievement detail removed in favor of tiered only
         case tieredAchievementDetail(TieredAchievement)
 
         var id: String {

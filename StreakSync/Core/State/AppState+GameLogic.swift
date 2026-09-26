@@ -139,7 +139,4 @@ extension AppState {
         
         return updatedStreak
     }
-    
-    // Legacy achievement helper methods have been consolidated in
-    // AppState+TieredAchievements to avoid duplication.
 }
