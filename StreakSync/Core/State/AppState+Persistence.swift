@@ -53,10 +53,10 @@ extension AppState {
         // Normalize streaks based on last played date
         await normalizeStreaksForMissedDays()
         
-        // Always recompute tiered achievements from current data
-        if _tieredAchievements == nil {
-            _tieredAchievements = AchievementFactory.createDefaultAchievements()
-        }
+        // Always recompute tiered achievements from current data. The recompute seeds from
+        // `tieredAchievements`, whose getter loads the persisted set; filling the cache with
+        // fresh defaults first re-crossed every earned tier and restamped its unlock date
+        // with the launch time.
         recalculateAllTieredAchievementProgress()
         
         // Mark data as loaded

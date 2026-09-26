@@ -68,6 +68,37 @@ final class LoadAndAchievementsTests: XCTestCase {
         XCTAssertEqual(saveCount, 0, "Recompute should not save when achievements are unchanged")
     }
 
+    /// Launch must seed the recompute from the persisted achievements. Seeding from
+    /// fresh defaults re-crosses every earned tier and stamps its unlock date as "now",
+    /// so every relaunch rewrote the user's unlock history to the launch date.
+    func testLoadPreservesPersistedTierUnlockDates() async throws {
+        let persistence = CountingPersistence()
+        let unlockedAt = Date(timeIntervalSince1970: 1_600_000_000)
+
+        var streakMaster = AchievementFactory.createStreakMasterAchievement()
+        streakMaster.updateProgress(value: 15)
+        for tier in [AchievementTier.bronze, .silver, .gold] {
+            streakMaster.progress.tierUnlockDates[tier] = unlockedAt
+        }
+        try persistence.save([streakMaster], forKey: AppState.tieredAchievementsKey)
+
+        let streak = GameStreak(
+            gameId: Game.wordle.id, gameName: Game.wordle.name,
+            currentStreak: 0, maxStreak: 15,
+            totalGamesPlayed: 15, totalGamesCompleted: 15,
+            lastPlayedDate: unlockedAt, streakStartDate: nil
+        )
+        try persistence.save([streak], forKey: UserDefaultsPersistenceService.Keys.streaks)
+
+        let appState = AppState(persistenceService: persistence)
+        await appState.loadPersistedData()
+
+        let loaded = try XCTUnwrap(appState.tieredAchievements.first { $0.category == .streakMaster })
+        XCTAssertEqual(loaded.progress.currentTier, .gold, "Precondition: the recompute still earns gold")
+        XCTAssertEqual(loaded.progress.tierUnlockDates[.bronze], unlockedAt, "Bronze unlock date was rewritten")
+        XCTAssertEqual(loaded.progress.tierUnlockDates[.gold], unlockedAt, "Gold unlock date was rewritten")
+    }
+
     // MARK: - Migration Tests
 
     func testMigrationStripsRetiredAndAddsNewCategories() {
