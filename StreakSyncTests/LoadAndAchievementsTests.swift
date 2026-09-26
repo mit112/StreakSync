@@ -75,12 +75,12 @@ final class LoadAndAchievementsTests: XCTestCase {
         let persistence = CountingPersistence()
         let unlockedAt = Date(timeIntervalSince1970: 1_600_000_000)
 
-        var streakMaster = AchievementFactory.createStreakMasterAchievement()
-        streakMaster.updateProgress(value: 15)
+        var achievement = AchievementFactory.createStreakMasterAchievement()
+        achievement.updateProgress(value: 15)
         for tier in [AchievementTier.bronze, .silver, .gold] {
-            streakMaster.progress.tierUnlockDates[tier] = unlockedAt
+            achievement.progress.tierUnlockDates[tier] = unlockedAt
         }
-        try persistence.save([streakMaster], forKey: AppState.tieredAchievementsKey)
+        try persistence.save([achievement], forKey: AppState.tieredAchievementsKey)
 
         let streak = GameStreak(
             gameId: Game.wordle.id, gameName: Game.wordle.name,
