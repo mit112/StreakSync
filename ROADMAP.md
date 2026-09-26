@@ -607,3 +607,84 @@ Also newly reachable from here: `GetTopCrashIssues` / `GetCrashIssueLogs` read A
 signatures for the **live** app (the Organizer data that has existed, unexamined, since May),
 and `DeviceInteractionSynthesize` does tap/swipe/screenshot on a simulator **or a physical
 device**, which retires the AXe dependency.
+
+## 10. The 2026-09-25 pass — cleanup and logic review (branch `cleanup-2026-09-25`, unmerged)
+
+Scope: dead code, slop and lapses of logic, run unattended after 1.25 was pushed. 26 commits,
+78 files, **+347 / −2,161**. Found by counting every declaration's references outside its own
+file, then reading the flows those counts pointed at. Nothing in this section is on `main`.
+Merging ships it to TestFlight, so **bump to 1.26 first** (three places now: app, Share
+Extension, widget).
+
+Gate at the branch tip: build 0 errors (Debug 0 warnings; Release 1 — the widget/app
+`CFBundleVersion` mismatch below), **671 tests: 665 passed, 6 skipped, 0 failed** in one
+combined unit+UI run (656 unit + 15 UI), `swiftlint lint --no-cache` exit 0 at **369** (379
+at `6a6fed2`; the only new-looking lines are existing function-length warnings whose counts
+moved). Test count moved 667 → 656 unit: 21 tests went with the code they covered
+(`AppErrorAnalyticsTests` 16, `PaletteColor` 5), 10 regression tests were added. Every new
+one was run against the reverted fix and fails there.
+
+### Bugs fixed
+
+1. **Every launch rewrote achievement unlock dates to "now."** `loadPersistedData` put fresh
+   defaults in the cache before recomputing, so the persisted set was never read and every
+   earned tier was re-crossed from zero.
+2. **Account switch and "Delete All Data" missed three live stores.** Archive, restore and
+   `clearAll` each kept their own key list, and all three named the legacy
+   `streaksync_achievements` key. The real `tieredAchievements`, `activeDaysEver` and
+   `uniqueGamesEver` stayed behind, so a new account inherited the old account's Marathon
+   Runner / Variety Player history, a returning account didn't get its own back, and deleting
+   all data left the lifetime sets on disk. There is now one `Keys.accountScoped` list.
+3. **Review Mode could push demo data into a real account.** Both Firestore sync services
+   skipped only Guest Mode, so a signed-in user who opened demo mode had the seed merged into
+   their cloud history on the next foreground sync. `flushPendingSaves` re-saved seed state,
+   `saveActiveDaysEver` had no review guard, and demo achievement tiers survived exit
+   (tiers only rise). All are now guarded or reset on exit.
+4. **The `activeDaysEver` retry never ran.** Its key was queued on failure, but `retrySave`
+   had no case for it and dropped it as unknown. `uniqueGamesEver` was never queued at all.
+5. **The incremental-sync watermark was stamped after upload + reconcile**, so another
+   device's writes in that window were skipped by every later incremental sync. It is now
+   taken before the fetch. The final merge also honours deletions made mid-sync.
+6. **Backup import rejected same-morning backups as "corrupted."** Puzzle results are dated
+   at local noon, and validation refused any future date.
+7. **Throttled celebration sounds played at the *next* celebration**; `TypewriterText` ran
+   two interleaved typing loops when its text changed; Manage Games' archived-view "Done"
+   dismissed the whole screen.
+
+### Needs a decision (not done unattended)
+
+- **Leaderboard day key is inconsistent — real, reachable.** Publish/delete/listener/query
+  use `utcYYYYMMDD`; `reconcileRecentScores` (`FirebaseSocialService+Scores.swift:165`) and
+  the `allowedReaders` cutoff (`:217`) use `localDateInt`. The query is the UTC date of
+  *local midnight*. Receipt-dated games (Spelling Bee, Mini Crossword, Pips, Mini Sudoku)
+  shared after 00:00Z — 7 pm Central, 5 pm Pacific — publish under **tomorrow's** key, and
+  the launch-time reconcile also writes today's local key, so one result appears on two days.
+  Puzzle-numbered games sit at local noon and are fine from UTC−11 to +11. The fix is one
+  scheme everywhere (recommend local date: puzzle days are local), but 1.23 and 1.25 clients
+  keep writing UTC keys, so it needs a transition plan.
+- **Incremental sync compares client clocks.** It pulls `lastModified > watermark`, and
+  `lastModified` is set on the device. A result created offline on device B and uploaded
+  later carries an old `lastModified` and is never pulled by device A's incremental sync. A
+  real fix is a server-timestamp field plus a migration.
+- **Features with no UI.** Social privacy settings (`SocialSettingsService`: per-game private
+  scope, hide incomplete/zero scores) have setters only tests call, so everyone shares
+  everything. Manage Games' drag-to-reorder persists an order the Dashboard never reads.
+  `AppState.setError` stores errors no screen ever showed (the unused error UI was deleted).
+  Wire each one up or delete it.
+- **`.swiftlint.yml` ships inside the `.app`.** It's in the app target's Copy Bundle Resources
+  (`project.pbxproj` line ~448). Untick its target membership in Xcode.
+- **Release build warning:** the widget's `CFBundleVersion` is `1` against the app's `12`.
+  Xcode Cloud's `agvtool` overwrites both on upload; locally it's cosmetic.
+
+### Deliberately left alone
+
+- 43 of 58 `Game` definitions (`GameDefinitions+Extended`/`+Categories`, ~515 lines) are
+  never surfaced. `GameUUIDUniquenessTests` calls them an intentional "no parser yet"
+  catalog, so they stay. Note that `extendedMiniCrossword` duplicates `miniCrossword` under
+  a different UUID and would double-list if ever surfaced.
+- `Typography`, spacing and animation tokens that nothing uses yet — they belong to the
+  deferred literal→token sweep.
+- `StreakSyncAppCheckProviderFactory` stays unused — §1 item 4, pending rules enforcement.
+- `BrowserLauncher` is now web-only by design. Native deep links never worked (Info.plist
+  has no `LSApplicationQueriesSchemes`), and the NYT branch would have opened Wordle for all
+  four NYT games anyway.
