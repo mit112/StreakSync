@@ -66,11 +66,6 @@ struct Friendship: Identifiable, Codable, Hashable {
     func otherUserId(me: String) -> String {
         userId1 == me ? userId2 : userId1
     }
-
-    /// Returns the display name of the other party given the current user (best-effort).
-    func otherDisplayName(me: String) -> String? {
-        userId1 == me ? recipientDisplayName : senderDisplayName
-    }
 }
 
 // MARK: - Listener Handle

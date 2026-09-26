@@ -62,16 +62,6 @@ final class NavigationCoordinator: ObservableObject {
     // MARK: - Legacy path (for migration)
     @Published var path = NavigationPath()
     
-    // MARK: - Get current path (not as Binding)
-    var currentNavigationPath: NavigationPath {
-        switch selectedTab {
-        case .home: return homePath
-        case .awards: return awardsPath
-        case .friends: return friendsPath
-        case .settings: return settingsPath
-        }
-    }
-    
     enum Destination: Hashable {
         case gameDetail(Game)
         case streakHistory(GameStreak)
@@ -238,16 +228,6 @@ final class NavigationCoordinator: ObservableObject {
         case .settings:
             settingsPath.removeLast(settingsPath.count)
         }
-    }
-    
-    /// Reset all navigation
-    func resetAllNavigation() {
-        homePath = NavigationPath()
-        awardsPath = NavigationPath()
-        friendsPath = NavigationPath()
-        settingsPath = NavigationPath()
-        selectedTab = .home
-        presentedSheet = nil
     }
     
     // MARK: - Notification Navigation Methods

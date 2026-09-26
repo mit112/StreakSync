@@ -42,15 +42,6 @@ enum FirebaseSocialError: LocalizedError {
         }
     }
 
-    var isRetryable: Bool {
-        switch self {
-        case .networkUnavailable, .quotaExceeded, .serverError:
-            return true
-        case .notAuthenticated, .permissionDenied, .documentNotFound, .invalidData:
-            return false
-        }
-    }
-
     static func from(_ error: Error) -> FirebaseSocialError {
         let nsError = error as NSError
         guard nsError.domain == FirestoreErrorDomain else {
