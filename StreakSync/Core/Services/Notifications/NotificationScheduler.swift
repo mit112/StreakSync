@@ -379,25 +379,6 @@ final class NotificationScheduler {
         }
     }
     
-    /// Debug method to log current notification state
-    func logCurrentNotificationState() async {
-        let pendingRequests = await center.pendingNotificationRequests()
-        logger.info("Current notification state: \(pendingRequests.count) pending notifications")
-        
-        for request in pendingRequests {
-            let triggerDescription: String
-            if let calendarTrigger = request.trigger as? UNCalendarNotificationTrigger {
-                triggerDescription = "Calendar: \(calendarTrigger.dateComponents)"
-            } else if let intervalTrigger = request.trigger as? UNTimeIntervalNotificationTrigger {
-                triggerDescription = "Interval: \(intervalTrigger.timeInterval)s"
-            } else {
-                triggerDescription = "Unknown trigger type"
-            }
-            
-            logger.info("\(request.identifier): \(request.content.title) - \(triggerDescription)")
-        }
-    }
-    
     // MARK: - Test Methods
     #if DEBUG
     func scheduleTestDailyReminder(games: [Game]) async {

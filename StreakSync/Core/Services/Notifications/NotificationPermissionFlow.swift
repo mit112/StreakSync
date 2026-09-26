@@ -12,7 +12,6 @@ import UserNotifications
 // MARK: - Permission Flow View Model
 @MainActor
 final class NotificationPermissionFlowViewModel: ObservableObject {
-    @Published var showingPermissionFlow = false
     @Published var permissionStatus: UNAuthorizationStatus = .notDetermined
     
     private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationPermission")

@@ -84,37 +84,6 @@ final class AnalyticsService {
         return analyticsData
     }
     
-    /// Get streak trends for a specific time range
-    func getStreakTrends(for timeRange: AnalyticsTimeRange) async -> [StreakTrendPoint] {
-        let snapshotResults = appState.recentResults
-        return AnalyticsComputer.computeStreakTrends(timeRange: timeRange, results: snapshotResults)
-    }
-    
-    /// Get analytics for a specific game
-    func getGameAnalytics(for gameId: UUID, timeRange: AnalyticsTimeRange = .week) async -> GameAnalytics? {
-        let games = appState.games
-        let streaks = appState.streaks
-        let results = appState.recentResults
-        return AnalyticsComputer.computeGameAnalytics(for: gameId, timeRange: timeRange, games: games, streaks: streaks, results: results)
-    }
-    
-    /// Get achievement analytics (tiered-only)
-    func getAchievementAnalytics() async -> AchievementAnalytics {
-        let tiered = appState.tieredAchievements
-        return AnalyticsComputer.computeAchievementAnalytics(tieredAchievements: tiered)
-    }
-    
-    /// Get personal bests (scoped). Defaults to 7 days across all games.
-    func getPersonalBests(for timeRange: AnalyticsTimeRange = .week, game: Game? = nil) async -> [PersonalBest] {
-        return AnalyticsComputer.computePersonalBests(
-            timeRange: timeRange,
-            game: game,
-            games: appState.games,
-            streaks: appState.streaks,
-            results: appState.recentResults
-        )
-    }
-    
     /// Clear analytics cache
     func clearCache() {
         cachedAnalytics.removeAll()
