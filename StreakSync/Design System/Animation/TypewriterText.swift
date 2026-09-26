@@ -16,7 +16,6 @@ struct TypewriterText: View {
     let onComplete: (() -> Void)?
     
     @State private var displayedText = ""
-    @State private var currentIndex = 0
     
     init(
         _ text: String,
@@ -36,40 +35,22 @@ struct TypewriterText: View {
         Text(displayedText)
             .font(font)
             .foregroundStyle(color)
-            .onAppear {
-                typeText()
-            }
-            .onChange(of: text) { _, _ in
-                // Reset if text changes
+            // Keyed on `text`, so a new string cancels the old run instead of
+            // interleaving a second typing loop with it.
+            .task(id: text) {
                 displayedText = ""
-                currentIndex = 0
-                typeText()
-            }
-    }
-    
-    private func typeText() {
-        guard currentIndex < text.count else {
-            onComplete?()
-            return
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + characterDelay) {
-            // Double-check bounds in case text changed during animation
-            guard currentIndex < text.count else {
+                for character in text {
+                    do {
+                        try await Task.sleep(for: .seconds(characterDelay))
+                    } catch {
+                        return
+                    }
+                    displayedText.append(character)
+                    if character == "!" || character == "." {
+                        HapticManager.shared.trigger(.buttonTap)
+                    }
+                }
                 onComplete?()
-                return
             }
-            
-            let index = text.index(text.startIndex, offsetBy: currentIndex)
-            displayedText += String(text[index])
-            currentIndex += 1
-            
-            // Trigger haptic for certain characters
-            if text[index] == "!" || text[index] == "." {
-                HapticManager.shared.trigger(.buttonTap)
-            }
-            
-            typeText()
-        }
     }
 }

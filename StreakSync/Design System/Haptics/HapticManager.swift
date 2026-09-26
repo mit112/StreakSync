@@ -7,7 +7,7 @@
 
 import OSLog
 import SwiftUI
-// DesignSystem/Haptics/HapticManager.swiftimport UIKit
+import UIKit
 
 /// Centralized haptic feedback management following the design spec
 @MainActor
@@ -59,7 +59,8 @@ public final class HapticManager {
         case .achievement:
             // Complex pattern: success notification + heavy impact
             notification.notificationOccurred(.success)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(100))
                 self?.impactHeavy.impactOccurred()
             }
             
