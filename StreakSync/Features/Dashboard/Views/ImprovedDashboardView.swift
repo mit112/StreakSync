@@ -23,7 +23,6 @@ struct ImprovedDashboardView: View {
     @State private var selectedSort: GameSortOption = .lastPlayed
     @State private var sortDirection: SortDirection = .descending
     @State private var hasSeenGuidance = UserDefaults.standard.bool(forKey: "hasSeenEmptyStateGuidance")
-    @State private var isShowingShareDiscovery: Bool = false
 
     // MARK: - Computed Properties
 
@@ -140,13 +139,13 @@ struct ImprovedDashboardView: View {
                 }
             }
 
-            // Share-discovery teaching sheet — first qualifying launch only
-            let hasSeen = UserDefaults.standard.bool(forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
-            if ShareDiscoveryGate.shouldShowOnboarding(resultsCount: appState.recentResults.count, hasSeen: hasSeen) {
-                isShowingShareDiscovery = true
-            }
+            presentShareDiscoveryIfNeeded()
         }
-        .sheet(isPresented: $isShowingShareDiscovery, onDismiss: {
+        .onChange(of: coordinator.isShowingFirstLaunchNotificationPrompt) { _, isShowing in
+            // Our turn once the notification prompt has gone (see NavigationCoordinator).
+            if !isShowing { presentShareDiscoveryIfNeeded() }
+        }
+        .sheet(isPresented: $coordinator.isShowingShareDiscovery, onDismiss: {
             // Fires on ANY dismissal (swipe-to-dismiss OR "Got it"), so the sheet
             // doesn't re-trigger on every Home appearance for users who swipe it away.
             UserDefaults.standard.set(true, forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
@@ -169,6 +168,16 @@ struct ImprovedDashboardView: View {
                 selectedCategory = nil
                 searchText = ""
             }
+        }
+    }
+
+    /// Share-discovery teaching sheet — first qualifying launch only. Waits while the
+    /// first-launch notification prompt is up; two sheets at once lose both.
+    private func presentShareDiscoveryIfNeeded() {
+        guard !coordinator.isShowingFirstLaunchNotificationPrompt else { return }
+        let hasSeen = UserDefaults.standard.bool(forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
+        if ShareDiscoveryGate.shouldShowOnboarding(resultsCount: appState.recentResults.count, hasSeen: hasSeen) {
+            coordinator.isShowingShareDiscovery = true
         }
     }
 

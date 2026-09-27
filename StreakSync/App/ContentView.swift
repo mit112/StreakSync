@@ -12,7 +12,6 @@ struct ContentView: View {
     @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
     @EnvironmentObject private var guestSessionManager: GuestSessionManager
     @Environment(\.scenePhase) private var scenePhase
-    @State private var showFirstLaunchNotificationPrompt = false
     @State private var didCheckFirstLaunchNotificationPrompt = false
     
     var body: some View {
@@ -72,11 +71,17 @@ struct ContentView: View {
                         .presentationBackground(.ultraThinMaterial)
                 }
         }
-        .sheet(isPresented: $showFirstLaunchNotificationPrompt) {
+        .sheet(isPresented: $navigationCoordinator.isShowingFirstLaunchNotificationPrompt) {
             NotificationPermissionFlowView()
         }
         .task {
             await evaluateFirstLaunchNotificationPromptIfNeeded()
+        }
+        .onChange(of: navigationCoordinator.isShowingShareDiscovery) { _, isShowing in
+            // Our turn once the share-discovery sheet has gone (see NavigationCoordinator).
+            if !isShowing {
+                Task { await evaluateFirstLaunchNotificationPromptIfNeeded() }
+            }
         }
         .background(
             Color(.systemGroupedBackground)
@@ -105,10 +110,17 @@ struct ContentView: View {
     @MainActor
     private func evaluateFirstLaunchNotificationPromptIfNeeded() async {
         guard !didCheckFirstLaunchNotificationPrompt else { return }
+        guard await NotificationPermissionFlowViewModel.shouldShowFirstLaunchPrompt() else {
+            didCheckFirstLaunchNotificationPrompt = true
+            return
+        }
+        // Checked after the await: the dashboard may have presented its share-discovery
+        // sheet meanwhile. Two sheets at once lose both, so wait — the onChange above
+        // runs this again when that sheet dismisses, and nothing has been consumed yet.
+        guard !navigationCoordinator.isShowingShareDiscovery else { return }
         didCheckFirstLaunchNotificationPrompt = true
-        guard await NotificationPermissionFlowViewModel.shouldShowFirstLaunchPrompt() else { return }
         NotificationPermissionFlowViewModel.markFirstLaunchPromptShown()
-        showFirstLaunchNotificationPrompt = true
+        navigationCoordinator.isShowingFirstLaunchNotificationPrompt = true
     }
     
     // MARK: - Sheet Views

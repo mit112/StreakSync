@@ -48,6 +48,16 @@ final class NavigationCoordinator: ObservableObject {
     
     // MARK: - Sheet Presentation
     @Published var presentedSheet: SheetDestination?
+
+    // MARK: - First-Launch Sheet Sequencing
+    /// The first-launch notification prompt (ContentView) and the share-discovery sheet
+    /// (ImprovedDashboardView) both fire on a new user's first paint. Presented together,
+    /// UIKit refuses the second ("Attempt to present … which is already presenting") and
+    /// SwiftUI then drops both, so the user saw neither while both were marked as seen
+    /// (reproduced 3/3 on fresh installs, 2026-09-27). Each side checks the other's flag
+    /// before presenting and re-checks when it clears, so the sheets take turns.
+    @Published var isShowingFirstLaunchNotificationPrompt = false
+    @Published var isShowingShareDiscovery = false
     
     // MARK: - Notification Highlight State
     /// Achievement ID to highlight when navigating from a notification
