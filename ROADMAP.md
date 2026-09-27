@@ -550,11 +550,15 @@ from the log.
 
 ### Still open, and only you can do it
 
-Firebase **budget alert** (nothing caps spend on Blaze during a traffic spike); confirm the
-`scores` composite index on `userId` + `allowedReaders` + `dateInt` exists — `firestore.indexes.json`
-declares only two of the three, and if it is genuinely missing then
-`reconcileAllowedReadersForFriendshipChange` has been failing into a swallowed `catch`, leaving
-**removed friends with read access to 30 days of scores**; confirm deployed rules match the repo;
+Firebase **budget alert** (nothing caps spend on Blaze during a traffic spike); ~~confirm the
+`scores` composite index on `userId` + `allowedReaders` + `dateInt` exists~~ — **resolved
+2026-09-27**: it was genuinely missing (REST `runQuery` against production returned
+FAILED_PRECONDITION "The query requires an index"), so
+`reconcileAllowedReadersForFriendshipChange` had been failing into its swallowed `catch` since
+launch. The index is now declared in `firestore.indexes.json` and created in the project
+(READY; the same query returns normally). No client change needed; ~~confirm deployed rules match
+the repo~~ — **confirmed 2026-09-27** via the Firebase Rules API: the live `cloud.firestore` release
+(ruleset from 2026-07-25) is identical to `firestore.rules`;
 App Check debug token; `ENABLE_USER_SCRIPT_SANDBOXING = NO`; the Widget Extension target;
 FirebaseAnalytics (still unlinked — there is no way to measure whether the publicity converted);
 and an in-app review prompt (zero `requestReview` calls, **1 rating** on the App Store, and
