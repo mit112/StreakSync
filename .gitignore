@@ -68,7 +68,8 @@ ui-debug.log
 *-debug.log
 
 # Local one-off maintenance scripts (Firebase admin, data cleanup, etc.)
-scripts/
+scripts/*
+!scripts/asc_status.py
 
 # Asset-generation working dirs (source art, not app resources)
 App Icon Generator/

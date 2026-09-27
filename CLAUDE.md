@@ -287,6 +287,22 @@ command in the *same* shell invocation, or it arrives empty and altool reports
 `-20101 "Your Apple Account or password was entered incorrectly"` — which looks
 like a wrong password rather than a missing one.
 
+### Checking App Store Connect from the CLI
+
+A team API key lives at `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` with
+`~/.appstoreconnect/config.json` holding `key_id` and `issuer_id` (set up 2026-09-27).
+`scripts/asc_status.py` is a read-only client for it, run via `uv` (no venv):
+
+```bash
+uv run scripts/asc_status.py check 1.25   # exit 0 iff a VALID TestFlight build of 1.25 exists
+uv run scripts/asc_status.py builds       # every build, newest first, with processing state
+uv run scripts/asc_status.py versions     # App Store versions and their review state
+```
+
+Use it to confirm an Xcode Cloud delivery instead of opening App Store Connect. The same key
+also lets the manual upload path run `xcrun altool --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>`
+instead of the app-specific password. Never paste the `.p8` into a chat or a commit.
+
 **Xcode Cloud is set up and is now the primary release path** (working since
 2026-08-27; the manual archive flow above is the fallback). Workflow **"Default"**
 on `mit112/StreakSync`: Branch Changes → `main` (any file change) triggers an
