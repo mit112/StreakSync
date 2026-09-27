@@ -41,7 +41,7 @@ entries below. See **§8** — including a combined-run failure that needs watch
 |---|---|---|---|
 | 1 | **Crashlytics** | Needs `FirebaseCrashlytics` added as a package product to the app target in Xcode. That's a `.pbxproj` edit, which the project rules forbid me from hand-editing. | 5 min in Xcode + ~20 lines of init code |
 | 2 | **Product analytics** | `FirebaseAnalytics` is not linked at all. The app target's only package products are `GoogleSignIn`, `FirebaseAuth`, `FirebaseFirestore` and `FirebaseAppCheck`, so this is the same `.pbxproj` edit as Crashlytics — not a code-only change. See §2.3. | 5 min in Xcode, then instrumentation |
-| 3 | **Firebase budget alert** | Google Cloud Console, project `streaksync-55ca0`. No cost guardrail exists. | 5 min |
+| 3 | **Firebase budget alert** | Checked 2026-09-27: the project has **no billing account linked** (`gcloud billing projects describe` → billingEnabled false), i.e. it is on the Spark plan and cannot incur charges; over-quota calls fail instead. A budget cannot be attached until it is upgraded to Blaze. Mit's "Firebase Payment" billing account exists but is unlinked. Create a $1 budget only if/when upgrading. | n/a |
 | 4 | **App Check enforcement** | Code is fully scaffolded (`Core/Config/AppCheckSetup.swift`, `FirebaseAppCheck` already linked) but the provider factory is commented out at `App/AppDelegate.swift:22`. Needs a debug token registered in Firebase Console first, then uncomment. This is `docs/archive/SECURITY_AUDIT.md`'s only unresolved finding (H5). | 15 min |
 | 5 | **App Store Connect API key** | Users and Access ▸ Integrations. Would let the release flow run unattended instead of via an app-specific password. | 10 min |
 | 6 | **The in-Xcode SwiftLint phase is a false green** | See below — the fix is a target build-setting change. | 2 min |
@@ -550,7 +550,7 @@ from the log.
 
 ### Still open, and only you can do it
 
-Firebase **budget alert** (nothing caps spend on Blaze during a traffic spike); ~~confirm the
+Firebase **budget alert** (moot while unlinked from billing — see §1 item 3, checked 2026-09-27); ~~confirm the
 `scores` composite index on `userId` + `allowedReaders` + `dateInt` exists~~ — **resolved
 2026-09-27**: it was genuinely missing (REST `runQuery` against production returned
 FAILED_PRECONDITION "The query requires an index"), so
