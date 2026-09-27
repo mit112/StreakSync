@@ -197,4 +197,20 @@ final class AccountSwitchSafetyTests: XCTestCase {
         XCTAssertFalse(service.restoreArchive(namespace: "never-seen"))
         XCTAssertEqual(service.load([String].self, forKey: key), ["kept"])
     }
+
+    /// The lifetime caches are dropped on archive, restore, clearAll and exiting Review Mode.
+    /// A save that lands afterwards must re-read the store, not overwrite it with an empty set.
+    @MainActor
+    func testSavingUniqueGamesWithADroppedCacheKeepsTheStoredSet() async throws {
+        let persistence = MockPersistenceService()
+        let key = UserDefaultsPersistenceService.Keys.uniqueGamesEver
+        let stored: Set<UUID> = [UUID(), UUID()]
+        try persistence.save(stored, forKey: key)
+        let appState = AppState(persistenceService: persistence)
+        appState._uniqueGamesEver = nil
+
+        await appState.saveUniqueGamesEver()
+
+        XCTAssertEqual(persistence.load(Set<UUID>.self, forKey: key), stored)
+    }
 }

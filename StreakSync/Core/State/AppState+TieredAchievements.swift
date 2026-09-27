@@ -236,7 +236,7 @@ extension AppState {
             return
         }
         if reviewModeEnabled { return }
-        let setToSave = _uniqueGamesEver ?? []
+        let setToSave = uniqueGamesEver
         do {
             try persistenceService.save(setToSave, forKey: Self.uniqueGamesEverKey)
             logger.info("Saved unique games ever set with \(setToSave.count) entries")
