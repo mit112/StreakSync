@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - When writing or modifying SwiftUI views, consult the swiftui-pro skill references before generating code
 - **ALWAYS use XcodeBuildMCP tools** (`build_sim`, `test_sim`, `build_run_sim`) instead of raw `xcodebuild` bash commands for builds and tests. Set session defaults at the start of each session:
   ```
-  mcp__XcodeBuildMCP__session_set_defaults(scheme: "StreakSync", simulatorName: "iPhone 17 Pro", projectPath: "StreakSync.xcodeproj")
+  mcp__XcodeBuildMCP__session_set_defaults(scheme: "StreakSync", simulatorName: "iPhone 18 Pro", projectPath: "StreakSync.xcodeproj")
   ```
 
 ## Build & Test Commands
@@ -32,27 +32,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (no code signing needed for simulator)
 xcodebuild build \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
+  -destination 'platform=iOS Simulator,id=D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO -quiet \
   2>&1 | xcsift -w
 
 # Run all tests (unit + UI)
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
+  -destination 'platform=iOS Simulator,id=D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
 
 # Run a single test class
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
+  -destination 'platform=iOS Simulator,id=D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests
 
 # Run a single test method
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
+  -destination 'platform=iOS Simulator,id=D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests/testStreakContinuation
 
@@ -311,21 +311,21 @@ Connect — Xcode Cloud only delivers the build.
 
 **Always reference simulators by UDID, not by name.**
 
-- iPhone 17 Pro: `FF93212D-752B-4632-89CA-51888898E072` (iOS 27.0 — preferred)
-- iPhone 18 Pro Max: `FBE80628-0338-4A91-9B61-F26BB33818BC` (iOS 27.0)
+- iPhone 18 Pro: `D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2` (iOS 27.0 — preferred)
+- iPhone 18 Pro Max: `398075D8-1B19-41D7-88A6-8CB001C22B3F` (iOS 27.0)
 
-> There is no iPhone 17 Pro Max device right now — create one only if you need it
+> There is no iPhone 17 Pro or 17 Pro Max device right now (the set was re-created on 2026-09-27) — create one only if you need it
 > (`xcrun simctl create "iPhone 17 Pro Max" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max com.apple.CoreSimulator.SimRuntime.iOS-27-0`).
 > Each booted simulator costs roughly 2.6 GB, and disk on this machine is tight.
 
-> **UDID drift:** These UDIDs change whenever Xcode is reinstalled or simulators are re-created. If `xcodebuild` rejects the destination with "device not found", run `xcrun simctl list devices available | grep "iPhone 17 Pro"` and update this file.
+> **UDID drift:** These UDIDs change whenever Xcode is reinstalled or simulators are re-created. If `xcodebuild` rejects the destination with "device not found", run `xcrun simctl list devices available | grep "iPhone 18 Pro"` and update this file.
 
 Preferred destination string:
-`platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072`
+`platform=iOS Simulator,id=D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2`
 
 **Always launch apps with:**
 ```bash
-xcrun simctl launch --terminate-running-process --console-pty FF93212D-752B-4632-89CA-51888898E072 com.mitsheth.StreakSync
+xcrun simctl launch --terminate-running-process --console-pty D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2 com.mitsheth.StreakSync
 ```
 `--terminate-running-process` is mandatory — without it, launch silently does nothing if the app is already running.
 
