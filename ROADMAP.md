@@ -692,3 +692,30 @@ one was run against the reverted fix and fails there.
 - `BrowserLauncher` is now web-only by design. Native deep links never worked (Info.plist
   has no `LSApplicationQueriesSchemes`), and the NYT branch would have opened Wordle for all
   four NYT games anyway.
+
+### 2026-09-27 follow-up (same branch, now 34 commits at `5b29b66`)
+
+- **Independent review of `origin/main..HEAD`: no confirmed defects, safe to merge.** Each of the
+  seven fixes was traced end to end; every removed string key was grepped across the app, Share
+  Extension and Widget; no persisted or Firestore shape changed. One hardening applied with a
+  regression test: `saveUniqueGamesEver` read `_uniqueGamesEver ?? []`, so a save landing after
+  a cache drop could write an empty Variety Player set. It now reads the getter. Unit target
+  **657 / 651 passed / 6 skipped / 0 failed**; lint 369.
+- **Bumped to 1.26** (six lines, app + Share Extension + Widget). The project's
+  `.claude/settings.json` denies agent edits to `*.pbxproj`, so Mit ran the sed himself; the
+  built bundles all report 1.26. Merge whenever 1.25 has been device-tested.
+- **1.25 build 6 is VALID in TestFlight** (uploaded 2026-09-25 16:53Z), confirmed with the new
+  `scripts/asc_status.py` (App Store Connect API key on this Mac; see the release section of
+  CLAUDE.md). 1.23 is still the live App Store version. Not yet submitted.
+- **Production fix, done with Mit's OK:** the `scores` composite index on
+  `userId` + `allowedReaders` + `dateInt` was missing, so `reconcileAllowedReadersForFriendshipChange`
+  had failed silently since launch (new friends never gained, removed friends never lost, access
+  to the prior 30 days). Created and READY; declared in `firestore.indexes.json`.
+- Deployed Firestore rules are identical to the repo. The project is on **Spark, not Blaze**
+  (no billing account linked), so no budget alert is possible or needed.
+- Environment: `xcode-select` now points at Xcode 27 (was CommandLineTools — the root cause of
+  the Xcode MCP, swiftlint and simctl failures). Simulator UDIDs re-created; CLAUDE.md repointed
+  at iPhone 18 Pro `D38CD57F-…`. gcloud is authenticated as the Firebase owner account.
+- **Next session:** use the Xcode 27 MCP (`DeviceInteractionSynthesize`, `RenderPreview`,
+  `GetTopCrashIssues`) to walk the risky flows on the 1.26 build with screenshots and hierarchy
+  dumps, and to read live crash signatures. It has never been used on the app yet.
