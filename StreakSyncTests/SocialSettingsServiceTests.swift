@@ -50,4 +50,27 @@ final class SocialSettingsServiceTests: XCTestCase {
         )
         XCTAssertFalse(service.shouldShare(score: score, game: Game.wordle))
     }
+
+    // MARK: - Score Sharing screen bindings
+
+    func testSharesGameSubscriptMapsToScope() {
+        var settings = SocialPrivacySettings.default
+        XCTAssertTrue(settings[sharesGame: Game.wordle.id], "A game with no saved scope is shared")
+
+        settings[sharesGame: Game.wordle.id] = false
+        XCTAssertEqual(settings.perGameScopes[Game.wordle.id], .privateScope)
+
+        settings[sharesGame: Game.wordle.id] = true
+        XCTAssertEqual(settings.perGameScopes[Game.wordle.id], .allFriends)
+    }
+
+    /// The screen writes through `settings` directly rather than the update methods, so the
+    /// write must still reach UserDefaults.
+    func testWritingSettingsDirectlyPersists() throws {
+        service.settings[sharesGame: Game.wordle.id] = false
+
+        let data = try XCTUnwrap(UserDefaults.standard.data(forKey: "social_privacy_settings"))
+        let stored = try JSONDecoder().decode(SocialPrivacySettings.self, from: data)
+        XCTAssertEqual(stored.perGameScopes[Game.wordle.id], .privateScope)
+    }
 }

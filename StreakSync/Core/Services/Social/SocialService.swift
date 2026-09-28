@@ -32,6 +32,29 @@ struct DailyGameScore: Identifiable, Codable, Hashable {
     let currentStreak: Int?   // User's streak for this game at time of publishing
 }
 
+extension DailyGameScore {
+    /// Decodes a `scores` document. Nil when an identifying field is missing or malformed.
+    init?(documentID: String, data: [String: Any]) {
+        guard
+            let userId = data["userId"] as? String,
+            let gameIdStr = data["gameId"] as? String,
+            let gameId = UUID(uuidString: gameIdStr),
+            let dateInt = data["dateInt"] as? Int
+        else { return nil }
+        self.init(
+            id: documentID,
+            userId: userId,
+            dateInt: dateInt,
+            gameId: gameId,
+            gameName: data["gameName"] as? String ?? "Game",
+            score: data["score"] as? Int,
+            maxAttempts: data["maxAttempts"] as? Int ?? 6,
+            completed: data["completed"] as? Bool ?? false,
+            currentStreak: data["currentStreak"] as? Int
+        )
+    }
+}
+
 struct LeaderboardRow: Identifiable, Codable, Hashable {
     let id: String            // userId
     let userId: String

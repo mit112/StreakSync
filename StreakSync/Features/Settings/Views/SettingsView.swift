@@ -66,6 +66,15 @@ private struct IOS26SettingsContent: View {
                 }
 
                 IOS26SettingsNavigationRow(
+                    icon: "person.2.circle",
+                    iconColor: StreakSyncBrand.primary,
+                    title: "Score Sharing",
+                    subtitle: "What friends see"
+                ) {
+                    ScoreSharingSettingsView()
+                }
+
+                IOS26SettingsNavigationRow(
                     icon: "square.and.arrow.down.on.square",
                     iconColor: StreakSyncBrand.primary,
                     title: "Data & Privacy",
