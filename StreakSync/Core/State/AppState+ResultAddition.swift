@@ -191,7 +191,7 @@ extension AppState {
                 logger.warning("No authenticated user — score not published")
                 return
             }
-            let dateInt = result.date.utcYYYYMMDD
+            let dateInt = DailyGameScore.dayKey(for: result.date)
             // Look up current streak for this game
             let streak = self.streaks.first(where: { $0.gameId == result.gameId })
             let compositeId = "\(userId)|\(dateInt)|\(result.gameId.uuidString)"

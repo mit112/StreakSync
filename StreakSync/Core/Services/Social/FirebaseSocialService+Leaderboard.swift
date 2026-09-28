@@ -25,8 +25,8 @@ private struct LeaderboardAggregation {
 extension FirebaseSocialService {
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
         let currentUID = try requireUID()
-        let startInt = startDateUTC.utcYYYYMMDD
-        let endInt = endDateUTC.utcYYYYMMDD
+        let startInt = DailyGameScore.dayKey(for: startDateUTC)
+        let endInt = DailyGameScore.dayKey(for: endDateUTC)
 
         // Single query: allowedReaders contains currentUID returns scores
         // from self + friends (set at publish time).

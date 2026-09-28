@@ -114,7 +114,7 @@ final class FriendsViewModel: ObservableObject {
         let cal = Calendar.current
         let day = cal.startOfDay(for: selectedDateUTC)
         #if DEBUG
-        debugLog("📅 dateRange selectedLocal=\(selectedDateUTC) dayInt=\(day.utcYYYYMMDD)")
+        debugLog("📅 dateRange selectedLocal=\(selectedDateUTC) dayInt=\(DailyGameScore.dayKey(for: day))")
         #endif
         return (day, day)
     }
@@ -168,8 +168,8 @@ final class FriendsViewModel: ObservableObject {
         tearDownListeners()
 
         let (start, end) = dateRange()
-        let startInt = start.utcYYYYMMDD
-        let endInt = end.utcYYYYMMDD
+        let startInt = DailyGameScore.dayKey(for: start)
+        let endInt = DailyGameScore.dayKey(for: end)
 
         // Score listener — triggers leaderboard refresh when any friend posts/updates a score
         scoreListenerHandle = socialService.addScoreListener(
@@ -206,8 +206,8 @@ final class FriendsViewModel: ObservableObject {
 
         let (start, end) = dateRange()
         scoreListenerHandle = socialService.addScoreListener(
-            startDateInt: start.utcYYYYMMDD,
-            endDateInt: end.utcYYYYMMDD
+            startDateInt: DailyGameScore.dayKey(for: start),
+            endDateInt: DailyGameScore.dayKey(for: end)
         ) { [weak self] in
             self?.requestLeaderboardRefreshDebounced()
         }

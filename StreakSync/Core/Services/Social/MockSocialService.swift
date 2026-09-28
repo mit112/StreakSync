@@ -117,7 +117,7 @@ final class MockSocialService: SocialService {
 
     func deleteDailyScore(dateUTC: Date, gameId: UUID) async throws {
         let existing = load([DailyGameScore].self, forKey: scoresKey) ?? []
-        let dateInt = dateUTC.utcYYYYMMDD
+        let dateInt = DailyGameScore.dayKey(for: dateUTC)
         let remaining = existing.filter { !($0.dateInt == dateInt && $0.gameId == gameId) }
         try save(remaining, forKey: scoresKey)
         logger.info("Retracted \(existing.count - remaining.count) local score(s)")
