@@ -397,14 +397,13 @@ extension AppState {
         dataType: String,
         persistenceKey: String? = nil
     ) {
-        if let appError = error as? AppError {
-            setError(appError)
-        } else {
-            setError(AppError.persistence(.saveFailed(
-                dataType: dataType,
-                underlying: error
-            )))
-        }
+        // Logged only: no screen shows save errors, and the failed key is retried on
+        // the next activation below.
+        let appError = error as? AppError ?? AppError.persistence(.saveFailed(
+            dataType: dataType,
+            underlying: error
+        ))
+        logger.error("App error: \(appError.localizedDescription)")
 
         // Enqueue failed key for retry on next app activation
         if let key = persistenceKey {

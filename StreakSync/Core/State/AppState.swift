@@ -45,8 +45,6 @@ final class AppState {
     // MARK: - UI State (Not Persisted)
     var selectedGame: Game?
     private(set) var isLoading = false
-    private(set) var errorMessage: String?
-    var currentError: AppError?
 
     /// When true, the app is running in Guest Mode.
     var isGuestMode: Bool = false
@@ -322,14 +320,6 @@ final class AppState {
 
     func setLoading(_ loading: Bool) {
         isLoading = loading
-        if loading { errorMessage = nil }
-    }
-
-    func setError(_ error: AppError) {
-        currentError = error
-        errorMessage = error.errorDescription
-        isLoading = false
-        logger.error("App error: \(error.localizedDescription)")
     }
 
     // MARK: - Internal Setters for Extensions
