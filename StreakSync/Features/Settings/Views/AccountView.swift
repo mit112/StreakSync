@@ -17,6 +17,7 @@ struct AccountView: View {
     @EnvironmentObject private var container: AppContainer
     @ObservedObject private var authManager: FirebaseAuthStateManager
     @Environment(\.colorScheme) private var colorScheme
+    @ScaledMetric(relativeTo: .body) private var scaledButtonHeight: CGFloat = 50
 
     @State private var profile: UserProfile?
     @State private var isLoading = false
@@ -26,6 +27,9 @@ struct AccountView: View {
     @State private var showReauthSheet = false
     @State private var isDeletingAccount = false
     @State private var signInSuccess = false
+
+    /// See SignInBanner: the Apple button only scales its title through its frame height.
+    private var buttonHeight: CGFloat { min(scaledButtonHeight, 150) }
 
     init(authManager: FirebaseAuthStateManager) {
         self._authManager = ObservedObject(wrappedValue: authManager)
@@ -133,7 +137,7 @@ private extension AccountView {
                     Task { await handleAppleSignInResult(result) }
                 }
                 .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 50)
+                .frame(height: buttonHeight)
 
                 googleSignInButton
             } footer: {
@@ -156,7 +160,7 @@ private extension AccountView {
         Button {
             Task { await handleGoogleSignIn() }
         } label: {
-            GoogleSignInButtonLabel(height: 50)
+            GoogleSignInButtonLabel(height: buttonHeight)
         }
         .buttonStyle(.plain)
         .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
@@ -288,7 +292,7 @@ private extension AccountView {
                     Button {
                         Task { await handleReauthGoogle() }
                     } label: {
-                        GoogleSignInButtonLabel(height: 50)
+                        GoogleSignInButtonLabel(height: buttonHeight)
                     }
                     .buttonStyle(.plain)
                 } else {
@@ -299,7 +303,7 @@ private extension AccountView {
                         Task { await handleReauthApple(result) }
                     }
                     .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                    .frame(height: 50)
+                    .frame(height: buttonHeight)
                 }
                 Spacer()
             }

@@ -12,9 +12,18 @@ struct GameDetailPrimaryActions: View {
     @Binding var showingManualEntry: Bool
     @Binding var isLoadingGame: Bool
     let onPlayGame: () -> Void
-    
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Side by side at default sizes; stacked at accessibility sizes so each button is
+    /// full width and its label wraps by word instead of letter by letter.
+    private var actionsLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: Spacing.md))
+            : AnyLayout(HStackLayout(spacing: Spacing.md))
+    }
+
     var body: some View {
-        HStack(spacing: Spacing.md) {
+        actionsLayout {
             // Play Game Button
             PlayGameButton(
                 game: game,

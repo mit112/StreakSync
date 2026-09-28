@@ -49,88 +49,98 @@ struct ModernGameCard: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                // Icon with subtle background
-                gameIcon
+                // Icon + text sit side by side normally; at accessibility sizes the
+                // icon moves above the text so the name and stats get the full row
+                // width instead of the ~80pt left over beside a scaled icon.
+                let leadingLayout = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                    : AnyLayout(HStackLayout(spacing: 12))
+
+                leadingLayout {
+                    // Icon with subtle background
+                    gameIcon
                 
-                // Content
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(game.displayName)
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.primary)
-                        // 1 line normally; wrap to 2 at accessibility sizes so long
-                        // names ("Connections", "Mini Sudoku") stop truncating in the
-                        // cramped title slot. 0.85 handles the near-misses (§3, §4.4).
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                        .minimumScaleFactor(0.85)
+                    // Content
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(game.displayName)
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.primary)
+                            // 1 line normally; wrap to 2 at accessibility sizes so long
+                            // names ("Connections", "Mini Sudoku") stop truncating in the
+                            // cramped title slot. 0.85 handles the near-misses (§3, §4.4).
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                            .minimumScaleFactor(0.85)
 
-                    // Single metadata line — reflows to a vertical stack (no bullets)
-                    // at accessibility text sizes so it stops truncating (§4.4).
-                    let metadataLayout = dynamicTypeSize.isAccessibilitySize
-                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-                        : AnyLayout(HStackLayout(spacing: 8))
+                        // Single metadata line — reflows to a vertical stack (no bullets)
+                        // at accessibility text sizes so it stops truncating (§4.4).
+                        let metadataLayout = dynamicTypeSize.isAccessibilitySize
+                            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                            : AnyLayout(HStackLayout(spacing: 8))
 
-                    metadataLayout {
-                        // Streak indicator — prominent when active
-                        if streak.currentStreak > 0 {
-                            HStack(spacing: 3) {
-                                Image(systemName: "flame.fill")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.orange)
-                                Text("\(streak.currentStreak)")
-                                    .font(.caption.weight(.bold).monospacedDigit())
-                                    .foregroundStyle(.primary)
-                                    .contentTransition(.numericText())
+                        metadataLayout {
+                            // Streak indicator — prominent when active
+                            if streak.currentStreak > 0 {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "flame.fill")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.orange)
+                                    Text("\(streak.currentStreak)")
+                                        .font(.caption.weight(.bold).monospacedDigit())
+                                        .foregroundStyle(.primary)
+                                        .contentTransition(.numericText())
+                                }
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.orange.opacity(0.12), in: Capsule())
+                            } else {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "flame")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Text("0")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.12), in: Capsule())
-                        } else {
-                            HStack(spacing: 3) {
-                                Image(systemName: "flame")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                Text("0")
+
+                            if !dynamicTypeSize.isAccessibilitySize {
+                                // Decorative separator — hidden from VoiceOver (§4.13).
+                                Text("•")
                                     .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
+                            }
+
+                            // Completion rate
+                            HStack(spacing: 3) {
+                                Image(systemName: hasPlayedToday ? "checkmark.circle.fill" : "circle")
+                                    .font(.caption2)
+                                    .foregroundStyle(hasPlayedToday ? .green : .secondary)
+                                Text("\(completionRate)%")
+                                    .font(.caption.monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
-                        }
 
-                        if !dynamicTypeSize.isAccessibilitySize {
-                            // Decorative separator — hidden from VoiceOver (§4.13).
-                            Text("•")
+                            if !dynamicTypeSize.isAccessibilitySize {
+                                Text("•")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
+                            }
+
+                            // Last played
+                            Text(daysAgo)
                                 .font(.caption)
-                                .foregroundStyle(.tertiary)
-                                .accessibilityHidden(true)
-                        }
-
-                        // Completion rate
-                        HStack(spacing: 3) {
-                            Image(systemName: hasPlayedToday ? "checkmark.circle.fill" : "circle")
-                                .font(.caption2)
-                                .foregroundStyle(hasPlayedToday ? .green : .secondary)
-                            Text("\(completionRate)%")
-                                .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
+                                // Wrap instead of truncating ("Ne…") at accessibility sizes.
+                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                                .minimumScaleFactor(0.9)
                         }
-
-                        if !dynamicTypeSize.isAccessibilitySize {
-                            Text("•")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                                .accessibilityHidden(true)
-                        }
-
-                        // Last played
-                        Text(daysAgo)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.9)
                     }
+                    // VStack fills the row so the trailing controls sit at the row's
+                    // vertical center rather than being pinned to the title line.
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                // VStack fills the row so the trailing controls sit at the row's
-                // vertical center rather than being pinned to the title line.
-                .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Favorite + chevron live in the OUTER HStack so they share the row's
                 // vertical center (audit item 8: the star sat 10pt above the chevron
@@ -164,6 +174,16 @@ struct ModernGameCard: View {
     }
     
     // MARK: - Game Icon
+    // Uncapped, the container reaches ~150pt at the largest accessibility size and
+    // starves the text; cap it to the grid-card size there, leave other sizes alone.
+    private var cappedContainerSize: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? min(iconContainerSize, IconSize.xxl) : iconContainerSize
+    }
+
+    private var cappedGlyphSize: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? min(iconGlyphSize, IconSize.md) : iconGlyphSize
+    }
+
     private var gameIcon: some View {
         ZStack {
             Circle()
@@ -171,10 +191,10 @@ struct ModernGameCard: View {
                     ? gameColor.opacity(colorScheme == .dark ? 0.2 : 0.18)
                     : Color(.quaternarySystemFill)
                 )
-                .frame(width: iconContainerSize, height: iconContainerSize)
+                .frame(width: cappedContainerSize, height: cappedContainerSize)
 
             Image.safeSystemName(game.iconSystemName, fallback: "gamecontroller")
-                .font(.system(size: iconGlyphSize, weight: .medium))
+                .font(.system(size: cappedGlyphSize, weight: .medium))
                 .foregroundStyle(hasEverPlayed ? gameColor : .secondary)
                 .symbolRenderingMode(.hierarchical)
         }

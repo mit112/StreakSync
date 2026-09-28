@@ -104,9 +104,18 @@ private struct GameInfoSection: View {
 private struct StatsRow: View {
     let streak: GameStreak
     let isScrolling: Bool
-    
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Three pills abreast at default sizes; stacked at accessibility sizes so the
+    /// captions read as whole words instead of hyphenating (DESIGN_AUDIT §4.2).
+    private var statsLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: Spacing.md))
+            : AnyLayout(HStackLayout(spacing: Spacing.md))
+    }
+
     var body: some View {
-        HStack(spacing: Spacing.md) {
+        statsLayout {
             AnimatedStatPill(
                 value: "\(streak.currentStreak)",
                 label: "Current",

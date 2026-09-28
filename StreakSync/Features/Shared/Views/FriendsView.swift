@@ -28,6 +28,7 @@ struct FriendsView: View {
     @EnvironmentObject private var container: AppContainer
     @EnvironmentObject private var navigationCoordinator: NavigationCoordinator
     @ScaledMetric(relativeTo: .body) private var chevronSize: CGFloat = 44
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var activeSheet: ActiveFriendsSheet?
     /// Nil until the auth subscription first fires, so the very first render reads the live
     /// value instead of showing a signed-in user the sign-in card for one frame.
@@ -256,44 +257,72 @@ private extension FriendsView {
         return Game.allAvailableGames[idx].displayName
     }
 
+    /// Uncapped, the chevrons reach 124 pt at the largest accessibility size and take the
+    /// row from the date chip (it truncated to "T"); 64 pt keeps a 44 pt target with room.
+    private var chevronDiameter: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? min(chevronSize, 64) : chevronSize
+    }
+
     var datePager: some View {
-        HStack(spacing: 12) {
-            Button(action: { HapticManager.shared.trigger(.pickerChange); viewModel.incrementDay(-1) }) {
-                Image(systemName: "chevron.left")
-                    .font(.callout.weight(.semibold))
-                    .frame(width: chevronSize, height: chevronSize)
-                    .background(.ultraThinMaterial, in: Circle())
+        // At accessibility text sizes the scaled chevrons leave the row too narrow for the
+        // date chip (it truncated to "T"), so the chip takes its own line above the chevrons.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                previousDayButton
+                dateChip
+                nextDayButton
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Previous day")
-            .disabled(!viewModel.canIncrementDay(-1))
-            .opacity(viewModel.canIncrementDay(-1) ? 1.0 : 0.3)
-
-            Button { viewModel.isPresentingDatePicker = true } label: {
-                HStack(spacing: 4) {
-                    Text(formattedDate(viewModel.selectedDateUTC))
-                        .font(.subheadline.weight(.medium))
-                    Image(systemName: "chevron.down")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
+            VStack(spacing: 12) {
+                dateChip
+                HStack(spacing: 12) {
+                    previousDayButton
+                    nextDayButton
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(.ultraThinMaterial, in: Capsule())
             }
-            .buttonStyle(.plain)
-
-            Button(action: { HapticManager.shared.trigger(.pickerChange); viewModel.incrementDay(1) }) {
-                Image(systemName: "chevron.right")
-                    .font(.callout.weight(.semibold))
-                    .frame(width: chevronSize, height: chevronSize)
-                    .background(.ultraThinMaterial, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Next day")
-            .disabled(!viewModel.canIncrementDay(1))
-            .opacity(viewModel.canIncrementDay(1) ? 1.0 : 0.3)
         }
+    }
+
+    private var previousDayButton: some View {
+        Button(action: { HapticManager.shared.trigger(.pickerChange); viewModel.incrementDay(-1) }) {
+            Image(systemName: "chevron.left")
+                .font(.callout.weight(.semibold))
+                .frame(width: chevronDiameter, height: chevronDiameter)
+                .background(.ultraThinMaterial, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Previous day")
+        .disabled(!viewModel.canIncrementDay(-1))
+        .opacity(viewModel.canIncrementDay(-1) ? 1.0 : 0.3)
+    }
+
+    private var dateChip: some View {
+        Button { viewModel.isPresentingDatePicker = true } label: {
+            HStack(spacing: 4) {
+                Text(formattedDate(viewModel.selectedDateUTC))
+                    .font(.subheadline.weight(.medium))
+                    .fixedSize(horizontal: false, vertical: true)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var nextDayButton: some View {
+        Button(action: { HapticManager.shared.trigger(.pickerChange); viewModel.incrementDay(1) }) {
+            Image(systemName: "chevron.right")
+                .font(.callout.weight(.semibold))
+                .frame(width: chevronDiameter, height: chevronDiameter)
+                .background(.ultraThinMaterial, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Next day")
+        .disabled(!viewModel.canIncrementDay(1))
+        .opacity(viewModel.canIncrementDay(1) ? 1.0 : 0.3)
     }
 
     var datePickerSheet: some View {

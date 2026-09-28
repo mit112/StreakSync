@@ -14,6 +14,7 @@ struct SignInBanner: View {
     @EnvironmentObject private var container: AppContainer
     @ObservedObject private var authManager: FirebaseAuthStateManager
     @Environment(\.colorScheme) private var colorScheme
+    @ScaledMetric(relativeTo: .body) private var scaledButtonHeight: CGFloat = 44
 
     @State private var errorMessage: String?
     @State private var isLoading = false
@@ -21,6 +22,10 @@ struct SignInBanner: View {
     init(authManager: FirebaseAuthStateManager) {
         self._authManager = ObservedObject(wrappedValue: authManager)
     }
+
+    /// The Apple button's title scales with its frame, so this is the one Dynamic Type lever
+    /// it has; capped at 3x so it tracks the wrapped Google label instead of overshooting it.
+    private var buttonHeight: CGFloat { min(scaledButtonHeight, 132) }
 
     // No dismiss control and no `isAnonymous` gate of its own: the Friends state resolver
     // decides when sign-in is the dominant explanation, and dismissing the only
@@ -53,12 +58,12 @@ struct SignInBanner: View {
                     Task { await handleAppleSignIn(result) }
                 }
                 .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 44)
+                .frame(height: buttonHeight)
 
                 Button {
                     Task { await handleGoogleSignIn() }
                 } label: {
-                    GoogleSignInButtonLabel(height: 44)
+                    GoogleSignInButtonLabel(height: buttonHeight)
                 }
                 .buttonStyle(.plain)
             }
