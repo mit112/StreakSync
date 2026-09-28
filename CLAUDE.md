@@ -134,6 +134,13 @@ names before counting.
   fixture — `GameResult`'s initializer asserts the score matches the game's scoring model,
   so e.g. `score: 7, maxAttempts: 6` takes down the entire run. Bisect with `-only-testing:`
   down to one test; the crash usually reproduces from fixture construction alone.
+- **The shared scheme's Run action builds Release** (so does Xcode's Run button, the Xcode MCP's
+  `DeviceInteractionInstallAndRun`, and `xcodebuild build` without `-configuration Debug`).
+  Every `#if DEBUG` seam in `UITestSupport.swift` is compiled out of that binary, so
+  `--uitesting --uitest-share-import …` and friends silently do nothing, and `RenderPreview`
+  refuses with "needs an unoptimized build". Check with
+  `strings <app>/StreakSync | grep -c uitest-share-import` (0 → Release). The XCUITests build
+  their own Debug host and are the way to exercise the seams. Measured 2026-09-27.
 - `Failed to prepare device 'Clone N of …' — Timed out trying to boot simulator` IS
   environmental (parallel clone booting) and appears as an extra "System Failures" entry.
   It does not invalidate the tests that passed.
