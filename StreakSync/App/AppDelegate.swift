@@ -25,10 +25,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // could be delivered before anyone was listening.
         _ = NotificationDelegate.shared
 
-        // App Check is disabled until enforcement is enabled in Firestore rules.
-        // When ready: register debug token in Firebase Console → App Check → Manage debug tokens,
-        // then uncomment the line below.
-        // AppCheck.setAppCheckProviderFactory(StreakSyncAppCheckProviderFactory())
+        // App Check. Linking FirebaseAppCheck registers a default factory on its own
+        // (FIRDefaultProviderFactory: DeviceCheck on devices, debug on simulators), so it was
+        // never actually off. This picks the providers explicitly: App Attest in Release, the
+        // debug provider in Debug. Must run before FirebaseApp.configure. Enforcement stays
+        // off in the console until App Attest and the debug tokens are registered there.
+        //
+        // No App Attest entitlement is needed: TestFlight and App Store builds ignore it and
+        // use the production environment (Apple, "App Attest Environment Entitlement").
+        AppCheck.setAppCheckProviderFactory(StreakSyncAppCheckProviderFactory())
         
         // Configure Firebase before any other services initialize.
         // This is the officially recommended location per Firebase docs.
