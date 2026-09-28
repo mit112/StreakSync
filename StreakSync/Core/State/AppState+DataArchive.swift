@@ -26,6 +26,9 @@ extension AppState {
         _tieredAchievements = AchievementFactory.createDefaultAchievements()
         setStreaks(games.map { GameStreak.empty(for: $0) })
         gameResultsCache.removeAll()
+        // Lazy caches over stores the archive just moved; nil makes them re-read (empty).
+        _activeDaysEver = nil
+        _uniqueGamesEver = nil
         invalidateCache()
 
         logger.info("Archived app data for the outgoing session")
@@ -38,6 +41,11 @@ extension AppState {
         guard persistenceService.hasArchive(namespace: namespace) else { return false }
         let restored = persistenceService.restoreArchive(namespace: namespace)
         if restored {
+            // Drop the caches so the caller's reload reads the restored stores, not the
+            // defaults `archiveAllData` left in memory.
+            _tieredAchievements = nil
+            _activeDaysEver = nil
+            _uniqueGamesEver = nil
             logger.info("Restored archived app data for a returning account")
         }
         return restored

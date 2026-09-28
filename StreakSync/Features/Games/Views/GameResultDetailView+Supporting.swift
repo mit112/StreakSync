@@ -7,63 +7,6 @@
 
 import SwiftUI
 
-// MARK: - Supporting Views
-
-struct DetailCard: View {
-    let icon: String
-    let label: String
-    let value: String
-    let color: Color
-
-    @State private var isHovered = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image.safeSystemName(icon, fallback: "questionmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(color)
-                    .symbolEffect(.pulse, value: isHovered)
-                Text(label).font(.caption.weight(.medium)).foregroundStyle(.secondary)
-            }
-            Text(value)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(Color(.separator), lineWidth: 0.5)
-                }
-                .shadow(color: isHovered ? color.opacity(0.1) : .clear, radius: 8, x: 0, y: 4)
-        }
-        .onHover { hovering in
-            withAnimation(.smooth(duration: 0.2)) { isHovered = hovering }
-        }
-        .hoverEffect(.highlight)
-    }
-}
-
-struct DetailRow: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack {
-            Text(label).font(.subheadline).foregroundStyle(.secondary)
-            Spacer()
-            Text(value).font(.subheadline.weight(.medium)).foregroundStyle(.primary)
-        }
-        .padding()
-    }
-}
-
 // MARK: - Quordle Detail Breakdown
 struct QuordleDetailBreakdown: View {
     let result: GameResult

@@ -23,6 +23,9 @@ struct GameLeaderboardPage: View {
     /// False when the Friends header already shows Manage, so a state never offers two
     /// friend-management actions at once (DESIGN_AUDIT §4.5).
     let showsInviteAction: Bool
+    /// False when the caller already scrolls this page (FriendsView at accessibility text
+    /// sizes), so two vertical scroll views never nest.
+    let isScrollable: Bool
     @State private var pressedIndex: Int?
     @ScaledMetric(relativeTo: .title3) private var rankWidth: CGFloat = 32
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 38
@@ -38,7 +41,8 @@ struct GameLeaderboardPage: View {
         metricText: @escaping (LeaderboardRow) -> String,
         myUserId: String?,
         onRefresh: (() async -> Void)?,
-        showsInviteAction: Bool = false
+        showsInviteAction: Bool = false,
+        isScrollable: Bool = true
     ) {
         self.game = game
         self.rows = rows
@@ -50,15 +54,21 @@ struct GameLeaderboardPage: View {
         self.myUserId = myUserId
         self.onRefresh = onRefresh
         self.showsInviteAction = showsInviteAction
+        self.isScrollable = isScrollable
     }
     
     var body: some View {
-        ScrollView(showsIndicators: false) {
+        if isScrollable {
+            ScrollView {
+                contentView
+            }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
+            .refreshable {
+                await onRefresh?()
+            }
+        } else {
             contentView
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .refreshable {
-            await onRefresh?()
         }
     }
     

@@ -10,7 +10,6 @@ import SwiftUI
 // MARK: - Weekly Summary Section
 struct WeeklySummarySection: View {
     let summaries: [WeeklySummary]
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {

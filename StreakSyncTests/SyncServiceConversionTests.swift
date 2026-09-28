@@ -32,6 +32,8 @@ final class SyncServiceConversionTests: XCTestCase {
         XCTAssertEqual(data["completed"] as? Bool, true)
         XCTAssertNotNil(data["date"] as? Timestamp)
         XCTAssertNotNil(data["lastModified"] as? Timestamp)
+        // The sentinel, not a Date: the server must stamp it (the rules reject anything else).
+        XCTAssertTrue(data["serverModified"] is FieldValue)
     }
 
     func testGameResultFromFirestoreRoundTripPreservesValues() {

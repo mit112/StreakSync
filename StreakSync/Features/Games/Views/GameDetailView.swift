@@ -12,9 +12,7 @@ struct GameDetailView: View {
     let game: Game
     
     @StateObject internal var viewModel: GameDetailViewModel
-    @StateObject private var browserLauncher = BrowserLauncher.shared
     @Environment(AppState.self) internal var appState
-    @EnvironmentObject private var coordinator: NavigationCoordinator
     
     @State internal var showingManualEntry = false
     @State internal var showingShareSheet = false
@@ -147,7 +145,7 @@ struct GameDetailView: View {
         isLoadingGame = true
         HapticManager.shared.trigger(.buttonTap)
         
-        browserLauncher.launchGame(game)
+        BrowserLauncher.launchGame(game)
         
         // Reset loading state after a short delay
         Task {

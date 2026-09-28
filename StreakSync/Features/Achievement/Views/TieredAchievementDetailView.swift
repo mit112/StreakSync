@@ -9,7 +9,6 @@ import SwiftUI
 
 struct TieredAchievementDetailView: View {
     let achievement: TieredAchievement
-    @Environment(\.dismiss) private var dismiss
     @State private var selectedTier: AchievementTier?
     
     var body: some View {

@@ -48,6 +48,16 @@ final class NavigationCoordinator: ObservableObject {
     
     // MARK: - Sheet Presentation
     @Published var presentedSheet: SheetDestination?
+
+    // MARK: - First-Launch Sheet Sequencing
+    /// The first-launch notification prompt (ContentView) and the share-discovery sheet
+    /// (ImprovedDashboardView) both fire on a new user's first paint. Presented together,
+    /// UIKit refuses the second ("Attempt to present … which is already presenting") and
+    /// SwiftUI then drops both, so the user saw neither while both were marked as seen
+    /// (reproduced 3/3 on fresh installs, 2026-09-27). Each side checks the other's flag
+    /// before presenting and re-checks when it clears, so the sheets take turns.
+    @Published var isShowingFirstLaunchNotificationPrompt = false
+    @Published var isShowingShareDiscovery = false
     
     // MARK: - Notification Highlight State
     /// Achievement ID to highlight when navigating from a notification
@@ -58,19 +68,6 @@ final class NavigationCoordinator: ObservableObject {
     @Published var pendingJoinCode: String?
     /// Triggers presentation of the friend management sheet with join code
     @Published var shouldShowJoinSheet: Bool = false
-    
-    // MARK: - Legacy path (for migration)
-    @Published var path = NavigationPath()
-    
-    // MARK: - Get current path (not as Binding)
-    var currentNavigationPath: NavigationPath {
-        switch selectedTab {
-        case .home: return homePath
-        case .awards: return awardsPath
-        case .friends: return friendsPath
-        case .settings: return settingsPath
-        }
-    }
     
     enum Destination: Hashable {
         case gameDetail(Game)
@@ -139,7 +136,6 @@ final class NavigationCoordinator: ObservableObject {
     
     enum SheetDestination: Identifiable {
         case gameResult(GameResult)
-        // Legacy achievement detail removed in favor of tiered only
         case tieredAchievementDetail(TieredAchievement)
 
         var id: String {
@@ -238,16 +234,6 @@ final class NavigationCoordinator: ObservableObject {
         case .settings:
             settingsPath.removeLast(settingsPath.count)
         }
-    }
-    
-    /// Reset all navigation
-    func resetAllNavigation() {
-        homePath = NavigationPath()
-        awardsPath = NavigationPath()
-        friendsPath = NavigationPath()
-        settingsPath = NavigationPath()
-        selectedTab = .home
-        presentedSheet = nil
     }
     
     // MARK: - Notification Navigation Methods

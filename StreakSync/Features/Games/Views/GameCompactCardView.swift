@@ -16,7 +16,6 @@ struct GameCompactCardView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) private var colorScheme
     @State private var isPressed = false
-    @State private var isHovered = false
 
     // Icon sizes scale with adjacent text under Dynamic Type (§6 Stage 1).
     @ScaledMetric(relativeTo: .body) private var iconContainerSize = IconSize.xxl

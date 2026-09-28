@@ -10,7 +10,6 @@ import SwiftUI
 // MARK: - Settings View
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
-    @EnvironmentObject private var coordinator: NavigationCoordinator
 
     var body: some View {
         IOS26SettingsContent(viewModel: viewModel)
@@ -64,6 +63,15 @@ private struct IOS26SettingsContent: View {
                     subtitle: viewModel.appearanceMode.displayName
                 ) {
                     AppearanceSettingsView()
+                }
+
+                IOS26SettingsNavigationRow(
+                    icon: "person.2.circle",
+                    iconColor: StreakSyncBrand.primary,
+                    title: "Score Sharing",
+                    subtitle: "What friends see"
+                ) {
+                    ScoreSharingSettingsView()
                 }
 
                 IOS26SettingsNavigationRow(
@@ -143,6 +151,9 @@ private struct IOS26SettingsNavigationRow<Destination: View>: View {
     let title: String
     let subtitle: String?
     @ViewBuilder let destination: Destination
+    /// Scales with the symbol: a fixed 28 pt frame let the icon overhang the row edge once
+    /// the accessibility label style stacked it on its own line.
+    @ScaledMetric(relativeTo: .body) private var iconWidth: CGFloat = 28
 
     // No layered onTapGesture, press scaling, or hover lift: the List row supplies the
     // chevron, the highlight, and the 44pt hit area natively.
@@ -165,9 +176,10 @@ private struct IOS26SettingsNavigationRow<Destination: View>: View {
                 // Decorative: the adjacent title already carries the whole meaning.
                 Image.safeSystemName(icon, fallback: "gear")
                     .foregroundStyle(iconColor)
-                    .frame(width: 28)
+                    .frame(width: iconWidth)
                     .accessibilityHidden(true)
             }
+            .labelStyle(SettingsRowLabelStyle())
         }
     }
 }
@@ -178,6 +190,7 @@ private struct IOS26SettingsLinkRow: View {
     let iconColor: Color
     let title: String
     let url: URL
+    @ScaledMetric(relativeTo: .body) private var iconWidth: CGFloat = 28
 
     var body: some View {
         Link(destination: url) {
@@ -196,9 +209,30 @@ private struct IOS26SettingsLinkRow: View {
                 // Decorative: the adjacent title already carries the whole meaning.
                 Image.safeSystemName(icon, fallback: "gear")
                     .foregroundStyle(iconColor)
-                    .frame(width: 28)
+                    .frame(width: iconWidth)
                     .accessibilityHidden(true)
             }
+            .labelStyle(SettingsRowLabelStyle())
+        }
+    }
+}
+
+// MARK: - Settings Row Label Style
+/// At accessibility text sizes a row's wrapped title flowed back under the icon column, so
+/// its first line got only the width right of the icon and hyphenated ("Notifica-/tions").
+/// The icon takes its own line there, giving the title the full row width.
+private struct SettingsRowLabelStyle: LabelStyle {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    @ViewBuilder
+    func makeBody(configuration: Configuration) -> some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                configuration.icon
+                configuration.title
+            }
+        } else {
+            Label(configuration)
         }
     }
 }

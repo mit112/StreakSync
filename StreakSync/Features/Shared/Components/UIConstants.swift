@@ -80,14 +80,6 @@ enum Layout {
 
 // MARK: - Accessibility Helpers
 extension View {
-    /// Add standard accessibility traits for buttons
-    func accessibleButton(label: String, hint: String? = nil) -> some View {
-        self
-            .accessibilityLabel(label)
-            .accessibilityHint(hint ?? "")
-            .accessibilityAddTraits(.isButton)
-    }
-
     /// Enforces the HIG 44pt minimum hit area (WCAG 2.5.8) without growing the
     /// visible glyph. Apply to icon-only controls (DESIGN_AUDIT §4.12).
     func minTapTarget() -> some View {

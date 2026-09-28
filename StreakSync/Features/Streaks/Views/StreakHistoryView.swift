@@ -12,7 +12,6 @@ import SwiftUI
 struct StreakHistoryView: View {
     let streak: GameStreak
     @Environment(AppState.self) private var appState
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var selectedMonth = Date()
     @State private var selectedDate: Date?

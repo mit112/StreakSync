@@ -9,6 +9,15 @@
       ]
     },
     {
+      "collectionGroup": "scores",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "allowedReaders", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "dateInt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "friendships",
       "queryScope": "COLLECTION",
       "fields": [

@@ -27,10 +27,16 @@ enum SocialSharingScope: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-struct SocialPrivacySettings: Codable {
+struct SocialPrivacySettings: Codable, Equatable {
     var perGameScopes: [UUID: SocialSharingScope]
     var shareIncompleteGames: Bool
     var hideZeroPointScores: Bool
+
+    /// Whether friends see this game's scores, as a Bool a Toggle can bind to.
+    subscript(sharesGame gameId: UUID) -> Bool {
+        get { perGameScopes[gameId] != .privateScope }
+        set { perGameScopes[gameId] = newValue ? .allFriends : .privateScope }
+    }
     
     static let `default` = SocialPrivacySettings(
         perGameScopes: [:],
@@ -43,7 +49,10 @@ struct SocialPrivacySettings: Codable {
 final class SocialSettingsService: ObservableObject {
     static let shared = SocialSettingsService()
     
-    @Published private(set) var settings: SocialPrivacySettings
+    /// Settable so the Score Sharing screen can bind to it; every change is persisted.
+    @Published var settings: SocialPrivacySettings {
+        didSet { persist() }
+    }
     private let defaults = UserDefaults.standard
     private let key = "social_privacy_settings"
     
@@ -62,17 +71,14 @@ final class SocialSettingsService: ObservableObject {
     
     func updateScope(_ scope: SocialSharingScope, for gameId: UUID) {
         settings.perGameScopes[gameId] = scope
-        persist()
     }
     
     func updateShareIncompleteGames(_ value: Bool) {
         settings.shareIncompleteGames = value
-        persist()
     }
     
     func updateHideZeroPointScores(_ value: Bool) {
         settings.hideZeroPointScores = value
-        persist()
     }
     
     func shouldShare(score: DailyGameScore, game: Game?) -> Bool {

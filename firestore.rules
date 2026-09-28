@@ -73,7 +73,7 @@ service cloud.firestore {
           && request.auth.uid == userId
           && hasRequiredAndOnly(
             ['gameId', 'gameName', 'date', 'maxAttempts', 'completed', 'sharedText', 'parsedData', 'lastModified'],
-            ['score']
+            ['score', 'serverModified']
           )
           && isShortString(request.resource.data.gameId)
           && isShortString(request.resource.data.gameName)
@@ -83,7 +83,12 @@ service cloud.firestore {
           && request.resource.data.sharedText.size() <= 2500
           && request.resource.data.parsedData is map
           && request.resource.data.parsedData.size() <= 50
-          && (!('score' in request.resource.data) || request.resource.data.score is int);
+          && (!('score' in request.resource.data) || request.resource.data.score is int)
+          // Incremental sync keys off this, so it must be the server's clock, never the
+          // device's: only FieldValue.serverTimestamp() satisfies it. Optional because
+          // clients before 1.26 don't send it.
+          && (!('serverModified' in request.resource.data)
+              || request.resource.data.serverModified == request.time);
       }
 
       // --- Sync data (private per-user) ---

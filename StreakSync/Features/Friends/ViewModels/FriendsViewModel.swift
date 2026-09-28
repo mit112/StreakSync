@@ -11,7 +11,6 @@ import UIKit
 
 @MainActor
 final class FriendsViewModel: ObservableObject {
-    @Published var myDisplayName: String = ""
     @Published var friends: [UserProfile] = []
     @Published var leaderboard: [LeaderboardRow] = []
     @Published var isLoading: Bool = false
@@ -22,7 +21,6 @@ final class FriendsViewModel: ObservableObject {
     /// Day currently selected by the user (stored at the local calendar's start-of-day). Converted to UTC when querying.
     @Published var selectedDateUTC: Date = Calendar.current.startOfDay(for: Date())
     @Published var selectedGameId: UUID?
-    @Published var isPresentingManageFriends: Bool = false
     @Published var isPresentingDatePicker: Bool = false
     @Published var currentGamePage: Int = 0
     @Published var myUserId: String?
@@ -43,7 +41,6 @@ final class FriendsViewModel: ObservableObject {
     private var friendshipListenerHandle: SocialServiceListenerHandle?
     // Fallback polling timer (only used when listeners are nil, e.g. MockSocialService)
     private var refreshTimer: Timer?
-    private var refreshDebounceTask: Task<Void, Never>?
     private var leaderboardDebounceTask: Task<Void, Never>?
     // NotificationCenter observer tokens for proper cleanup
     private var backgroundObserver: (any NSObjectProtocol)?
@@ -69,7 +66,6 @@ final class FriendsViewModel: ObservableObject {
         defer { isLoading = false }
         do {
             let me = try await socialService.ensureProfile(displayName: nil)
-            myDisplayName = me.displayName
             myUserId = me.id
             friends = try await socialService.listFriends()
             let (start, end) = dateRange()
@@ -92,14 +88,6 @@ final class FriendsViewModel: ObservableObject {
     }
     
     // Debounced refresh to avoid rapid reloads on quick UI changes
-    func requestRefreshDebounced(delayMs: UInt64 = 180) {
-        refreshDebounceTask?.cancel()
-        refreshDebounceTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: delayMs * 1_000_000)
-            guard !Task.isCancelled else { return }
-            await self?.refresh()
-        }
-    }
     
     /// Coalesces score-listener callbacks. The listener fires once per sibling
     /// write, so refreshing per event re-reads the whole visible score set —
@@ -126,7 +114,7 @@ final class FriendsViewModel: ObservableObject {
         let cal = Calendar.current
         let day = cal.startOfDay(for: selectedDateUTC)
         #if DEBUG
-        debugLog("📅 dateRange selectedLocal=\(selectedDateUTC) dayInt=\(day.utcYYYYMMDD)")
+        debugLog("📅 dateRange selectedLocal=\(selectedDateUTC) dayInt=\(DailyGameScore.dayKey(for: day))")
         #endif
         return (day, day)
     }
@@ -180,8 +168,8 @@ final class FriendsViewModel: ObservableObject {
         tearDownListeners()
 
         let (start, end) = dateRange()
-        let startInt = start.utcYYYYMMDD
-        let endInt = end.utcYYYYMMDD
+        let startInt = DailyGameScore.dayKey(for: start)
+        let endInt = DailyGameScore.dayKey(for: end)
 
         // Score listener — triggers leaderboard refresh when any friend posts/updates a score
         scoreListenerHandle = socialService.addScoreListener(
@@ -218,8 +206,8 @@ final class FriendsViewModel: ObservableObject {
 
         let (start, end) = dateRange()
         scoreListenerHandle = socialService.addScoreListener(
-            startDateInt: start.utcYYYYMMDD,
-            endDateInt: end.utcYYYYMMDD
+            startDateInt: DailyGameScore.dayKey(for: start),
+            endDateInt: DailyGameScore.dayKey(for: end)
         ) { [weak self] in
             self?.requestLeaderboardRefreshDebounced()
         }
@@ -277,8 +265,6 @@ final class FriendsViewModel: ObservableObject {
     }
     
     func cleanup() {
-        refreshDebounceTask?.cancel()
-        refreshDebounceTask = nil
         leaderboardDebounceTask?.cancel()
         leaderboardDebounceTask = nil
         tearDownListeners()

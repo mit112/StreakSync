@@ -34,6 +34,23 @@ struct ExportData: Codable {
     let achievements: [TieredAchievement]
     let streaks: [GameStreak]
     let favoriteGameIds: [UUID]
+
+    /// Puzzle-numbered results are dated at local noon on their puzzle day (see
+    /// `GameResultParser.canonicalPuzzleDate`), so this morning's Wordle is legitimately
+    /// "in the future" until midday. Rejecting any future date refused a same-morning
+    /// backup outright; this allows the same slack the parser's own guard does.
+    static let futureDateTolerance: TimeInterval = 36 * 3600
+
+    func validate(now: Date = Date()) throws {
+        if version > 1 {
+            throw ImportError.invalidVersion
+        }
+
+        let latestPlausible = now.addingTimeInterval(Self.futureDateTolerance)
+        for result in gameResults where result.gameName.isEmpty || result.date > latestPlausible {
+            throw ImportError.corruptedData
+        }
+    }
 }
 
 // MARK: - Share Sheet (for Export)

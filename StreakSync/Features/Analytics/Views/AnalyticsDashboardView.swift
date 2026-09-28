@@ -13,7 +13,6 @@ import SwiftUI
 struct AnalyticsDashboardView: View {
     @StateObject private var viewModel: AnalyticsViewModel
     @EnvironmentObject private var coordinator: NavigationCoordinator
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var hasInitiallyAppeared = false
 

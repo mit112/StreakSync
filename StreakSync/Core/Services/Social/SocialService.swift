@@ -23,13 +23,51 @@ struct UserProfile: Identifiable, Codable, Hashable {
 struct DailyGameScore: Identifiable, Codable, Hashable {
     let id: String            // compositeKey: userId|yyyyMMdd|gameId
     let userId: String
-    let dateInt: Int          // yyyyMMdd (UTC)
+    let dateInt: Int          // yyyyMMdd leaderboard day — see `dayKey(for:)`
     let gameId: UUID
     let gameName: String
     let score: Int?
     let maxAttempts: Int
     let completed: Bool
     let currentStreak: Int?   // User's streak for this game at time of publishing
+}
+
+extension DailyGameScore {
+    /// The leaderboard day a result belongs to: the player's own calendar day, the way
+    /// Wordle and the NYT Games app date a daily puzzle. Publishing, retraction, the
+    /// leaderboard query and the score listener all key off this one function.
+    ///
+    /// Before 1.26 publishing used the UTC date while reconcile used the local one, so a
+    /// game shared after 00:00 UTC (7 pm Central) landed on tomorrow, and on two days once
+    /// reconcile ran. `legacyDayKey(for:)` finds those old documents.
+    static func dayKey(for date: Date, in calendar: Calendar = .current) -> Int {
+        let comps = calendar.dateComponents([.year, .month, .day], from: date)
+        return (comps.year ?? 1970) * 10_000 + (comps.month ?? 1) * 100 + (comps.day ?? 1)
+    }
+
+    /// The pre-1.26 UTC key, used only to clean up documents published under it.
+    static func legacyDayKey(for date: Date) -> Int { date.utcYYYYMMDD }
+
+    /// Decodes a `scores` document. Nil when an identifying field is missing or malformed.
+    init?(documentID: String, data: [String: Any]) {
+        guard
+            let userId = data["userId"] as? String,
+            let gameIdStr = data["gameId"] as? String,
+            let gameId = UUID(uuidString: gameIdStr),
+            let dateInt = data["dateInt"] as? Int
+        else { return nil }
+        self.init(
+            id: documentID,
+            userId: userId,
+            dateInt: dateInt,
+            gameId: gameId,
+            gameName: data["gameName"] as? String ?? "Game",
+            score: data["score"] as? Int,
+            maxAttempts: data["maxAttempts"] as? Int ?? 6,
+            completed: data["completed"] as? Bool ?? false,
+            currentStreak: data["currentStreak"] as? Int
+        )
+    }
 }
 
 struct LeaderboardRow: Identifiable, Codable, Hashable {
@@ -65,11 +103,6 @@ struct Friendship: Identifiable, Codable, Hashable {
     /// Returns the other user's ID given the current user
     func otherUserId(me: String) -> String {
         userId1 == me ? userId2 : userId1
-    }
-
-    /// Returns the display name of the other party given the current user (best-effort).
-    func otherDisplayName(me: String) -> String? {
-        userId1 == me ? recipientDisplayName : senderDisplayName
     }
 }
 
@@ -137,18 +170,9 @@ protocol SocialService: Sendable {
 
 // MARK: - Helpers
 extension Date {
-    /// Returns an Int in the form yyyyMMdd using the user's local calendar.
-    /// "Today" is always the user's local date regardless of UTC offset.
-    var localDateInt: Int {
-        let comps = Calendar.current.dateComponents([.year, .month, .day], from: self)
-        let y = comps.year ?? 1970
-        let m = comps.month ?? 1
-        let d = comps.day ?? 1
-        return y * 10_000 + m * 100 + d
-    }
-    
-    /// Returns an Int in the form yyyyMMdd using the UTC calendar.
-    /// Date is keyed to the UTC date — used for Firestore score dateInt fields and leaderboard queries.
+    /// Returns an Int in the form yyyyMMdd using the UTC calendar. Scores are no longer keyed
+    /// by it (see `DailyGameScore.dayKey(for:)`); it remains for local dedup signatures and
+    /// for finding documents published under the old UTC key.
     var utcYYYYMMDD: Int {
         var utcCalendar = Calendar(identifier: .gregorian)
         utcCalendar.timeZone = TimeZone(identifier: "UTC") ?? .current

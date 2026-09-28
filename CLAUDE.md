@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - When writing or modifying SwiftUI views, consult the swiftui-pro skill references before generating code
 - **ALWAYS use XcodeBuildMCP tools** (`build_sim`, `test_sim`, `build_run_sim`) instead of raw `xcodebuild` bash commands for builds and tests. Set session defaults at the start of each session:
   ```
-  mcp__XcodeBuildMCP__session_set_defaults(scheme: "StreakSync", simulatorName: "iPhone 17 Pro", projectPath: "StreakSync.xcodeproj")
+  mcp__XcodeBuildMCP__session_set_defaults(scheme: "StreakSync", simulatorName: "iPhone 18 Pro", projectPath: "StreakSync.xcodeproj")
   ```
 
 ## Build & Test Commands
@@ -32,27 +32,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (no code signing needed for simulator)
 xcodebuild build \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
+  -destination 'platform=iOS Simulator,id=D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO -quiet \
   2>&1 | xcsift -w
 
 # Run all tests (unit + UI)
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
+  -destination 'platform=iOS Simulator,id=D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
 
 # Run a single test class
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
+  -destination 'platform=iOS Simulator,id=D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests
 
 # Run a single test method
 xcodebuild test \
   -project StreakSync.xcodeproj -scheme StreakSync \
-  -destination 'platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072' \
+  -destination 'platform=iOS Simulator,id=D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2' \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
   -only-testing:StreakSyncTests/StreakLogicTests/testStreakContinuation
 
@@ -134,6 +134,13 @@ names before counting.
   fixture — `GameResult`'s initializer asserts the score matches the game's scoring model,
   so e.g. `score: 7, maxAttempts: 6` takes down the entire run. Bisect with `-only-testing:`
   down to one test; the crash usually reproduces from fixture construction alone.
+- **The shared scheme's Run action builds Release** (so does Xcode's Run button, the Xcode MCP's
+  `DeviceInteractionInstallAndRun`, and `xcodebuild build` without `-configuration Debug`).
+  Every `#if DEBUG` seam in `UITestSupport.swift` is compiled out of that binary, so
+  `--uitesting --uitest-share-import …` and friends silently do nothing, and `RenderPreview`
+  refuses with "needs an unoptimized build". Check with
+  `strings <app>/StreakSync | grep -c uitest-share-import` (0 → Release). The XCUITests build
+  their own Debug host and are the way to exercise the seams. Measured 2026-09-27.
 - `Failed to prepare device 'Clone N of …' — Timed out trying to boot simulator` IS
   environmental (parallel clone booting) and appears as an extra "System Failures" entry.
   It does not invalidate the tests that passed.
@@ -287,6 +294,22 @@ command in the *same* shell invocation, or it arrives empty and altool reports
 `-20101 "Your Apple Account or password was entered incorrectly"` — which looks
 like a wrong password rather than a missing one.
 
+### Checking App Store Connect from the CLI
+
+A team API key lives at `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` with
+`~/.appstoreconnect/config.json` holding `key_id` and `issuer_id` (set up 2026-09-27).
+`scripts/asc_status.py` is a read-only client for it, run via `uv` (no venv):
+
+```bash
+uv run scripts/asc_status.py check 1.25   # exit 0 iff a VALID TestFlight build of 1.25 exists
+uv run scripts/asc_status.py builds       # every build, newest first, with processing state
+uv run scripts/asc_status.py versions     # App Store versions and their review state
+```
+
+Use it to confirm an Xcode Cloud delivery instead of opening App Store Connect. The same key
+also lets the manual upload path run `xcrun altool --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>`
+instead of the app-specific password. Never paste the `.p8` into a chat or a commit.
+
 **Xcode Cloud is set up and is now the primary release path** (working since
 2026-08-27; the manual archive flow above is the fallback). Workflow **"Default"**
 on `mit112/StreakSync`: Branch Changes → `main` (any file change) triggers an
@@ -311,21 +334,21 @@ Connect — Xcode Cloud only delivers the build.
 
 **Always reference simulators by UDID, not by name.**
 
-- iPhone 17 Pro: `FF93212D-752B-4632-89CA-51888898E072` (iOS 27.0 — preferred)
-- iPhone 18 Pro Max: `FBE80628-0338-4A91-9B61-F26BB33818BC` (iOS 27.0)
+- iPhone 18 Pro: `D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2` (iOS 27.0 — preferred)
+- iPhone 18 Pro Max: `398075D8-1B19-41D7-88A6-8CB001C22B3F` (iOS 27.0)
 
-> There is no iPhone 17 Pro Max device right now — create one only if you need it
+> There is no iPhone 17 Pro or 17 Pro Max device right now (the set was re-created on 2026-09-27) — create one only if you need it
 > (`xcrun simctl create "iPhone 17 Pro Max" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max com.apple.CoreSimulator.SimRuntime.iOS-27-0`).
 > Each booted simulator costs roughly 2.6 GB, and disk on this machine is tight.
 
-> **UDID drift:** These UDIDs change whenever Xcode is reinstalled or simulators are re-created. If `xcodebuild` rejects the destination with "device not found", run `xcrun simctl list devices available | grep "iPhone 17 Pro"` and update this file.
+> **UDID drift:** These UDIDs change whenever Xcode is reinstalled or simulators are re-created. If `xcodebuild` rejects the destination with "device not found", run `xcrun simctl list devices available | grep "iPhone 18 Pro"` and update this file.
 
 Preferred destination string:
-`platform=iOS Simulator,id=FF93212D-752B-4632-89CA-51888898E072`
+`platform=iOS Simulator,id=D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2`
 
 **Always launch apps with:**
 ```bash
-xcrun simctl launch --terminate-running-process --console-pty FF93212D-752B-4632-89CA-51888898E072 com.mitsheth.StreakSync
+xcrun simctl launch --terminate-running-process --console-pty D38CD57F-C3A1-4EEA-9F55-92AE1DE51DC2 com.mitsheth.StreakSync
 ```
 `--terminate-running-process` is mandatory — without it, launch silently does nothing if the app is already running.
 

@@ -37,7 +37,7 @@ extension AppState {
         // 3. Published scores are keyed by day, so moving a result to a different date
         // leaves the original day's entry stranded on friends' leaderboards. Retract it
         // before republishing under the new date.
-        if original.date.utcYYYYMMDD != edited.date.utcYYYYMMDD {
+        if DailyGameScore.dayKey(for: original.date) != DailyGameScore.dayKey(for: edited.date) {
             retractScoreFromSocial(date: original.date, gameId: original.gameId)
         }
 

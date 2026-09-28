@@ -20,6 +20,8 @@ final class StreakSyncUITestsLaunchTests: XCTestCase {
     @MainActor
     func testLaunch() throws {
         let app = XCUIApplication()
+        // Without it the app signs in to production Firebase Auth as a new anonymous user.
+        app.launchArguments = ["--uitesting"]
         app.launch()
 
         // Insert steps here to perform after app launch but before taking a screenshot,

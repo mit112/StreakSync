@@ -41,7 +41,7 @@ entries below. See **§8** — including a combined-run failure that needs watch
 |---|---|---|---|
 | 1 | **Crashlytics** | Needs `FirebaseCrashlytics` added as a package product to the app target in Xcode. That's a `.pbxproj` edit, which the project rules forbid me from hand-editing. | 5 min in Xcode + ~20 lines of init code |
 | 2 | **Product analytics** | `FirebaseAnalytics` is not linked at all. The app target's only package products are `GoogleSignIn`, `FirebaseAuth`, `FirebaseFirestore` and `FirebaseAppCheck`, so this is the same `.pbxproj` edit as Crashlytics — not a code-only change. See §2.3. | 5 min in Xcode, then instrumentation |
-| 3 | **Firebase budget alert** | Google Cloud Console, project `streaksync-55ca0`. No cost guardrail exists. | 5 min |
+| 3 | **Firebase budget alert** | Checked 2026-09-27: the project has **no billing account linked** (`gcloud billing projects describe` → billingEnabled false), i.e. it is on the Spark plan and cannot incur charges; over-quota calls fail instead. A budget cannot be attached until it is upgraded to Blaze. Mit's "Firebase Payment" billing account exists but is unlinked. Create a $1 budget only if/when upgrading. | n/a |
 | 4 | **App Check enforcement** | Code is fully scaffolded (`Core/Config/AppCheckSetup.swift`, `FirebaseAppCheck` already linked) but the provider factory is commented out at `App/AppDelegate.swift:22`. Needs a debug token registered in Firebase Console first, then uncomment. This is `docs/archive/SECURITY_AUDIT.md`'s only unresolved finding (H5). | 15 min |
 | 5 | **App Store Connect API key** | Users and Access ▸ Integrations. Would let the release flow run unattended instead of via an app-specific password. | 10 min |
 | 6 | **The in-Xcode SwiftLint phase is a false green** | See below — the fix is a target build-setting change. | 2 min |
@@ -550,11 +550,15 @@ from the log.
 
 ### Still open, and only you can do it
 
-Firebase **budget alert** (nothing caps spend on Blaze during a traffic spike); confirm the
-`scores` composite index on `userId` + `allowedReaders` + `dateInt` exists — `firestore.indexes.json`
-declares only two of the three, and if it is genuinely missing then
-`reconcileAllowedReadersForFriendshipChange` has been failing into a swallowed `catch`, leaving
-**removed friends with read access to 30 days of scores**; confirm deployed rules match the repo;
+Firebase **budget alert** (moot while unlinked from billing — see §1 item 3, checked 2026-09-27); ~~confirm the
+`scores` composite index on `userId` + `allowedReaders` + `dateInt` exists~~ — **resolved
+2026-09-27**: it was genuinely missing (REST `runQuery` against production returned
+FAILED_PRECONDITION "The query requires an index"), so
+`reconcileAllowedReadersForFriendshipChange` had been failing into its swallowed `catch` since
+launch. The index is now declared in `firestore.indexes.json` and created in the project
+(READY; the same query returns normally). No client change needed; ~~confirm deployed rules match
+the repo~~ — **confirmed 2026-09-27** via the Firebase Rules API: the live `cloud.firestore` release
+(ruleset from 2026-07-25) is identical to `firestore.rules`;
 App Check debug token; `ENABLE_USER_SCRIPT_SANDBOXING = NO`; the Widget Extension target;
 FirebaseAnalytics (still unlinked — there is no way to measure whether the publicity converted);
 and an in-app review prompt (zero `requestReview` calls, **1 rating** on the App Store, and
@@ -607,3 +611,231 @@ Also newly reachable from here: `GetTopCrashIssues` / `GetCrashIssueLogs` read A
 signatures for the **live** app (the Organizer data that has existed, unexamined, since May),
 and `DeviceInteractionSynthesize` does tap/swipe/screenshot on a simulator **or a physical
 device**, which retires the AXe dependency.
+
+## 10. The 2026-09-25 pass — cleanup and logic review (branch `cleanup-2026-09-25`, unmerged)
+
+Scope: dead code, slop and lapses of logic, run unattended after 1.25 was pushed. 26 commits,
+78 files, **+347 / −2,161**. Found by counting every declaration's references outside its own
+file, then reading the flows those counts pointed at. Nothing in this section is on `main`.
+Merging ships it to TestFlight, so **bump to 1.26 first** (three places now: app, Share
+Extension, widget).
+
+Gate at the branch tip: build 0 errors (Debug 0 warnings; Release 1 — the widget/app
+`CFBundleVersion` mismatch below), **671 tests: 665 passed, 6 skipped, 0 failed** in one
+combined unit+UI run (656 unit + 15 UI), `swiftlint lint --no-cache` exit 0 at **369** (379
+at `6a6fed2`; the only new-looking lines are existing function-length warnings whose counts
+moved). Test count moved 667 → 656 unit: 21 tests went with the code they covered
+(`AppErrorAnalyticsTests` 16, `PaletteColor` 5), 10 regression tests were added. Every new
+one was run against the reverted fix and fails there.
+
+### Bugs fixed
+
+1. **Every launch rewrote achievement unlock dates to "now."** `loadPersistedData` put fresh
+   defaults in the cache before recomputing, so the persisted set was never read and every
+   earned tier was re-crossed from zero.
+2. **Account switch and "Delete All Data" missed three live stores.** Archive, restore and
+   `clearAll` each kept their own key list, and all three named the legacy
+   `streaksync_achievements` key. The real `tieredAchievements`, `activeDaysEver` and
+   `uniqueGamesEver` stayed behind, so a new account inherited the old account's Marathon
+   Runner / Variety Player history, a returning account didn't get its own back, and deleting
+   all data left the lifetime sets on disk. There is now one `Keys.accountScoped` list.
+3. **Review Mode could push demo data into a real account.** Both Firestore sync services
+   skipped only Guest Mode, so a signed-in user who opened demo mode had the seed merged into
+   their cloud history on the next foreground sync. `flushPendingSaves` re-saved seed state,
+   `saveActiveDaysEver` had no review guard, and demo achievement tiers survived exit
+   (tiers only rise). All are now guarded or reset on exit.
+4. **The `activeDaysEver` retry never ran.** Its key was queued on failure, but `retrySave`
+   had no case for it and dropped it as unknown. `uniqueGamesEver` was never queued at all.
+5. **The incremental-sync watermark was stamped after upload + reconcile**, so another
+   device's writes in that window were skipped by every later incremental sync. It is now
+   taken before the fetch. The final merge also honours deletions made mid-sync.
+6. **Backup import rejected same-morning backups as "corrupted."** Puzzle results are dated
+   at local noon, and validation refused any future date.
+7. **Throttled celebration sounds played at the *next* celebration**; `TypewriterText` ran
+   two interleaved typing loops when its text changed; Manage Games' archived-view "Done"
+   dismissed the whole screen.
+
+### Needs a decision (not done unattended)
+
+- **Leaderboard day key is inconsistent — real, reachable.** Publish/delete/listener/query
+  use `utcYYYYMMDD`; `reconcileRecentScores` (`FirebaseSocialService+Scores.swift:165`) and
+  the `allowedReaders` cutoff (`:217`) use `localDateInt`. The query is the UTC date of
+  *local midnight*. Receipt-dated games (Spelling Bee, Mini Crossword, Pips, Mini Sudoku)
+  shared after 00:00Z — 7 pm Central, 5 pm Pacific — publish under **tomorrow's** key, and
+  the launch-time reconcile also writes today's local key, so one result appears on two days.
+  Puzzle-numbered games sit at local noon and are fine from UTC−11 to +11. The fix is one
+  scheme everywhere (recommend local date: puzzle days are local), but 1.23 and 1.25 clients
+  keep writing UTC keys, so it needs a transition plan.
+- **Incremental sync compares client clocks.** It pulls `lastModified > watermark`, and
+  `lastModified` is set on the device. A result created offline on device B and uploaded
+  later carries an old `lastModified` and is never pulled by device A's incremental sync. A
+  real fix is a server-timestamp field plus a migration.
+- **Features with no UI.** Social privacy settings (`SocialSettingsService`: per-game private
+  scope, hide incomplete/zero scores) have setters only tests call, so everyone shares
+  everything. Manage Games' drag-to-reorder persists an order the Dashboard never reads.
+  `AppState.setError` stores errors no screen ever showed (the unused error UI was deleted).
+  Wire each one up or delete it.
+- **`.swiftlint.yml` ships inside the `.app`.** It's in the app target's Copy Bundle Resources
+  (`project.pbxproj` line ~448). Untick its target membership in Xcode.
+- **Release build warning:** the widget's `CFBundleVersion` is `1` against the app's `12`.
+  Xcode Cloud's `agvtool` overwrites both on upload; locally it's cosmetic.
+
+### Deliberately left alone
+
+- 43 of 58 `Game` definitions (`GameDefinitions+Extended`/`+Categories`, ~515 lines) are
+  never surfaced. `GameUUIDUniquenessTests` calls them an intentional "no parser yet"
+  catalog, so they stay. Note that `extendedMiniCrossword` duplicates `miniCrossword` under
+  a different UUID and would double-list if ever surfaced.
+- `Typography`, spacing and animation tokens that nothing uses yet — they belong to the
+  deferred literal→token sweep.
+- `StreakSyncAppCheckProviderFactory` stays unused — §1 item 4, pending rules enforcement.
+- `BrowserLauncher` is now web-only by design. Native deep links never worked (Info.plist
+  has no `LSApplicationQueriesSchemes`), and the NYT branch would have opened Wordle for all
+  four NYT games anyway.
+
+### 2026-09-27 follow-up (same branch, now 34 commits at `5b29b66`)
+
+- **Independent review of `origin/main..HEAD`: no confirmed defects, safe to merge.** Each of the
+  seven fixes was traced end to end; every removed string key was grepped across the app, Share
+  Extension and Widget; no persisted or Firestore shape changed. One hardening applied with a
+  regression test: `saveUniqueGamesEver` read `_uniqueGamesEver ?? []`, so a save landing after
+  a cache drop could write an empty Variety Player set. It now reads the getter. Unit target
+  **657 / 651 passed / 6 skipped / 0 failed**; lint 369.
+- **Bumped to 1.26** (six lines, app + Share Extension + Widget). The project's
+  `.claude/settings.json` denies agent edits to `*.pbxproj`, so Mit ran the sed himself; the
+  built bundles all report 1.26. Merge whenever 1.25 has been device-tested.
+- **1.25 build 6 is VALID in TestFlight** (uploaded 2026-09-25 16:53Z), confirmed with the new
+  `scripts/asc_status.py` (App Store Connect API key on this Mac; see the release section of
+  CLAUDE.md). 1.23 is still the live App Store version. Not yet submitted.
+- **Production fix, done with Mit's OK:** the `scores` composite index on
+  `userId` + `allowedReaders` + `dateInt` was missing, so `reconcileAllowedReadersForFriendshipChange`
+  had failed silently since launch (new friends never gained, removed friends never lost, access
+  to the prior 30 days). Created and READY; declared in `firestore.indexes.json`.
+- Deployed Firestore rules are identical to the repo. The project is on **Spark, not Blaze**
+  (no billing account linked), so no budget alert is possible or needed.
+- Environment: `xcode-select` now points at Xcode 27 (was CommandLineTools — the root cause of
+  the Xcode MCP, swiftlint and simctl failures). Simulator UDIDs re-created; CLAUDE.md repointed
+  at iPhone 18 Pro `D38CD57F-…`. gcloud is authenticated as the Firebase owner account.
+- **Next session:** use the Xcode 27 MCP (`DeviceInteractionSynthesize`, `RenderPreview`,
+  `GetTopCrashIssues`) to walk the risky flows on the 1.26 build with screenshots and hierarchy
+  dumps, and to read live crash signatures. It has never been used on the app yet.
+
+### 2026-09-27 evening — first Xcode 27 MCP walkthrough (same branch, 39 commits at `f8b8f59`)
+
+The Xcode MCP was used on the app for the first time: `DeviceInteractionSynthesize` drove a
+scripted walkthrough of onboarding, Home, game detail, Awards, Friends, Settings and Account on a
+fresh install of the 1.26 build (iPhone 18 Pro simulator), then the same screens in dark mode and
+at the largest accessibility text size. Four commits came out of it; every fix was re-verified on
+device and the gates re-run.
+
+**Fixed**
+
+- **New users never saw either first-launch sheet.** The notification-permission prompt
+  (ContentView) and the share-discovery teaching sheet (ImprovedDashboardView) fired on the same
+  paint; UIKit refused the second ("Attempt to present … which is already presenting"), SwiftUI
+  dropped both, and both one-shot flags were already marked as seen. Reproduced 3/3 on fresh
+  installs, including a control run with no automation attached. Live since the share sheet
+  shipped in May. Both flags now live on `NavigationCoordinator`; each sheet checks the other's
+  before presenting and re-checks when it clears, so they take turns (share discovery, "Got it",
+  then "Stay on Track"). Verified 2/2 on fresh installs. `29951ac`
+- **A failed Sign in with Apple showed a raw error string** —
+  "The operation couldn't be completed. (com.apple.AuthenticationServices.AuthorizationError
+  error 1000.)" — in red under the Account list, and on the Friends sign-in card. That is what
+  every device with no Apple Account signed in gets, right after the system's own alert. All four
+  sites now go through `Error.appleSignInFailureMessage` (nil on cancel, actionable text for the
+  AuthenticationServices codes). `0623e69`
+- **Accessibility-XXXL layouts** (WCAG 1.4.4): dashboard rows were unreadable ("Wor/dle",
+  "Ne…", "◯…") because the scaled icon left ~80 pt for text; the game detail's "Play" / "Add
+  Result" pair wrapped letter by letter and the stat captions hyphenated; the Friends day chip
+  truncated to "T" beside two 124 pt chevrons; the Google button clipped its label while the
+  Apple button stayed a fixed 44 pt. All gated on `dynamicTypeSize.isAccessibilitySize` or a
+  capped `@ScaledMetric`; default sizes re-checked at the iOS default content size and unchanged.
+  `47f8448`
+- **UI tests opted out of the first-run sheets.** `StreakSyncUITests` launches without
+  `--uitest-reset`, and passed only because the race above hid the sheets; with the fix the share
+  sheet covered the tab bar. Non-reset launches now pre-mark both flags. A first version wrote the
+  keys before `removePersistentDomain` and left the app on its launch screen on the runner's
+  freshly cloned devices only (bisected against `29951ac` and `47f8448`); moved after the guard.
+  `f8b8f59`
+
+**Gates at `f8b8f59`:** unit target 657 / 651 passed / 6 skipped / 0 failed; `swiftlint lint
+--no-cache` 369, exit 0 (unchanged); UI target on cloned devices: 15 / 15 passed / 0 failed (the earlier 13/15 and 14/15 runs are
+explained by the sheet race and the seam's first version, both above).
+
+**Found, not fixed (follow-ups)**
+
+- **Friends does not scroll at accessibility sizes.** `FriendsView` is a fixed column (header,
+  state card, leaderboard pager); at AX sizes it overflows and SwiftUI clips both ends, so the
+  "Friends" title and Manage button sit above the screen (`y = -57` in the hierarchy) and the
+  leaderboard starts at `y = 838`. Pre-existing; today's chevron cap only made the chip visible.
+  Needs a structural change (scroll the header + state card at AX sizes, give the pager a height).
+- **`ConnectedAccountsSection`'s Apple "Continue" button** is a fixed 128×34 inside a list row;
+  scaling it needs a row reflow. Same family as above.
+- **Settings row titles hyphenate at XXXL** with continuation lines under the icon column.
+  Readable; cosmetic.
+- **Xcode Run, the MCP install and previews all build Release.** The shared scheme's Run action
+  has used the Release configuration since 2025-07-20, so every `#if DEBUG` launch seam is
+  compiled out of what Xcode installs and `RenderPreview` refuses ("needs an unoptimized build").
+  Switching it to Debug is a scheme edit — Mit's call (it also changes what Run gives him).
+- **Live crash signatures: none.** `GetTopCrashIssues` failed with "Error Downloading" until
+  Mit opened the app's Crashes pane in Window ▸ Organizer once; it then returned an empty
+  signature list, matching the Organizer: no crash logs in the last two weeks on any version.
+  Hangs and launches (`GetTopFieldPerformanceIssues`) still fail the same way even after Mit
+  opened both Organizer panes, which show **no hang logs and no launch logs for 1.23**; the MCP
+  may simply error on an empty list. Either way the field record is clean.
+- Log hygiene, low: something touches Firebase ~36 ms before `FirebaseApp.configure()` on every
+  launch (`I-COR000003`); "Rebuilding streaks" runs twice and "Saved 10 tiered achievements"
+  three times per launch; after a deep link "Loaded data for game" fires four times in 1.4 s.
+
+**Verified fine on the walkthrough:** Wordle detail empty state, Browse → Manage Games, Awards
+grid, Friends empty leaderboard, invalid join code ("No user found with that code."), Sign in
+with Apple on a simulator without an Apple Account (system alert, no hang), Notifications /
+Appearance / Data & Privacy / About screens, `streaksync://game?id=…` via `simctl openurl`, and
+all four screens in dark mode. The seam-driven journeys (share import, friend-request accept,
+deep link) are covered by the XCUITests, not the walkthrough, because the installed build was
+Release.
+
+### 2026-09-27 late — follow-ups closed and four decisions implemented (same branch)
+
+Everything under "Found, not fixed" above that was code is done, and Mit decided four items
+from "Needs a decision": local day key, server-timestamp sync, wire up / delete the UI-less
+features, and App Attest. Every UI change was checked on the simulator through the Xcode MCP.
+
+**Follow-ups closed**
+
+- Friends scrolls at accessibility sizes: one ScrollView with the current game's rows inline
+  (no nested vertical scrolls), carousel above them; title/Manage stack. `6c2487e`
+- Connect with Apple button scales (capped 3x) and its row stacks at AX sizes. `e05db8a`
+- Settings rows: icon on its own line at AX sizes, so titles no longer hyphenate. `fb9d4af`
+- Log hygiene: the `FirebaseApp.app() == nil` guard itself logged I-COR000003 every launch
+  (removed, null-controlled) `9dc7c38`; DayChangeDetector posted a fake day change at launch
+  that ran the day pipeline against half-loaded state (rebuilds 3→2, saves 5→4) `87abb4f`.
+  The remaining duplicate rebuild/save come from sync's reconcile plus the explicit post-sync
+  rebuild; both are cheap and each is the only one on some path, so they stay.
+
+**Decisions implemented**
+
+- `setError` and its unread state deleted `c00bce7`; Manage Games order shown as a "My Order"
+  Dashboard sort `19c6218`; Score Sharing screen for the privacy settings, with retraction of
+  already-published scores it hides (runs at launch and on leaving the screen; never in
+  Review/Guest Mode) `08b1a98`.
+- **Local day key** `ecc9cba`: every score key comes from `DailyGameScore.dayKey(for:)`. A
+  one-time per-account migration deletes the user's own UTC-keyed docs (last 30 days) unless
+  another result owns that ID now. 1.23/1.25 clients keep writing UTC keys until they update.
+- **Server-timestamp sync** `6976370`: uploads write `serverModified`; sync adds an inclusive
+  `serverModified` query with a server-clock watermark.
+- **App Check**: the SDK's own default factory meant App Check was already on (DeviceCheck in
+  production). The app's factory is now registered explicitly: App Attest in Release, debug in
+  Debug. No entitlement change (distributed builds ignore it).
+
+**Before merging this branch — in order**
+
+1. Install `firebase-tools` and a JDK, run `firestore-rules-tests` (two new `serverModified`
+   cases, never run yet), then deploy `firestore.rules`. The deployed rules reject the new
+   field, so 1.26 uploads fail until this is live (they re-push after, no loss).
+2. Firebase console → App Check: register App Attest for the iOS app, and the simulator debug
+   token (printed in the Debug launch log). Keep enforcement off until tokens succeed.
+3. Merge (ships 1.26 to TestFlight).
+
+**Gates at the App Check commit:** see the commit; at `6976370` unit 674 / 668 passed / 6
+skipped / 0 failed, UI 15 / 15, `swiftlint lint --no-cache` 365 (was 369).

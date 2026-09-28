@@ -13,8 +13,6 @@ extension AppState {
     // MARK: - Dependencies
     // Removed stored/computed coordinator to avoid sending non-Sendable self across actors.
     
-    // In your existing AppState implementation, update the loadPersistedData method:
-
     func loadPersistedData() async {
         // In Guest Mode we never reload host data from persistence; the guest
         // session operates purely in memory and is managed by GuestSessionManager.
@@ -55,10 +53,10 @@ extension AppState {
         // Normalize streaks based on last played date
         await normalizeStreaksForMissedDays()
         
-        // Always recompute tiered achievements from current data
-        if _tieredAchievements == nil {
-            _tieredAchievements = AchievementFactory.createDefaultAchievements()
-        }
+        // Always recompute tiered achievements from current data. The recompute seeds from
+        // `tieredAchievements`, whose getter loads the persisted set; filling the cache with
+        // fresh defaults first re-crossed every earned tier and restamped its unlock date
+        // with the launch time.
         recalculateAllTieredAchievementProgress()
         
         // Mark data as loaded
@@ -319,6 +317,9 @@ extension AppState {
     /// Flushes any pending saves that failed previously.
     /// Called on app activation to retry with current in-memory state.
     func flushPendingSaves() async {
+        // A retry re-saves in-memory state, which in Review Mode is seed data. Leave the
+        // items queued; they flush on the first activation after demo mode ends.
+        if reviewModeEnabled { return }
         let store = Self.pendingSaveStore
         let items = store.loadPendingItems()
         guard !items.isEmpty else { return }
@@ -369,6 +370,14 @@ extension AppState {
                         forKey: key
                     )
                 }
+            case Self.activeDaysEverKey:
+                if let days = _activeDaysEver {
+                    try persistenceService.save(days, forKey: key)
+                }
+            case Self.uniqueGamesEverKey:
+                if let gameIds = _uniqueGamesEver {
+                    try persistenceService.save(gameIds, forKey: key)
+                }
             default:
                 logger.warning("Unknown pending save key: '\(key)'")
                 return true // Drop unknown keys
@@ -388,14 +397,13 @@ extension AppState {
         dataType: String,
         persistenceKey: String? = nil
     ) {
-        if let appError = error as? AppError {
-            setError(appError)
-        } else {
-            setError(AppError.persistence(.saveFailed(
-                dataType: dataType,
-                underlying: error
-            )))
-        }
+        // Logged only: no screen shows save errors, and the failed key is retried on
+        // the next activation below.
+        let appError = error as? AppError ?? AppError.persistence(.saveFailed(
+            dataType: dataType,
+            underlying: error
+        ))
+        logger.error("App error: \(appError.localizedDescription)")
 
         // Enqueue failed key for retry on next app activation
         if let key = persistenceKey {
@@ -426,6 +434,8 @@ extension AppState {
         gameResultsCache.removeAll()
         
         persistenceService.clearAll()
+        _activeDaysEver = nil
+        _uniqueGamesEver = nil
         invalidateCache()
         
         logger.info("Cleared all app data")

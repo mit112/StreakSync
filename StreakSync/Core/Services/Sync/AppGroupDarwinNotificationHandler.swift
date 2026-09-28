@@ -11,7 +11,7 @@ import OSLog
 @MainActor
 final class AppGroupDarwinNotificationHandler {
     // MARK: - Properties
-    private let darwinNotificationName = "com.streaksync.app.newResult"
+    private let darwinNotificationName = AppConstants.Notification.darwinNotificationName
     private let logger = Logger(subsystem: "com.streaksync.app", category: "DarwinNotificationHandler")
     private var isObserving = false
     
@@ -41,19 +41,6 @@ final class AppGroupDarwinNotificationHandler {
         
         isObserving = true
         logger.info("Started observing Darwin notifications")
-    }
-    
-    func stopObserving() {
-        guard isObserving else { return }
-        
-        CFNotificationCenterRemoveEveryObserver(
-            CFNotificationCenterGetDarwinNotifyCenter(),
-            Unmanaged.passUnretained(self).toOpaque()
-        )
-        
-        isObserving = false
-        onNotificationReceived = nil
-        logger.info("Stopped observing Darwin notifications")
     }
     
     // MARK: - Private Methods

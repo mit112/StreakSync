@@ -61,7 +61,18 @@ enum UITestSupport {
     /// seam disabled it was the one test that stayed green, for exactly that reason.
     @MainActor
     static func resetStateIfRequested(appState: AppState) async {
-        guard isActive, resetsState else { return }
+        guard isActive else { return }
+
+        let defaults = UserDefaults.standard
+        guard resetsState else {
+            // Non-reset launches must not get the first-run sheets either: the share-discovery
+            // sheet and the notification prompt cover the tab bar on a clean simulator. Until
+            // 2026-09-27 a presentation race dropped both sheets, so tests launched without
+            // `--uitest-reset` passed by accident; the reset path below sets the same flags.
+            defaults.set(true, forKey: AppConstants.NotificationSettings.firstLaunchPromptShown)
+            defaults.set(true, forKey: AppConstants.Onboarding.hasSeenShareOnboarding)
+            return
+        }
 
         // Wipe the whole defaults domain first, not just the persistence keys.
         // Unit tests run INSIDE this app as the test host, so a combined
@@ -69,7 +80,6 @@ enum UITestSupport {
         // which is exactly what CI runs — leaves their seeded onboarding flags,
         // achievement state and analytics scope behind for the UI tests to trip over.
         // That is why two tests passed on a UI-only run and failed on CI.
-        let defaults = UserDefaults.standard
         if let bundleId = Bundle.main.bundleIdentifier {
             defaults.removePersistentDomain(forName: bundleId)
         }

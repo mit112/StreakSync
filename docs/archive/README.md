@@ -16,6 +16,7 @@ fixed. If you want to know what is left, read `ROADMAP.md` and stop there.
 | `UI_AUDIT_RESEARCH_ASKS.md` | 2026-08-06 | Research brief written alongside the UI system audit |
 | `REDDIT_LAUNCH_AUDIT.md` | 2026-08-07 | Pre-launch pass over the objections a Reddit audience would raise |
 | `SECURITY_AUDIT.md` | 2026-02-26 | Firebase rules, auth and data-handling review |
+| `notifications/` | 2025-11-14 | Notification system README and integration guide. Predates friend-activity nudges and snooze; moved out of `StreakSync/`, where the synchronized folder shipped both inside the app bundle |
 
 ## Ledgers that are not in this repo
 

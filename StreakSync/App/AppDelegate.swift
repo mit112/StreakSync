@@ -25,10 +25,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // could be delivered before anyone was listening.
         _ = NotificationDelegate.shared
 
-        // App Check is disabled until enforcement is enabled in Firestore rules.
-        // When ready: register debug token in Firebase Console → App Check → Manage debug tokens,
-        // then uncomment the line below.
-        // AppCheck.setAppCheckProviderFactory(StreakSyncAppCheckProviderFactory())
+        // App Check. Linking FirebaseAppCheck registers a default factory on its own
+        // (FIRDefaultProviderFactory: DeviceCheck on devices, debug on simulators), so it was
+        // never actually off. This picks the providers explicitly: App Attest in Release, the
+        // debug provider in Debug. Must run before FirebaseApp.configure. Enforcement stays
+        // off in the console until App Attest and the debug tokens are registered there.
+        //
+        // No App Attest entitlement is needed: TestFlight and App Store builds ignore it and
+        // use the production environment (Apple, "App Attest Environment Entitlement").
+        AppCheck.setAppCheckProviderFactory(StreakSyncAppCheckProviderFactory())
         
         // Configure Firebase before any other services initialize.
         // This is the officially recommended location per Firebase docs.
@@ -39,32 +44,35 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // before anything can report why. GoogleService-Info.plist is gitignored, so any
         // checkout without it — CI in particular — died at launch with an opaque
         // "Early unexpected exit" instead of a diagnosable message.
-        if FirebaseApp.app() == nil {
-            if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
-               let options = FirebaseOptions(contentsOfFile: path) {
-                FirebaseApp.configure(options: options)
+        //
+        // There is deliberately no `FirebaseApp.app() == nil` guard: that call logs
+        // I-COR000003 ("default Firebase app has not yet been configured") whenever it
+        // returns nil, so the guard itself put a false error at the top of every launch
+        // log. This is the only configure call and this method runs once per process.
+        if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+           let options = FirebaseOptions(contentsOfFile: path) {
+            FirebaseApp.configure(options: options)
 
-                let settings = FirestoreSettings()
-                settings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: 100 * 1024 * 1024))
-                Firestore.firestore().settings = settings
+            let settings = FirestoreSettings()
+            settings.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: 100 * 1024 * 1024))
+            Firestore.firestore().settings = settings
 
-                logger.info("Firebase configured in AppDelegate")
+            logger.info("Firebase configured in AppDelegate")
 
-                // Crash reporting. Guarded on the import so this file still builds if the
-                // FirebaseCrashlytics package product is ever removed from the target —
-                // and so the `#else` branch below stays an honest, visible reminder rather
-                // than a silent no-op. Collection is set explicitly rather than relying on
-                // the implicit default, so the state is greppable.
-                #if canImport(FirebaseCrashlytics)
-                Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
-                logger.info("Crashlytics collection enabled")
-                #else
-                logger.warning("FirebaseCrashlytics not linked — this build has no crash reporting")
-                #endif
-            } else {
-                // Local-only mode: the app still launches and every offline feature works.
-                logger.error("GoogleService-Info.plist missing or unreadable — running without Firebase")
-            }
+            // Crash reporting. Guarded on the import so this file still builds if the
+            // FirebaseCrashlytics package product is ever removed from the target —
+            // and so the `#else` branch below stays an honest, visible reminder rather
+            // than a silent no-op. Collection is set explicitly rather than relying on
+            // the implicit default, so the state is greppable.
+            #if canImport(FirebaseCrashlytics)
+            Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
+            logger.info("Crashlytics collection enabled")
+            #else
+            logger.warning("FirebaseCrashlytics not linked — this build has no crash reporting")
+            #endif
+        } else {
+            // Local-only mode: the app still launches and every offline feature works.
+            logger.error("GoogleService-Info.plist missing or unreadable — running without Firebase")
         }
 
         return true

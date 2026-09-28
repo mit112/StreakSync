@@ -106,7 +106,13 @@ struct StreakSyncApp: App {
         Task {
             // Ensure Firebase Anonymous Auth for social backend.
             // Uses the AuthStateManager which also re-authenticates on sign-out.
-            await container.firebaseAuthManager.ensureAuthenticated()
+            // Skipped for test launches: each runs on a fresh simulator Keychain, so it
+            // would mint a new anonymous user in production Auth (344 of them by Sep 28).
+            // With no user, sync and score reconcile return early, so no Firestore traffic.
+            let isUnitTestHost = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            if !isUITesting && !isUnitTestHost {
+                await container.firebaseAuthManager.ensureAuthenticated()
+            }
 
             // Register categories on launch if already authorized.
             let authStatus = await NotificationScheduler.shared.checkPermissionStatus()

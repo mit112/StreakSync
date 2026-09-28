@@ -112,7 +112,7 @@ class ShareViewController: UIViewController {
                     if let data = item as? Data, let s = String(data: data, encoding: .utf8) { return s }
                     return nil
                 }()
-                DispatchQueue.main.async {
+                Task { @MainActor [weak self] in
                     if let text = text {
                         self?.processText(text)
                     } else {

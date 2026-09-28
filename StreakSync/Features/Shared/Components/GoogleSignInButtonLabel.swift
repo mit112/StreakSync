@@ -24,9 +24,12 @@ struct GoogleSignInButtonLabel: View {
             Text("Sign in with Google")
                 .font(.body.weight(.medium))
                 .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
-        .frame(height: height)
+        .frame(minHeight: height)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: CornerRadius.control, style: .continuous))
         .overlay(

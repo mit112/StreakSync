@@ -10,8 +10,6 @@ import OSLog
 import SwiftUI
 
 extension AppState {
-    // Legacy achievement import removed in tiered-only system
-    
     /// Rebuild streaks from imported game results
     @MainActor
     func rebuildStreaksFromResults() async {
@@ -186,15 +184,6 @@ extension AppState {
         defaults.set(true, forKey: "connectionsFixV2Complete")
     }
     
-    /// Save all data to persistence using the canonical save methods
-    @MainActor
-    func saveAllData() async {
-        await saveGameResults()
-        await saveStreaks()
-        await saveTieredAchievements()
-        logger.info("All data saved successfully")
-    }
-
     // MARK: - App Store Review Mode
 
     /// Swaps to the demo social service and seeds 14 days of game results.
@@ -213,7 +202,8 @@ extension AppState {
     /// The restore is just a reload, and that is safe *because* demo mode never writes:
     /// every persistence path short-circuits on `reviewModeEnabled`
     /// (`AppState+Persistence.swift` results/streaks, `AppState+TieredAchievements.swift`,
-    /// `AppState+Widget.swift`), so the real results, streaks and achievements are still
+    /// `AppState+Widget.swift`, the pending-save flush, and both Firestore sync services),
+    /// so the real results, streaks and achievements are still
     /// on disk exactly as they were left. There is nothing to undo.
     ///
     /// Expected flow: clear the flag (which unblocks persistence again) -> put the real
@@ -232,6 +222,11 @@ extension AppState {
         // would silently no-op and leave seeded data on screen — the restore has to be
         // unconditional.
         lastDataLoad = nil
+        // These are lazy caches that `loadPersistedData()` never resets; drop them so demo
+        // progress, days and games folded in while demo mode was on are re-read from disk.
+        _tieredAchievements = nil
+        _activeDaysEver = nil
+        _uniqueGamesEver = nil
         await loadPersistedData()
         logger.info("Review mode exited — real data reloaded from disk")
     }

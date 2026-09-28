@@ -93,16 +93,24 @@ extension FirebaseSocialService {
 
     func deleteDailyScore(dateUTC: Date, gameId: UUID) async throws {
         let currentUID = try requireUID()
-        let dateInt = dateUTC.utcYYYYMMDD
-        let docId = "\(currentUID)|\(dateInt)|\(gameId.uuidString)"
+        let dateInt = DailyGameScore.dayKey(for: dateUTC)
+        // A score published before 1.26 sits under its UTC key; retract that copy too, but
+        // only until the migration has cleared them. After it, the legacy ID can be another
+        // day's real score (8 pm on D and any time on D+1 both name D+1).
+        var dayKeys: Set<Int> = [dateInt]
+        if !UserDefaults.standard.bool(forKey: Self.dayKeyMigrationDoneKey(for: currentUID)) {
+            dayKeys.insert(DailyGameScore.legacyDayKey(for: dateUTC))
+        }
 
         // Drop any queued republish for the same day and game first — otherwise the next
         // pending-score flush would recreate the document we are about to delete.
-        pendingScores.removeAll { $0.dateInt == dateInt && $0.gameId == gameId }
+        pendingScores.removeAll { dayKeys.contains($0.dateInt) && $0.gameId == gameId }
         pendingScoreStore.save(pendingScores)
 
         do {
-            try await db.collection("scores").document(docId).delete()
+            for key in dayKeys {
+                try await db.collection("scores").document("\(currentUID)|\(key)|\(gameId.uuidString)").delete()
+            }
             logger.info("Retracted published score for \(gameId.uuidString) on \(dateInt)")
         } catch {
             throw FirebaseSocialError.from(error)
@@ -153,8 +161,18 @@ extension FirebaseSocialService {
     /// Covers the last 7 days to catch scores dropped by previous publish failures,
     /// timezone bugs, or offline periods.
     /// Uses `setData(merge: true)` so already-published scores are harmlessly overwritten.
+    ///
+    /// Expected flow (launch, and leaving Score Sharing after a change):
+    ///   1. retractScoresHiddenByPrivacy deletes published scores the current privacy
+    ///      settings would no longer share, and drops them from the retry queue.
+    ///   2. retractLegacyDayKeyedScores removes, once per account, this user's documents
+    ///      still filed under the pre-1.26 UTC day.
+    ///   3. Recent completed results that pass the settings are republished, which also
+    ///      restores a game switched back to shared.
     func reconcileRecentScores(results: [GameResult], streaks: [GameStreak]) async {
         guard let currentUID = uid else { return }
+        await retractScoresHiddenByPrivacy()
+        await retractLegacyDayKeyedScores(results: results)
         let cal = Calendar.current
         let cutoff = cal.startOfDay(for: cal.date(byAdding: .day, value: -7, to: Date()) ?? Date())
         let recentResults = results.filter { $0.date >= cutoff && $0.completed }
@@ -162,7 +180,7 @@ extension FirebaseSocialService {
 
         var scores: [DailyGameScore] = []
         for result in recentResults {
-            let dateInt = result.date.localDateInt
+            let dateInt = DailyGameScore.dayKey(for: result.date)
             let streak = streaks.first(where: { $0.gameId == result.gameId })
             let compositeId = "\(currentUID)|\(dateInt)|\(result.gameId.uuidString)"
             scores.append(DailyGameScore(
@@ -203,6 +221,89 @@ extension FirebaseSocialService {
         }
     }
 
+    // MARK: - Privacy Retraction
+
+    /// Deletes the user's published scores from the last 30 days that the current privacy
+    /// settings would not share. Publishing only filters new scores, so without this a game
+    /// made private stayed visible to friends for every day already published.
+    func retractScoresHiddenByPrivacy() async {
+        guard let currentUID = uid else { return }
+
+        // A queued score was filtered when it was queued, under the old settings.
+        let shareable = pendingScores.filter { shouldShare($0) }
+        if shareable.count != pendingScores.count {
+            pendingScores = shareable
+            pendingScoreStore.save(pendingScores)
+        }
+
+        let cal = Calendar.current
+        let cutoffInt = DailyGameScore.dayKey(for: cal.date(byAdding: .day, value: -30, to: Date()) ?? Date())
+        do {
+            // Same query shape and index as reconcileAllowedReadersForFriendshipChange.
+            let snapshot = try await db.collection("scores")
+                .whereField("userId", isEqualTo: currentUID)
+                .whereField("allowedReaders", arrayContains: currentUID)
+                .whereField("dateInt", isGreaterThanOrEqualTo: cutoffInt)
+                .getDocuments()
+            let hidden = snapshot.documents.filter { doc in
+                guard let score = DailyGameScore(documentID: doc.documentID, data: doc.data()) else {
+                    return false
+                }
+                return !shouldShare(score)
+            }
+            logger.debug("Privacy check: \(hidden.count) of \(snapshot.documents.count) recent scores hidden")
+            guard !hidden.isEmpty else { return }
+            for chunk in hidden.chunked(into: 500) {
+                let batch = db.batch()
+                chunk.forEach { batch.deleteDocument($0.reference) }
+                try await batch.commit()
+            }
+            logger.info("Retracted \(hidden.count) scores hidden by privacy settings")
+        } catch {
+            logger.warning("Privacy retraction failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Day Key Migration
+
+    /// Deletes, once per account, this user's documents published under the pre-1.26 UTC
+    /// day key for results whose UTC day differs from their local day (shared after
+    /// 00:00 UTC). Left in place they list the user a second time on the following day.
+    ///
+    /// A document is kept when another result legitimately maps to the same ID under the
+    /// new key — Spelling Bee shared at 8 pm on day D and again on D+1 both name D+1.
+    func retractLegacyDayKeyedScores(results: [GameResult]) async {
+        guard let currentUID = uid else { return }
+        let doneKey = Self.dayKeyMigrationDoneKey(for: currentUID)
+        guard !UserDefaults.standard.bool(forKey: doneKey) else { return }
+
+        let docIds = LegacyDayKeyCleanup.documentIDsToRetract(
+            userId: currentUID,
+            results: results,
+            since: Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        )
+        do {
+            for chunk in docIds.chunked(into: 500) {
+                let batch = db.batch()
+                chunk.forEach { batch.deleteDocument(db.collection("scores").document($0)) }
+                try await batch.commit()
+            }
+            UserDefaults.standard.set(true, forKey: doneKey)
+            logger.info("Retracted \(docIds.count) scores filed under the old UTC day key")
+        } catch {
+            logger.warning("Day key migration failed, will retry next launch: \(error.localizedDescription)")
+        }
+    }
+
+    static func dayKeyMigrationDoneKey(for uid: String) -> String {
+        "scoreDayKeyMigrated_\(uid)"
+    }
+
+    private func shouldShare(_ score: DailyGameScore) -> Bool {
+        let game = Game.allAvailableGames.first(where: { $0.id == score.gameId })
+        return privacyService.shouldShare(score: score, game: game)
+    }
+
     // MARK: - Allowed Readers Reconciliation
 
     /// Updates `allowedReaders` on the user's recent scores to reflect current friendships.
@@ -214,7 +315,7 @@ extension FirebaseSocialService {
 
         let cal = Calendar.current
         let cutoffDate = cal.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        let cutoffInt = cutoffDate.localDateInt
+        let cutoffInt = DailyGameScore.dayKey(for: cutoffDate)
 
         do {
             // The score read rule requires `request.auth.uid in resource.data.allowedReaders`.

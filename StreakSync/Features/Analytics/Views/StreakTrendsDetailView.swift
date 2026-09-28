@@ -13,7 +13,6 @@ struct StreakTrendsDetailView: View {
     let timeRange: AnalyticsTimeRange
     let selectedGame: Game?
 
-    @Environment(\.colorScheme) private var colorScheme
     @State private var trends: [StreakTrendPoint] = []
     @State private var rangeResults: [GameResult] = []
     @State private var rangeGames: [Game] = []

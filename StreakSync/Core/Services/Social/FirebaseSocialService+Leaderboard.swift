@@ -25,8 +25,8 @@ private struct LeaderboardAggregation {
 extension FirebaseSocialService {
     func fetchLeaderboard(startDateUTC: Date, endDateUTC: Date) async throws -> [LeaderboardRow] {
         let currentUID = try requireUID()
-        let startInt = startDateUTC.utcYYYYMMDD
-        let endInt = endDateUTC.utcYYYYMMDD
+        let startInt = DailyGameScore.dayKey(for: startDateUTC)
+        let endInt = DailyGameScore.dayKey(for: endDateUTC)
 
         // Single query: allowedReaders contains currentUID returns scores
         // from self + friends (set at publish time).
@@ -36,24 +36,7 @@ extension FirebaseSocialService {
             .whereField("dateInt", isLessThanOrEqualTo: endInt)
             .getDocuments()
         let allScores: [DailyGameScore] = snapshot.documents.compactMap { doc in
-            let data = doc.data()
-            guard
-                let userId = data["userId"] as? String,
-                let gameIdStr = data["gameId"] as? String,
-                let gameId = UUID(uuidString: gameIdStr),
-                let dateInt = data["dateInt"] as? Int
-            else { return nil }
-            return DailyGameScore(
-                id: doc.documentID,
-                userId: userId,
-                dateInt: dateInt,
-                gameId: gameId,
-                gameName: data["gameName"] as? String ?? "Game",
-                score: data["score"] as? Int,
-                maxAttempts: data["maxAttempts"] as? Int ?? 6,
-                completed: data["completed"] as? Bool ?? false,
-                currentStreak: data["currentStreak"] as? Int
-            )
+            DailyGameScore(documentID: doc.documentID, data: doc.data())
         }
 
         // Fetch display names for all users in the results

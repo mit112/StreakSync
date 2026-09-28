@@ -61,24 +61,6 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         self.scoringModel = scoringModel
     }
 
-    // MARK: - Computed Properties
-    var hostDomain: String {
-        url.host ?? "Unknown"
-    }
-
-    // MARK: - Sample Data
-    static var sample: Game {
-        Game(
-            name: "Wordle",
-            displayName: "Wordle",
-            url: URL(string: "https://www.nytimes.com/games/wordle") ?? URL(fileURLWithPath: "/"),
-            category: .word,
-            iconSystemName: "textformat.abc",
-            backgroundColor: CodableColor(.green),
-            isPopular: true
-        )
-    }
-    
     var accessibilityDescription: String {
         "\(displayName) game, \(category.displayName) category"
     }

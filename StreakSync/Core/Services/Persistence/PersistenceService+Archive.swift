@@ -11,10 +11,6 @@ import OSLog
 extension UserDefaultsPersistenceService {
     private static let archiveLogger = Logger(subsystem: "com.streaksync.app", category: "PersistenceArchive")
 
-    private static var archivedKeys: [String] {
-        [Keys.gameResults, Keys.achievements, Keys.streaks, Keys.deletedResultIds]
-    }
-
     /// Namespaces are Firebase UIDs, which are alphanumeric — but never trust that
     /// enough to build a UserDefaults key or a filename out of one unsanitised.
     private static func sanitize(_ namespace: String) -> String {
@@ -44,7 +40,7 @@ extension UserDefaultsPersistenceService {
     /// One archive per namespace: archiving again overwrites it.
     func archiveAll(namespace: String) {
         var moved = 0
-        for key in Self.archivedKeys where key != Keys.gameResults {
+        for key in Keys.accountScoped where key != Keys.gameResults {
             guard let data = userDefaults.data(forKey: key) else { continue }
             userDefaults.set(data, forKey: Self.archiveKey(for: key, namespace: namespace))
             userDefaults.removeObject(forKey: key)
@@ -68,7 +64,7 @@ extension UserDefaultsPersistenceService {
 
     /// True when a previous session's data is still recoverable for `namespace`.
     func hasArchive(namespace: String) -> Bool {
-        let hasKeys = Self.archivedKeys.contains { key in
+        let hasKeys = Keys.accountScoped.contains { key in
             key != Keys.gameResults
                 && userDefaults.data(forKey: Self.archiveKey(for: key, namespace: namespace)) != nil
         }
@@ -83,7 +79,7 @@ extension UserDefaultsPersistenceService {
     @discardableResult
     func restoreArchive(namespace: String) -> Bool {
         var restored = 0
-        for key in Self.archivedKeys where key != Keys.gameResults {
+        for key in Keys.accountScoped where key != Keys.gameResults {
             let archived = Self.archiveKey(for: key, namespace: namespace)
             guard let data = userDefaults.data(forKey: archived) else { continue }
             userDefaults.set(data, forKey: key)

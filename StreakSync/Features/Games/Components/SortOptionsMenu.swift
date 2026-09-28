@@ -13,6 +13,8 @@ enum GameSortOption: String, CaseIterable, Identifiable {
     case name = "Name"
     case streakLength = "Streak Length"
     case completionRate = "Success Rate"
+    /// The order saved by drag-to-reorder in Manage Games. It has no direction.
+    case custom = "My Order"
     
     var id: String { rawValue }
     
@@ -25,18 +27,8 @@ enum GameSortOption: String, CaseIterable, Identifiable {
         case .streakLength:
             return "flame"
         case .completionRate:            return "percent"
-        }
-    }
-    
-    var shortName: String {
-        switch self {
-        case .lastPlayed:
-            return "Recent"
-        case .name:
-            return "A-Z"
-        case .streakLength:
-            return "Streak"
-        case .completionRate:            return "Success"
+        case .custom:
+            return "line.3.horizontal"
         }
     }
 }
@@ -51,34 +43,6 @@ enum SortDirection: String, CaseIterable {
             return "chevron.up"
         case .descending:
             return "chevron.down"
-        }
-    }
-}
-
-// MARK: - Sort Function Extension
-extension Array where Element == GameStreak {
-    func sorted(by option: GameSortOption, direction: SortDirection, games: [Game]) -> [GameStreak] {
-        sorted { streak1, streak2 in
-            let ascending: Bool
-            
-            switch option {
-            case .lastPlayed:
-                let date1 = streak1.lastPlayedDate ?? Date.distantPast
-                let date2 = streak2.lastPlayedDate ?? Date.distantPast
-                ascending = date1 < date2
-                
-            case .name:
-                ascending = streak1.gameName < streak2.gameName
-                
-            case .streakLength:
-                ascending = streak1.currentStreak < streak2.currentStreak
-                
-            case .completionRate:
-                // Add the implementation for completion rate sorting
-                ascending = streak1.completionRate < streak2.completionRate
-            }
-            
-            return direction == .ascending ? ascending : !ascending
         }
     }
 }

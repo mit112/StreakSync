@@ -26,11 +26,6 @@ final class GameCatalog {
     
     // MARK: - Computed Properties
     
-    /// Games organized by category
-    var gamesByCategory: [GameCategory: [Game]] {
-        Dictionary(grouping: allGames, by: { $0.category })
-    }
-    
     /// Popular games (marked as popular in their definition)
     var popularGames: [Game] {
         allGames.filter { $0.isPopular }
@@ -83,11 +78,6 @@ final class GameCatalog {
     
     func addFavorite(_ gameId: UUID) {
         favoriteGameIDs.insert(gameId)
-        saveFavorites()
-    }
-    
-    func removeFavorite(_ gameId: UUID) {
-        favoriteGameIDs.remove(gameId)
         saveFavorites()
     }
     

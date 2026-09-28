@@ -9,8 +9,6 @@ import SwiftUI
 
 struct GameManagementView: View {
     @Environment(AppState.self) private var appState
-    @Environment(GameCatalog.self) private var gameCatalog
-    @Environment(\.dismiss) private var dismiss
     
     @EnvironmentObject private var managementState: GameManagementState
     @State private var showingArchived = false
@@ -147,9 +145,11 @@ struct GameManagementView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             if showingArchived {
-                // Archived view - just show Done button
+                // Archived view - Done returns to the active list; back leaves the screen
                 Button("Done") {
-                    dismiss()
+                    withAnimation {
+                        showingArchived = false
+                    }
                 }
             } else {
                 // Main view - combined menu

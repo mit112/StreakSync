@@ -7,10 +7,10 @@
 //    +DuplicateDetection  — isDuplicateResult, buildResultsCache
 //    +ResultAddition      — addGameResult, social publishing
 //    +GameLogic           — streak updates, calculateUpdatedStreak
-//    +Reminders           — streak risk detection, smart reminder engine
+//    +Reminders           — streak risk detection, reminder scheduling
 //    +Persistence         — save/load, normalization, refresh
 //    +TieredAchievements  — achievement checking, persistence, recompute
-//    +Import              — rebuildStreaksFromResults, Connections fix, saveAllData
+//    +Import              — rebuildStreaksFromResults, Connections fix, Review Mode
 //
 
 import Foundation
@@ -45,8 +45,6 @@ final class AppState {
     // MARK: - UI State (Not Persisted)
     var selectedGame: Game?
     private(set) var isLoading = false
-    private(set) var errorMessage: String?
-    var currentError: AppError?
 
     /// When true, the app is running in Guest Mode.
     var isGuestMode: Bool = false
@@ -322,19 +320,6 @@ final class AppState {
 
     func setLoading(_ loading: Bool) {
         isLoading = loading
-        if loading { errorMessage = nil }
-    }
-
-    func setError(_ error: AppError) {
-        currentError = error
-        errorMessage = error.errorDescription
-        isLoading = false
-        logger.error("App error: \(error.localizedDescription)")
-    }
-
-    func clearError() {
-        errorMessage = nil
-        currentError = nil
     }
 
     // MARK: - Internal Setters for Extensions
@@ -388,28 +373,5 @@ final class AppState {
             await saveStreaks()
             await saveTieredAchievements()
         }
-    }
-}
-
-// MARK: - GameResult iOS Extensions
-extension GameResult {
-    /// iOS-specific validation including date normalization
-    var isValidForIOS: Bool {
-        guard isValid else { return false }
-
-        let now = Date()
-        let calendar = Calendar.current
-
-        if let hourFromNow = calendar.date(byAdding: .hour, value: 1, to: now),
-           date > hourFromNow {
-            return false
-        }
-
-        if let yearAgo = calendar.date(byAdding: .year, value: -1, to: now),
-           date < yearAgo {
-            return false
-        }
-
-        return true
     }
 }

@@ -89,18 +89,6 @@ final class NotificationSettingsViewModel: ObservableObject {
             showPermissionFlow = true
         }
     }
-    
-    #if DEBUG
-    func testNotification() async {
-        // Send immediate test notification. Mirror the scheduler exactly by asking
-        // AppState which games are at risk (active streak AND not played today).
-        let gamesAtRisk = Array(appState?.getGamesAtRisk().prefix(3) ?? [])
-
-        if !gamesAtRisk.isEmpty {
-            await NotificationScheduler.shared.scheduleTestDailyReminder(games: gamesAtRisk)
-        }
-    }
-    #endif
 }
 
 // MARK: - Notification Settings View

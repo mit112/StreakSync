@@ -222,7 +222,10 @@ final class StreakSyncUITests: XCTestCase {
     @MainActor
     func testLaunchPerformance() throws {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+            // Without it every measured launch signs in to production Auth as a new user.
+            let app = XCUIApplication()
+            app.launchArguments = ["--uitesting"]
+            app.launch()
         }
     }
 }

@@ -17,6 +17,12 @@ struct ConnectedAccountsSection: View {
     @Binding var isLoading: Bool
     @Binding var errorMessage: String?
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var scaledAppleButtonHeight: CGFloat = 34
+
+    /// Capped at 3x like the other sign-in buttons, so the largest text size gets a readable
+    /// label without the button taking over the row.
+    private var appleButtonHeight: CGFloat { min(scaledAppleButtonHeight, 102) }
 
     var body: some View {
         Section {
@@ -41,7 +47,13 @@ struct ConnectedAccountsSection: View {
                 Task { await handleAppleLink(result) }
             }
             .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(width: 128, height: 34)
+            // A fixed 128 pt width clipped the scaled label; at accessibility sizes the row
+            // stacks and the button takes the full width instead.
+            .frame(
+                width: dynamicTypeSize.isAccessibilitySize ? nil : 128,
+                height: appleButtonHeight
+            )
+            .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil)
         }
     }
 
@@ -60,9 +72,14 @@ struct ConnectedAccountsSection: View {
         isConnected: Bool,
         @ViewBuilder connectControl: () -> Control
     ) -> some View {
-        HStack {
+        let rowLayout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout())
+        rowLayout {
             Label(title, systemImage: systemImage)
-            Spacer()
+            if !dynamicTypeSize.isAccessibilitySize {
+                Spacer()
+            }
             if isConnected {
                 Label("Connected", systemImage: "checkmark.circle.fill")
                     .font(.subheadline)
@@ -90,9 +107,7 @@ private extension ConnectedAccountsSection {
                 errorMessage = linkErrorMessage(for: error, provider: "Apple")
             }
         case .failure(let error):
-            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
-                errorMessage = error.localizedDescription
-            }
+            errorMessage = error.appleSignInFailureMessage
         }
     }
 

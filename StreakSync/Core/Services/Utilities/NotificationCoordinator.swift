@@ -10,7 +10,7 @@ import SwiftUI
 import UIKit
 
 @MainActor
-final class NotificationCoordinator: ObservableObject {
+final class NotificationCoordinator {
     // MARK: - Dependencies
     weak var appState: AppState?
     weak var navigationCoordinator: NavigationCoordinator?
@@ -20,21 +20,10 @@ final class NotificationCoordinator: ObservableObject {
     // MARK: - Properties
     private var observers: [NSObjectProtocol] = []
     private let logger = Logger(subsystem: "com.streaksync.app", category: "NotificationCoordinator")
-    // Debounce UI refresh spam
-    private var lastUIRefreshAt: Date?
-    private let uiRefreshDebounceInterval: TimeInterval = 0.3
-    
-    // MARK: - Published State
-    @Published var refreshID = UUID()
     
     // MARK: - Initialization
     init() {
         // Observers will be set up by AppContainer after dependencies are wired
-    }
-    
-    deinit {
-        // Cleanup happens automatically when observers are deallocated
-        // No need to manually remove observers in deinit
     }
     
     // MARK: - Setup
@@ -43,7 +32,6 @@ final class NotificationCoordinator: ObservableObject {
         removeObservers()
         setupGameResultObservers()
         setupDeepLinkObservers()
-        setupLifecycleObservers()
         logger.info("Set up \(self.observers.count) notification observers")
     }
 
@@ -56,27 +44,6 @@ final class NotificationCoordinator: ObservableObject {
                 let quiet = notification.userInfo?["quiet"] as? Bool ?? false
                 Task { @MainActor [weak self] in
                     self?.handleGameResult(result, quiet: quiet)
-                }
-            }
-        )
-
-        observers.append(
-            NotificationCenter.default.addObserver(
-                forName: .init(AppConstants.Notification.shareExtensionResultAvailable),
-                object: nil, queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    await self?.handleShareExtensionResult()
-                }
-            }
-        )
-
-        observers.append(
-            NotificationCenter.default.addObserver(
-                forName: .appGameDataUpdated, object: nil, queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.triggerUIRefresh()
                 }
             }
         )
@@ -118,30 +85,6 @@ final class NotificationCoordinator: ObservableObject {
             }
         )
     }
-
-    private func setupLifecycleObservers() {
-        observers.append(
-            NotificationCenter.default.addObserver(
-                forName: UIApplication.didBecomeActiveNotification,
-                object: nil, queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    await self?.handleAppDidBecomeActive()
-                }
-            }
-        )
-
-        observers.append(
-            NotificationCenter.default.addObserver(
-                forName: UIApplication.willResignActiveNotification,
-                object: nil, queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.handleAppWillResignActive()
-                }
-            }
-        )
-    }
     
     private func removeObservers() {
         observers.forEach { NotificationCenter.default.removeObserver($0) }
@@ -164,9 +107,8 @@ final class NotificationCoordinator: ObservableObject {
         //   2. Await a CONFIRMED durable local write, then acknowledgeIngestedResult(id:)
         //      to release it from the App Group queue — the queue is the durable buffer
         //      until this point, so a crash mid-ingest can't lose the result (T1-2).
-        //   3. triggerUIRefresh() to update observing views.
-        //   4. If app is active + result was added + not quiet: fire streak haptic.
-        //   5. If app is backgrounded + result was added: schedule local notification
+        //   3. If app is active + result was added + not quiet: fire streak haptic.
+        //   4. If app is backgrounded + result was added: schedule local notification
         //      via NotificationScheduler.scheduleResultImportedNotification.
         logger.info("Handling game result: \(result.gameName) - \(result.displayScore)")
 
@@ -199,9 +141,6 @@ final class NotificationCoordinator: ObservableObject {
                 // Preview/test: nothing to persist — ack so the queue can't lock up.
                 self.appGroupBridge?.acknowledgeIngestedResult(id: result.id)
             }
-
-            // Trigger UI refresh
-            self.triggerUIRefresh()
 
             // Gate haptics: only when app is active and the result was added
             let isActive = UIApplication.shared.applicationState == .active
@@ -284,52 +223,6 @@ final class NotificationCoordinator: ObservableObject {
         if let tiered = appState?.tieredAchievements.first(where: { $0.id == achievementId }) {
             navigationCoordinator?.presentSheet(.tieredAchievementDetail(tiered))
         }
-    }
-    
-    // MARK: - App Lifecycle
-    
-    private func handleAppDidBecomeActive() async {
-        logger.info("App became active (via notification)")
-        
-        // Skip expensive operations if navigating from notification
-        if appState?.isNavigatingFromNotification == true {
-            logger.info("Skipping share extension check - navigating from notification")
-            return
-        }
-        
-        // No-op: AppGroupBridge owns lifecycle share checks to avoid duplicates
-    }
-    
-    private func handleAppWillResignActive() {
-        // Downgrade to debug to avoid duplicate lifecycle noise; AppContainer handles monitoring stop.
-        logger.debug("App will resign active (NotificationCoordinator)")
-    }
-    
-    private func handleShareExtensionResult() async {
-        // No-op: AppGroupBridge's Darwin observer triggers the check; avoid duplicate processing here.
-        logger.info("Received Share Extension notification (handled by bridge)")
-    }
-    
-    // MARK: - UI Updates
-    
-    func triggerUIRefresh() {
-        // Debounce to avoid rapid repeated refreshes from batch operations
-        let now = Date()
-        if let last = lastUIRefreshAt, now.timeIntervalSince(last) < uiRefreshDebounceInterval {
-            logger.debug("Skipping UI refresh (debounced)")
-            return
-        }
-        lastUIRefreshAt = now
-        
-        logger.info("Triggering UI refresh")
-        refreshID = UUID()
-        
-        // Post dedicated UI refresh notification (not .gameResultReceived, which
-        // carries a GameResult payload and has different semantics)
-        NotificationCenter.default.post(
-            name: .appUIRefreshNeeded,
-            object: nil
-        )
     }
     
     // MARK: - Public Methods

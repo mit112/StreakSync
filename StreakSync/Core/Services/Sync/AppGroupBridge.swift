@@ -26,15 +26,8 @@ final class AppGroupBridge: ObservableObject {
     
     // MARK: - Published State
     @Published private(set) var hasNewResults = false
-    @Published private(set) var latestResult: GameResult?
     @Published private(set) var isProcessing = false
-    @Published var lastResultProcessedTime = Date()
-    
-    // MARK: - Computed Properties
-    var isMonitoringForResults: Bool {
-        resultMonitor.isMonitoring
-    }
-    
+
     // MARK: - Initialization
     private init() {
         // Initialize components
@@ -45,11 +38,6 @@ final class AppGroupBridge: ObservableObject {
         
         setupObservers()
         setupDarwinNotifications()
-    }
-    
-    deinit {
-        // Note: lifecycleObservers cleanup happens automatically
-        // Cannot access mutable state in deinit under strict concurrency
     }
     
     // MARK: - Setup
@@ -100,16 +88,6 @@ final class AppGroupBridge: ObservableObject {
         urlHandler.handleURLScheme(url)
     }
     
-    func startMonitoringForResults() {
-        resultMonitor.startMonitoring { [weak self] in
-            await self?.processNewResult()
-        }
-    }
-    
-    func stopMonitoringForResults() {
-        resultMonitor.stopMonitoring()
-    }
-    
     // MARK: - Result Management
 
     /// Ingestion trigger handler for Share Extension results.
@@ -141,7 +119,6 @@ final class AppGroupBridge: ObservableObject {
 
         if !queuedResults.isEmpty {
             hasNewResults = true
-            lastResultProcessedTime = Date()
 
             logger.info("Dispatching \(queuedResults.count) queued results for durable ingestion")
 
@@ -152,7 +129,6 @@ final class AppGroupBridge: ObservableObject {
             let isBatch = queuedResults.count > 1
 
             for result in queuedResults {
-                latestResult = result
                 logger.info("Dispatching queued result: \(result.gameName)")
 
                 // Post notification with the result object. Cleanup happens in
@@ -171,11 +147,7 @@ final class AppGroupBridge: ObservableObject {
         hasNewResults = dataManager.hasData(forKey: AppConstants.AppGroup.latestResultKey)
 
         if hasNewResults {
-            lastResultProcessedTime = Date()
-
-            // Load the result
             if let result = try? await dataManager.loadGameResult(forKey: AppConstants.AppGroup.latestResultKey) {
-                latestResult = result
                 logger.info("Loaded new result: \(result.gameName)")
 
                 // Post notification with the result object. The single-result key
@@ -198,26 +170,14 @@ final class AppGroupBridge: ObservableObject {
         dataManager.removeData(forKey: AppConstants.AppGroup.latestResultKey)
     }
     
-    func clearLatestResult() {
-        dataManager.removeData(forKey: AppConstants.AppGroup.latestResultKey)
-        hasNewResults = false
-        latestResult = nil
-        logger.info("Cleared latest result")
-    }
-
     /// Clears all App Group data (queue, legacy entries, single-result key).
     /// Called during sign-out to prevent stale results from leaking to the next session.
     func clearAllData() {
         dataManager.clearAll()
         hasNewResults = false
-        latestResult = nil
     }
     
     // MARK: - Private Methods
-    private func processNewResult() async {
-        await checkForNewResults()
-    }
-
     /// Reads and clears the Share Extension's pending deep-link gameId.
     /// Fires `.openGameRequested` so the existing NotificationCoordinator
     /// routing path (used by URL schemes and notification taps) handles it.
@@ -242,6 +202,5 @@ extension Notification.Name {
     static let openGameRequested = Notification.Name("openGameRequested")
     static let openAchievementRequested = Notification.Name("openAchievementRequested")
     static let joinGroupRequested = Notification.Name("joinGroupRequested")
-    static let streakUpdated = Notification.Name("streakUpdated")
     static let achievementUnlocked = Notification.Name("achievementUnlocked")
 }

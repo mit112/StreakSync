@@ -315,29 +315,6 @@ extension FirebaseSocialService {
         )
     }
 
-    // MARK: - Friendship Helpers
-
-    /// Returns accepted friend user IDs for a given user
-    private func acceptedFriendIds(for userId: String) async throws -> [String] {
-        // Query both directions: userId1 == me OR userId2 == me, status == accepted
-        let snap1 = try await db.collection("friendships")
-            .whereField("userId1", isEqualTo: userId)
-            .whereField("status", isEqualTo: FriendshipStatus.accepted.rawValue)
-            .getDocuments()
-        let snap2 = try await db.collection("friendships")
-            .whereField("userId2", isEqualTo: userId)
-            .whereField("status", isEqualTo: FriendshipStatus.accepted.rawValue)
-            .getDocuments()
-        var ids: Set<String> = []
-        for doc in snap1.documents {
-            if let u2 = doc.data()["userId2"] as? String { ids.insert(u2) }
-        }
-        for doc in snap2.documents {
-            if let u1 = doc.data()["userId1"] as? String { ids.insert(u1) }
-        }
-        return Array(ids)
-    }
-
     func fetchProfiles(for userIds: [String]) async -> [UserProfile] {
         // Server-source reads to bypass Firestore's Watch path (offline persistence
         // routes one-shot reads through Watch, where areFriends() in the users rule

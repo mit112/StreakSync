@@ -86,7 +86,16 @@ final class DayChangeDetector: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let newDay = formatter.string(from: Date())
-        
+
+        // The first reading at launch seeds the day; it is not a change. Posting it ran the
+        // whole day-change pipeline (rebuild, achievement check, reminder reschedule) while
+        // loadPersistedData was still in flight, and every step of it repeats once the load
+        // and the launch sync finish.
+        guard !currentDay.isEmpty else {
+            currentDay = newDay
+            return
+        }
+
         // Only update if the day has actually changed
         if newDay != currentDay {
             let oldDay = currentDay

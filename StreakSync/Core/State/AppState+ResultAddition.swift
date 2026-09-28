@@ -47,19 +47,11 @@ extension AppState {
         // Add result
         self.recentResults.insert(result, at: 0)
 
-        // Update unique games ever cache (monotonic, host mode only)
-        if !isGuestMode {
-            var set = self.uniqueGamesEver
-            let inserted = set.insert(result.gameId).inserted
-            if inserted {
-                self.uniqueGamesEver = set
-            }
-        }
-
         // Update duplicate-prevention cache
         updateResultsCache(for: result)
 
-        // Record the day in the monotonic lifetime set, which outlives result pruning
+        // Record the game and day in the monotonic lifetime sets, which outlive result pruning
+        recordUniqueGames(from: [result])
         recordActiveDays(from: [result])
 
         // Update streak SYNCHRONOUSLY (host mode only)
@@ -199,7 +191,7 @@ extension AppState {
                 logger.warning("No authenticated user — score not published")
                 return
             }
-            let dateInt = result.date.utcYYYYMMDD
+            let dateInt = DailyGameScore.dayKey(for: result.date)
             // Look up current streak for this game
             let streak = self.streaks.first(where: { $0.gameId == result.gameId })
             let compositeId = "\(userId)|\(dateInt)|\(result.gameId.uuidString)"

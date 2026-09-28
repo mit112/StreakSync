@@ -10,7 +10,6 @@ import SwiftUI
 struct MainTabView: View {
     @EnvironmentObject private var container: AppContainer
     @EnvironmentObject private var coordinator: NavigationCoordinator
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(AppState.self) private var appState
 
     var body: some View {

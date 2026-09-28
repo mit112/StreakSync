@@ -16,7 +16,6 @@ struct TypewriterText: View {
     let onComplete: (() -> Void)?
     
     @State private var displayedText = ""
-    @State private var currentIndex = 0
     
     init(
         _ text: String,
@@ -36,100 +35,22 @@ struct TypewriterText: View {
         Text(displayedText)
             .font(font)
             .foregroundStyle(color)
-            .onAppear {
-                typeText()
-            }
-            .onChange(of: text) { _, _ in
-                // Reset if text changes
+            // Keyed on `text`, so a new string cancels the old run instead of
+            // interleaving a second typing loop with it.
+            .task(id: text) {
                 displayedText = ""
-                currentIndex = 0
-                typeText()
-            }
-    }
-    
-    private func typeText() {
-        guard currentIndex < text.count else {
-            onComplete?()
-            return
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + characterDelay) {
-            // Double-check bounds in case text changed during animation
-            guard currentIndex < text.count else {
-                onComplete?()
-                return
-            }
-            
-            let index = text.index(text.startIndex, offsetBy: currentIndex)
-            displayedText += String(text[index])
-            currentIndex += 1
-            
-            // Trigger haptic for certain characters
-            if text[index] == "!" || text[index] == "." {
-                HapticManager.shared.trigger(.buttonTap)
-            }
-            
-            typeText()
-        }
-    }
-}
-
-// MARK: - Animated Number Text
-struct AnimatedNumberText: View {
-    let value: Int
-    let font: Font
-    let color: Color
-    let duration: Double
-    
-    @State private var displayValue: Int = 0
-    
-    init(
-        value: Int,
-        font: Font = .body,
-        color: Color = .primary,
-        duration: Double = 0.5
-    ) {
-        self.value = value
-        self.font = font
-        self.color = color
-        self.duration = duration
-    }
-    
-    var body: some View {
-        Text("\(displayValue)")
-            .font(font)
-            .foregroundStyle(color)
-            .contentTransition(.numericText())
-            .onAppear {
-                animateValue()
-            }
-            .onChange(of: value) { _, _ in
-                animateValue()
-            }
-    }
-    
-    private func animateValue() {
-        let steps = 20
-        let stepDuration = duration / Double(steps)
-        let increment = value / steps
-        
-        displayValue = 0
-        
-        for step in 1...steps {
-            DispatchQueue.main.asyncAfter(deadline: .now() + stepDuration * Double(step)) {
-                withAnimation(.linear(duration: stepDuration)) {
-                    if step == steps {
-                        displayValue = value
-                    } else {
-                        displayValue = increment * step
+                for character in text {
+                    do {
+                        try await Task.sleep(for: .seconds(characterDelay))
+                    } catch {
+                        return
+                    }
+                    displayedText.append(character)
+                    if character == "!" || character == "." {
+                        HapticManager.shared.trigger(.buttonTap)
                     }
                 }
-                
-                // Haptic tick for each step
-                if step % 5 == 0 {
-                    HapticManager.shared.trigger(.buttonTap)
-                }
+                onComplete?()
             }
-        }
     }
 }

@@ -38,8 +38,6 @@ enum AppConstants {
     
     // MARK: - Notification Names
     enum Notification {
-        static let gameResultReceived = "gameResultReceived"
-        static let shareExtensionResultAvailable = "shareExtensionResultAvailable"
         static let gameDataUpdated = "GameDataUpdated"
         static let darwinNotificationName = "com.streaksync.app.newResult"
     }
@@ -67,11 +65,6 @@ enum AppConstants {
         static let reminderHour = "streakReminderHour"
         static let reminderMinute = "streakReminderMinute"
         static let firstLaunchPromptShown = "notificationFirstLaunchPromptShown"
-        static let smartRemindersEnabled = "smartRemindersEnabled"
-        static let smartRemindersLastComputed = "smartRemindersLastComputed"
-        static let smartReminderWindowStartHour = "smartReminderWindowStartHour"
-        static let smartReminderWindowEndHour = "smartReminderWindowEndHour"
-        static let smartReminderCoveragePercent = "smartReminderCoveragePercent"
         static let migrationCompleted = "notificationSystemMigrated_v2"
         /// Date until which the daily streak reminder is suppressed after a snooze.
         static let snoozedUntil = "streakReminderSnoozedUntil"
@@ -97,10 +90,6 @@ enum AppConstants {
     }
     
     // MARK: - URL Schemes
-    enum URLScheme {
-        static let scheme = "streaksync"
-        static let shareActivity = "com.streaksync.share"
-    }
 }
 
 // MARK: - Typed Notification Names
@@ -108,6 +97,5 @@ extension Notification.Name {
     static let appGameDataUpdated = Notification.Name(AppConstants.Notification.gameDataUpdated)
     static let appNavigateToGame = Notification.Name("NavigateToGame")
     static let appHandleNewGameResult = Notification.Name("HandleNewGameResult")
-    static let appUIRefreshNeeded = Notification.Name("UIRefreshNeeded")
     static let appFirstShareCelebrationRequested = Notification.Name("firstShareCelebrationRequested")
 }

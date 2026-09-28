@@ -187,6 +187,43 @@ final class SocialModelTests: XCTestCase {
         XCTAssertEqual(date.utcYYYYMMDD, 20251231)
     }
 
+    // MARK: - DailyGameScore document decoding
+
+    func testScoreDocumentDecodes() {
+        let gameId = Game.wordle.id
+        let score = DailyGameScore(documentID: "doc", data: [
+            "userId": "u1", "gameId": gameId.uuidString, "dateInt": 20260927,
+            "gameName": "Wordle", "score": 3, "maxAttempts": 6, "completed": true, "currentStreak": 4
+        ])
+        XCTAssertEqual(score?.id, "doc")
+        XCTAssertEqual(score?.gameId, gameId)
+        XCTAssertEqual(score?.dateInt, 20260927)
+        XCTAssertEqual(score?.score, 3)
+        XCTAssertEqual(score?.completed, true)
+        XCTAssertEqual(score?.currentStreak, 4)
+    }
+
+    func testScoreDocumentWithoutAnIdentifyingFieldIsRejected() {
+        XCTAssertNil(DailyGameScore(documentID: "doc", data: [
+            "userId": "u1", "gameId": "not-a-uuid", "dateInt": 20260927
+        ]))
+        XCTAssertNil(DailyGameScore(documentID: "doc", data: [
+            "userId": "u1", "gameId": Game.wordle.id.uuidString
+        ]))
+    }
+
+    /// Optional fields fall back the way the leaderboard always read them; `completed`
+    /// defaulting to false matters because privacy retraction checks it.
+    func testScoreDocumentDefaultsOptionalFields() {
+        let score = DailyGameScore(documentID: "doc", data: [
+            "userId": "u1", "gameId": Game.wordle.id.uuidString, "dateInt": 20260927
+        ])
+        XCTAssertEqual(score?.gameName, "Game")
+        XCTAssertEqual(score?.maxAttempts, 6)
+        XCTAssertEqual(score?.completed, false)
+        XCTAssertNil(score?.score)
+    }
+
     // MARK: - ScoringModel
 
     func testScoringModelRawValues() {

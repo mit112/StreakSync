@@ -13,7 +13,6 @@ struct OverviewStatsSection: View {
     let analyticsService: AnalyticsService
     let timeRange: AnalyticsTimeRange
     let selectedGame: Game?
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
