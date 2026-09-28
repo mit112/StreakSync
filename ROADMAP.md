@@ -780,8 +780,9 @@ explained by the sheet race and the seam's first version, both above).
 - **Live crash signatures: none.** `GetTopCrashIssues` failed with "Error Downloading" until
   Mit opened the app's Crashes pane in Window ▸ Organizer once; it then returned an empty
   signature list, matching the Organizer: no crash logs in the last two weeks on any version.
-  Hangs and launches (`GetTopFieldPerformanceIssues`) still fail the same way and presumably need
-  their own Organizer panes opened once.
+  Hangs and launches (`GetTopFieldPerformanceIssues`) still fail the same way even after Mit
+  opened both Organizer panes, which show **no hang logs and no launch logs for 1.23**; the MCP
+  may simply error on an empty list. Either way the field record is clean.
 - Log hygiene, low: something touches Firebase ~36 ms before `FirebaseApp.configure()` on every
   launch (`I-COR000003`); "Rebuilding streaks" runs twice and "Saved 10 tiered achievements"
   three times per launch; after a deep link "Loaded data for game" fires four times in 1.4 s.
