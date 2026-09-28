@@ -719,3 +719,75 @@ one was run against the reverted fix and fails there.
 - **Next session:** use the Xcode 27 MCP (`DeviceInteractionSynthesize`, `RenderPreview`,
   `GetTopCrashIssues`) to walk the risky flows on the 1.26 build with screenshots and hierarchy
   dumps, and to read live crash signatures. It has never been used on the app yet.
+
+### 2026-09-27 evening — first Xcode 27 MCP walkthrough (same branch, 39 commits at `f8b8f59`)
+
+The Xcode MCP was used on the app for the first time: `DeviceInteractionSynthesize` drove a
+scripted walkthrough of onboarding, Home, game detail, Awards, Friends, Settings and Account on a
+fresh install of the 1.26 build (iPhone 18 Pro simulator), then the same screens in dark mode and
+at the largest accessibility text size. Four commits came out of it; every fix was re-verified on
+device and the gates re-run.
+
+**Fixed**
+
+- **New users never saw either first-launch sheet.** The notification-permission prompt
+  (ContentView) and the share-discovery teaching sheet (ImprovedDashboardView) fired on the same
+  paint; UIKit refused the second ("Attempt to present … which is already presenting"), SwiftUI
+  dropped both, and both one-shot flags were already marked as seen. Reproduced 3/3 on fresh
+  installs, including a control run with no automation attached. Live since the share sheet
+  shipped in May. Both flags now live on `NavigationCoordinator`; each sheet checks the other's
+  before presenting and re-checks when it clears, so they take turns (share discovery, "Got it",
+  then "Stay on Track"). Verified 2/2 on fresh installs. `29951ac`
+- **A failed Sign in with Apple showed a raw error string** —
+  "The operation couldn't be completed. (com.apple.AuthenticationServices.AuthorizationError
+  error 1000.)" — in red under the Account list, and on the Friends sign-in card. That is what
+  every device with no Apple Account signed in gets, right after the system's own alert. All four
+  sites now go through `Error.appleSignInFailureMessage` (nil on cancel, actionable text for the
+  AuthenticationServices codes). `0623e69`
+- **Accessibility-XXXL layouts** (WCAG 1.4.4): dashboard rows were unreadable ("Wor/dle",
+  "Ne…", "◯…") because the scaled icon left ~80 pt for text; the game detail's "Play" / "Add
+  Result" pair wrapped letter by letter and the stat captions hyphenated; the Friends day chip
+  truncated to "T" beside two 124 pt chevrons; the Google button clipped its label while the
+  Apple button stayed a fixed 44 pt. All gated on `dynamicTypeSize.isAccessibilitySize` or a
+  capped `@ScaledMetric`; default sizes re-checked at the iOS default content size and unchanged.
+  `47f8448`
+- **UI tests opted out of the first-run sheets.** `StreakSyncUITests` launches without
+  `--uitest-reset`, and passed only because the race above hid the sheets; with the fix the share
+  sheet covered the tab bar. Non-reset launches now pre-mark both flags. A first version wrote the
+  keys before `removePersistentDomain` and left the app on its launch screen on the runner's
+  freshly cloned devices only (bisected against `29951ac` and `47f8448`); moved after the guard.
+  `f8b8f59`
+
+**Gates at `f8b8f59`:** unit target 657 / 651 passed / 6 skipped / 0 failed; `swiftlint lint
+--no-cache` 369, exit 0 (unchanged); UI target on cloned devices: 15 / 15 passed / 0 failed (the earlier 13/15 and 14/15 runs are
+explained by the sheet race and the seam's first version, both above).
+
+**Found, not fixed (follow-ups)**
+
+- **Friends does not scroll at accessibility sizes.** `FriendsView` is a fixed column (header,
+  state card, leaderboard pager); at AX sizes it overflows and SwiftUI clips both ends, so the
+  "Friends" title and Manage button sit above the screen (`y = -57` in the hierarchy) and the
+  leaderboard starts at `y = 838`. Pre-existing; today's chevron cap only made the chip visible.
+  Needs a structural change (scroll the header + state card at AX sizes, give the pager a height).
+- **`ConnectedAccountsSection`'s Apple "Continue" button** is a fixed 128×34 inside a list row;
+  scaling it needs a row reflow. Same family as above.
+- **Settings row titles hyphenate at XXXL** with continuation lines under the icon column.
+  Readable; cosmetic.
+- **Xcode Run, the MCP install and previews all build Release.** The shared scheme's Run action
+  has used the Release configuration since 2025-07-20, so every `#if DEBUG` launch seam is
+  compiled out of what Xcode installs and `RenderPreview` refuses ("needs an unoptimized build").
+  Switching it to Debug is a scheme edit — Mit's call (it also changes what Run gives him).
+- **Crash and hang signatures cannot be read via the MCP yet.** `GetTopCrashIssues` /
+  `GetTopFieldPerformanceIssues` fail with "Error Downloading" until the app has been opened once
+  in Window ▸ Organizer; the field API already lists versions 1.0–1.23. One-time Mit step.
+- Log hygiene, low: something touches Firebase ~36 ms before `FirebaseApp.configure()` on every
+  launch (`I-COR000003`); "Rebuilding streaks" runs twice and "Saved 10 tiered achievements"
+  three times per launch; after a deep link "Loaded data for game" fires four times in 1.4 s.
+
+**Verified fine on the walkthrough:** Wordle detail empty state, Browse → Manage Games, Awards
+grid, Friends empty leaderboard, invalid join code ("No user found with that code."), Sign in
+with Apple on a simulator without an Apple Account (system alert, no hang), Notifications /
+Appearance / Data & Privacy / About screens, `streaksync://game?id=…` via `simctl openurl`, and
+all four screens in dark mode. The seam-driven journeys (share import, friend-request accept,
+deep link) are covered by the XCUITests, not the walkthrough, because the installed build was
+Release.
