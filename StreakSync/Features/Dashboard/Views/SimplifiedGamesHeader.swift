@@ -168,7 +168,7 @@ struct ToolbarSortMenu: View {
                 Button {
                     handleSortSelection(option)
                 } label: {
-                    if selectedSort == option {
+                    if selectedSort == option && option != .custom {
                         // Selected option with direction arrow inline
                         Text("\(option.rawValue) \(sortDirection == .ascending ? "↑" : "↓")")
                     } else {
@@ -182,7 +182,10 @@ struct ToolbarSortMenu: View {
     private func handleSortSelection(_ option: GameSortOption) {
         // Direct state update - no animations to interfere with Menu dismissal
         if selectedSort == option {
-            sortDirection = sortDirection == .ascending ? .descending : .ascending
+            // My Order has no direction to flip.
+            if option != .custom {
+                sortDirection = sortDirection == .ascending ? .descending : .ascending
+            }
         } else {
             selectedSort = option
             sortDirection = option == .name ? .ascending : .descending
@@ -191,6 +194,7 @@ struct ToolbarSortMenu: View {
     }
     
     private var accessibilityText: String {
+        if selectedSort == .custom { return "Sort by \(selectedSort.rawValue)" }
         let direction = sortDirection == .ascending ? "ascending" : "descending"
         return "Sort by \(selectedSort.rawValue), \(direction)"
     }
