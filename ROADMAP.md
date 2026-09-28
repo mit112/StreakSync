@@ -794,3 +794,48 @@ Appearance / Data & Privacy / About screens, `streaksync://game?id=…` via `sim
 all four screens in dark mode. The seam-driven journeys (share import, friend-request accept,
 deep link) are covered by the XCUITests, not the walkthrough, because the installed build was
 Release.
+
+### 2026-09-27 late — follow-ups closed and four decisions implemented (same branch)
+
+Everything under "Found, not fixed" above that was code is done, and Mit decided four items
+from "Needs a decision": local day key, server-timestamp sync, wire up / delete the UI-less
+features, and App Attest. Every UI change was checked on the simulator through the Xcode MCP.
+
+**Follow-ups closed**
+
+- Friends scrolls at accessibility sizes: one ScrollView with the current game's rows inline
+  (no nested vertical scrolls), carousel above them; title/Manage stack. `6c2487e`
+- Connect with Apple button scales (capped 3x) and its row stacks at AX sizes. `e05db8a`
+- Settings rows: icon on its own line at AX sizes, so titles no longer hyphenate. `fb9d4af`
+- Log hygiene: the `FirebaseApp.app() == nil` guard itself logged I-COR000003 every launch
+  (removed, null-controlled) `9dc7c38`; DayChangeDetector posted a fake day change at launch
+  that ran the day pipeline against half-loaded state (rebuilds 3→2, saves 5→4) `87abb4f`.
+  The remaining duplicate rebuild/save come from sync's reconcile plus the explicit post-sync
+  rebuild; both are cheap and each is the only one on some path, so they stay.
+
+**Decisions implemented**
+
+- `setError` and its unread state deleted `c00bce7`; Manage Games order shown as a "My Order"
+  Dashboard sort `19c6218`; Score Sharing screen for the privacy settings, with retraction of
+  already-published scores it hides (runs at launch and on leaving the screen; never in
+  Review/Guest Mode) `08b1a98`.
+- **Local day key** `ecc9cba`: every score key comes from `DailyGameScore.dayKey(for:)`. A
+  one-time per-account migration deletes the user's own UTC-keyed docs (last 30 days) unless
+  another result owns that ID now. 1.23/1.25 clients keep writing UTC keys until they update.
+- **Server-timestamp sync** `6976370`: uploads write `serverModified`; sync adds an inclusive
+  `serverModified` query with a server-clock watermark.
+- **App Check**: the SDK's own default factory meant App Check was already on (DeviceCheck in
+  production). The app's factory is now registered explicitly: App Attest in Release, debug in
+  Debug. No entitlement change (distributed builds ignore it).
+
+**Before merging this branch — in order**
+
+1. Install `firebase-tools` and a JDK, run `firestore-rules-tests` (two new `serverModified`
+   cases, never run yet), then deploy `firestore.rules`. The deployed rules reject the new
+   field, so 1.26 uploads fail until this is live (they re-push after, no loss).
+2. Firebase console → App Check: register App Attest for the iOS app, and the simulator debug
+   token (printed in the Debug launch log). Keep enforcement off until tokens succeed.
+3. Merge (ships 1.26 to TestFlight).
+
+**Gates at the App Check commit:** see the commit; at `6976370` unit 674 / 668 passed / 6
+skipped / 0 failed, UI 15 / 15, `swiftlint lint --no-cache` 365 (was 369).
