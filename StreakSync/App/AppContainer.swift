@@ -268,6 +268,9 @@ final class AppContainer: ObservableObject {
             previousResultCount = appState.recentResults.count
             let oldKey = "gameResultSync_lastTimestamp_\(previousUID)"
             UserDefaults.standard.removeObject(forKey: oldKey)
+            UserDefaults.standard.removeObject(
+                forKey: FirestoreGameResultSyncService.serverWatermarkKey(for: previousUID)
+            )
             await handOverSession(archivingUnder: previousUID, incomingUID: newUID)
         }
 

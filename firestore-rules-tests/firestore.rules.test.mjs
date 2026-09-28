@@ -343,6 +343,24 @@ async function main() {
     );
   });
 
+  await runCase("✅ owner can write gameResult with a server-set serverModified", async () => {
+    await assertSucceeds(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {
+        ...VALID_GAME_RESULT,
+        serverModified: serverTimestamp(),
+      })
+    );
+  });
+
+  await runCase("✅ rejects gameResult with a client-chosen serverModified", async () => {
+    await assertFails(
+      setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {
+        ...VALID_GAME_RESULT,
+        serverModified: new Date(0),
+      })
+    );
+  });
+
   await runCase("✅ rejects gameResult with disallowed extra fields", async () => {
     await assertFails(
       setDoc(doc(authed("alice"), "users/alice/gameResults/r1"), {

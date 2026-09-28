@@ -90,6 +90,23 @@ final class FirestoreGameResultSyncService {
         UserDefaults.standard.set(date.timeIntervalSince1970, forKey: key)
     }
 
+    static func serverWatermarkKey(for uid: String) -> String {
+        "gameResultSync_lastServerModified_\(uid)"
+    }
+
+    /// Watermark for the `serverModified` query. Server clock only: it is only ever set to
+    /// a `serverModified` value read back from Firestore, never to the device's time.
+    private var serverWatermark: Date? {
+        guard let uid = currentUserId else { return nil }
+        let ti = UserDefaults.standard.double(forKey: Self.serverWatermarkKey(for: uid))
+        return ti > 0 ? Date(timeIntervalSince1970: ti) : nil
+    }
+
+    private func saveServerWatermark(_ date: Date?) {
+        guard let uid = currentUserId, let date else { return }
+        UserDefaults.standard.set(date.timeIntervalSince1970, forKey: Self.serverWatermarkKey(for: uid))
+    }
+
     // MARK: - Init
 
     init(appState: AppState) {
@@ -101,6 +118,9 @@ final class FirestoreGameResultSyncService {
     func clearLastSyncTimestamp() {
         guard let key = lastSyncKey else { return }
         UserDefaults.standard.removeObject(forKey: key)
+        if let uid = currentUserId {
+            UserDefaults.standard.removeObject(forKey: Self.serverWatermarkKey(for: uid))
+        }
         syncState = .notStarted
         logger.info("Cleared last sync timestamp")
     }
@@ -148,7 +168,15 @@ final class FirestoreGameResultSyncService {
             // must be taken before this fetch. Stamping it at the end skipped every doc another
             // device wrote while this sync was uploading and reconciling.
             let fetchStartedAt = Date()
-            let remoteResults = try await fetchRemoteResults(from: ref)
+            // `lastModified` is set on the device, so a result created offline and uploaded
+            // days later carries an old value and the query above never returns it. The
+            // `serverModified` query catches those by the server's commit time. Its floor is
+            // taken before either fetch, for the same reason as fetchStartedAt.
+            let serverFloor = try await serverQueryFloor(from: ref)
+            let windowResults = try await fetchRemoteResults(from: ref)
+            let late = try await fetchResultsModifiedOnServer(since: serverFloor, from: ref)
+            let windowIds = Set(windowResults.map(\.id))
+            let remoteResults = windowResults + late.results.filter { !windowIds.contains($0.id) }
             let merged = GameResultSyncMerge.filterDeleted(
                 GameResultSyncMerge.mergeResults(local: appState.recentResults, remote: remoteResults),
                 deletedIds: allDeleted
@@ -202,6 +230,7 @@ final class FirestoreGameResultSyncService {
 
             syncState = .synced(lastSyncDate: Date())
             saveLastSyncTimestamp(fetchStartedAt)
+            saveServerWatermark(SyncServerWatermark.advanced(from: serverFloor, fetched: late.serverModified))
             logger.info("Game result sync completed. Total: \(finalMerged.count)")
         } catch {
             logger.error("Game result sync failed: \(error.localizedDescription)")
@@ -230,6 +259,46 @@ final class FirestoreGameResultSyncService {
         let mode = lastSyncTimestamp != nil ? " (incremental)" : " (full)"
         logger.info("Fetched \(results.count) game results from Firestore\(mode)")
         return results
+    }
+
+    /// Lower bound for the `serverModified` query: the stored watermark if there is one. A
+    /// full sync starts from the newest `serverModified` on the server, because it is about
+    /// to fetch that window anyway. Otherwise the epoch, which during the transition matches
+    /// only the documents 1.26+ clients have written.
+    private func serverQueryFloor(from ref: CollectionReference) async throws -> Date {
+        if let stored = serverWatermark { return stored }
+        if lastSyncTimestamp == nil {
+            let newest = try await ref.order(by: "serverModified", descending: true).limit(to: 1).getDocuments()
+            if let stamp = newest.documents.first?.data()["serverModified"] as? Timestamp {
+                return stamp.dateValue()
+            }
+        }
+        return Date(timeIntervalSince1970: 0)
+    }
+
+    /// Results whose server commit time is at or after `floor`, oldest first, one page.
+    private func fetchResultsModifiedOnServer(
+        since floor: Date,
+        from ref: CollectionReference
+    ) async throws -> (results: [GameResult], serverModified: [Date]) {
+        let snapshot = try await ref
+            .whereField("serverModified", isGreaterThanOrEqualTo: Timestamp(date: floor))
+            .order(by: "serverModified")
+            .limit(to: SyncServerWatermark.pageLimit)
+            .getDocuments(source: .default)
+        var results: [GameResult] = []
+        var stamps: [Date] = []
+        for doc in snapshot.documents {
+            let data = doc.data()
+            if let result = GameResult(fromFirestore: data, documentId: doc.documentID) {
+                results.append(result)
+            }
+            if let stamp = data["serverModified"] as? Timestamp {
+                stamps.append(stamp.dateValue())
+            }
+        }
+        logger.info("Fetched \(results.count) game results by server commit time")
+        return (results, stamps)
     }
 
     /// Reads the set of deleted result IDs recorded in Firestore. Returns an empty set
@@ -315,61 +384,4 @@ final class FirestoreGameResultSyncService {
 
     /// Convenience flag for GuestSessionManager.
     var isGuestModeActive: Bool { appState?.isGuestMode ?? false }
-}
-
-// MARK: - GameResult ↔ Firestore Conversion
-
-extension GameResult {
-    func toFirestoreData() -> [String: Any] {
-        var data: [String: Any] = [
-            "gameId": gameId.uuidString,
-            "gameName": gameName,
-            "date": Timestamp(date: date),
-            "maxAttempts": maxAttempts,
-            "completed": completed,
-            "sharedText": String(sharedText.prefix(2000)),
-            "parsedData": parsedData.mapValues { String($0.prefix(500)) },
-            "lastModified": Timestamp(date: lastModified)
-        ]
-        if let score = score {
-            data["score"] = score
-        }
-        return data
-    }
-
-    init?(fromFirestore data: [String: Any], documentId: String) {
-        guard
-            let id = UUID(uuidString: documentId),
-            let gameIdStr = data["gameId"] as? String,
-            let gameId = UUID(uuidString: gameIdStr),
-            let gameName = data["gameName"] as? String,
-            let timestamp = data["date"] as? Timestamp,
-            let maxAttempts = data["maxAttempts"] as? Int,
-            let completed = data["completed"] as? Bool,
-            let sharedText = data["sharedText"] as? String
-        else {
-            return nil
-        }
-
-        let score = data["score"] as? Int
-        let parsedData = data["parsedData"] as? [String: String] ?? [:]
-        let lastModified = (data["lastModified"] as? Timestamp)?.dateValue()
-
-        // Trust Firestore data that was valid when written. Score validation
-        // happens at ingestion (addGameResult → isValid) — not during sync,
-        // where a scoring model change could silently drop historical results.
-
-        self.init(
-            id: id,
-            gameId: gameId,
-            gameName: gameName,
-            date: timestamp.dateValue(),
-            score: score,
-            maxAttempts: maxAttempts,
-            completed: completed,
-            sharedText: sharedText,
-            parsedData: parsedData,
-            lastModified: lastModified
-        )
-    }
 }
