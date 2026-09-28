@@ -90,9 +90,7 @@ private extension ConnectedAccountsSection {
                 errorMessage = linkErrorMessage(for: error, provider: "Apple")
             }
         case .failure(let error):
-            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
-                errorMessage = error.localizedDescription
-            }
+            errorMessage = error.appleSignInFailureMessage
         }
     }
 
