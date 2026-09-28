@@ -777,9 +777,11 @@ explained by the sheet race and the seam's first version, both above).
   has used the Release configuration since 2025-07-20, so every `#if DEBUG` launch seam is
   compiled out of what Xcode installs and `RenderPreview` refuses ("needs an unoptimized build").
   Switching it to Debug is a scheme edit — Mit's call (it also changes what Run gives him).
-- **Crash and hang signatures cannot be read via the MCP yet.** `GetTopCrashIssues` /
-  `GetTopFieldPerformanceIssues` fail with "Error Downloading" until the app has been opened once
-  in Window ▸ Organizer; the field API already lists versions 1.0–1.23. One-time Mit step.
+- **Live crash signatures: none.** `GetTopCrashIssues` failed with "Error Downloading" until
+  Mit opened the app's Crashes pane in Window ▸ Organizer once; it then returned an empty
+  signature list, matching the Organizer: no crash logs in the last two weeks on any version.
+  Hangs and launches (`GetTopFieldPerformanceIssues`) still fail the same way and presumably need
+  their own Organizer panes opened once.
 - Log hygiene, low: something touches Firebase ~36 ms before `FirebaseApp.configure()` on every
   launch (`I-COR000003`); "Rebuilding streaks" runs twice and "Saved 10 tiered achievements"
   three times per launch; after a deep link "Loaded data for game" fires four times in 1.4 s.
