@@ -42,19 +42,11 @@ struct FriendsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
-                .zIndex(10)
-
-            dominantState
-                .zIndex(5)
-
-            if showsLeaderboard {
-                leaderboardStack
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                accessibilitySizeLayout
             } else {
-                Spacer(minLength: 0)
+                standardLayout
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -225,9 +217,16 @@ private extension FriendsView {
 
     var header: some View {
         VStack(spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
+            // Sharing a row at accessibility sizes broke the title as "Friend/s" and
+            // squeezed Manage into a circle with its label wrapped letter by letter.
+            let titleRowLayout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+            titleRowLayout {
                 Text("Friends").font(.largeTitle.bold())
-                Spacer()
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Spacer()
+                }
                 if showsHeaderManageButton {
                     Button { presentInviteFlow() } label: {
                         Label("Manage", systemImage: "person.badge.plus")
@@ -239,6 +238,7 @@ private extension FriendsView {
                     .accessibilityIdentifier("friends.manage.button")
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             datePager
             Text(currentGameTitle)
                 .font(.title.bold())
@@ -359,6 +359,53 @@ private extension FriendsView {
         .presentationDragIndicator(.visible)
     }
 
+    // MARK: Layouts
+
+    /// Fixed column: the header stays put and each game page scrolls on its own.
+    var standardLayout: some View {
+        VStack(spacing: 0) {
+            header
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+                .zIndex(10)
+
+            dominantState
+                .zIndex(5)
+
+            if showsLeaderboard {
+                leaderboardStack
+            } else {
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    /// At accessibility text sizes the header and state card alone overflow the screen, and
+    /// the fixed column clipped the title above it and pushed the leaderboard below it. The
+    /// whole tab scrolls instead, with the current game's rows inline — a paging TabView of
+    /// scrolling pages would nest two vertical scroll views — and the carousel above them so
+    /// switching games does not mean scrolling past the whole list.
+    var accessibilitySizeLayout: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                header
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+
+                dominantState
+
+                if showsLeaderboard, let currentGame {
+                    gameCarousel
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
+                    leaderboardPage(for: currentGame, isScrollable: false)
+                        .padding(.bottom, 20)
+                }
+            }
+        }
+        .refreshable { await viewModel.refresh() }
+    }
+
     // MARK: Leaderboard
 
     var leaderboardStack: some View {
@@ -366,26 +413,8 @@ private extension FriendsView {
             TabView(selection: $viewModel.currentGamePage) {
                 ForEach(Array(viewModel.availableGames.enumerated()), id: \.offset) { index, game in
                     GeometryReader { proxy in
-                        GameLeaderboardPage(
-                            game: game,
-                            rows: viewModel.rowsForSelectedGameID(game.id),
-                            notPlayedFriends: viewModel.friendsWhoHaventPlayed(game.id),
-                            // Only the genuine first load shows the in-page skeleton; a
-                            // background refresh on a later tab visit keeps the last rows
-                            // (or the empty/invite state) instead of flashing a skeleton.
-                            isLoading: viewModel.isLoading && !viewModel.hasLoadedOnce,
-                            dateLabel: formattedDate(viewModel.selectedDateUTC),
-                            onManageFriends: { presentInviteFlow() },
-                            metricText: { row in
-                                LeaderboardScoring.metricLabel(for: game, rawScore: row.perGameRawScore[game.id])
-                            },
-                            myUserId: viewModel.myUserId,
-                            onRefresh: { await viewModel.refresh() },
-                            showsInviteAction: showsHeaderManageButton == false
-                        )
-                        .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
-                        .accessibilityElement(children: .contain)
-                        .accessibilityLabel(Text("\(game.displayName) leaderboard for \(formattedDate(viewModel.selectedDateUTC))"))
+                        leaderboardPage(for: game, isScrollable: true)
+                            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                     }
                     .tag(index)
                     .onAppear { viewModel.selectedGameId = game.id }
@@ -394,21 +423,48 @@ private extension FriendsView {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .indexViewStyle(.page(backgroundDisplayMode: .never))
             .clipped()
-            GameIconCarousel(
-                currentIndex: viewModel.currentGamePage,
-                totalCount: viewModel.availableGames.count,
-                availableGames: viewModel.availableGames,
-                onGameSelected: { gameIndex in
-                    HapticManager.shared.trigger(.pickerChange)
-                    viewModel.currentGamePage = gameIndex
-                    viewModel.selectedGameId = viewModel.availableGames[gameIndex].id
-                    viewModel.persistUIState()
-                }
-            )
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 20)
+            gameCarousel
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 20)
         }
+    }
+
+    func leaderboardPage(for game: Game, isScrollable: Bool) -> some View {
+        GameLeaderboardPage(
+            game: game,
+            rows: viewModel.rowsForSelectedGameID(game.id),
+            notPlayedFriends: viewModel.friendsWhoHaventPlayed(game.id),
+            // Only the genuine first load shows the in-page skeleton; a
+            // background refresh on a later tab visit keeps the last rows
+            // (or the empty/invite state) instead of flashing a skeleton.
+            isLoading: viewModel.isLoading && !viewModel.hasLoadedOnce,
+            dateLabel: formattedDate(viewModel.selectedDateUTC),
+            onManageFriends: { presentInviteFlow() },
+            metricText: { row in
+                LeaderboardScoring.metricLabel(for: game, rawScore: row.perGameRawScore[game.id])
+            },
+            myUserId: viewModel.myUserId,
+            onRefresh: { await viewModel.refresh() },
+            showsInviteAction: showsHeaderManageButton == false,
+            isScrollable: isScrollable
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text("\(game.displayName) leaderboard for \(formattedDate(viewModel.selectedDateUTC))"))
+    }
+
+    var gameCarousel: some View {
+        GameIconCarousel(
+            currentIndex: viewModel.currentGamePage,
+            totalCount: viewModel.availableGames.count,
+            availableGames: viewModel.availableGames,
+            onGameSelected: { gameIndex in
+                HapticManager.shared.trigger(.pickerChange)
+                viewModel.currentGamePage = gameIndex
+                viewModel.selectedGameId = viewModel.availableGames[gameIndex].id
+                viewModel.persistUIState()
+            }
+        )
     }
 
     // MARK: Helpers
